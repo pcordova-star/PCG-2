@@ -64,6 +64,50 @@ type EmpresaContratistaObra = {
   evaluador: string;
 };
 
+type TipoDocumentoEmpresaPrevencion = "EVAL_EMPRESA_CONTRATISTA";
+
+type DocumentoEmpresaConfigLocal = {
+  tipoDocumento: TipoDocumentoEmpresaPrevencion;
+  codigo: string;
+  titulo: string;
+  version: string;
+  fechaEmision: string; // YYYY-MM-DD
+  elaboradoPor: string;
+  revisadoPor?: string;
+  aprobadoPor?: string;
+};
+
+const DOC_EMPRESA_CONFIGS: DocumentoEmpresaConfigLocal[] = [
+  {
+    tipoDocumento: "EVAL_EMPRESA_CONTRATISTA",
+    codigo: "PCG-PRV-EMP-001",
+    titulo: "Evaluación de Empresa Contratista / Subcontratista por Obra",
+    version: "V1.0",
+    fechaEmision: "2025-01-01",
+    elaboradoPor: "Prevención de Riesgos",
+    revisadoPor: "Jefe de Prevención",
+    aprobadoPor: "Gerente de Operaciones",
+  },
+];
+
+function getEmpresaDocConfig(
+  tipo: TipoDocumentoEmpresaPrevencion
+): DocumentoEmpresaConfigLocal {
+  const found = DOC_EMPRESA_CONFIGS.find((c) => c.tipoDocumento === tipo);
+  if (!found) {
+    return {
+      tipoDocumento: tipo,
+      codigo: "PCG-PRV-XXX-000",
+      titulo: "Documento de Evaluación de Empresa",
+      version: "V1.0",
+      fechaEmision: "2025-01-01",
+      elaboradoPor: "Prevención de Riesgos",
+      revisadoPor: "",
+      aprobadoPor: "",
+    };
+  }
+  return found;
+}
 
 const OBRAS_PREVENCION: ObraPrevencion[] = [
   { id: "obra-1", nombreFaena: "Edificio Los Álamos" },
@@ -71,7 +115,77 @@ const OBRAS_PREVENCION: ObraPrevencion[] = [
   { id: "obra-3", nombreFaena: "Mejoramiento Vial Ruta 5" },
 ];
 
+function getNombreObraPrevencionById(obraId: string): string {
+  const obra = OBRAS_PREVENCION.find((o) => o.id === obraId);
+  return obra ? obra.nombreFaena : "Obra sin nombre";
+}
+
 const EMPRESAS_INICIALES: EmpresaContratistaObra[] = [];
+
+type EncabezadoEmpresaProps = {
+  config: DocumentoEmpresaConfigLocal;
+  nombreObra: string;
+};
+
+function EncabezadoDocumentoEmpresa({
+  config,
+  nombreObra,
+}: EncabezadoEmpresaProps) {
+  return (
+    <header className="mb-4 rounded-xl border bg-card p-4 shadow-sm text-xs print:shadow-none print:rounded-none">
+      <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
+        <div>
+          <p className="text-[11px] font-semibold text-muted-foreground">
+            [Nombre de la Empresa Mandante]
+          </p>
+          <h1 className="text-sm font-bold text-card-foreground">
+            {config.titulo}
+          </h1>
+          <p className="text-[11px] text-muted-foreground">
+            Obra: {nombreObra}
+          </p>
+        </div>
+        <div className="text-[11px] text-right text-muted-foreground space-y-0.5">
+          <p>
+            <span className="font-semibold">Código:</span> {config.codigo}
+          </p>
+          <p>
+            <span className="font-semibold">Versión:</span> {config.version}
+          </p>
+          <p>
+            <span className="font-semibold">Emisión:</span> {config.fechaEmision}
+          </p>
+        </div>
+      </div>
+      <div className="mt-3 grid gap-2 md:grid-cols-3">
+        <div>
+          <p className="font-semibold text-[11px] text-muted-foreground">
+            Elaborado por
+          </p>
+          <p className="text-[11px] text-muted-foreground">
+            {config.elaboradoPor}
+          </p>
+        </div>
+        <div>
+          <p className="font-semibold text-[11px] text-muted-foreground">
+            Revisado por
+          </p>
+          <p className="text-[11px] text-muted-foreground">
+            {config.revisadoPor || "-"}
+          </p>
+        </div>
+        <div>
+          <p className="font-semibold text-[11px] text-muted-foreground">
+            Aprobado por
+          </p>
+          <p className="text-[11px] text-muted-foreground">
+            {config.aprobadoPor || "-"}
+          </p>
+        </div>
+      </div>
+    </header>
+  );
+}
 
 export default function EmpresasContratistasPage() {
   const [obraSeleccionadaId, setObraSeleccionadaId] = useState<string>(
@@ -182,7 +296,7 @@ export default function EmpresasContratistasPage() {
         </p>
       </header>
 
-      <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+      <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between print:hidden">
         <div className="space-y-1">
           <Label htmlFor="obra-select">Obra / faena</Label>
           <Select
@@ -219,7 +333,7 @@ export default function EmpresasContratistasPage() {
 
       <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
         {/* Columna izquierda: listado de empresas */}
-        <div className="space-y-2 lg:col-span-1">
+        <div className="space-y-2 lg:col-span-1 print:hidden">
           <h3 className="text-sm font-semibold text-card-foreground">
             Empresas registradas en la obra
           </h3>
@@ -279,7 +393,7 @@ export default function EmpresasContratistasPage() {
         <div className="space-y-2 lg:col-span-2">
           {mostrarFormNueva ? (
             <form
-              className="space-y-6 rounded-xl border bg-card p-4 shadow-sm text-xs"
+              className="space-y-6 rounded-xl border bg-card p-4 shadow-sm text-xs print:hidden"
               onSubmit={(e) => {
                 e.preventDefault();
                 setErrorForm(null);
@@ -360,78 +474,97 @@ export default function EmpresasContratistasPage() {
               <Button type="submit" className="w-full sm:w-auto">Registrar Empresa</Button>
             </form>
           ) : empresaSeleccionada ? (
-            <div className="space-y-4 rounded-xl border bg-card p-4 shadow-sm text-xs">
-              <header className="space-y-1 pb-2 border-b">
-                <h3 className="text-sm font-semibold text-primary">
+            <div className="space-y-2">
+              <div className="flex items-center justify-between gap-2 print:hidden">
+                <h3 className="text-sm font-semibold text-card-foreground">
                   Ficha de empresa en la obra
                 </h3>
-                <p className="text-[11px] text-muted-foreground">
-                  Razón social: {empresaSeleccionada.razonSocial} · RUT: {empresaSeleccionada.rut}
-                </p>
-                {obraSeleccionada && (
+                <Button
+                  type="button"
+                  onClick={() => window.print()}
+                  variant="outline"
+                  size="sm"
+                >
+                  Imprimir / Guardar PDF
+                </Button>
+              </div>
+              <div id="printable-empresa" className="space-y-3 rounded-xl border bg-card p-4 shadow-sm text-xs print:rounded-none print:shadow-none print:border-0 print:p-0">
+                <EncabezadoDocumentoEmpresa
+                  config={getEmpresaDocConfig("EVAL_EMPRESA_CONTRATISTA")}
+                  nombreObra={getNombreObraPrevencionById(empresaSeleccionada.obraId)}
+                />
+                <header className="space-y-1 pb-2 border-b">
+                  <h3 className="text-sm font-semibold text-primary">
+                    Ficha de empresa en la obra
+                  </h3>
                   <p className="text-[11px] text-muted-foreground">
-                    Obra: {obraSeleccionada.nombreFaena}
+                    Razón social: {empresaSeleccionada.razonSocial} · RUT: {empresaSeleccionada.rut}
                   </p>
-                )}
-              </header>
+                  {obraSeleccionada && (
+                    <p className="text-[11px] text-muted-foreground">
+                      Obra: {obraSeleccionada.nombreFaena}
+                    </p>
+                  )}
+                </header>
 
-              <div className="space-y-4">
-                <div>
-                  <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Identificación de la empresa</p>
-                  <div className="mt-2 text-card-foreground space-y-1">
-                      <p><strong>Tipo:</strong> {empresaSeleccionada.tipoEmpresa}</p>
-                      <p><strong>Rep. Legal:</strong> {empresaSeleccionada.representanteLegal}</p>
-                      <p><strong>Contacto:</strong> {empresaSeleccionada.contactoNombre}</p>
-                      <p><strong>Teléfono:</strong> {empresaSeleccionada.contactoTelefono}</p>
-                      <p><strong>Email:</strong> {empresaSeleccionada.contactoEmail}</p>
+                <div className="space-y-4">
+                  <div>
+                    <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Identificación de la empresa</p>
+                    <div className="mt-2 text-card-foreground space-y-1">
+                        <p><strong>Tipo:</strong> {empresaSeleccionada.tipoEmpresa}</p>
+                        <p><strong>Rep. Legal:</strong> {empresaSeleccionada.representanteLegal}</p>
+                        <p><strong>Contacto:</strong> {empresaSeleccionada.contactoNombre}</p>
+                        <p><strong>Teléfono:</strong> {empresaSeleccionada.contactoTelefono}</p>
+                        <p><strong>Email:</strong> {empresaSeleccionada.contactoEmail}</p>
+                    </div>
                   </div>
-                </div>
-                <Separator />
-                 <div>
-                  <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Documentación contractual / administrativa</p>
-                  <div className="mt-2 text-card-foreground">
-                      <CheckItem label="Contrato marco / orden de compra" checked={empresaSeleccionada.contratoMarco} />
-                      <CheckItem label="Certificado de mutual" checked={empresaSeleccionada.certificadoMutual} />
-                      <CheckItem label="Certificado cotizaciones" checked={empresaSeleccionada.certificadoCotizaciones} />
-                      <CheckItem label="Padrón de trabajadores" checked={empresaSeleccionada.padronTrabajadores} />
-                      <CheckItem label="Reglamento interno" checked={empresaSeleccionada.reglamentoInterno} />
+                  <Separator />
+                  <div>
+                    <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Documentación contractual / administrativa</p>
+                    <div className="mt-2 text-card-foreground">
+                        <CheckItem label="Contrato marco / orden de compra" checked={empresaSeleccionada.contratoMarco} />
+                        <CheckItem label="Certificado de mutual" checked={empresaSeleccionada.certificadoMutual} />
+                        <CheckItem label="Certificado cotizaciones" checked={empresaSeleccionada.certificadoCotizaciones} />
+                        <CheckItem label="Padrón de trabajadores" checked={empresaSeleccionada.padronTrabajadores} />
+                        <CheckItem label="Reglamento interno" checked={empresaSeleccionada.reglamentoInterno} />
+                    </div>
                   </div>
-                </div>
-                 <Separator />
-                <div>
-                  <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Documentos de prevención</p>
-                   <div className="mt-2 text-card-foreground">
-                      <CheckItem label="Matriz de riesgos / IPER" checked={empresaSeleccionada.matrizRiesgos} />
-                      <CheckItem label="Procedimientos de trabajo seguro" checked={empresaSeleccionada.procedimientosTrabajoSeguro} />
-                      <CheckItem label="Programa de trabajo" checked={empresaSeleccionada.programaTrabajo} />
-                      <CheckItem label="Plan de emergencia propio" checked={empresaSeleccionada.planEmergenciaPropio} />
-                      <CheckItem label="Registro capacitación interna" checked={empresaSeleccionada.registroCapacitacionInterna} />
+                  <Separator />
+                  <div>
+                    <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Documentos de prevención</p>
+                    <div className="mt-2 text-card-foreground">
+                        <CheckItem label="Matriz de riesgos / IPER" checked={empresaSeleccionada.matrizRiesgos} />
+                        <CheckItem label="Procedimientos de trabajo seguro" checked={empresaSeleccionada.procedimientosTrabajoSeguro} />
+                        <CheckItem label="Programa de trabajo" checked={empresaSeleccionada.programaTrabajo} />
+                        <CheckItem label="Plan de emergencia propio" checked={empresaSeleccionada.planEmergenciaPropio} />
+                        <CheckItem label="Registro capacitación interna" checked={empresaSeleccionada.registroCapacitacionInterna} />
+                    </div>
                   </div>
-                </div>
-                <Separator />
-                <div>
-                  <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Coordinación DS44</p>
-                   <div className="mt-2 text-card-foreground space-y-1">
-                        <CheckItem label="Acta reunión inicial" checked={empresaSeleccionada.actaReunionInicial} />
-                        <p><strong>Frecuencia reuniones:</strong> {empresaSeleccionada.frecuenciaReuniones}</p>
-                        <p><strong>Compromisos:</strong> {empresaSeleccionada.compromisosEspecificos}</p>
+                  <Separator />
+                  <div>
+                    <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Coordinación DS44</p>
+                    <div className="mt-2 text-card-foreground space-y-1">
+                          <CheckItem label="Acta reunión inicial" checked={empresaSeleccionada.actaReunionInicial} />
+                          <p><strong>Frecuencia reuniones:</strong> {empresaSeleccionada.frecuenciaReuniones}</p>
+                          <p><strong>Compromisos:</strong> {empresaSeleccionada.compromisosEspecificos}</p>
+                    </div>
                   </div>
-                </div>
-                 <Separator />
-                <div>
-                  <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Resultado de evaluación</p>
-                   <div className="mt-2 text-card-foreground space-y-1">
-                        <p><strong>Estado:</strong> {
-                            {
-                                "POR_EVALUAR": "Por evaluar",
-                                "APROBADA": "Aprobada",
-                                "APROBADA_CON_OBSERVACIONES": "Aprobada con observaciones",
-                                "RECHAZADA": "Rechazada / no autorizada"
-                            }[empresaSeleccionada.estadoEvaluacion]
-                        }</p>
-                        <p><strong>Observaciones:</strong> {empresaSeleccionada.observacionesGenerales}</p>
-                        <p><strong>Fecha evaluación:</strong> {empresaSeleccionada.fechaEvaluacion}</p>
-                        <p><strong>Evaluador:</strong> {empresaSeleccionada.evaluador}</p>
+                  <Separator />
+                  <div>
+                    <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Resultado de evaluación</p>
+                    <div className="mt-2 text-card-foreground space-y-1">
+                          <p><strong>Estado:</strong> {
+                              {
+                                  "POR_EVALUAR": "Por evaluar",
+                                  "APROBADA": "Aprobada",
+                                  "APROBADA_CON_OBSERVACIONES": "Aprobada con observaciones",
+                                  "RECHAZADA": "Rechazada / no autorizada"
+                              }[empresaSeleccionada.estadoEvaluacion]
+                          }</p>
+                          <p><strong>Observaciones:</strong> {empresaSeleccionada.observacionesGenerales}</p>
+                          <p><strong>Fecha evaluación:</strong> {empresaSeleccionada.fechaEvaluacion}</p>
+                          <p><strong>Evaluador:</strong> {empresaSeleccionada.evaluador}</p>
+                    </div>
                   </div>
                 </div>
               </div>
