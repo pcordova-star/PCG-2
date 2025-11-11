@@ -26,20 +26,20 @@ type AvanceDiario = {
 
 const OBRAS_SIMULADAS: Obra[] = [
   {
-    id: "1",
-    nombreFaena: "Edificio Central",
+    id: "obra-1",
+    nombreFaena: "Edificio Los Álamos",
     direccion: "Av. Principal 123, Santiago",
     clienteEmail: "cliente.losalamos@ejemplo.cl",
   },
   {
-    id: "2",
-    nombreFaena: "Condominio El Roble",
+    id: "obra-2",
+    nombreFaena: "Condominio Cuatro Vientos",
     direccion: "Camino del Viento 456, Santiago",
     clienteEmail: "cliente.cuatrovientos@ejemplo.cl",
   },
   {
-    id: "3",
-    nombreFaena: "Remodelación Oficinas Corp",
+    id: "obra-3",
+    nombreFaena: "Mejoramiento Vial Ruta 5",
     direccion: "Ruta 5 Sur, Tramo Km 100–120",
     clienteEmail: "cliente.ruta5@ejemplo.cl",
   },
@@ -48,7 +48,7 @@ const OBRAS_SIMULADAS: Obra[] = [
 const AVANCES_SIMULADOS: AvanceDiario[] = [
   {
     id: "av-1",
-    obraId: "1",
+    obraId: "obra-1",
     fecha: "2025-11-10",
     porcentajeAvance: 15,
     comentario: "Inicio de excavaciones y replanteo general.",
@@ -58,7 +58,7 @@ const AVANCES_SIMULADOS: AvanceDiario[] = [
   },
   {
     id: "av-2",
-    obraId: "1",
+    obraId: "obra-1",
     fecha: "2025-11-12",
     porcentajeAvance: 25,
     comentario: "Excavación de fundaciones y retiro de material.",
@@ -68,7 +68,7 @@ const AVANCES_SIMULADOS: AvanceDiario[] = [
   },
   {
     id: "av-3",
-    obraId: "1",
+    obraId: "obra-1",
     fecha: "2025-11-14",
     porcentajeAvance: 28,
     comentario: "Montaje de moldajes en primeras fundaciones.",
@@ -76,9 +76,19 @@ const AVANCES_SIMULADOS: AvanceDiario[] = [
     visibleParaCliente: false,
     creadoPor: "Jefe de Terreno",
   },
+    {
+    id: "av-5",
+    obraId: "obra-1",
+    fecha: "2025-11-15",
+    porcentajeAvance: 35,
+    comentario: "Hormigonado de fundaciones sector A.",
+    fotoUrl: "https://via.placeholder.com/800x400?text=Obra+Dia+4",
+    visibleParaCliente: true,
+    creadoPor: "Jefe de Terreno",
+  },
   {
     id: "av-4",
-    obraId: "2",
+    obraId: "obra-2",
     fecha: "2025-11-11",
     porcentajeAvance: 8,
     comentario: "Instalación de faena y cierre perimetral.",
@@ -87,6 +97,22 @@ const AVANCES_SIMULADOS: AvanceDiario[] = [
     creadoPor: "Jefe de Obra",
   },
 ];
+
+function getDiasDesde(fechaIso: string | null): number | null {
+  if (!fechaIso) return null;
+  const hoy = new Date();
+  // Aseguramos que la fecha se interprete como UTC para evitar problemas de timezone
+  const [year, month, day] = fechaIso.split('-').map(Number);
+  const f = new Date(Date.UTC(year, month - 1, day));
+  
+  // Reseteamos la hora de "hoy" para comparar solo días
+  hoy.setUTCHours(0, 0, 0, 0);
+
+  const diffMs = hoy.getTime() - f.getTime();
+  const diffDias = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+  return diffDias < 0 ? 0 : diffDias;
+}
+
 
 export default function ClienteObraPage({ params }: ClienteObraPageProps) {
   const { obraId } = params;
@@ -121,9 +147,14 @@ export default function ClienteObraPage({ params }: ClienteObraPageProps) {
 
   const porcentajeActual = ultimoAvance?.porcentajeAvance ?? 0;
   const ultimaFecha = ultimoAvance?.fecha ?? null;
+  const diasDesdeUltima = getDiasDesde(ultimaFecha);
+
+  const avancesAsc = [...avancesObra].sort((a, b) =>
+    a.fecha < b.fecha ? -1 : 1
+  );
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-8">
       {/* Encabezado de la obra */}
       <header className="space-y-2">
         <h1 className="text-3xl font-bold font-headline tracking-tight">
@@ -150,9 +181,18 @@ export default function ClienteObraPage({ params }: ClienteObraPageProps) {
                     <span className="text-2xl align-top">%</span>
                 </p>
                 {ultimaFecha ? (
-                    <p className="text-sm text-muted-foreground mt-2">
-                    Última actualización: {ultimaFecha}
-                    </p>
+                    <div className="text-sm text-muted-foreground mt-2 space-y-1">
+                        <p>Última actualización: {ultimaFecha}</p>
+                         {diasDesdeUltima !== null && (
+                            <p className="text-xs">
+                                {diasDesdeUltima === 0
+                                ? "Actualizado hoy"
+                                : diasDesdeUltima === 1
+                                ? "Actualizado hace 1 día"
+                                : `Actualizado hace ${diasDesdeUltima} días`}
+                            </p>
+                        )}
+                    </div>
                 ) : (
                     <p className="text-sm text-muted-foreground mt-2">
                     Aún no hay avances visibles para esta obra.
@@ -175,6 +215,41 @@ export default function ClienteObraPage({ params }: ClienteObraPageProps) {
         </Card>
       </div>
 
+       {/* Gráfico de avance */}
+       {avancesAsc.length > 1 && (
+        <section className="space-y-3">
+            <h2 className="text-xl font-semibold font-headline">
+            Evolución del avance
+            </h2>
+            <Card>
+                <CardContent className="p-6">
+                     <div className="flex items-end gap-2 h-32">
+                        {avancesAsc.map((av) => (
+                        <div key={av.id} className="flex-1 flex flex-col items-center gap-1 group">
+                            <div className="flex-1 flex items-end w-full relative">
+                            <div
+                                className="w-full rounded-t-lg bg-primary/80 transition-all duration-300 group-hover:bg-primary"
+                                style={{ height: `${av.porcentajeAvance || 0}%` }}
+                            />
+                             <div className="absolute -top-6 left-1/2 -translate-x-1/2 opacity-0 group-hover:opacity-100 transition-opacity duration-300 bg-card text-card-foreground text-xs font-bold px-2 py-1 rounded-md border shadow-sm">
+                                {av.porcentajeAvance}%
+                            </div>
+                            </div>
+                            <p className="text-[10px] text-muted-foreground">
+                            {av.fecha.slice(5)}{/* muestra MM-DD */}
+                            </p>
+                        </div>
+                        ))}
+                    </div>
+                    <p className="mt-3 text-xs text-muted-foreground text-center">
+                        Cada barra representa el porcentaje de avance acumulado en la fecha del
+                        reporte visible para el cliente.
+                    </p>
+                </CardContent>
+            </Card>
+        </section>
+        )}
+
       {/* Si no hay avances visibles */}
       {avancesObra.length === 0 ? (
         <Card>
@@ -192,7 +267,7 @@ export default function ClienteObraPage({ params }: ClienteObraPageProps) {
         <>
           {/* Lista / timeline de avances */}
           <section className="space-y-4">
-            <h2 className="text-2xl font-semibold font-headline">
+            <h2 className="text-xl font-semibold font-headline">
               Historial de Avances
             </h2>
             <div className="space-y-6">
@@ -228,7 +303,7 @@ export default function ClienteObraPage({ params }: ClienteObraPageProps) {
                       {av.comentario}
                     </p>
                   </CardContent>
-                </article>
+                </Card>
               ))}
             </div>
           </section>
