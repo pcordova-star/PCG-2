@@ -22,9 +22,6 @@ type Obra = {
   nombreFaena: string;
 };
 
-type TipoRelacionPersonal = "Empresa" | "Subcontrato";
-type EstadoIngresoPersonal = "Pendiente" | "Autorizado" | "Rechazado";
-type PasoDS44 = "Reglamento" | "Induccion" | "EPP" | "Charla" | null;
 type TipoEmpresa = "Mandante" | "Contratista" | "Subcontratista";
 
 type Empresa = {
@@ -33,6 +30,10 @@ type Empresa = {
   rut: string;
   tipo: TipoEmpresa;
 };
+
+type TipoRelacionPersonal = "Empresa" | "Subcontrato";
+type EstadoIngresoPersonal = "Pendiente" | "Autorizado" | "Rechazado";
+type PasoDS44 = "Reglamento" | "Induccion" | "EPP" | "Charla" | null;
 
 type IngresoPersonal = {
   id: string;
@@ -130,6 +131,21 @@ type RegistroCharlaSeguridad = {
   nombreFirmaTrabajador: string; // simulación de firma
 };
 
+type TipoDocumentoPrevencionTrabajador =
+  | "INDUCCION_OBRA"
+  | "ENTREGA_EPP"
+  | "CHARLA_SEGURIDAD";
+
+type DocumentoPrevencionConfigLocal = {
+  tipoDocumento: TipoDocumentoPrevencionTrabajador;
+  codigo: string;
+  titulo: string;
+  version: string;
+  fechaEmision: string; // YYYY-MM-DD
+  elaboradoPor: string;
+  revisadoPor?: string;
+  aprobadoPor?: string;
+};
 
 // --- Datos Simulados ---
 const OBRAS_SIMULADAS: Obra[] = [
@@ -210,6 +226,60 @@ const REGISTROS_INDUCCION_INICIALES: RegistroInduccionTrabajador[] = [];
 const REGISTROS_EPP_INICIALES: RegistroEntregaEPP[] = [];
 const REGISTROS_CHARLAS_INICIALES: RegistroCharlaSeguridad[] = [];
 
+const DOC_CONFIGS_TRABAJADOR: DocumentoPrevencionConfigLocal[] = [
+  {
+    tipoDocumento: "INDUCCION_OBRA",
+    codigo: "PCG-PRV-IND-001",
+    titulo: "Registro de Inducción de Seguridad de la Obra",
+    version: "V1.0",
+    fechaEmision: "2025-01-01",
+    elaboradoPor: "Prevencionista de Obra",
+    revisadoPor: "Jefe de Prevención",
+    aprobadoPor: "Gerente de Operaciones",
+  },
+  {
+    tipoDocumento: "ENTREGA_EPP",
+    codigo: "PCG-PRV-EPP-001",
+    titulo: "Registro de Entrega de Elementos de Protección Personal",
+    version: "V1.0",
+    fechaEmision: "2025-01-01",
+    elaboradoPor: "Prevencionista de Obra",
+    revisadoPor: "Jefe de Bodega",
+    aprobadoPor: "Gerente de Operaciones",
+  },
+  {
+    tipoDocumento: "CHARLA_SEGURIDAD",
+    codigo: "PCG-PRV-CHR-001",
+    titulo: "Registro de Charla de Seguridad al Trabajador",
+    version: "V1.0",
+    fechaEmision: "2025-01-01",
+    elaboradoPor: "Prevencionista de Obra",
+    revisadoPor: "Jefe de Prevención",
+    aprobadoPor: "Gerente de Operaciones",
+  },
+];
+
+function getDocConfigLocal(
+  tipo: TipoDocumentoPrevencionTrabajador
+): DocumentoPrevencionConfigLocal {
+  const found = DOC_CONFIGS_TRABAJADOR.find(
+    (c) => c.tipoDocumento === tipo
+  );
+  if (!found) {
+    return {
+      tipoDocumento: tipo,
+      codigo: "PCG-PRV-XXX-000",
+      titulo: "Documento de Prevención",
+      version: "V1.0",
+      fechaEmision: "2025-01-01",
+      elaboradoPor: "Prevención de Riesgos",
+      revisadoPor: "",
+      aprobadoPor: "",
+    };
+  }
+  return found;
+}
+
 // --- Componentes y Funciones Auxiliares ---
 function EstadoBadge({ estado }: { estado: EstadoIngresoPersonal }) {
   const className = {
@@ -280,6 +350,77 @@ function getIndicadoresObraTipo(
     porcentaje,
   };
 }
+
+function getNombreObraById(obraId: string): string {
+  const obra = OBRAS_SIMULADAS.find(o => o.id === obraId);
+  return obra ? obra.nombreFaena : "Obra sin nombre";
+}
+
+type EncabezadoDocumentoProps = {
+  config: DocumentoPrevencionConfigLocal;
+  nombreObra: string;
+};
+
+function EncabezadoDocumentoPrevencionLocal({
+  config,
+  nombreObra,
+}: EncabezadoDocumentoProps) {
+  return (
+    <header className="mb-4 rounded-xl border bg-card p-4 shadow-sm text-xs print:shadow-none print:rounded-none">
+      <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
+        <div>
+          <p className="text-[11px] font-semibold text-muted-foreground">
+            [Nombre de la Empresa Constructora]
+          </p>
+          <h1 className="text-sm font-bold text-card-foreground">
+            {config.titulo}
+          </h1>
+          <p className="text-[11px] text-muted-foreground">
+            Obra: {nombreObra}
+          </p>
+        </div>
+        <div className="text-[11px] text-right text-muted-foreground space-y-0.5">
+          <p>
+            <span className="font-semibold">Código:</span> {config.codigo}
+          </p>
+          <p>
+            <span className="font-semibold">Versión:</span> {config.version}
+          </p>
+          <p>
+            <span className="font-semibold">Emisión:</span> {config.fechaEmision}
+          </p>
+        </div>
+      </div>
+      <div className="mt-3 grid gap-2 md:grid-cols-3">
+        <div>
+          <p className="font-semibold text-[11px] text-muted-foreground">
+            Elaborado por
+          </p>
+          <p className="text-[11px] text-muted-foreground">
+            {config.elaboradoPor}
+          </p>
+        </div>
+        <div>
+          <p className="font-semibold text-[11px] text-muted-foreground">
+            Revisado por
+          </p>
+          <p className="text-[11px] text-muted-foreground">
+            {config.revisadoPor || "-"}
+          </p>
+        </div>
+        <div>
+          <p className="font-semibold text-[11px] text-muted-foreground">
+            Aprobado por
+          </p>
+          <p className="text-[11px] text-muted-foreground">
+            {config.aprobadoPor || "-"}
+          </p>
+        </div>
+      </div>
+    </header>
+  );
+}
+
 
 // --- Componente Principal ---
 export default function IngresoPersonalPage() {
@@ -780,6 +921,10 @@ export default function IngresoPersonalPage() {
         </div>
 
         <div id="printable-trabajador" className="space-y-4 bg-card print:bg-white print:shadow-none print:border-0 rounded-xl print:rounded-none p-4 print:p-0">
+          <EncabezadoDocumentoPrevencionLocal
+            config={getDocConfigLocal("INDUCCION_OBRA")}
+            nombreObra={getNombreObraById(trabajadorSeleccionado.obraId)}
+          />
             {progresoSeleccionado && (
                  <Card className="border-accent shadow-lg">
                     <CardHeader className="flex flex-row items-start justify-between">
