@@ -14,6 +14,7 @@ import { cn } from '@/lib/utils';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { X, FileText, UserCheck, Shield, MessageSquare } from 'lucide-react';
 import { Progress } from '@/components/ui/progress';
+import { Checkbox } from '@/components/ui/checkbox';
 
 // --- Tipos ---
 type Obra = {
