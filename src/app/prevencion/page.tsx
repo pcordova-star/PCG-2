@@ -1,24 +1,18 @@
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
-import { Building, Users } from 'lucide-react';
+import { HardHat, Users } from 'lucide-react';
 
 export default function PrevencionPage() {
   const modules = [
     {
-      title: "DS44 – Mandante / Obra",
-      description: "Vista global del cumplimiento DS44 de la obra, incluyendo al mandante y la coordinación con empresas externas.",
-      href: "/prevencion/ds44-mandante",
-      icon: Building,
-      linkText: "Ir a DS44 Mandante"
-    },
-    {
-      title: "DS44 – Contratistas / Subcontratos",
-      description: "Control documental y de cumplimiento DS44 por empresa contratista y subcontratista (incluyendo personal propio del mandante).",
+      title: "Ingreso empresa subcontratista (DS44)",
+      description: "Formulario guiado para revisar todos los requisitos de ingreso de una empresa a la obra según DS44.",
       href: "/prevencion/ds44-subcontratos",
       icon: Users,
-      linkText: "Ir a DS44 Subcontratos"
+      linkText: "Abrir formulario"
     }
+    // Aquí se pueden agregar más tarjetas en el futuro
   ];
 
   return (
