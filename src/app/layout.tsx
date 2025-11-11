@@ -21,7 +21,7 @@ export default function RootLayout({
         <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet" />
       </head>
       <body className={cn('font-body antialiased min-h-screen flex flex-col bg-background')}>
-        <header className="bg-primary text-primary-foreground shadow-md sticky top-0 z-50">
+        <header className="bg-primary text-primary-foreground shadow-md sticky top-0 z-50 print-hidden">
           <div className="container mx-auto flex h-16 max-w-6xl items-center justify-between px-4 sm:px-6">
             <Link href="/" className="text-2xl font-bold font-headline">
               PCG 2.0

@@ -59,10 +59,9 @@
 
 @media print {
   body {
-    background: white;
+    background: white !important;
   }
-  header,
-  .no-print {
-    display: none;
+  header.print-hidden, .print-hidden {
+    display: none !important;
   }
 }

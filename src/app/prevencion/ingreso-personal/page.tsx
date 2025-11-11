@@ -763,77 +763,96 @@ export default function IngresoPersonalPage() {
         </CardContent>
       </Card>
       
-      {trabajadorSeleccionado && progresoSeleccionado && (
-        <Card className="border-accent shadow-lg">
-          <CardHeader className="flex flex-row items-start justify-between">
-            <div className="space-y-1.5">
-                <CardTitle className="text-2xl font-bold text-accent">Ficha de Cumplimiento: {trabajadorSeleccionado.nombre}</CardTitle>
-                <CardDescription className="text-base">{trabajadorSeleccionado.rut} | {trabajadorSeleccionado.cargo} en {trabajadorSeleccionado.empresa}</CardDescription>
-                <div className="flex items-center gap-4 pt-2">
-                    <EstadoBadge estado={trabajadorSeleccionado.estadoIngreso} />
-                    <div className="flex items-center gap-2">
-                        <Progress value={progresoSeleccionado.porcentaje} className="w-32 h-2.5" />
-                        <span className="text-sm font-semibold">{progresoSeleccionado.cumplidos}/{progresoSeleccionado.total} pasos DS44</span>
-                    </div>
-                </div>
-            </div>
-            <Button variant="ghost" size="icon" onClick={() => setTrabajadorSeleccionadoId(null)}><X className="h-5 w-5" /></Button>
-          </CardHeader>
-          <CardContent>
-            <Separator className="my-4" />
-            <h3 className="text-lg font-semibold mb-4">3. Pasos de Cumplimiento DS44</h3>
-             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                {pasosDS44.map(paso => {
-                    const isCompleted = paso.docFields.every(field => trabajadorSeleccionado[field as keyof IngresoPersonal]);
-                    return (
-                        <Card key={paso.id} className={cn("flex flex-col", isCompleted ? "bg-green-50 border-green-200" : "bg-yellow-50 border-yellow-200")}>
-                            <CardHeader className="flex-row items-center gap-3 space-y-0 pb-2">
-                                <paso.icon className={cn("h-6 w-6", isCompleted ? "text-green-600" : "text-yellow-600")} />
-                                <h4 className="font-semibold">{paso.label}</h4>
-                            </CardHeader>
-                            <CardContent className="pb-4">
-                                <Badge variant={isCompleted ? "default" : "secondary"} className={cn(isCompleted ? "bg-green-600" : "bg-yellow-600")}>
-                                    {isCompleted ? "Completado" : "Pendiente"}
-                                </Badge>
-                            </CardContent>
-                            <CardFooter className="mt-auto">
-                                <Button className="w-full" size="sm" variant={isCompleted ? "outline" : "default"} onClick={() => abrirPaso(paso.id as PasoDS44)} disabled={!!isCompleted}>
-                                    {isCompleted ? 'Ver Registro' : 'Abrir Formulario'}
-                                </Button>
-                            </CardFooter>
-                        </Card>
-                    );
-                })}
-            </div>
-            {renderSubForm()}
-            
-            {trabajadorSeleccionado && (
-              <section className="mt-6 space-y-4">
+      {trabajadorSeleccionado && (
+      <section className="mt-6 space-y-4">
+        <div className="flex justify-between items-center gap-2 print:hidden">
+            <h3 className="text-lg font-semibold text-card-foreground">
+                Ficha de trabajador y formularios DS44
+            </h3>
+            <Button
+                type="button"
+                onClick={() => window.print()}
+                variant="outline"
+                size="sm"
+            >
+                Imprimir / Guardar PDF
+            </Button>
+        </div>
+
+        <div id="printable-trabajador" className="space-y-4 bg-card print:bg-white print:shadow-none print:border-0 rounded-xl print:rounded-none p-4 print:p-0">
+            {progresoSeleccionado && (
+                 <Card className="border-accent shadow-lg">
+                    <CardHeader className="flex flex-row items-start justify-between">
+                        <div className="space-y-1.5">
+                            <CardTitle className="text-2xl font-bold text-accent">Ficha de Cumplimiento: {trabajadorSeleccionado.nombre}</CardTitle>
+                            <CardDescription className="text-base">{trabajadorSeleccionado.rut} | {trabajadorSeleccionado.cargo} en {trabajadorSeleccionado.empresa}</CardDescription>
+                            <div className="flex items-center gap-4 pt-2">
+                                <EstadoBadge estado={trabajadorSeleccionado.estadoIngreso} />
+                                <div className="flex items-center gap-2">
+                                    <Progress value={progresoSeleccionado.porcentaje} className="w-32 h-2.5" />
+                                    <span className="text-sm font-semibold">{progresoSeleccionado.cumplidos}/{progresoSeleccionado.total} pasos DS44</span>
+                                </div>
+                            </div>
+                        </div>
+                        <Button variant="ghost" size="icon" onClick={() => setTrabajadorSeleccionadoId(null)} className="print:hidden"><X className="h-5 w-5" /></Button>
+                    </CardHeader>
+                    <CardContent>
+                        <Separator className="my-4" />
+                        <h3 className="text-lg font-semibold mb-4">3. Pasos de Cumplimiento DS44</h3>
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 print:hidden">
+                            {pasosDS44.map(paso => {
+                                const isCompleted = paso.docFields.every(field => trabajadorSeleccionado[field as keyof IngresoPersonal]);
+                                return (
+                                    <Card key={paso.id} className={cn("flex flex-col", isCompleted ? "bg-green-50 border-green-200" : "bg-yellow-50 border-yellow-200")}>
+                                        <CardHeader className="flex-row items-center gap-3 space-y-0 pb-2">
+                                            <paso.icon className={cn("h-6 w-6", isCompleted ? "text-green-600" : "text-yellow-600")} />
+                                            <h4 className="font-semibold">{paso.label}</h4>
+                                        </CardHeader>
+                                        <CardContent className="pb-4">
+                                            <Badge variant={isCompleted ? "default" : "secondary"} className={cn(isCompleted ? "bg-green-600" : "bg-yellow-600")}>
+                                                {isCompleted ? "Completado" : "Pendiente"}
+                                            </Badge>
+                                        </CardContent>
+                                        <CardFooter className="mt-auto">
+                                            <Button className="w-full" size="sm" variant={isCompleted ? "outline" : "default"} onClick={() => abrirPaso(paso.id as PasoDS44)} disabled={!!isCompleted}>
+                                                {isCompleted ? 'Ver Registro' : 'Abrir Formulario'}
+                                            </Button>
+                                        </CardFooter>
+                                    </Card>
+                                );
+                            })}
+                        </div>
+                        <div className="print:hidden">{renderSubForm()}</div>
+                    </CardContent>
+                </Card>
+            )}
+
+            <div className="mt-6 space-y-4">
                 <header className="flex flex-col gap-1 md:flex-row md:items-center md:justify-between">
-                  <div>
+                <div>
                     <h3 className="text-lg font-semibold text-card-foreground">
-                      Formularios DS44 – Trabajador
+                    Formularios DS44 – Trabajador
                     </h3>
                     <p className="text-xs text-muted-foreground">
-                      Aquí se registran los formularios clave de Prevención de Riesgos
-                      asociados a este trabajador (inducción, EPP, charlas, etc.).
+                    Aquí se registran los formularios clave de Prevención de Riesgos
+                    asociados a este trabajador (inducción, EPP, charlas, etc.).
                     </p>
-                  </div>
+                </div>
                 </header>
 
                 {/* Tarjeta de la Inducción de seguridad */}
                 <div className="rounded-xl border bg-card p-4 shadow-sm space-y-3">
-                  <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
+                <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
                     <div>
-                      <h4 className="text-sm font-semibold text-card-foreground">
+                    <h4 className="text-sm font-semibold text-card-foreground">
                         Inducción de seguridad de la obra
-                      </h4>
-                      <p className="text-xs text-muted-foreground">
+                    </h4>
+                    <p className="text-xs text-muted-foreground">
                         Formulario para registrar que el trabajador recibió la inducción
                         de seguridad específica de la obra, de acuerdo al DS44.
-                      </p>
+                    </p>
                     </div>
-                    <div className='flex flex-col items-start md:items-end gap-1'>
+                    <div className='flex flex-col items-start md:items-end gap-1 print:hidden'>
                         {ultimoRegistroInduccion ? (
                         <>
                             <span className="text-xs font-semibold text-card-foreground">
@@ -863,350 +882,350 @@ export default function IngresoPersonalPage() {
                             : "Registrar nueva inducción"}
                         </Button>
                     </div>
-                  </div>
+                </div>
 
-                  {mostrarFormInduccion && (
+                {mostrarFormInduccion && (
                     <form
-                      className="space-y-3 border-t pt-3 text-xs"
-                      onSubmit={(e) => {
+                    className="space-y-3 border-t pt-3 text-xs print:hidden"
+                    onSubmit={(e) => {
                         e.preventDefault();
                         setErrorInduccion(null);
 
                         if (!trabajadorSeleccionado) {
-                          setErrorInduccion("Debes seleccionar un trabajador.");
-                          return;
+                        setErrorInduccion("Debes seleccionar un trabajador.");
+                        return;
                         }
                         if (!formInduccion.fechaInduccion) {
-                          setErrorInduccion("Debes indicar la fecha de la inducción.");
-                          return;
+                        setErrorInduccion("Debes indicar la fecha de la inducción.");
+                        return;
                         }
                         if (!formInduccion.lugar.trim()) {
-                          setErrorInduccion("Indica el lugar donde se realizó la inducción.");
-                          return;
+                        setErrorInduccion("Indica el lugar donde se realizó la inducción.");
+                        return;
                         }
                         if (!formInduccion.relator.trim()) {
-                          setErrorInduccion("Indica quién realizó la inducción.");
-                          return;
+                        setErrorInduccion("Indica quién realizó la inducción.");
+                        return;
                         }
                         if (!formInduccion.aceptaInduccion) {
-                          setErrorInduccion(
+                        setErrorInduccion(
                             "Debes marcar que el trabajador declara haber recibido y comprendido la inducción."
-                          );
-                          return;
+                        );
+                        return;
                         }
                         if (!formInduccion.nombreFirmaTrabajador.trim()) {
-                          setErrorInduccion(
+                        setErrorInduccion(
                             "Indica el nombre del trabajador como simulación de firma."
-                          );
-                          return;
+                        );
+                        return;
                         }
 
                         const nuevoRegistro: RegistroInduccionTrabajador = {
-                          id:
+                        id:
                             typeof crypto !== "undefined" && crypto.randomUUID
-                              ? crypto.randomUUID()
-                              : Date.now().toString(),
-                          trabajadorId: trabajadorSeleccionado.id,
-                          obraId: trabajadorSeleccionado.obraId,
-                          fechaInduccion: formInduccion.fechaInduccion,
-                          lugar: formInduccion.lugar,
-                          relator: formInduccion.relator,
-                          contenidoReglasGenerales:
+                            ? crypto.randomUUID()
+                            : Date.now().toString(),
+                        trabajadorId: trabajadorSeleccionado.id,
+                        obraId: trabajadorSeleccionado.obraId,
+                        fechaInduccion: formInduccion.fechaInduccion,
+                        lugar: formInduccion.lugar,
+                        relator: formInduccion.relator,
+                        contenidoReglasGenerales:
                             formInduccion.contenidoReglasGenerales,
-                          contenidoPlanEmergencia: formInduccion.contenidoPlanEmergencia,
-                          contenidoRiesgosCriticos: formInduccion.contenidoRiesgosCriticos,
-                          contenidoUsoEPP: formInduccion.contenidoUsoEPP,
-                          contenidoReporteIncidentes:
+                        contenidoPlanEmergencia: formInduccion.contenidoPlanEmergencia,
+                        contenidoRiesgosCriticos: formInduccion.contenidoRiesgosCriticos,
+                        contenidoUsoEPP: formInduccion.contenidoUsoEPP,
+                        contenidoReporteIncidentes:
                             formInduccion.contenidoReporteIncidentes,
-                          evaluacionAplicada: formInduccion.evaluacionAplicada,
-                          resultadoEvaluacion: formInduccion.resultadoEvaluacion,
-                          observaciones: formInduccion.observaciones,
-                          aceptaInduccion: formInduccion.aceptaInduccion,
-                          nombreFirmaTrabajador: formInduccion.nombreFirmaTrabajador,
+                        evaluacionAplicada: formInduccion.evaluacionAplicada,
+                        resultadoEvaluacion: formInduccion.resultadoEvaluacion,
+                        observaciones: formInduccion.observaciones,
+                        aceptaInduccion: formInduccion.aceptaInduccion,
+                        nombreFirmaTrabajador: formInduccion.nombreFirmaTrabajador,
                         };
 
                         setRegistrosInduccion((prev) => [nuevoRegistro, ...prev]);
 
                         setFormInduccion((prev) => ({
-                          ...prev,
-                          lugar: "",
-                          relator: "",
-                          observaciones: "",
-                          aceptaInduccion: false,
-                          nombreFirmaTrabajador: "",
+                        ...prev,
+                        lugar: "",
+                        relator: "",
+                        observaciones: "",
+                        aceptaInduccion: false,
+                        nombreFirmaTrabajador: "",
                         }));
                         setMostrarFormInduccion(false);
-                      }}
+                    }}
                     >
-                      {errorInduccion && (
+                    {errorInduccion && (
                         <p className="text-[11px] text-red-600">{errorInduccion}</p>
-                      )}
+                    )}
 
-                      <div className="grid gap-3 md:grid-cols-3">
+                    <div className="grid gap-3 md:grid-cols-3">
                         <div className="space-y-1">
-                          <Label className="font-medium text-muted-foreground">
+                        <Label className="font-medium text-muted-foreground">
                             Fecha de inducción
-                          </Label>
-                          <Input
+                        </Label>
+                        <Input
                             type="date"
                             value={formInduccion.fechaInduccion}
                             onChange={(e) =>
-                              setFormInduccion((prev) => ({
+                            setFormInduccion((prev) => ({
                                 ...prev,
                                 fechaInduccion: e.target.value,
-                              }))
+                            }))
                             }
-                          />
+                        />
                         </div>
                         <div className="space-y-1">
-                          <Label className="font-medium text-muted-foreground">Lugar</Label>
-                          <Input
+                        <Label className="font-medium text-muted-foreground">Lugar</Label>
+                        <Input
                             type="text"
                             value={formInduccion.lugar}
                             onChange={(e) =>
-                              setFormInduccion((prev) => ({
+                            setFormInduccion((prev) => ({
                                 ...prev,
                                 lugar: e.target.value,
-                              }))
+                            }))
                             }
                             placeholder="Ej: Oficina de obra, sala reuniones, terreno..."
-                          />
+                        />
                         </div>
                         <div className="space-y-1">
-                          <Label className="font-medium text-muted-foreground">
+                        <Label className="font-medium text-muted-foreground">
                             Relator / Responsable
-                          </Label>
-                          <Input
+                        </Label>
+                        <Input
                             type="text"
                             value={formInduccion.relator}
                             onChange={(e) =>
-                              setFormInduccion((prev) => ({
+                            setFormInduccion((prev) => ({
                                 ...prev,
                                 relator: e.target.value,
-                              }))
+                            }))
                             }
                             placeholder="Nombre del prevencionista o jefe de obra"
-                          />
+                        />
                         </div>
-                      </div>
+                    </div>
 
-                      <div className="grid gap-2 md:grid-cols-2">
+                    <div className="grid gap-2 md:grid-cols-2">
                         <div className="space-y-1">
-                          <p className="font-medium text-muted-foreground">
+                        <p className="font-medium text-muted-foreground">
                             Contenidos mínimos impartidos
-                          </p>
-                          <div className="space-y-1">
+                        </p>
+                        <div className="space-y-1">
                             <Label className="flex items-center gap-2 font-normal">
-                              <Checkbox
+                            <Checkbox
                                 checked={formInduccion.contenidoReglasGenerales}
                                 onCheckedChange={(c) =>
-                                  setFormInduccion((prev) => ({
+                                setFormInduccion((prev) => ({
                                     ...prev,
                                     contenidoReglasGenerales: !!c,
-                                  }))
+                                }))
                                 }
-                              />
-                              <span>
+                            />
+                            <span>
                                 Reglas generales de seguridad y comportamiento en la obra.
-                              </span>
+                            </span>
                             </Label>
-                             <Label className="flex items-center gap-2 font-normal">
-                              <Checkbox
+                            <Label className="flex items-center gap-2 font-normal">
+                            <Checkbox
                                 checked={formInduccion.contenidoPlanEmergencia}
                                 onCheckedChange={(c) =>
-                                  setFormInduccion((prev) => ({
+                                setFormInduccion((prev) => ({
                                     ...prev,
                                     contenidoPlanEmergencia: !!c,
-                                  }))
+                                }))
                                 }
-                              />
-                              <span>
+                            />
+                            <span>
                                 Plan de emergencia, rutas de evacuación y puntos de
                                 encuentro.
-                              </span>
+                            </span>
                             </Label>
-                             <Label className="flex items-center gap-2 font-normal">
-                              <Checkbox
+                            <Label className="flex items-center gap-2 font-normal">
+                            <Checkbox
                                 checked={formInduccion.contenidoRiesgosCriticos}
                                 onCheckedChange={(c) =>
-                                  setFormInduccion((prev) => ({
+                                setFormInduccion((prev) => ({
                                     ...prev,
                                     contenidoRiesgosCriticos: !!c,
-                                  }))
+                                }))
                                 }
-                              />
-                              <span>Riesgos críticos específicos de la obra.</span>
+                            />
+                            <span>Riesgos críticos específicos de la obra.</span>
                             </Label>
-                             <Label className="flex items-center gap-2 font-normal">
-                              <Checkbox
+                            <Label className="flex items-center gap-2 font-normal">
+                            <Checkbox
                                 checked={formInduccion.contenidoUsoEPP}
                                 onCheckedChange={(c) =>
-                                  setFormInduccion((prev) => ({
+                                setFormInduccion((prev) => ({
                                     ...prev,
                                     contenidoUsoEPP: !!c,
-                                  }))
+                                }))
                                 }
-                              />
-                              <span>Uso obligatorio y cuidado de EPP.</span>
+                            />
+                            <span>Uso obligatorio y cuidado de EPP.</span>
                             </Label>
-                             <Label className="flex items-center gap-2 font-normal">
-                              <Checkbox
+                            <Label className="flex items-center gap-2 font-normal">
+                            <Checkbox
                                 checked={formInduccion.contenidoReporteIncidentes}
                                 onCheckedChange={(c) =>
-                                  setFormInduccion((prev) => ({
+                                setFormInduccion((prev) => ({
                                     ...prev,
                                     contenidoReporteIncidentes: !!c,
-                                  }))
+                                }))
                                 }
-                              />
-                              <span>
+                            />
+                            <span>
                                 Procedimiento para reportar incidentes, condiciones y
                                 actos inseguros.
-                              </span>
+                            </span>
                             </Label>
-                          </div>
+                        </div>
                         </div>
 
                         <div className="space-y-2">
-                          <div className="space-y-1">
+                        <div className="space-y-1">
                             <Label className="font-medium text-muted-foreground">
-                              Evaluación / verificación
+                            Evaluación / verificación
                             </Label>
-                             <Label className="flex items-center gap-2 font-normal">
-                              <Checkbox
+                            <Label className="flex items-center gap-2 font-normal">
+                            <Checkbox
                                 checked={formInduccion.evaluacionAplicada}
                                 onCheckedChange={(c) =>
-                                  setFormInduccion((prev) => ({
+                                setFormInduccion((prev) => ({
                                     ...prev,
                                     evaluacionAplicada: !!c,
-                                  }))
+                                }))
                                 }
-                              />
-                              <span>Se aplicó una verificación de comprensión.</span>
+                            />
+                            <span>Se aplicó una verificación de comprensión.</span>
                             </Label>
                             <Select
-                              value={formInduccion.resultadoEvaluacion}
-                              onValueChange={(v) =>
+                            value={formInduccion.resultadoEvaluacion}
+                            onValueChange={(v) =>
                                 setFormInduccion((prev) => ({
-                                  ...prev,
-                                  resultadoEvaluacion:
+                                ...prev,
+                                resultadoEvaluacion:
                                     v as
                                     | "Aprobado"
                                     | "Reforzar contenidos"
                                     | "No aplica",
                                 }))
-                              }
+                            }
                             >
-                              <SelectTrigger className="mt-1 w-full">
+                            <SelectTrigger className="mt-1 w-full">
                                 <SelectValue />
-                              </SelectTrigger>
-                              <SelectContent>
+                            </SelectTrigger>
+                            <SelectContent>
                                 <SelectItem value="Aprobado">Aprobado</SelectItem>
                                 <SelectItem value="Reforzar contenidos">
-                                  Reforzar contenidos
+                                Reforzar contenidos
                                 </SelectItem>
                                 <SelectItem value="No aplica">No aplica</SelectItem>
-                              </SelectContent>
+                            </SelectContent>
                             </Select>
-                          </div>
+                        </div>
 
-                          <div className="space-y-1">
+                        <div className="space-y-1">
                             <Label className="font-medium text-muted-foreground">
-                              Observaciones
+                            Observaciones
                             </Label>
                             <Textarea
-                              value={formInduccion.observaciones}
-                              onChange={(e) =>
+                            value={formInduccion.observaciones}
+                            onChange={(e) =>
                                 setFormInduccion((prev) => ({
-                                  ...prev,
-                                  observaciones: e.target.value,
+                                ...prev,
+                                observaciones: e.target.value,
                                 }))
-                              }
-                              rows={3}
+                            }
+                            rows={3}
                             />
-                          </div>
                         </div>
-                      </div>
+                        </div>
+                    </div>
 
-                      <div className="border-t pt-3 space-y-2">
-                         <Label className="flex items-center gap-2 font-normal">
-                          <Checkbox
+                    <div className="border-t pt-3 space-y-2">
+                        <Label className="flex items-center gap-2 font-normal">
+                        <Checkbox
                             checked={formInduccion.aceptaInduccion}
                             onCheckedChange={(c) =>
-                              setFormInduccion((prev) => ({
+                            setFormInduccion((prev) => ({
                                 ...prev,
                                 aceptaInduccion: !!c,
-                              }))
+                            }))
                             }
-                          />
-                          <span>
+                        />
+                        <span>
                             El trabajador declara haber recibido y comprendido la
                             inducción de seguridad de la obra.
-                          </span>
+                        </span>
                         </Label>
                         <div className="space-y-1">
-                          <Label className="font-medium text-muted-foreground">
+                        <Label className="font-medium text-muted-foreground">
                             Nombre del trabajador (simulación de firma)
-                          </Label>
-                          <Input
+                        </Label>
+                        <Input
                             type="text"
                             value={formInduccion.nombreFirmaTrabajador}
                             onChange={(e) =>
-                              setFormInduccion((prev) => ({
+                            setFormInduccion((prev) => ({
                                 ...prev,
                                 nombreFirmaTrabajador: e.target.value,
-                              }))
+                            }))
                             }
                             placeholder="Nombre completo del trabajador"
-                          />
-                          <p className="text-[11px] text-muted-foreground">
+                        />
+                        <p className="text-[11px] text-muted-foreground">
                             Más adelante se puede reemplazar por una firma digital con el
                             dedo (canvas). Por ahora se registra el nombre como
                             aceptación.
-                          </p>
+                        </p>
                         </div>
-                      </div>
+                    </div>
 
-                      <div className="pt-2">
+                    <div className="pt-2">
                         <Button
-                          type="submit"
+                        type="submit"
                         >
-                          Guardar registro de inducción
+                        Guardar registro de inducción
                         </Button>
-                      </div>
+                    </div>
                     </form>
-                  )}
+                )}
 
-                  {registrosInduccionTrabajador.length > 0 && (
+                {registrosInduccionTrabajador.length > 0 && (
                     <div className="border-t pt-3">
-                      <h5 className="text-xs font-semibold text-muted-foreground mb-2">
+                    <h5 className="text-xs font-semibold text-muted-foreground mb-2">
                         Historial de inducciones registradas
-                      </h5>
-                      <div className="space-y-2 max-h-64 overflow-y-auto pr-1">
+                    </h5>
+                    <div className="space-y-2 max-h-64 overflow-y-auto pr-1">
                         {registrosInduccionTrabajador.map((reg) => (
-                          <article
+                        <article
                             key={reg.id}
                             className="rounded-lg border bg-muted/30 p-3 text-[11px] space-y-1"
-                          >
+                        >
                             <p className="font-semibold text-foreground">
-                              {reg.fechaInduccion} – {reg.lugar}
+                            {reg.fechaInduccion} – {reg.lugar}
                             </p>
                             <p className="text-muted-foreground">
-                              Relator: {reg.relator || "No registrado"}
+                            Relator: {reg.relator || "No registrado"}
                             </p>
                             <p className="text-muted-foreground">
-                              Resultado: {reg.resultadoEvaluacion}
+                            Resultado: {reg.resultadoEvaluacion}
                             </p>
                             {reg.observaciones && (
-                              <p className="text-muted-foreground">
+                            <p className="text-muted-foreground">
                                 Observaciones: {reg.observaciones}
-                              </p>
+                            </p>
                             )}
-                          </article>
+                        </article>
                         ))}
-                      </div>
                     </div>
-                  )}
+                    </div>
+                )}
                 </div>
 
                 {/* Tarjeta de Entrega de EPP */}
@@ -1222,7 +1241,7 @@ export default function IngresoPersonalPage() {
                             prevención.
                         </p>
                         </div>
-                        <div className="flex flex-col items-start gap-1 text-xs md:items-end">
+                        <div className="flex flex-col items-start gap-1 text-xs md:items-end print:hidden">
                         {ultimoRegistroEPP ? (
                             <>
                             <span className="font-semibold text-card-foreground">
@@ -1256,7 +1275,7 @@ export default function IngresoPersonalPage() {
                     {/* Formulario de Entrega de EPP */}
                     {mostrarFormEPP && (
                         <form
-                        className="space-y-3 border-t pt-3 text-xs"
+                        className="space-y-3 border-t pt-3 text-xs print:hidden"
                         onSubmit={(e) => {
                             e.preventDefault();
                             setErrorEPP(null);
@@ -1594,8 +1613,8 @@ export default function IngresoPersonalPage() {
                         </div>
                         </div>
                     )}
-                    </div>
-                
+                </div>
+
                 {/* Tarjeta de Charla de seguridad */}
                 <div className="rounded-xl border bg-card p-4 shadow-sm space-y-3">
                   <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
@@ -1609,7 +1628,7 @@ export default function IngresoPersonalPage() {
                         principal y observaciones.
                       </p>
                     </div>
-                    <div className="flex flex-col items-start gap-1 text-xs md:items-end">
+                    <div className="flex flex-col items-start gap-1 text-xs md:items-end print:hidden">
                       {ultimaCharla ? (
                         <>
                           <span className="font-semibold text-card-foreground">
@@ -1644,7 +1663,7 @@ export default function IngresoPersonalPage() {
                   {/* Formulario de Charla */}
                   {mostrarFormCharla && (
                     <form
-                      className="space-y-3 border-t pt-3 text-xs"
+                      className="space-y-3 border-t pt-3 text-xs print:hidden"
                       onSubmit={(e) => {
                         e.preventDefault();
                         setErrorCharla(null);
@@ -1952,11 +1971,9 @@ export default function IngresoPersonalPage() {
                     </div>
                   )}
                 </div>
-              </section>
-            )}
-
-          </CardContent>
-        </Card>
+            </div>
+        </div>
+      </section>
       )}
     </div>
   );
