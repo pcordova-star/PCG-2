@@ -88,6 +88,26 @@ type RegistroInduccionTrabajador = {
   nombreFirmaTrabajador: string; // por ahora simulamos la firma con el nombre
 };
 
+type RegistroEntregaEPP = {
+  id: string;
+  trabajadorId: string;
+  obraId: string;
+  fechaEntrega: string;      // YYYY-MM-DD
+  responsableEntrega: string;
+  casco: boolean;
+  zapatosSeguridad: boolean;
+  lentesSeguridad: boolean;
+  guantes: boolean;
+  ropaTrabajo: boolean;
+  arnes: boolean;
+  otrosDescripcion: string;
+  instruidoUsoCuidado: boolean;
+  instruidoConsecuenciasNoUso: boolean;
+  aceptaEPP: boolean;        // declara recibir y usar
+  nombreFirmaTrabajador: string; // simulación de firma
+  observaciones: string;
+};
+
 // --- Datos Simulados ---
 const OBRAS_SIMULADAS: Obra[] = [
   { id: 'obra-1', nombreFaena: 'Edificio Los Álamos' },
@@ -164,6 +184,7 @@ const INGRESOS_INICIALES: IngresoPersonal[] = [
 ];
 
 const REGISTROS_INDUCCION_INICIALES: RegistroInduccionTrabajador[] = [];
+const REGISTROS_EPP_INICIALES: RegistroEntregaEPP[] = [];
 
 // --- Componentes y Funciones Auxiliares ---
 function EstadoBadge({ estado }: { estado: EstadoIngresoPersonal }) {
@@ -298,6 +319,45 @@ export default function IngresoPersonalPage() {
   
   const [errorInduccion, setErrorInduccion] = useState<string | null>(null);
 
+  const [registrosEPP, setRegistrosEPP] =
+    useState<RegistroEntregaEPP[]>(REGISTROS_EPP_INICIALES);
+
+  const [mostrarFormEPP, setMostrarFormEPP] = useState<boolean>(false);
+
+  const [formEPP, setFormEPP] = useState<{
+    fechaEntrega: string;
+    responsableEntrega: string;
+    casco: boolean;
+    zapatosSeguridad: boolean;
+    lentesSeguridad: boolean;
+    guantes: boolean;
+    ropaTrabajo: boolean;
+    arnes: boolean;
+    otrosDescripcion: string;
+    instruidoUsoCuidado: boolean;
+    instruidoConsecuenciasNoUso: boolean;
+    aceptaEPP: boolean;
+    nombreFirmaTrabajador: string;
+    observaciones: string;
+  }>({
+    fechaEntrega: new Date().toISOString().slice(0, 10),
+    responsableEntrega: "",
+    casco: true,
+    zapatosSeguridad: true,
+    lentesSeguridad: true,
+    guantes: false,
+    ropaTrabajo: false,
+    arnes: false,
+    otrosDescripcion: "",
+    instruidoUsoCuidado: true,
+    instruidoConsecuenciasNoUso: true,
+    aceptaEPP: false,
+    nombreFirmaTrabajador: "",
+    observaciones: "",
+  });
+  const [errorEPP, setErrorEPP] = useState<string | null>(null);
+
+
   const ingresosFiltrados = useMemo(() =>
     ingresos.filter((i) => i.obraId === obraSeleccionadaId && i.tipoRelacion === tipoRelacion),
     [ingresos, obraSeleccionadaId, tipoRelacion]
@@ -315,6 +375,14 @@ export default function IngresoPersonalPage() {
     : [];
 
   const ultimoRegistroInduccion = registrosInduccionTrabajador[0] ?? null;
+  
+  const registrosEPPTrabajador = trabajadorSeleccionado
+  ? registrosEPP
+      .filter((r) => r.trabajadorId === trabajadorSeleccionado.id)
+      .sort((a, b) => (a.fechaEntrega < b.fechaEntrega ? 1 : -1))
+  : [];
+
+  const ultimoRegistroEPP = registrosEPPTrabajador[0] ?? null;
 
   const progresoSeleccionado = useMemo(() => 
     trabajadorSeleccionado ? getProgresoDs44(trabajadorSeleccionado) : null,
@@ -687,28 +755,11 @@ export default function IngresoPersonalPage() {
                     <p className="text-xs text-muted-foreground">
                       Aquí se registran los formularios clave de Prevención de Riesgos
                       asociados a este trabajador (inducción, EPP, charlas, etc.).
-                      En esta primera iteración solo implementamos la Inducción de
-                      seguridad de la obra.
                     </p>
-                  </div>
-                  <div className="flex flex-col items-start gap-1 text-xs md:items-end">
-                    {ultimoRegistroInduccion ? (
-                      <>
-                        <span className="font-semibold text-card-foreground">
-                          Última inducción: {ultimoRegistroInduccion.fechaInduccion}
-                        </span>
-                        <span className="text-muted-foreground">
-                          Relator: {ultimoRegistroInduccion.relator || "No registrado"}
-                        </span>
-                      </>
-                    ) : (
-                      <span className="text-muted-foreground">
-                        Este trabajador aún no tiene una inducción registrada en el sistema.
-                      </span>
-                    )}
                   </div>
                 </header>
 
+                {/* Tarjeta de la Inducción de seguridad */}
                 <div className="rounded-xl border bg-card p-4 shadow-sm space-y-3">
                   <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
                     <div>
@@ -720,19 +771,36 @@ export default function IngresoPersonalPage() {
                         de seguridad específica de la obra, de acuerdo al DS44.
                       </p>
                     </div>
-                    <Button
-                      type="button"
-                      onClick={() => {
-                        setErrorInduccion(null);
-                        setMostrarFormInduccion((prev) => !prev);
-                      }}
-                      variant="outline"
-                      size="sm"
-                    >
-                      {mostrarFormInduccion
-                        ? "Cerrar formulario"
-                        : "Registrar nueva inducción"}
-                    </Button>
+                    <div className='flex flex-col items-start md:items-end gap-1'>
+                        {ultimoRegistroInduccion ? (
+                        <>
+                            <span className="text-xs font-semibold text-card-foreground">
+                            Última inducción: {ultimoRegistroInduccion.fechaInduccion}
+                            </span>
+                            <span className="text-xs text-muted-foreground">
+                            Relator: {ultimoRegistroInduccion.relator || "No registrado"}
+                            </span>
+                        </>
+                        ) : (
+                        <span className="text-xs text-muted-foreground">
+                            Este trabajador aún no tiene una inducción registrada.
+                        </span>
+                        )}
+                        <Button
+                        type="button"
+                        onClick={() => {
+                            setErrorInduccion(null);
+                            setMostrarFormInduccion((prev) => !prev);
+                        }}
+                        variant="outline"
+                        size="sm"
+                        className='mt-1'
+                        >
+                        {mostrarFormInduccion
+                            ? "Cerrar formulario"
+                            : "Registrar nueva inducción"}
+                        </Button>
+                    </div>
                   </div>
 
                   {mostrarFormInduccion && (
@@ -1078,6 +1146,393 @@ export default function IngresoPersonalPage() {
                     </div>
                   )}
                 </div>
+
+                {/* Tarjeta de Entrega de EPP */}
+                <div className="rounded-xl border bg-card p-4 shadow-sm space-y-3">
+                    <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
+                        <div>
+                        <h4 className="text-sm font-semibold text-card-foreground">
+                            Entrega de Elementos de Protección Personal (EPP)
+                        </h4>
+                        <p className="text-xs text-muted-foreground">
+                            Registro de la entrega de EPP al trabajador, incluyendo los elementos
+                            entregados y la aceptación de uso, de acuerdo a los requisitos de
+                            prevención.
+                        </p>
+                        </div>
+                        <div className="flex flex-col items-start gap-1 text-xs md:items-end">
+                        {ultimoRegistroEPP ? (
+                            <>
+                            <span className="font-semibold text-card-foreground">
+                                Última entrega: {ultimoRegistroEPP.fechaEntrega}
+                            </span>
+                            <span className="text-muted-foreground">
+                                Responsable:{" "}
+                                {ultimoRegistroEPP.responsableEntrega || "No registrado"}
+                            </span>
+                            </>
+                        ) : (
+                            <span className="text-muted-foreground">
+                            Este trabajador aún no tiene registros de entrega de EPP.
+                            </span>
+                        )}
+                        <Button
+                            type="button"
+                            onClick={() => {
+                            setErrorEPP(null);
+                            setMostrarFormEPP((prev) => !prev);
+                            }}
+                            variant='outline'
+                            size='sm'
+                            className="mt-1"
+                        >
+                            {mostrarFormEPP ? "Cerrar formulario EPP" : "Registrar nueva entrega EPP"}
+                        </Button>
+                        </div>
+                    </div>
+
+                    {/* Formulario de Entrega de EPP */}
+                    {mostrarFormEPP && (
+                        <form
+                        className="space-y-3 border-t pt-3 text-xs"
+                        onSubmit={(e) => {
+                            e.preventDefault();
+                            setErrorEPP(null);
+
+                            if (!trabajadorSeleccionado) {
+                            setErrorEPP("Debes seleccionar un trabajador.");
+                            return;
+                            }
+                            if (!formEPP.fechaEntrega) {
+                            setErrorEPP("Debes indicar la fecha de entrega.");
+                            return;
+                            }
+                            if (!formEPP.responsableEntrega.trim()) {
+                            setErrorEPP("Indica quién entrega los EPP.");
+                            return;
+                            }
+                            if (!formEPP.aceptaEPP) {
+                            setErrorEPP(
+                                "Debes marcar que el trabajador acepta y se compromete a usar los EPP."
+                            );
+                            return;
+                            }
+                            if (!formEPP.nombreFirmaTrabajador.trim()) {
+                            setErrorEPP(
+                                "Indica el nombre del trabajador como simulación de firma."
+                            );
+                            return;
+                            }
+
+                            const nuevoRegistro: RegistroEntregaEPP = {
+                            id:
+                                typeof crypto !== "undefined" && crypto.randomUUID
+                                ? crypto.randomUUID()
+                                : Date.now().toString(),
+                            trabajadorId: trabajadorSeleccionado.id,
+                            obraId: trabajadorSeleccionado.obraId,
+                            fechaEntrega: formEPP.fechaEntrega,
+                            responsableEntrega: formEPP.responsableEntrega,
+                            casco: formEPP.casco,
+                            zapatosSeguridad: formEPP.zapatosSeguridad,
+                            lentesSeguridad: formEPP.lentesSeguridad,
+                            guantes: formEPP.guantes,
+                            ropaTrabajo: formEPP.ropaTrabajo,
+                            arnes: formEPP.arnes,
+                            otrosDescripcion: formEPP.otrosDescripcion,
+                            instruidoUsoCuidado: formEPP.instruidoUsoCuidado,
+                            instruidoConsecuenciasNoUso: formEPP.instruidoConsecuenciasNoUso,
+                            aceptaEPP: formEPP.aceptaEPP,
+                            nombreFirmaTrabajador: formEPP.nombreFirmaTrabajador,
+                            observaciones: formEPP.observaciones,
+                            };
+
+                            setRegistrosEPP((prev) => [nuevoRegistro, ...prev]);
+
+                            setFormEPP((prev) => ({
+                            ...prev,
+                            responsableEntrega: "",
+                            otrosDescripcion: "",
+                            aceptaEPP: false,
+                            nombreFirmaTrabajador: "",
+                            observaciones: "",
+                            }));
+                            setMostrarFormEPP(false);
+                        }}
+                        >
+                        {errorEPP && (
+                            <p className="text-[11px] text-red-600">{errorEPP}</p>
+                        )}
+
+                        <div className="grid gap-3 md:grid-cols-3">
+                            <div className="space-y-1">
+                            <Label className="font-medium text-muted-foreground">
+                                Fecha de entrega
+                            </Label>
+                            <Input
+                                type="date"
+                                value={formEPP.fechaEntrega}
+                                onChange={(e) =>
+                                setFormEPP((prev) => ({
+                                    ...prev,
+                                    fechaEntrega: e.target.value,
+                                }))
+                                }
+                            />
+                            </div>
+                            <div className="space-y-1 md:col-span-2">
+                            <Label className="font-medium text-muted-foreground">
+                                Responsable de entrega
+                            </Label>
+                            <Input
+                                type="text"
+                                value={formEPP.responsableEntrega}
+                                onChange={(e) =>
+                                setFormEPP((prev) => ({
+                                    ...prev,
+                                    responsableEntrega: e.target.value,
+                                }))
+                                }
+                                placeholder="Nombre del prevencionista, bodeguero o jefe de obra"
+                            />
+                            </div>
+                        </div>
+
+                        <div className="grid gap-3 md:grid-cols-2">
+                            <div className="space-y-1">
+                            <p className="font-medium text-muted-foreground">
+                                Elementos entregados
+                            </p>
+                            <div className="space-y-1">
+                                <Label className="flex items-center gap-2 font-normal">
+                                <Checkbox
+                                    checked={formEPP.casco}
+                                    onCheckedChange={(c) =>
+                                    setFormEPP((prev) => ({ ...prev, casco: !!c }))
+                                    }
+                                />
+                                <span>Casco de seguridad</span>
+                                </Label>
+                                <Label className="flex items-center gap-2 font-normal">
+                                <Checkbox
+                                    checked={formEPP.zapatosSeguridad}
+                                    onCheckedChange={(c) =>
+                                    setFormEPP((prev) => ({
+                                        ...prev,
+                                        zapatosSeguridad: !!c,
+                                    }))
+                                    }
+                                />
+                                <span>Zapatos de seguridad</span>
+                                </Label>
+                                <Label className="flex items-center gap-2 font-normal">
+                                <Checkbox
+                                    checked={formEPP.lentesSeguridad}
+                                    onCheckedChange={(c) =>
+                                    setFormEPP((prev) => ({
+                                        ...prev,
+                                        lentesSeguridad: !!c,
+                                    }))
+                                    }
+                                />
+                                <span>Lentes de seguridad</span>
+                                </Label>
+                                <Label className="flex items-center gap-2 font-normal">
+                                <Checkbox
+                                    checked={formEPP.guantes}
+                                    onCheckedChange={(c) =>
+                                    setFormEPP((prev) => ({
+                                        ...prev,
+                                        guantes: !!c,
+                                    }))
+                                    }
+                                />
+                                <span>Guantes</span>
+                                </Label>
+                                <Label className="flex items-center gap-2 font-normal">
+                                <Checkbox
+                                    checked={formEPP.ropaTrabajo}
+                                    onCheckedChange={(c) =>
+                                    setFormEPP((prev) => ({
+                                        ...prev,
+                                        ropaTrabajo: !!c,
+                                    }))
+                                    }
+                                />
+                                <span>Ropa de trabajo</span>
+                                </Label>
+                                <Label className="flex items-center gap-2 font-normal">
+                                <Checkbox
+                                    checked={formEPP.arnes}
+                                    onCheckedChange={(c) =>
+                                    setFormEPP((prev) => ({
+                                        ...prev,
+                                        arnes: !!c,
+                                    }))
+                                    }
+                                />
+                                <span>Arnés de seguridad (si aplica)</span>
+                                </Label>
+                            </div>
+                            <div className="mt-2 space-y-1">
+                                <Label className="font-medium text-muted-foreground">
+                                Otros elementos / detalles
+                                </Label>
+                                <Input
+                                type="text"
+                                value={formEPP.otrosDescripcion}
+                                onChange={(e) =>
+                                    setFormEPP((prev) => ({
+                                    ...prev,
+                                    otrosDescripcion: e.target.value,
+                                    }))
+                                }
+                                placeholder="Ej: protector auditivo, mascarilla específica, etc."
+                                />
+                            </div>
+                            </div>
+
+                            <div className="space-y-2">
+                            <div className="space-y-1">
+                                <p className="font-medium text-muted-foreground">
+                                Instrucción al trabajador
+                                </p>
+                                <Label className="flex items-center gap-2 font-normal">
+                                <Checkbox
+                                    checked={formEPP.instruidoUsoCuidado}
+                                    onCheckedChange={(c) =>
+                                    setFormEPP((prev) => ({
+                                        ...prev,
+                                        instruidoUsoCuidado: !!c,
+                                    }))
+                                    }
+                                />
+                                <span>Se instruye sobre uso, cuidado y reposición de EPP.</span>
+                                </Label>
+                                <Label className="flex items-center gap-2 font-normal">
+                                <Checkbox
+                                    checked={formEPP.instruidoConsecuenciasNoUso}
+                                    onCheckedChange={(c) =>
+                                    setFormEPP((prev) => ({
+                                        ...prev,
+                                        instruidoConsecuenciasNoUso: !!c,
+                                    }))
+                                    }
+                                />
+                                <span>Se informa sobre consecuencias de no usar EPP.</span>
+                                </Label>
+                            </div>
+                            <div className="space-y-1">
+                                <Label className="font-medium text-muted-foreground">
+                                Observaciones
+                                </Label>
+                                <Textarea
+                                value={formEPP.observaciones}
+                                onChange={(e) =>
+                                    setFormEPP((prev) => ({
+                                    ...prev,
+                                    observaciones: e.target.value,
+                                    }))
+                                }
+                                rows={4}
+                                />
+                            </div>
+                            </div>
+                        </div>
+
+                        <div className="border-t pt-3 space-y-2">
+                            <Label className="flex items-center gap-2 font-normal">
+                            <Checkbox
+                                checked={formEPP.aceptaEPP}
+                                onCheckedChange={(c) =>
+                                setFormEPP((prev) => ({
+                                    ...prev,
+                                    aceptaEPP: !!c,
+                                }))
+                                }
+                            />
+                            <span>
+                                El trabajador declara recibir y comprometerse a usar los EPP
+                                entregados.
+                            </span>
+                            </Label>
+                            <div className="space-y-1">
+                            <Label className="font-medium text-muted-foreground">
+                                Nombre del trabajador (simulación de firma)
+                            </Label>
+                            <Input
+                                type="text"
+                                value={formEPP.nombreFirmaTrabajador}
+                                onChange={(e) =>
+                                setFormEPP((prev) => ({
+                                    ...prev,
+                                    nombreFirmaTrabajador: e.target.value,
+                                }))
+                                }
+                                placeholder="Nombre completo del trabajador"
+                            />
+                            <p className="text-[11px] text-muted-foreground">
+                                Más adelante se puede reemplazar por una firma digital con el dedo
+                                (canvas). Por ahora se registra el nombre como aceptación.
+                            </p>
+                            </div>
+                        </div>
+
+                        <div className="pt-2">
+                            <Button
+                            type="submit"
+                            >
+                            Guardar registro de entrega de EPP
+                            </Button>
+                        </div>
+                        </form>
+                    )}
+
+                    {/* Historial de entregas de EPP */}
+                    {registrosEPPTrabajador.length > 0 && (
+                        <div className="border-t pt-3">
+                        <h5 className="text-xs font-semibold text-muted-foreground mb-2">
+                            Historial de entregas de EPP
+                        </h5>
+                        <div className="space-y-2 max-h-64 overflow-y-auto pr-1">
+                            {registrosEPPTrabajador.map((reg) => (
+                            <article
+                                key={reg.id}
+                                className="rounded-lg border bg-muted/30 p-3 text-[11px] space-y-1"
+                            >
+                                <p className="font-semibold text-foreground">
+                                {reg.fechaEntrega} – Responsable:{" "}
+                                {reg.responsableEntrega || "No registrado"}
+                                </p>
+                                <p className="text-muted-foreground">
+                                Elementos:{" "}
+                                {[
+                                    reg.casco && "casco",
+                                    reg.zapatosSeguridad && "zapatos",
+                                    reg.lentesSeguridad && "lentes",
+                                    reg.guantes && "guantes",
+                                    reg.ropaTrabajo && "ropa",
+                                    reg.arnes && "arnés",
+                                ]
+                                    .filter(Boolean)
+                                    .join(", ") || "No registrado"}
+                                </p>
+                                {reg.otrosDescripcion && (
+                                <p className="text-muted-foreground">
+                                    Otros: {reg.otrosDescripcion}
+                                </p>
+                                )}
+                                {reg.observaciones && (
+                                <p className="text-muted-foreground">
+                                    Observaciones: {reg.observaciones}
+                                </p>
+                                )}
+                            </article>
+                            ))}
+                        </div>
+                        </div>
+                    )}
+                    </div>
               </section>
             )}
 
