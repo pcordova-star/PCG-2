@@ -2,441 +2,446 @@
 
 import React, { useState } from "react";
 import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Textarea } from '@/components/ui/textarea';
+import { Checkbox } from '@/components/ui/checkbox';
+import { Separator } from '@/components/ui/separator';
 
-// --- Tipos y datos simulados ---
-type Obra = {
+type ObraPrevencion = {
   id: string;
   nombreFaena: string;
 };
 
-type TipoEmpresa = "Mandante" | "Contratista" | "Subcontratista";
+type TipoEmpresaPrevencion =
+  | "MANDANTE"
+  | "CONTRATISTA_PRINCIPAL"
+  | "SUBCONTRATISTA"
+  | "SERVICIOS";
 
-type Empresa = {
-  id: string;
-  nombre: string;
-  rut: string;
-  tipo: TipoEmpresa;
-};
+type EstadoEvaluacionEmpresa =
+  | "POR_EVALUAR"
+  | "APROBADA"
+  | "APROBADA_CON_OBSERVACIONES"
+  | "RECHAZADA";
 
-type EstadoCumplimientoEmpresa = "Por evaluar" | "Aprobada" | "Con observaciones";
-
-type EvaluacionEmpresaObra = {
+type EmpresaContratistaObra = {
   id: string;
   obraId: string;
-  empresaId: string;
-  docContratoMarco: boolean;
-  docMutualAlDia: boolean;
-  docReglamentoEspecial: boolean;
-  docProgramaTrabajo: boolean;
-  docMatrizRiesgos: boolean;
-  docCoordinacionActividades: boolean;
-  estado: EstadoCumplimientoEmpresa;
-  observaciones: string;
+  razonSocial: string;
+  rut: string;
+  tipoEmpresa: TipoEmpresaPrevencion;
+  representanteLegal: string;
+  contactoNombre: string;
+  contactoTelefono: string;
+  contactoEmail: string;
+
+  // Documentación contractual / administrativa
+  contratoMarco: boolean;
+  certificadoMutual: boolean;
+  certificadoCotizaciones: boolean;
+  padronTrabajadores: boolean;
+  reglamentoInterno: boolean;
+
+  // Documentos de prevención
+  matrizRiesgos: boolean;
+  procedimientosTrabajoSeguro: boolean;
+  programaTrabajo: boolean;
+  planEmergenciaPropio: boolean;
+  registroCapacitacionInterna: boolean;
+
+  // Coordinación DS44
+  actaReunionInicial: boolean;
+  frecuenciaReuniones: string; // texto libre, ej: "semanal", "quincenal"
+  compromisosEspecificos: string;
+
+  estadoEvaluacion: EstadoEvaluacionEmpresa;
+  observacionesGenerales: string;
+
+  fechaEvaluacion: string; // YYYY-MM-DD
+  evaluador: string;
 };
 
-const OBRAS_SIMULADAS: Obra[] = [
+
+const OBRAS_PREVENCION: ObraPrevencion[] = [
   { id: "obra-1", nombreFaena: "Edificio Los Álamos" },
   { id: "obra-2", nombreFaena: "Condominio Cuatro Vientos" },
   { id: "obra-3", nombreFaena: "Mejoramiento Vial Ruta 5" },
 ];
 
-const EMPRESAS_SIMULADAS: Empresa[] = [
-  {
-    id: "emp-1",
-    nombre: "Constructora Principal S.A.",
-    rut: "76.123.456-7",
-    tipo: "Mandante",
-  },
-  {
-    id: "emp-2",
-    nombre: "Excavaciones del Sur Ltda.",
-    rut: "77.234.567-8",
-    tipo: "Subcontratista",
-  },
-  {
-    id: "emp-3",
-    nombre: "Montajes Estructurales Andinos SpA",
-    rut: "78.345.678-9",
-    tipo: "Subcontratista",
-  },
-  {
-    id: "emp-4",
-    nombre: "Instalaciones Eléctricas Norte",
-    rut: "79.456.789-0",
-    tipo: "Subcontratista",
-  },
-];
-
-const EVALUACIONES_INICIALES: EvaluacionEmpresaObra[] = [
-  {
-    id: "eval-1",
-    obraId: "obra-1",
-    empresaId: "emp-2",
-    docContratoMarco: true,
-    docMutualAlDia: true,
-    docReglamentoEspecial: false,
-    docProgramaTrabajo: true,
-    docMatrizRiesgos: false,
-    docCoordinacionActividades: false,
-    estado: "Con observaciones",
-    observaciones:
-      "Falta evidencia de reglamento especial firmado y matriz de riesgos actualizada.",
-  },
-  {
-    id: "eval-2",
-    obraId: "obra-1",
-    empresaId: "emp-3",
-    docContratoMarco: true,
-    docMutualAlDia: true,
-    docReglamentoEspecial: true,
-    docProgramaTrabajo: true,
-    docMatrizRiesgos: true,
-    docCoordinacionActividades: true,
-    estado: "Aprobada",
-    observaciones: "Documentación completa al inicio de la faena.",
-  },
-];
-
-const requisitos = [
-    { id: 'docContratoMarco', label: 'Contrato / orden de compra y condiciones comerciales formalizadas.' },
-    { id: 'docMutualAlDia', label: 'Afiliación a mutual, cotizaciones y certificados al día.' },
-    { id: 'docReglamentoEspecial', label: 'Reglamento especial de faena entregado y aceptado.' },
-    { id: 'docProgramaTrabajo', label: 'Programa de trabajo / cronograma entregado.' },
-    { id: 'docMatrizRiesgos', label: 'Matriz de riesgos / IPER / procedimientos críticos.' },
-    { id: 'docCoordinacionActividades', label: 'Registro de coordinación de actividades (reuniones, actas).' },
-] as const;
-
+const EMPRESAS_INICIALES: EmpresaContratistaObra[] = [];
 
 export default function EmpresasContratistasPage() {
   const [obraSeleccionadaId, setObraSeleccionadaId] = useState<string>(
-    OBRAS_SIMULADAS[0]?.id ?? ""
+    OBRAS_PREVENCION[0]?.id ?? ""
   );
 
-  const empresasContratistas = EMPRESAS_SIMULADAS.filter(
-    (e) => e.tipo === "Contratista" || e.tipo === "Subcontratista"
+  const [empresas, setEmpresas] = useState<EmpresaContratistaObra[]>(
+    EMPRESAS_INICIALES
   );
 
-  const [evaluaciones, setEvaluaciones] =
-    useState<EvaluacionEmpresaObra[]>(EVALUACIONES_INICIALES);
+  const [mostrarFormNueva, setMostrarFormNueva] = useState<boolean>(false);
+  const [errorForm, setErrorForm] = useState<string | null>(null);
 
-  const [empresaSeleccionadaId, setEmpresaSeleccionadaId] = useState<string>(
-    empresasContratistas[0]?.id ?? ""
+  const [empresaSeleccionadaId, setEmpresaSeleccionadaId] = useState<string | null>(null);
+
+  const empresaSeleccionada = empresas.find((e) => e.id === empresaSeleccionadaId) ?? null;
+
+
+  const [formEmpresa, setFormEmpresa] = useState<{
+    razonSocial: string;
+    rut: string;
+    tipoEmpresa: TipoEmpresaPrevencion;
+    representanteLegal: string;
+    contactoNombre: string;
+    contactoTelefono: string;
+    contactoEmail: string;
+
+    contratoMarco: boolean;
+    certificadoMutual: boolean;
+    certificadoCotizaciones: boolean;
+    padronTrabajadores: boolean;
+    reglamentoInterno: boolean;
+
+    matrizRiesgos: boolean;
+    procedimientosTrabajoSeguro: boolean;
+    programaTrabajo: boolean;
+    planEmergenciaPropio: boolean;
+    registroCapacitacionInterna: boolean;
+
+    actaReunionInicial: boolean;
+    frecuenciaReuniones: string;
+    compromisosEspecificos: string;
+
+    estadoEvaluacion: EstadoEvaluacionEmpresa;
+    observacionesGenerales: string;
+
+    fechaEvaluacion: string;
+    evaluador: string;
+  }>({
+    razonSocial: "",
+    rut: "",
+    tipoEmpresa: "SUBCONTRATISTA",
+    representanteLegal: "",
+    contactoNombre: "",
+    contactoTelefono: "",
+    contactoEmail: "",
+
+    contratoMarco: false,
+    certificadoMutual: false,
+    certificadoCotizaciones: false,
+    padronTrabajadores: false,
+    reglamentoInterno: false,
+
+    matrizRiesgos: false,
+    procedimientosTrabajoSeguro: false,
+    programaTrabajo: false,
+    planEmergenciaPropio: false,
+    registroCapacitacionInterna: false,
+
+    actaReunionInicial: false,
+    frecuenciaReuniones: "",
+    compromisosEspecificos: "",
+
+    estadoEvaluacion: "POR_EVALUAR",
+    observacionesGenerales: "",
+
+    fechaEvaluacion: new Date().toISOString().slice(0, 10),
+    evaluador: "",
+  });
+
+  const empresasDeObra = empresas.filter(
+    (e) => e.obraId === obraSeleccionadaId
   );
 
-  const evaluacionesObra = evaluaciones.filter(
-    (ev) => ev.obraId === obraSeleccionadaId
+  const obraSeleccionada = OBRAS_PREVENCION.find(
+    (o) => o.id === obraSeleccionadaId
   );
 
-  const evaluacionActual =
-    evaluacionesObra.find((ev) => ev.empresaId === empresaSeleccionadaId) ??
-    null;
-
-  const totalEmpresasObra = new Set(evaluacionesObra.map(e => e.empresaId)).size;
-  const aprobadasObra = evaluacionesObra.filter(
-    (ev) => ev.estado === "Aprobada"
-  ).length;
-  const conObservacionesObra = evaluacionesObra.filter(
-    (ev) => ev.estado === "Con observaciones"
-  ).length;
-  const porEvaluarObra = evaluacionesObra.filter(
-    (ev) => ev.estado === "Por evaluar"
-  ).length;
-    
-  function actualizarCampoEvaluacion<K extends keyof EvaluacionEmpresaObra>(
-    campo: K,
-    valor: EvaluacionEmpresaObra[K]
-  ) {
-    setEvaluaciones((prev) => {
-      const existente = prev.find(
-        (ev) =>
-          ev.obraId === obraSeleccionadaId &&
-          ev.empresaId === empresaSeleccionadaId
-      );
-  
-      if (!existente) {
-        const base: EvaluacionEmpresaObra = {
-          id: crypto.randomUUID ? crypto.randomUUID() : Date.now().toString(),
-          obraId: obraSeleccionadaId,
-          empresaId: empresaSeleccionadaId,
-          docContratoMarco: false,
-          docMutualAlDia: false,
-          docReglamentoEspecial: false,
-          docProgramaTrabajo: false,
-          docMatrizRiesgos: false,
-          docCoordinacionActividades: false,
-          estado: "Por evaluar",
-          observaciones: "",
-        };
-        return [
-          ...prev,
-          {
-            ...base,
-            [campo]: valor,
-          },
-        ];
-      }
-  
-      return prev.map((ev) =>
-        ev.obraId === obraSeleccionadaId && ev.empresaId === empresaSeleccionadaId
-          ? { ...ev, [campo]: valor }
-          : ev
-      );
-    });
-  }
+  const CheckItem = ({ label, checked }: { label: string, checked: boolean }) => (
+    <p className="flex items-center justify-between py-1.5 border-b border-muted">
+      <span>{label}</span>
+      <span className={`font-semibold ${checked ? 'text-green-600' : 'text-amber-600'}`}>
+        {checked ? "Cumple" : "Pendiente"}
+      </span>
+    </p>
+  );
 
   return (
-    <section className="space-y-6">
-      <header className="space-y-2 no-print">
-        <h2 className="text-2xl font-semibold">
-          Empresas contratistas – DS44
+    <section className="space-y-4">
+      <header className="space-y-1">
+        <h2 className="text-2xl font-semibold text-foreground">
+          Empresas contratistas / subcontratistas – DS44
         </h2>
         <p className="text-sm text-muted-foreground">
-          Registro y evaluación del cumplimiento de requisitos DS44 de empresas
-          contratistas y subcontratistas por obra. Esta vista está pensada para
-          facilitar el trabajo del prevencionista.
+          Registro y evaluación de empresas que ingresan a la obra, de acuerdo
+          a las obligaciones de coordinación del DS44. Todos los datos son
+          simulados (MVP).
         </p>
       </header>
 
-      {/* Filtros: obra y empresa */}
-      <div className="grid gap-4 md:grid-cols-2 no-print">
-        <div className="space-y-2">
-          <label className="text-xs font-medium text-muted-foreground">
-            Obra / faena
-          </label>
-          <select
+      <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+        <div className="space-y-1">
+          <Label htmlFor="obra-select">Obra / faena</Label>
+          <Select
             value={obraSeleccionadaId}
-            onChange={(e) => setObraSeleccionadaId(e.target.value)}
-            className="w-full rounded-lg border bg-background px-3 py-2 text-sm"
+            onValueChange={(value) => {
+              setObraSeleccionadaId(value);
+              setEmpresaSeleccionadaId(null);
+            }}
           >
-            {OBRAS_SIMULADAS.map((obra) => (
-              <option key={obra.id} value={obra.id}>
-                {obra.nombreFaena}
-              </option>
-            ))}
-          </select>
-        </div>
-
-        <div className="space-y-2">
-          <label className="text-xs font-medium text-muted-foreground">
-            Empresa contratista / subcontratista
-          </label>
-          <select
-            value={empresaSeleccionadaId}
-            onChange={(e) => setEmpresaSeleccionadaId(e.target.value)}
-            className="w-full rounded-lg border bg-background px-3 py-2 text-sm"
-          >
-            {empresasContratistas.map((emp) => (
-              <option key={emp.id} value={emp.id}>
-                {emp.nombre} ({emp.rut})
-              </option>
-            ))}
-          </select>
-        </div>
-      </div>
-
-      {/* Resumen de la obra */}
-      <div className="grid gap-4 md:grid-cols-3 no-print">
-        <div className="rounded-xl border bg-card p-4 shadow-sm space-y-1">
-          <p className="text-xs font-semibold text-muted-foreground">
-            Empresas evaluadas en esta obra
-          </p>
-          <p className="text-2xl font-bold">{totalEmpresasObra}</p>
-          <p className="text-[11px] text-muted-foreground">
-            Aprobadas: {aprobadasObra} · Con observaciones:{" "}
-            {conObservacionesObra} · Por evaluar: {porEvaluarObra}
-          </p>
-        </div>
-
-        <div className="rounded-xl border bg-muted p-4 text-xs text-muted-foreground">
-          Indicadores simples de cumplimiento DS44 a nivel empresa. Más adelante
-          se pueden conectar a reportes y exportaciones.
-        </div>
-        <div className="rounded-xl border bg-muted p-4 text-xs text-muted-foreground">
-          Esta vista no reemplaza el detalle documental, pero ayuda al
-          prevencionista a ver rápido qué empresas están completas y cuáles no.
-        </div>
-      </div>
-
-      {/* Ficha de evaluación de la empresa seleccionada */}
-      <div className="grid gap-6 md:grid-cols-2">
-        {/* Izquierda: ficha y checklist */}
-        <div id="printable" className="space-y-4 rounded-xl border bg-card p-4 shadow-sm">
-           <div className="flex justify-between items-start">
-            <h3 className="text-sm font-semibold text-card-foreground">
-              Ficha de empresa en la obra
-            </h3>
-            <Button
-              type="button"
-              onClick={() => window.print()}
-              variant="outline"
-              size="sm"
-              className="print:hidden"
-            >
-              Imprimir / Guardar PDF
-            </Button>
-          </div>
-          <div className="space-y-1">
-            <p className="text-xs text-muted-foreground">
-              Obra:{" "}
-              <span className="font-medium text-foreground">
-              {
-                OBRAS_SIMULADAS.find((o) => o.id === obraSeleccionadaId)
-                  ?.nombreFaena
-              }
-              </span>
-            </p>
-            <p className="text-xs text-muted-foreground">
-              Empresa:{" "}
-              <span className="font-medium text-foreground">
-              {
-                empresasContratistas.find((e) => e.id === empresaSeleccionadaId)
-                  ?.nombre
-              }{" "}
-              (
-              {
-                empresasContratistas.find((e) => e.id === empresaSeleccionadaId)
-                  ?.rut
-              }
-              )
-              </span>
-            </p>
-          </div>
-
-          {evaluacionActual && (
-            <p className="text-xs text-muted-foreground">
-              Estado actual:{" "}
-              <span className="font-semibold">{evaluacionActual.estado}</span>
-            </p>
-          )}
-
-            <form
-              className="space-y-3 text-sm"
-              onSubmit={(e) => {
-                e.preventDefault();
-              }}
-            >
-              {requisitos.map(req => (
-                <label key={req.id} className="flex items-center gap-2 p-2 rounded-md hover:bg-muted/50 cursor-pointer">
-                    <input
-                        type="checkbox"
-                        checked={!!evaluacionActual?.[req.id as keyof typeof evaluacionActual]}
-                        onChange={(e) =>
-                        actualizarCampoEvaluacion(req.id as keyof EvaluacionEmpresaObra, e.target.checked)
-                        }
-                        className="h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary"
-                    />
-                    <span className="text-xs text-foreground">{req.label}</span>
-                </label>
+            <SelectTrigger id="obra-select" className="w-full md:w-auto">
+              <SelectValue placeholder="Seleccione una obra" />
+            </SelectTrigger>
+            <SelectContent>
+              {OBRAS_PREVENCION.map((obra) => (
+                <SelectItem key={obra.id} value={obra.id}>
+                  {obra.nombreFaena}
+                </SelectItem>
               ))}
-
-              <div className="pt-2 space-y-2">
-                <label className="text-xs font-medium text-muted-foreground">
-                    Estado de cumplimiento
-                </label>
-                <select
-                    value={evaluacionActual?.estado ?? "Por evaluar"}
-                    onChange={(e) =>
-                        actualizarCampoEvaluacion(
-                        "estado",
-                        e.target.value as EstadoCumplimientoEmpresa
-                        )
-                    }
-                    className="w-full rounded-lg border bg-background px-3 py-2 text-xs"
-                >
-                    <option value="Por evaluar">Por evaluar</option>
-                    <option value="Aprobada">Aprobada</option>
-                    <option value="Con observaciones">Con observaciones</option>
-                </select>
-              </div>
-
-              <div className="pt-2 space-y-2">
-                <label className="text-xs font-medium text-muted-foreground">
-                    Observaciones generales de la empresa en esta obra
-                </label>
-                <textarea
-                    value={evaluacionActual?.observaciones ?? ""}
-                    onChange={(e) =>
-                        actualizarCampoEvaluacion("observaciones", e.target.value)
-                    }
-                    rows={3}
-                    className="w-full rounded-lg border bg-background px-3 py-2 text-xs"
-                    placeholder="Ej: Se solicita enviar matriz de riesgo específica para trabajos en altura."
-                />
-              </div>
-
-            </form>
-          
-          {!evaluacionActual && (
-            <p className="text-xs text-muted-foreground bg-yellow-50 border border-yellow-200 p-3 rounded-lg">
-              Esta empresa aún no tiene evaluación registrada para esta obra.
-              Al marcar el primer requisito, se creará un registro nuevo.
-            </p>
-          )}
-
+            </SelectContent>
+          </Select>
         </div>
+        <Button
+          type="button"
+          onClick={() => {
+            setErrorForm(null);
+            setEmpresaSeleccionadaId(null);
+            setMostrarFormNueva((prev) => !prev);
+          }}
+          variant="outline"
+        >
+          {mostrarFormNueva ? "Cerrar formulario" : "Ingresar nueva empresa"}
+        </Button>
+      </div>
 
-        {/* Derecha: tabla/listado de empresas evaluadas en la obra */}
-        <div className="space-y-2 rounded-xl border bg-card p-4 shadow-sm no-print">
+      <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+        {/* Columna izquierda: listado de empresas */}
+        <div className="space-y-2 lg:col-span-1">
           <h3 className="text-sm font-semibold text-card-foreground">
-            Empresas evaluadas en esta obra
+            Empresas registradas en la obra
           </h3>
-          {evaluacionesObra.length === 0 ? (
-            <p className="text-xs text-muted-foreground">
-              Aún no hay empresas evaluadas para esta obra.
+          {empresasDeObra.length === 0 ? (
+            <p className="text-xs text-muted-foreground pt-4 text-center">
+              No hay empresas registradas aún para esta obra.
             </p>
           ) : (
-            <div className="max-h-64 overflow-y-auto">
-              <table className="min-w-full text-xs">
-                <thead className="bg-muted/50 sticky top-0">
-                  <tr>
-                    <th className="px-2 py-2 text-left font-semibold text-muted-foreground">
-                      Empresa
-                    </th>
-                    <th className="px-2 py-2 text-left font-semibold text-muted-foreground">
-                      Estado
-                    </th>
-                    <th className="px-2 py-2 text-left font-semibold text-muted-foreground">
-                      Cumplimiento
-                    </th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {evaluacionesObra.map((ev) => {
-                    const emp = empresasContratistas.find(
-                      (e) => e.id === ev.empresaId
-                    );
-                    const pasos = [
-                      ev.docContratoMarco,
-                      ev.docMutualAlDia,
-                      ev.docReglamentoEspecial,
-                      ev.docProgramaTrabajo,
-                      ev.docMatrizRiesgos,
-                      ev.docCoordinacionActividades,
-                    ];
-                    const totalPasos = pasos.length;
-                    const cumplidos = pasos.filter(Boolean).length;
-                    return (
-                      <tr key={ev.id} className="border-t">
-                        <td className="px-2 py-2">
-                          <button
-                            type="button"
-                            className="text-left font-medium text-primary hover:underline"
-                            onClick={() =>
-                              setEmpresaSeleccionadaId(ev.empresaId)
-                            }
-                          >
-                            {emp?.nombre ?? ev.empresaId}
-                          </button>
-                        </td>
-                        <td className="px-2 py-2">{ev.estado}</td>
-                        <td className="px-2 py-2 text-muted-foreground">
-                          {cumplidos}/{totalPasos} requisitos
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
+            <div className="space-y-2 max-h-[600px] overflow-y-auto pr-1">
+              {empresasDeObra.map((emp) => (
+                <article
+                  key={emp.id}
+                  onClick={() => {
+                    setMostrarFormNueva(false);
+                    setEmpresaSeleccionadaId(emp.id);
+                  }}
+                  className={`rounded-lg border bg-card p-3 shadow-sm text-xs space-y-1 cursor-pointer transition ${emp.id === empresaSeleccionadaId
+                    ? "border-primary ring-2 ring-primary/40"
+                    : "border-border hover:border-primary/50"
+                    }`}
+                >
+                  <p className="font-semibold text-primary">
+                    {emp.razonSocial} ({emp.rut})
+                  </p>
+                  <p className="text-muted-foreground">
+                    Tipo:{" "}
+                    {emp.tipoEmpresa === "MANDANTE"
+                      ? "Mandante"
+                      : emp.tipoEmpresa === "CONTRATISTA_PRINCIPAL"
+                        ? "Contratista principal"
+                        : emp.tipoEmpresa === "SUBCONTRATISTA"
+                          ? "Subcontratista"
+                          : "Servicios"}
+                  </p>
+                  <p className="text-muted-foreground">
+                    Contacto: {emp.contactoNombre}
+                  </p>
+                  <p className="text-muted-foreground">
+                    Estado:{" "}
+                    <span className="font-medium text-card-foreground">
+                    {emp.estadoEvaluacion === "POR_EVALUAR"
+                      ? "Por evaluar"
+                      : emp.estadoEvaluacion === "APROBADA"
+                        ? "Aprobada"
+                        : emp.estadoEvaluacion === "APROBADA_CON_OBSERVACIONES"
+                          ? "Aprobada con observaciones"
+                          : "Rechazada / no autorizada"}
+                    </span>
+                  </p>
+                </article>
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* Columna derecha: formulario o ficha */}
+        <div className="space-y-2 lg:col-span-2">
+          {mostrarFormNueva ? (
+            <form
+              className="space-y-6 rounded-xl border bg-card p-4 shadow-sm text-xs"
+              onSubmit={(e) => {
+                e.preventDefault();
+                setErrorForm(null);
+                if (!obraSeleccionadaId) {
+                  setErrorForm("Debes seleccionar una obra.");
+                  return;
+                }
+                if (!formEmpresa.razonSocial.trim()) {
+                  setErrorForm("Debes indicar la razón social de la empresa.");
+                  return;
+                }
+                if (!formEmpresa.rut.trim()) {
+                  setErrorForm("Debes indicar el RUT de la empresa.");
+                  return;
+                }
+                if (!formEmpresa.contactoEmail.trim()) {
+                  setErrorForm("Debes indicar un correo de contacto.");
+                  return;
+                }
+                if (!formEmpresa.evaluador.trim()) {
+                  setErrorForm("Debes indicar quién evalúa la empresa.");
+                  return;
+                }
+
+                const nuevaEmpresa: EmpresaContratistaObra = {
+                  id:
+                    typeof crypto !== "undefined" && crypto.randomUUID
+                      ? crypto.randomUUID()
+                      : Date.now().toString(),
+                  obraId: obraSeleccionadaId,
+                  ...formEmpresa,
+                };
+
+                setEmpresas((prev) => [nuevaEmpresa, ...prev]);
+
+                setFormEmpresa((prev) => ({
+                    ...prev,
+                    razonSocial: "",
+                    rut: "",
+                    representanteLegal: "",
+                    contactoNombre: "",
+                    contactoTelefono: "",
+                    contactoEmail: "",
+                    compromisosEspecificos: "",
+                    observacionesGenerales: "",
+                    evaluador: "",
+                    contratoMarco: false, certificadoMutual: false, certificadoCotizaciones: false, padronTrabajadores: false, reglamentoInterno: false,
+                    matrizRiesgos: false, procedimientosTrabajoSeguro: false, programaTrabajo: false, planEmergenciaPropio: false, registroCapacitacionInterna: false,
+                    actaReunionInicial: false
+                }));
+                setMostrarFormNueva(false);
+              }}
+            >
+              <h3 className="text-sm font-semibold text-card-foreground">
+                Formulario de Ingreso y Evaluación de Empresa
+              </h3>
+              {errorForm && (
+                <p className="text-[11px] text-destructive">{errorForm}</p>
+              )}
+                
+              {/* Campos del formulario */}
+              <div className="space-y-4">
+                <div>
+                  <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Identificación de la empresa</p>
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mt-2">
+                    {/* fields */}
+                  </div>
+                </div>
+                 <div>
+                  <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Documentación contractual / administrativa</p>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-3 mt-2">
+                    {/* checkboxes */}
+                  </div>
+                </div>
+                {/* otros bloques */}
+              </div>
+
+              <Button type="submit" className="w-full sm:w-auto">Registrar Empresa</Button>
+            </form>
+          ) : empresaSeleccionada ? (
+            <div className="space-y-4 rounded-xl border bg-card p-4 shadow-sm text-xs">
+              <header className="space-y-1 pb-2 border-b">
+                <h3 className="text-sm font-semibold text-primary">
+                  Ficha de empresa en la obra
+                </h3>
+                <p className="text-[11px] text-muted-foreground">
+                  Razón social: {empresaSeleccionada.razonSocial} · RUT: {empresaSeleccionada.rut}
+                </p>
+                {obraSeleccionada && (
+                  <p className="text-[11px] text-muted-foreground">
+                    Obra: {obraSeleccionada.nombreFaena}
+                  </p>
+                )}
+              </header>
+
+              <div className="space-y-4">
+                <div>
+                  <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Identificación de la empresa</p>
+                  <div className="mt-2 text-card-foreground space-y-1">
+                      <p><strong>Tipo:</strong> {empresaSeleccionada.tipoEmpresa}</p>
+                      <p><strong>Rep. Legal:</strong> {empresaSeleccionada.representanteLegal}</p>
+                      <p><strong>Contacto:</strong> {empresaSeleccionada.contactoNombre}</p>
+                      <p><strong>Teléfono:</strong> {empresaSeleccionada.contactoTelefono}</p>
+                      <p><strong>Email:</strong> {empresaSeleccionada.contactoEmail}</p>
+                  </div>
+                </div>
+                <Separator />
+                 <div>
+                  <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Documentación contractual / administrativa</p>
+                  <div className="mt-2 text-card-foreground">
+                      <CheckItem label="Contrato marco / orden de compra" checked={empresaSeleccionada.contratoMarco} />
+                      <CheckItem label="Certificado de mutual" checked={empresaSeleccionada.certificadoMutual} />
+                      <CheckItem label="Certificado cotizaciones" checked={empresaSeleccionada.certificadoCotizaciones} />
+                      <CheckItem label="Padrón de trabajadores" checked={empresaSeleccionada.padronTrabajadores} />
+                      <CheckItem label="Reglamento interno" checked={empresaSeleccionada.reglamentoInterno} />
+                  </div>
+                </div>
+                 <Separator />
+                <div>
+                  <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Documentos de prevención</p>
+                   <div className="mt-2 text-card-foreground">
+                      <CheckItem label="Matriz de riesgos / IPER" checked={empresaSeleccionada.matrizRiesgos} />
+                      <CheckItem label="Procedimientos de trabajo seguro" checked={empresaSeleccionada.procedimientosTrabajoSeguro} />
+                      <CheckItem label="Programa de trabajo" checked={empresaSeleccionada.programaTrabajo} />
+                      <CheckItem label="Plan de emergencia propio" checked={empresaSeleccionada.planEmergenciaPropio} />
+                      <CheckItem label="Registro capacitación interna" checked={empresaSeleccionada.registroCapacitacionInterna} />
+                  </div>
+                </div>
+                <Separator />
+                <div>
+                  <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Coordinación DS44</p>
+                   <div className="mt-2 text-card-foreground space-y-1">
+                        <CheckItem label="Acta reunión inicial" checked={empresaSeleccionada.actaReunionInicial} />
+                        <p><strong>Frecuencia reuniones:</strong> {empresaSeleccionada.frecuenciaReuniones}</p>
+                        <p><strong>Compromisos:</strong> {empresaSeleccionada.compromisosEspecificos}</p>
+                  </div>
+                </div>
+                 <Separator />
+                <div>
+                  <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Resultado de evaluación</p>
+                   <div className="mt-2 text-card-foreground space-y-1">
+                        <p><strong>Estado:</strong> {
+                            {
+                                "POR_EVALUAR": "Por evaluar",
+                                "APROBADA": "Aprobada",
+                                "APROBADA_CON_OBSERVACIONES": "Aprobada con observaciones",
+                                "RECHAZADA": "Rechazada / no autorizada"
+                            }[empresaSeleccionada.estadoEvaluacion]
+                        }</p>
+                        <p><strong>Observaciones:</strong> {empresaSeleccionada.observacionesGenerales}</p>
+                        <p><strong>Fecha evaluación:</strong> {empresaSeleccionada.fechaEvaluacion}</p>
+                        <p><strong>Evaluador:</strong> {empresaSeleccionada.evaluador}</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          ) : (
+            <div className="flex items-center justify-center h-full rounded-lg border-2 border-dashed border-muted-foreground/30 bg-muted/20 text-center p-8">
+              <p className="text-sm text-muted-foreground">
+                Selecciona una empresa del listado de la izquierda o haz clic en
+                "Ingresar nueva empresa" para registrar una nueva.
+              </p>
             </div>
           )}
         </div>
