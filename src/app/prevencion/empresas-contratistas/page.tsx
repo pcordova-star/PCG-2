@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState } from "react";
+import { Button } from "@/components/ui/button";
 
 // --- Tipos y datos simulados ---
 type Obra = {
@@ -185,7 +186,7 @@ export default function EmpresasContratistasPage() {
 
   return (
     <section className="space-y-6">
-      <header className="space-y-2">
+      <header className="space-y-2 no-print">
         <h2 className="text-2xl font-semibold">
           Empresas contratistas – DS44
         </h2>
@@ -197,7 +198,7 @@ export default function EmpresasContratistasPage() {
       </header>
 
       {/* Filtros: obra y empresa */}
-      <div className="grid gap-4 md:grid-cols-2">
+      <div className="grid gap-4 md:grid-cols-2 no-print">
         <div className="space-y-2">
           <label className="text-xs font-medium text-muted-foreground">
             Obra / faena
@@ -234,7 +235,7 @@ export default function EmpresasContratistasPage() {
       </div>
 
       {/* Resumen de la obra */}
-      <div className="grid gap-4 md:grid-cols-3">
+      <div className="grid gap-4 md:grid-cols-3 no-print">
         <div className="rounded-xl border bg-card p-4 shadow-sm space-y-1">
           <p className="text-xs font-semibold text-muted-foreground">
             Empresas evaluadas en esta obra
@@ -259,10 +260,21 @@ export default function EmpresasContratistasPage() {
       {/* Ficha de evaluación de la empresa seleccionada */}
       <div className="grid gap-6 md:grid-cols-2">
         {/* Izquierda: ficha y checklist */}
-        <div className="space-y-4 rounded-xl border bg-card p-4 shadow-sm">
-          <h3 className="text-sm font-semibold text-card-foreground">
-            Ficha de empresa en la obra
-          </h3>
+        <div id="printable" className="space-y-4 rounded-xl border bg-card p-4 shadow-sm">
+           <div className="flex justify-between items-start">
+            <h3 className="text-sm font-semibold text-card-foreground">
+              Ficha de empresa en la obra
+            </h3>
+            <Button
+              type="button"
+              onClick={() => window.print()}
+              variant="outline"
+              size="sm"
+              className="print:hidden"
+            >
+              Imprimir / Guardar PDF
+            </Button>
+          </div>
           <div className="space-y-1">
             <p className="text-xs text-muted-foreground">
               Obra:{" "}
@@ -364,7 +376,7 @@ export default function EmpresasContratistasPage() {
         </div>
 
         {/* Derecha: tabla/listado de empresas evaluadas en la obra */}
-        <div className="space-y-2 rounded-xl border bg-card p-4 shadow-sm">
+        <div className="space-y-2 rounded-xl border bg-card p-4 shadow-sm no-print">
           <h3 className="text-sm font-semibold text-card-foreground">
             Empresas evaluadas en esta obra
           </h3>
