@@ -7,6 +7,8 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
+import { Input } from '@/components/ui/input';
+import { Button } from '@/components/ui/button';
 
 type Obra = {
   id: string;
@@ -15,11 +17,14 @@ type Obra = {
 
 type EstadoActividad = "Pendiente" | "En curso" | "Completada";
 
+const ESTADOS_ACTIVIDAD: EstadoActividad[] = ["Pendiente", "En curso", "Completada"];
+
+
 type ActividadProgramada = {
   id: string;
   obraId: string;
   nombreActividad: string;
-  fechaInicio: string;  // ej: "2025-11-15"
+  fechaInicio: string;
   fechaFin: string;
   responsable: string;
   estado: EstadoActividad;
@@ -41,7 +46,7 @@ const ACTIVIDADES_SIMULADAS: ActividadProgramada[] = [
 ];
 
 function EstadoBadge({ estado }: { estado: EstadoActividad }) {
-  const variant: "default" | "secondary" | "destructive" | "outline" = {
+  const variant: "default" | "secondary" | "outline" = {
     "Completada": "default",
     "En curso": "secondary",
     "Pendiente": "outline",
@@ -58,8 +63,18 @@ function EstadoBadge({ estado }: { estado: EstadoActividad }) {
 
 export default function ProgramacionPage() {
   const [obraSeleccionadaId, setObraSeleccionadaId] = useState<string>(OBRAS_SIMULADAS[0].id);
+  const [actividades, setActividades] = useState<ActividadProgramada[]>(ACTIVIDADES_SIMULADAS);
 
-  const actividadesFiltradas = ACTIVIDADES_SIMULADAS.filter(
+  // Form state
+  const [nombreActividad, setNombreActividad] = useState('');
+  const [fechaInicio, setFechaInicio] = useState('');
+  const [fechaFin, setFechaFin] = useState('');
+  const [responsable, setResponsable] = useState('');
+  const [estado, setEstado] = useState<EstadoActividad>('Pendiente');
+  const [error, setError] = useState('');
+
+
+  const actividadesFiltradas = actividades.filter(
     (act) => act.obraId === obraSeleccionadaId
   );
   
@@ -70,6 +85,40 @@ export default function ProgramacionPage() {
     const completadas = actividadesFiltradas.filter(a => a.estado === "Completada").length;
     return { total, pendientes, enCurso, completadas };
   }, [actividadesFiltradas]);
+  
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!nombreActividad || !fechaInicio || !fechaFin || !responsable) {
+      setError('Todos los campos del formulario son obligatorios.');
+      return;
+    }
+
+    if (new Date(fechaFin) < new Date(fechaInicio)) {
+      setError('La fecha de fin no puede ser anterior a la fecha de inicio.');
+      return;
+    }
+
+    setError('');
+    
+    const nuevaActividad: ActividadProgramada = {
+      id: Date.now().toString(),
+      obraId: obraSeleccionadaId,
+      nombreActividad,
+      fechaInicio,
+      fechaFin,
+      responsable,
+      estado
+    };
+    
+    setActividades(prev => [...prev, nuevaActividad]);
+    
+    // Reset form
+    setNombreActividad('');
+    setFechaInicio('');
+    setFechaFin('');
+    setResponsable('');
+    setEstado('Pendiente');
+  };
 
   return (
     <div className="space-y-8">
@@ -118,6 +167,53 @@ export default function ProgramacionPage() {
                 <span>·</span>
                 <span>Completadas: {resumenActividades.completadas}</span>
             </div>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Agregar Nueva Actividad</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <form onSubmit={handleSubmit} className="space-y-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              <div className="space-y-2 lg:col-span-2">
+                <Label htmlFor="nombreActividad">Nombre de la actividad</Label>
+                <Input id="nombreActividad" value={nombreActividad} onChange={e => setNombreActividad(e.target.value)} placeholder="Ej: Instalación de faenas" />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="responsable">Responsable</Label>
+                <Input id="responsable" value={responsable} onChange={e => setResponsable(e.target.value)} placeholder="Ej: Ana Gómez" />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="fechaInicio">Fecha de inicio</Label>
+                <Input id="fechaInicio" type="date" value={fechaInicio} onChange={e => setFechaInicio(e.target.value)} />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="fechaFin">Fecha de término</Label>
+                <Input id="fechaFin" type="date" value={fechaFin} onChange={e => setFechaFin(e.target.value)} />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="estado-select">Estado inicial</Label>
+                 <Select value={estado} onValueChange={(v) => setEstado(v as EstadoActividad)}>
+                  <SelectTrigger id="estado-select">
+                    <SelectValue placeholder="Seleccione un estado" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {ESTADOS_ACTIVIDAD.map((e) => (
+                      <SelectItem key={e} value={e}>
+                        {e}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+             {error && <p className="text-sm font-medium text-destructive">{error}</p>}
+            <Button type="submit" className="w-full sm:w-auto bg-accent text-accent-foreground hover:bg-accent/90">
+              Agregar Actividad
+            </Button>
+          </form>
         </CardContent>
       </Card>
 
