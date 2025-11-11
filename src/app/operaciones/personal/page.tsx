@@ -103,10 +103,14 @@ export default function PersonalPage() {
       return;
     }
     
-    // Evitar duplicados del mismo trabajador en la misma obra
-    const yaExiste = asignaciones.some(a => a.obraId === obraSeleccionadaId && a.trabajadorId === trabajadorId);
+    // Evitar duplicados del mismo trabajador en la misma obra con estado vigente
+    const yaExiste = asignaciones.some(a => 
+      a.obraId === obraSeleccionadaId && 
+      a.trabajadorId === trabajadorId && 
+      a.estado !== "Finalizado"
+    );
     if (yaExiste) {
-      setError('Este trabajador ya está asignado a la obra seleccionada.');
+      setError('Este trabajador ya está asignado a esta obra con un estado vigente.');
       return;
     }
 
@@ -130,6 +134,14 @@ export default function PersonalPage() {
 
   const handleEliminar = (id: string) => {
     setAsignaciones((prev) => prev.filter((a) => a.id !== id));
+  };
+  
+  const handleEstadoChange = (id: string, nuevoEstado: EstadoAsignacion) => {
+    setAsignaciones((prev) =>
+      prev.map((a) =>
+        a.id === id ? { ...a, estado: nuevoEstado } : a
+      )
+    );
   };
   
   return (
@@ -259,7 +271,24 @@ export default function PersonalPage() {
                         <TableCell className="font-medium">{trabajador.nombre}</TableCell>
                         <TableCell>{trabajador.oficio}</TableCell>
                         <TableCell>{asignacion.rol}</TableCell>
-                        <TableCell><EstadoBadge estado={asignacion.estado} /></TableCell>
+                        <TableCell>
+                          <div className="flex flex-col gap-2 md:flex-row md:items-center">
+                            <EstadoBadge estado={asignacion.estado} />
+                            <Select 
+                                value={asignacion.estado}
+                                onValueChange={(value) => handleEstadoChange(asignacion.id, value as EstadoAsignacion)}
+                            >
+                                <SelectTrigger className="text-xs h-8 w-full md:w-[120px]">
+                                    <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    {ESTADOS_ASIGNACION.map(e => (
+                                        <SelectItem key={e} value={e} className="text-xs">{e}</SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
+                           </div>
+                        </TableCell>
                         <TableCell className="text-right">
                           <AlertDialog>
                             <AlertDialogTrigger asChild>
@@ -304,4 +333,3 @@ export default function PersonalPage() {
       </Card>
     </div>
   );
-}
