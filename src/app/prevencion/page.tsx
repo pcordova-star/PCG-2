@@ -1,7 +1,7 @@
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
-import { HardHat, Users } from 'lucide-react';
+import { Users, FileText } from 'lucide-react';
 
 export default function PrevencionPage() {
   const modules = [
@@ -9,10 +9,23 @@ export default function PrevencionPage() {
       title: "Ingreso empresa subcontratista (DS44)",
       description: "Formulario guiado para revisar todos los requisitos de ingreso de una empresa a la obra según DS44.",
       href: "/prevencion/ds44-subcontratos",
-      icon: Users,
+      icon: FileText,
       linkText: "Abrir formulario"
-    }
-    // Aquí se pueden agregar más tarjetas en el futuro
+    },
+    {
+      title: "Ingreso de personal – Empresa (mandante)",
+      description: "Registrar el ingreso de trabajadores propios del mandante a la obra según requisitos DS44.",
+      href: "/prevencion/ingreso-personal",
+      icon: Users,
+      linkText: "Ingresar personal de la empresa"
+    },
+    {
+      title: "Ingreso de personal – Subcontrato",
+      description: "Registrar el ingreso de trabajadores de empresas contratistas/subcontratistas según requisitos DS44.",
+      href: "/prevencion/ingreso-personal",
+      icon: Users,
+      linkText: "Ingresar personal de subcontrato"
+    },
   ];
 
   return (
