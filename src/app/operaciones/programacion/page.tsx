@@ -132,6 +132,10 @@ export default function ProgramacionPage() {
   const [creadoPor, setCreadoPor] = useState<string>("");
   const [errorAvance, setErrorAvance] = useState<string | null>(null);
 
+  const clientPath = obraSeleccionadaId
+  ? `/clientes/${obraSeleccionadaId}`
+  : "";
+
 
   const actividadesFiltradas = actividades.filter(
     (act) => act.obraId === obraSeleccionadaId
@@ -229,6 +233,36 @@ export default function ProgramacionPage() {
         </CardContent>
       </Card>
       
+      <section className="mt-4">
+        <div className="rounded-xl border bg-card p-4 shadow-sm text-sm flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
+            <div>
+            <p className="text-xs font-semibold text-card-foreground">
+                Link del panel del cliente para esta obra
+            </p>
+            <p className="text-[11px] text-muted-foreground">
+                Este es el enlace que, en producción, podrás compartir con el mandante
+                para que vea el avance diario de su obra.
+            </p>
+            </div>
+
+            {obraSeleccionadaId ? (
+            <div className="flex flex-col items-start gap-1 md:items-end">
+                <code className="rounded-lg border bg-muted/50 px-3 py-1 text-xs font-mono text-foreground">
+                {clientPath}
+                </code>
+                <p className="text-[11px] text-muted-foreground">
+                (En este MVP es solo una URL simulada; más adelante se vinculará al
+                cliente por su email.)
+                </p>
+            </div>
+            ) : (
+            <p className="text-xs text-muted-foreground">
+                Selecciona una obra para ver el link del cliente.
+            </p>
+            )}
+        </div>
+      </section>
+
       <Card>
         <CardHeader>
             <CardTitle>Resumen de Actividades</CardTitle>
@@ -381,7 +415,7 @@ export default function ProgramacionPage() {
       <section className="space-y-4 mt-8">
         <header className="space-y-1">
           <h3 className="text-xl font-semibold">Avance diario de la obra</h3>
-          <p className="text-sm text-slate-600">
+          <p className="text-sm text-muted-foreground">
             Registra el avance del día, sube una foto y deja un comentario. Esta
             información se podrá mostrar en el futuro dashboard del cliente.
           </p>
@@ -390,7 +424,7 @@ export default function ProgramacionPage() {
         <div className="grid gap-6 md:grid-cols-2">
           {/* Formulario de nuevo avance */}
           <form
-            className="space-y-3 rounded-xl border bg-white p-4 shadow-sm"
+            className="space-y-3 rounded-xl border bg-card p-4 shadow-sm"
             onSubmit={(e) => {
               e.preventDefault();
               setErrorAvance(null);
@@ -437,7 +471,7 @@ export default function ProgramacionPage() {
               setVisibleParaCliente(true);
             }}
           >
-            <h4 className="text-sm font-semibold text-slate-800">
+            <h4 className="text-sm font-semibold text-card-foreground">
               Registrar avance del día
             </h4>
 
@@ -447,71 +481,71 @@ export default function ProgramacionPage() {
 
             <div className="grid gap-3 md:grid-cols-2">
               <div className="space-y-1">
-                <label className="text-xs font-medium text-slate-700">
+                <Label className="text-xs font-medium text-muted-foreground">
                   Fecha del avance
-                </label>
-                <input
+                </Label>
+                <Input
                   type="date"
                   value={fechaAvance}
                   onChange={(e) => setFechaAvance(e.target.value)}
-                  className="w-full rounded-lg border px-3 py-2 text-sm"
+                  className="w-full"
                 />
               </div>
 
               <div className="space-y-1">
-                <label className="text-xs font-medium text-slate-700">
+                <Label className="text-xs font-medium text-muted-foreground">
                   Porcentaje de avance acumulado (%)
-                </label>
-                <input
+                </Label>
+                <Input
                   type="number"
                   min={0}
                   max={100}
                   value={porcentajeAvance}
                   onChange={(e) => setPorcentajeAvance(Number(e.target.value) || 0)}
-                  className="w-full rounded-lg border px-3 py-2 text-sm"
+                  className="w-full"
                 />
               </div>
             </div>
 
             <div className="space-y-1">
-              <label className="text-xs font-medium text-slate-700">
+              <Label className="text-xs font-medium text-muted-foreground">
                 Comentario del día
-              </label>
+              </Label>
               <textarea
                 value={comentarioAvance}
                 onChange={(e) => setComentarioAvance(e.target.value)}
                 rows={3}
-                className="w-full rounded-lg border px-3 py-2 text-sm"
+                className="w-full rounded-lg border bg-background px-3 py-2 text-sm"
                 placeholder="Describe brevemente qué se avanzó hoy en la obra..."
               />
             </div>
 
             <div className="space-y-1">
-              <label className="text-xs font-medium text-slate-700">
+              <Label className="text-xs font-medium text-muted-foreground">
                 URL de foto (simulada)
-              </label>
-              <input
+              </Label>
+              <Input
                 type="text"
                 value={fotoUrl}
                 onChange={(e) => setFotoUrl(e.target.value)}
-                className="w-full rounded-lg border px-3 py-2 text-sm"
+                className="w-full"
                 placeholder="https://..."
               />
-              <p className="text-[11px] text-slate-500">
+              <p className="text-[11px] text-muted-foreground">
                 Más adelante esto se conectará a un almacenamiento real de fotos. Por
                 ahora solo usamos una URL simulada.
               </p>
             </div>
 
             <div className="space-y-1">
-              <label className="text-xs font-medium text-slate-700">
+              <Label className="text-xs font-medium text-muted-foreground">
                 Registrado por
-              </label>
-              <input
+              </Label>
+              <Input
                 type="text"
                 value={creadoPor}
                 onChange={(e) => setCreadoPor(e.target.value)}
-                className="w-full rounded-lg border px-3 py-2 text-sm"
+                className="w-full"
                 placeholder="Ej: Jefe de Obra, Administrador de Obra..."
               />
             </div>
@@ -522,31 +556,31 @@ export default function ProgramacionPage() {
                 type="checkbox"
                 checked={visibleParaCliente}
                 onChange={(e) => setVisibleParaCliente(e.target.checked)}
-                className="h-4 w-4 rounded border"
+                className="h-4 w-4 rounded border-input"
               />
-              <label
+              <Label
                 htmlFor="visibleCliente"
-                className="text-xs text-slate-700"
+                className="text-xs text-muted-foreground"
               >
                 Mostrar este avance en el futuro dashboard del cliente
-              </label>
+              </Label>
             </div>
 
-            <button
+            <Button
               type="submit"
-              className="mt-2 inline-flex items-center justify-center rounded-lg border bg-accent text-accent-foreground hover:bg-accent/90 px-4 py-2 text-sm font-medium transition"
+              className="mt-2"
             >
               Registrar avance
-            </button>
+            </Button>
           </form>
 
           {/* Historial de avances */}
           <div className="space-y-3">
-            <h4 className="text-sm font-semibold text-slate-800">
+            <h4 className="text-sm font-semibold text-card-foreground">
               Historial de avances de esta obra
             </h4>
             {avancesFiltrados.length === 0 ? (
-              <p className="text-sm text-slate-500">
+              <p className="text-sm text-muted-foreground">
                 Aún no hay avances registrados para esta obra.
               </p>
             ) : (
@@ -554,32 +588,32 @@ export default function ProgramacionPage() {
                 {avancesFiltrados.map((av) => (
                   <article
                     key={av.id}
-                    className="rounded-xl border bg-white p-3 shadow-sm text-sm space-y-2"
+                    className="rounded-xl border bg-card p-3 shadow-sm text-sm space-y-2"
                   >
                     <div className="flex items-center justify-between gap-2">
                       <div>
                         <p className="font-semibold">
                           {av.fecha} · {av.porcentajeAvance}% avance
                         </p>
-                        <p className="text-[11px] text-slate-500">
+                        <p className="text-[11px] text-muted-foreground">
                           Registrado por: {av.creadoPor}
                         </p>
                       </div>
-                      <span
-                        className={`inline-flex items-center rounded-full px-2 py-1 text-[11px] ${
-                          av.visibleParaCliente
-                            ? "bg-emerald-50 text-emerald-700 border border-emerald-200"
-                            : "bg-slate-100 text-slate-600 border border-slate-200"
-                        }`}
+                      <Badge
+                        variant="outline"
+                        className={cn(av.visibleParaCliente
+                            ? "border-emerald-200 bg-emerald-50 text-emerald-700"
+                            : "border-slate-200 bg-slate-100 text-slate-600"
+                        )}
                       >
                         {av.visibleParaCliente
                           ? "Visible para cliente"
                           : "Solo uso interno"}
-                      </span>
+                      </Badge>
                     </div>
 
                     {av.fotoUrl && (
-                      <div className="overflow-hidden rounded-lg border bg-slate-50">
+                      <div className="overflow-hidden rounded-lg border bg-muted/30">
                         <img
                           src={av.fotoUrl}
                           alt={`Avance ${av.fecha}`}
@@ -588,7 +622,7 @@ export default function ProgramacionPage() {
                       </div>
                     )}
 
-                    <p className="text-slate-700 text-sm whitespace-pre-line">
+                    <p className="text-card-foreground/90 text-sm whitespace-pre-line">
                       {av.comentario}
                     </p>
                   </article>
@@ -602,4 +636,3 @@ export default function ProgramacionPage() {
     </div>
   );
 }
-
