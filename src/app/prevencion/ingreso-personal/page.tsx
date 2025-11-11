@@ -2,7 +2,7 @@
 
 import React, { useState, useMemo } from 'react';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -13,6 +13,8 @@ import { Separator } from '@/components/ui/separator';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
+import { X, FileText, UserCheck, Shield, MessageSquare, Briefcase } from 'lucide-react';
+import { Progress } from '@/components/ui/progress';
 
 // --- Tipos ---
 type Obra = {
@@ -21,8 +23,8 @@ type Obra = {
 };
 
 type TipoRelacionPersonal = "Empresa" | "Subcontrato";
-
 type EstadoIngresoPersonal = "Pendiente" | "Autorizado" | "Rechazado";
+type PasoDS44 = "Reglamento" | "Induccion" | "EPP" | "Charla" | null;
 
 type IngresoPersonal = {
   id: string;
@@ -33,12 +35,27 @@ type IngresoPersonal = {
   nombre: string;
   cargo: string;
   empresa: string;
+  
+  // Checklist DS44
   docContrato: boolean;
   docMutualAlDia: boolean;
   docExamenMedico: boolean;
   docInduccion: boolean;
   docEPPEntregados: boolean;
   docRegistroListaPersonal: boolean;
+  
+  // Campos de los sub-formularios
+  fechaReglamento?: string;
+  obsReglamento?: string;
+  fechaInduccion?: string;
+  tipoInduccion?: string;
+  obsInduccion?: string;
+  eppEntregados?: string;
+  fechaEntregaEPP?: string;
+  temaCharla?: string;
+  fechaCharla?: string;
+  obsCharla?: string;
+
   estadoIngreso: EstadoIngresoPersonal;
   observaciones: string;
 };
@@ -62,14 +79,9 @@ const INGRESOS_INICIALES: IngresoPersonal[] = [
     nombre: 'Juan Pérez',
     cargo: 'Jefe de Obra',
     empresa: 'Constructora Principal S.A.',
-    docContrato: true,
-    docMutualAlDia: true,
-    docExamenMedico: true,
-    docInduccion: true,
-    docEPPEntregados: true,
-    docRegistroListaPersonal: true,
-    estadoIngreso: 'Autorizado',
-    observaciones: 'Todo en orden.',
+    docContrato: true, docMutualAlDia: true, docExamenMedico: true, docInduccion: false, docEPPEntregados: false, docRegistroListaPersonal: true,
+    estadoIngreso: 'Pendiente',
+    observaciones: 'Listo para iniciar inducción y entrega de EPP.',
   },
   {
     id: 'per2',
@@ -80,14 +92,11 @@ const INGRESOS_INICIALES: IngresoPersonal[] = [
     nombre: 'Ana Gómez',
     cargo: 'Ayudante de Trazado',
     empresa: 'Topografía del Sur Ltda.',
-    docContrato: true,
-    docMutualAlDia: true,
-    docExamenMedico: false,
-    docInduccion: true,
-    docEPPEntregados: true,
-    docRegistroListaPersonal: true,
+    docContrato: true, docMutualAlDia: true, docExamenMedico: false, docInduccion: true, docEPPEntregados: true, docRegistroListaPersonal: true,
     estadoIngreso: 'Pendiente',
     observaciones: 'Falta examen de altura. No puede trabajar en niveles superiores hasta regularizar.',
+    fechaInduccion: '2025-11-20', tipoInduccion: 'General de Obra',
+    eppEntregados: 'Casco, Lentes, Zapatos de seguridad, Guantes', fechaEntregaEPP: '2025-11-20',
   },
 ];
 
@@ -101,68 +110,70 @@ function EstadoBadge({ estado }: { estado: EstadoIngresoPersonal }) {
   return <Badge variant="outline" className={cn("font-semibold", className)}>{estado}</Badge>;
 }
 
+function getProgresoDs44(ing: IngresoPersonal) {
+  const pasos = [
+    ing.docContrato,
+    ing.docMutualAlDia,
+    ing.docExamenMedico,
+    ing.docInduccion,
+    ing.docEPPEntregados,
+    ing.docRegistroListaPersonal,
+  ];
+  const total = pasos.length;
+  const cumplidos = pasos.filter(Boolean).length;
+  return { total, cumplidos, porcentaje: total > 0 ? (cumplidos / total) * 100 : 0 };
+}
+
+
 // --- Componente Principal ---
 export default function IngresoPersonalPage() {
   const [obraSeleccionadaId, setObraSeleccionadaId] = useState<string>(OBRAS_SIMULADAS[0]?.id ?? "");
   const [tipoRelacion, setTipoRelacion] = useState<TipoRelacionPersonal>("Empresa");
   const [ingresos, setIngresos] = useState<IngresoPersonal[]>(INGRESOS_INICIALES);
+  const [trabajadorSeleccionadoId, setTrabajadorSeleccionadoId] = useState<string | null>(null);
+  const [pasoActivo, setPasoActivo] = useState<PasoDS44>(null);
 
-  // Estados del formulario
+  // Estados del formulario de nuevo ingreso
   const [rut, setRut] = useState('');
   const [nombre, setNombre] = useState('');
   const [cargo, setCargo] = useState('');
   const [empresa, setEmpresa] = useState('');
   const [fechaIngreso, setFechaIngreso] = useState(new Date().toISOString().split('T')[0]);
-  const [estadoIngreso, setEstadoIngreso] = useState<EstadoIngresoPersonal>('Pendiente');
   const [observaciones, setObservaciones] = useState('');
-  
-  const [docContrato, setDocContrato] = useState(false);
-  const [docMutualAlDia, setDocMutualAlDia] = useState(false);
-  const [docExamenMedico, setDocExamenMedico] = useState(false);
-  const [docInduccion, setDocInduccion] = useState(false);
-  const [docEPPEntregados, setDocEPPEntregados] = useState(false);
-  const [docRegistroListaPersonal, setDocRegistroListaPersonal] = useState(false);
-
   const [error, setError] = useState('');
   
+  // Estados para subformularios de pasos
+  const [subFormState, setSubFormState] = useState({
+      fecha: new Date().toISOString().split('T')[0],
+      texto1: '',
+      texto2: ''
+  });
+
   const ingresosFiltrados = useMemo(() =>
-    ingresos.filter(
-      (i) =>
-        i.obraId === obraSeleccionadaId &&
-        i.tipoRelacion === tipoRelacion
-    ),
+    ingresos.filter((i) => i.obraId === obraSeleccionadaId && i.tipoRelacion === tipoRelacion),
     [ingresos, obraSeleccionadaId, tipoRelacion]
   );
   
-  const resumenIngresos = useMemo(() => {
-    const total = ingresosFiltrados.length;
-    const autorizados = ingresosFiltrados.filter(i => i.estadoIngreso === 'Autorizado').length;
-    const pendientes = ingresosFiltrados.filter(i => i.estadoIngreso === 'Pendiente').length;
-    const rechazados = ingresosFiltrados.filter(i => i.estadoIngreso === 'Rechazado').length;
-    return { total, autorizados, pendientes, rechazados };
-  }, [ingresosFiltrados]);
+  const trabajadorSeleccionado = useMemo(() => 
+    ingresos.find((i) => i.id === trabajadorSeleccionadoId),
+    [ingresos, trabajadorSeleccionadoId]
+  );
+  
+  const progresoSeleccionado = useMemo(() => 
+    trabajadorSeleccionado ? getProgresoDs44(trabajadorSeleccionado) : null,
+    [trabajadorSeleccionado]
+  );
 
   const resetForm = () => {
-    setRut('');
-    setNombre('');
-    setCargo('');
-    setEmpresa('');
+    setRut(''); setNombre(''); setCargo(''); setEmpresa('');
     setFechaIngreso(new Date().toISOString().split('T')[0]);
-    setEstadoIngreso('Pendiente');
-    setObservaciones('');
-    setDocContrato(false);
-    setDocMutualAlDia(false);
-    setDocExamenMedico(false);
-    setDocInduccion(false);
-    setDocEPPEntregados(false);
-    setDocRegistroListaPersonal(false);
-    setError('');
+    setObservaciones(''); setError('');
   };
   
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleNuevoIngresoSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!obraSeleccionadaId || !tipoRelacion || !rut || !nombre || !cargo || !empresa || !fechaIngreso || !estadoIngreso) {
-      setError('Faltan datos básicos del trabajador. Por favor, complete todos los campos requeridos (*).');
+    if (!rut || !nombre || !cargo || !empresa) {
+      setError('RUT, Nombre, Cargo y Empresa son obligatorios.');
       return;
     }
     setError('');
@@ -172,41 +183,136 @@ export default function IngresoPersonalPage() {
       obraId: obraSeleccionadaId,
       tipoRelacion,
       fechaIngreso,
-      rut,
-      nombre,
-      cargo,
-      empresa,
-      docContrato,
-      docMutualAlDia,
-      docExamenMedico,
-      docInduccion,
-      docEPPEntregados,
-      docRegistroListaPersonal,
-      estadoIngreso,
+      rut, nombre, cargo, empresa,
+      docContrato: false, docMutualAlDia: false, docExamenMedico: false, docInduccion: false, docEPPEntregados: false, docRegistroListaPersonal: false,
+      estadoIngreso: 'Pendiente',
       observaciones,
     };
     
     setIngresos((prev) => [nuevoIngreso, ...prev]);
     resetForm();
   };
-  
-  const countDocsOk = (ingreso: IngresoPersonal) => {
-    let count = 0;
-    if (ingreso.docContrato) count++;
-    if (ingreso.docMutualAlDia) count++;
-    if (ingreso.docExamenMedico) count++;
-    if (ingreso.docInduccion) count++;
-    if (ingreso.docEPPEntregados) count++;
-    if (ingreso.docRegistroListaPersonal) count++;
-    return count;
+
+  const handlePasoSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!trabajadorSeleccionadoId || !pasoActivo) return;
+
+    setIngresos(prev => prev.map(ingreso => {
+      if (ingreso.id !== trabajadorSeleccionadoId) return ingreso;
+
+      let updatedIngreso = { ...ingreso };
+
+      switch (pasoActivo) {
+        case 'Reglamento':
+          updatedIngreso.docContrato = true; // Asumiendo que este paso valida el contrato/reglamento
+          updatedIngreso.fechaReglamento = subFormState.fecha;
+          updatedIngreso.obsReglamento = subFormState.texto1;
+          break;
+        case 'Induccion':
+          updatedIngreso.docInduccion = true;
+          updatedIngreso.fechaInduccion = subFormState.fecha;
+          updatedIngreso.tipoInduccion = subFormState.texto1;
+          updatedIngreso.obsInduccion = subFormState.texto2;
+          break;
+        case 'EPP':
+          updatedIngreso.docEPPEntregados = true;
+          updatedIngreso.fechaEntregaEPP = subFormState.fecha;
+          updatedIngreso.eppEntregados = subFormState.texto1;
+          break;
+        case 'Charla':
+          updatedIngreso.docRegistroListaPersonal = true; // Reutilizando como charla de seguridad
+          updatedIngreso.fechaCharla = subFormState.fecha;
+          updatedIngreso.temaCharla = subFormState.texto1;
+          updatedIngreso.obsCharla = subFormState.texto2;
+          break;
+      }
+      
+      const { cumplidos, total } = getProgresoDs44(updatedIngreso);
+      if (cumplidos === total) {
+          updatedIngreso.estadoIngreso = "Autorizado";
+      }
+
+      return updatedIngreso;
+    }));
+
+    setPasoActivo(null);
+    setSubFormState({ fecha: new Date().toISOString().split('T')[0], texto1: '', texto2: '' });
   };
+  
+  const abrirPaso = (paso: PasoDS44) => {
+    setPasoActivo(paso);
+    setSubFormState({ fecha: new Date().toISOString().split('T')[0], texto1: '', texto2: '' });
+  };
+
+  const renderSubForm = () => {
+    if (!pasoActivo) return null;
+    
+    let title, fields;
+    switch(pasoActivo) {
+        case 'Reglamento':
+            title="Registro de Entrega/Explicación de Reglamento";
+            fields = <>
+                <div className="space-y-2"><Label htmlFor="fecha-paso">Fecha de entrega/explicación</Label><Input id="fecha-paso" type="date" value={subFormState.fecha} onChange={e => setSubFormState({...subFormState, fecha: e.target.value})} /></div>
+                <div className="space-y-2"><Label htmlFor="obs-paso">Observaciones</Label><Textarea id="obs-paso" value={subFormState.texto1} onChange={e => setSubFormState({...subFormState, texto1: e.target.value})} /></div>
+            </>;
+            break;
+        case 'Induccion':
+            title="Registro de Inducción de Seguridad";
+            fields = <>
+                <div className="space-y-2"><Label htmlFor="fecha-paso">Fecha de inducción</Label><Input id="fecha-paso" type="date" value={subFormState.fecha} onChange={e => setSubFormState({...subFormState, fecha: e.target.value})} /></div>
+                <div className="space-y-2"><Label htmlFor="tipo-induccion">Tipo de inducción (General/Específica)</Label><Input id="tipo-induccion" value={subFormState.texto1} onChange={e => setSubFormState({...subFormState, texto1: e.target.value})} /></div>
+                <div className="space-y-2"><Label htmlFor="obs-paso">Observaciones</Label><Textarea id="obs-paso" value={subFormState.texto2} onChange={e => setSubFormState({...subFormState, texto2: e.target.value})} /></div>
+            </>;
+            break;
+        case 'EPP':
+            title="Registro de Entrega de EPP";
+            fields = <>
+                <div className="space-y-2"><Label htmlFor="fecha-paso">Fecha de entrega</Label><Input id="fecha-paso" type="date" value={subFormState.fecha} onChange={e => setSubFormState({...subFormState, fecha: e.target.value})} /></div>
+                <div className="space-y-2"><Label htmlFor="epp-list">Listado de EPP entregados</Label><Textarea id="epp-list" placeholder="Casco, Lentes, Guantes, Zapatos..." value={subFormState.texto1} onChange={e => setSubFormState({...subFormState, texto1: e.target.value})} /></div>
+            </>;
+            break;
+        case 'Charla':
+            title="Registro de Charla de Seguridad";
+            fields = <>
+                <div className="space-y-2"><Label htmlFor="fecha-paso">Fecha de la charla</Label><Input id="fecha-paso" type="date" value={subFormState.fecha} onChange={e => setSubFormState({...subFormState, fecha: e.target.value})} /></div>
+                <div className="space-y-2"><Label htmlFor="tema-charla">Tema de la charla</Label><Input id="tema-charla" value={subFormState.texto1} onChange={e => setSubFormState({...subFormState, texto1: e.target.value})} /></div>
+                <div className="space-y-2"><Label htmlFor="obs-paso">Observaciones</Label><Textarea id="obs-paso" value={subFormState.texto2} onChange={e => setSubFormState({...subFormState, texto2: e.target.value})} /></div>
+            </>;
+            break;
+        default: return null;
+    }
+    
+    return (
+        <Card className="mt-4 bg-muted/30">
+            <CardHeader>
+                <CardTitle className="text-lg">{title}</CardTitle>
+            </CardHeader>
+            <CardContent>
+                <form onSubmit={handlePasoSubmit} className="space-y-4">
+                    {fields}
+                    <div className="flex gap-2">
+                        <Button type="submit">Guardar y marcar como completado</Button>
+                        <Button type="button" variant="ghost" onClick={() => setPasoActivo(null)}>Cancelar</Button>
+                    </div>
+                </form>
+            </CardContent>
+        </Card>
+    );
+  };
+  
+  const pasosDS44 = [
+      { id: 'Reglamento', label: 'Reglamento Interno', icon: FileText, docField: 'docContrato' },
+      { id: 'Induccion', label: 'Inducción de Seguridad', icon: UserCheck, docField: 'docInduccion' },
+      { id: 'EPP', label: 'Entrega de EPP', icon: Shield, docField: 'docEPPEntregados' },
+      { id: 'Charla', label: 'Charla de Seguridad', icon: MessageSquare, docField: 'docRegistroListaPersonal' },
+  ] as const;
 
   return (
     <div className="space-y-8">
       <div>
         <h1 className="text-4xl font-bold font-headline tracking-tight">Ingreso de Personal – DS44</h1>
         <p className="mt-2 text-lg text-muted-foreground">
-          Este módulo registra el ingreso de trabajadores a la obra, tanto propios del mandante como de subcontratos. Los datos servirán para indicadores de cumplimiento.
+          Este módulo registra el ingreso de trabajadores a la obra, tanto propios del mandante como de subcontratos, y gestiona los pasos de cumplimiento documental.
         </p>
       </div>
 
@@ -215,158 +321,140 @@ export default function IngresoPersonalPage() {
         <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <div className="space-y-2">
             <Label htmlFor="obra-select">Seleccione una obra</Label>
-            <Select value={obraSeleccionadaId} onValueChange={setObraSeleccionadaId}>
+            <Select value={obraSeleccionadaId} onValueChange={(val) => { setObraSeleccionadaId(val); setTrabajadorSeleccionadoId(null); }}>
               <SelectTrigger id="obra-select"><SelectValue placeholder="Seleccione una obra" /></SelectTrigger>
-              <SelectContent>
-                {OBRAS_SIMULADAS.map((obra) => (
-                  <SelectItem key={obra.id} value={obra.id}>{obra.nombreFaena}</SelectItem>
-                ))}
-              </SelectContent>
+              <SelectContent>{OBRAS_SIMULADAS.map((obra) => <SelectItem key={obra.id} value={obra.id}>{obra.nombreFaena}</SelectItem>)}</SelectContent>
             </Select>
           </div>
           <div className="space-y-2">
             <Label>Tipo de Personal a Gestionar</Label>
-            <RadioGroup
-              value={tipoRelacion}
-              onValueChange={(value) => setTipoRelacion(value as TipoRelacionPersonal)}
-              className="flex items-center space-x-4 pt-2"
-            >
-              <div className="flex items-center space-x-2">
-                <RadioGroupItem value="Empresa" id="r-empresa" />
-                <Label htmlFor="r-empresa">Personal Empresa</Label>
-              </div>
-              <div className="flex items-center space-x-2">
-                <RadioGroupItem value="Subcontrato" id="r-subcontrato" />
-                <Label htmlFor="r-subcontrato">Personal Subcontrato</Label>
-              </div>
+            <RadioGroup value={tipoRelacion} onValueChange={(val) => { setTipoRelacion(val as TipoRelacionPersonal); setTrabajadorSeleccionadoId(null); }} className="flex items-center space-x-4 pt-2">
+              <div className="flex items-center space-x-2"><RadioGroupItem value="Empresa" id="r-empresa" /><Label htmlFor="r-empresa">Personal Empresa</Label></div>
+              <div className="flex items-center space-x-2"><RadioGroupItem value="Subcontrato" id="r-subcontrato" /><Label htmlFor="r-subcontrato">Personal Subcontrato</Label></div>
             </RadioGroup>
           </div>
         </CardContent>
       </Card>
       
       <Card>
-        <CardHeader>
-            <CardTitle>Resumen de Ingresos</CardTitle>
-            <CardDescription>Personal de tipo "{tipoRelacion}" para la obra "{OBRAS_SIMULADAS.find(o => o.id === obraSeleccionadaId)?.nombreFaena}".</CardDescription>
-        </CardHeader>
+        <CardHeader><CardTitle>1. Crear Ficha de Nuevo Trabajador</CardTitle></CardHeader>
         <CardContent>
-            <div className="text-sm text-muted-foreground flex flex-wrap gap-x-4 gap-y-2">
-                <span className="font-medium text-foreground">Total: {resumenIngresos.total}</span>
-                <span className="hidden sm:inline">·</span>
-                <span>Autorizados: {resumenIngresos.autorizados}</span>
-                <span className="hidden sm:inline">·</span>
-                <span>Pendientes: {resumenIngresos.pendientes}</span>
-                <span className="hidden sm:inline">·</span>
-                <span>Rechazados: {resumenIngresos.rechazados}</span>
+          <form onSubmit={handleNuevoIngresoSubmit} className="space-y-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+              <div className="space-y-2"><Label htmlFor="rut">RUT*</Label><Input id="rut" value={rut} onChange={e => setRut(e.target.value)} /></div>
+              <div className="space-y-2"><Label htmlFor="nombre">Nombre*</Label><Input id="nombre" value={nombre} onChange={e => setNombre(e.target.value)} /></div>
+              <div className="space-y-2"><Label htmlFor="cargo">Cargo*</Label><Input id="cargo" value={cargo} onChange={e => setCargo(e.target.value)} /></div>
+              <div className="space-y-2"><Label htmlFor="empresa">Empresa*</Label><Input id="empresa" value={empresa} onChange={e => setEmpresa(e.target.value)} /></div>
             </div>
+            <div className="space-y-2">
+              <Label htmlFor="observaciones-nuevo">Observaciones iniciales</Label>
+              <Textarea id="observaciones-nuevo" value={observaciones} onChange={e => setObservaciones(e.target.value)} placeholder="Ej: Ingresa para faenas de terminaciones." />
+            </div>
+            {error && <p className="text-sm font-medium text-destructive">{error}</p>}
+            <Button type="submit">Crear Ficha de Trabajador</Button>
+          </form>
         </CardContent>
       </Card>
-
-      <form onSubmit={handleSubmit}>
-        <Card>
-          <CardHeader>
-            <CardTitle>Formulario de Ingreso de Personal</CardTitle>
-            <CardDescription>Complete los datos del trabajador y el checklist de requisitos.</CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-8">
-            
-            <div className="space-y-4">
-              <h3 className="text-lg font-semibold">1. Datos Básicos</h3>
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                <div className="space-y-2"><Label htmlFor="rut">RUT*</Label><Input id="rut" value={rut} onChange={e => setRut(e.target.value)} /></div>
-                <div className="space-y-2"><Label htmlFor="nombre">Nombre*</Label><Input id="nombre" value={nombre} onChange={e => setNombre(e.target.value)} /></div>
-                <div className="space-y-2"><Label htmlFor="cargo">Cargo*</Label><Input id="cargo" value={cargo} onChange={e => setCargo(e.target.value)} /></div>
-                <div className="space-y-2"><Label htmlFor="empresa">Empresa*</Label><Input id="empresa" value={empresa} onChange={e => setEmpresa(e.target.value)} /></div>
-                <div className="space-y-2"><Label htmlFor="fechaIngreso">Fecha de Ingreso*</Label><Input id="fechaIngreso" type="date" value={fechaIngreso} onChange={e => setFechaIngreso(e.target.value)} /></div>
-                <div className="space-y-2">
-                  <Label htmlFor="estadoIngreso">Estado de Ingreso*</Label>
-                  <Select value={estadoIngreso} onValueChange={(v) => setEstadoIngreso(v as EstadoIngresoPersonal)}>
-                    <SelectTrigger id="estadoIngreso"><SelectValue /></SelectTrigger>
-                    <SelectContent>
-                      {ESTADOS_INGRESO.map(e => <SelectItem key={e} value={e}>{e}</SelectItem>)}
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
-            </div>
-
-            <Separator />
-
-            <div className="space-y-4">
-              <h3 className="text-lg font-semibold">2. Checklist de Requisitos Personales DS44</h3>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-4">
-                <div className="flex items-center space-x-2"><Checkbox id="docContrato" checked={docContrato} onCheckedChange={c => setDocContrato(!!c)} /><Label htmlFor="docContrato">Contrato / anexo vigente</Label></div>
-                <div className="flex items-center space-x-2"><Checkbox id="docMutualAlDia" checked={docMutualAlDia} onCheckedChange={c => setDocMutualAlDia(!!c)} /><Label htmlFor="docMutualAlDia">Afiliación a mutual y cotizaciones al día</Label></div>
-                <div className="flex items-center space-x-2"><Checkbox id="docExamenMedico" checked={docExamenMedico} onCheckedChange={c => setDocExamenMedico(!!c)} /><Label htmlFor="docExamenMedico">Examen preocupacional / apto médico</Label></div>
-                <div className="flex items-center space-x-2"><Checkbox id="docInduccion" checked={docInduccion} onCheckedChange={c => setDocInduccion(!!c)} /><Label htmlFor="docInduccion">Inducción de seguridad realizada</Label></div>
-                <div className="flex items-center space-x-2"><Checkbox id="docEPPEntregados" checked={docEPPEntregados} onCheckedChange={c => setDocEPPEntregados(!!c)} /><Label htmlFor="docEPPEntregados">EPP entregados y registrados</Label></div>
-                <div className="flex items-center space-x-2"><Checkbox id="docRegistroListaPersonal" checked={docRegistroListaPersonal} onCheckedChange={c => setDocRegistroListaPersonal(!!c)} /><Label htmlFor="docRegistroListaPersonal">Incluido en listado de personal autorizado</Label></div>
-              </div>
-            </div>
-
-            <Separator />
-            
-            <div className="space-y-4">
-              <h3 className="text-lg font-semibold">3. Observaciones</h3>
-              <Textarea value={observaciones} onChange={e => setObservaciones(e.target.value)} placeholder="Ej: Se autoriza ingreso, pero queda pendiente entrega de calzado de seguridad." />
-            </div>
-
-            {error && <p className="text-sm font-medium text-destructive">{error}</p>}
-
-            <Button type="submit" className="w-full sm:w-auto bg-accent text-accent-foreground hover:bg-accent/90">
-              Registrar Ingreso de Trabajador
-            </Button>
-          </CardContent>
-        </Card>
-      </form>
       
       <Card>
         <CardHeader>
-          <CardTitle>Historial de Ingresos Registrados</CardTitle>
-          <CardDescription>Mostrando personal de tipo "{tipoRelacion}" para la obra seleccionada.</CardDescription>
+          <CardTitle>2. Listado de Personal y Gestión de Fichas</CardTitle>
+          <CardDescription>Mostrando personal de tipo "{tipoRelacion}" para la obra "{OBRAS_SIMULADAS.find(o => o.id === obraSeleccionadaId)?.nombreFaena}". Seleccione un trabajador para ver su ficha de cumplimiento.</CardDescription>
         </CardHeader>
         <CardContent className="p-0">
           <div className="overflow-x-auto">
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Fecha</TableHead>
-                  <TableHead>RUT / Nombre</TableHead>
+                  <TableHead>Nombre / RUT</TableHead>
                   <TableHead>Cargo / Empresa</TableHead>
-                  <TableHead className="text-center">Docs OK</TableHead>
-                  <TableHead>Estado</TableHead>
+                  <TableHead>Progreso DS44</TableHead>
+                  <TableHead>Estado General</TableHead>
+                  <TableHead className="text-right">Acciones</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {ingresosFiltrados.length > 0 ? (
-                  ingresosFiltrados.sort((a,b) => new Date(b.fechaIngreso).getTime() - new Date(a.fechaIngreso).getTime()).map(ingreso => (
-                    <TableRow key={ingreso.id}>
-                      <TableCell className="whitespace-nowrap">{ingreso.fechaIngreso}</TableCell>
-                      <TableCell>
-                        <div className="font-medium">{ingreso.nombre}</div>
-                        <div className="text-xs text-muted-foreground">{ingreso.rut}</div>
-                      </TableCell>
-                      <TableCell>
-                        <div className="font-medium">{ingreso.cargo}</div>
-                        <div className="text-xs text-muted-foreground">{ingreso.empresa}</div>
-                      </TableCell>
-                      <TableCell className="text-center font-medium">{countDocsOk(ingreso)}/6</TableCell>
-                      <TableCell><EstadoBadge estado={ingreso.estadoIngreso} /></TableCell>
-                    </TableRow>
-                  ))
+                  ingresosFiltrados.map(ingreso => {
+                    const progreso = getProgresoDs44(ingreso);
+                    return (
+                      <TableRow key={ingreso.id} className={cn(trabajadorSeleccionadoId === ingreso.id && "bg-accent/10")}>
+                        <TableCell>
+                          <div className="font-medium">{ingreso.nombre}</div>
+                          <div className="text-xs text-muted-foreground">{ingreso.rut}</div>
+                        </TableCell>
+                        <TableCell>
+                          <div className="font-medium">{ingreso.cargo}</div>
+                          <div className="text-xs text-muted-foreground">{ingreso.empresa}</div>
+                        </TableCell>
+                        <TableCell>
+                            <div className='flex items-center gap-2'>
+                                <Progress value={progreso.porcentaje} className="w-24 h-2" />
+                                <span className="text-xs font-medium text-muted-foreground">{progreso.cumplidos}/{progreso.total}</span>
+                            </div>
+                        </TableCell>
+                        <TableCell><EstadoBadge estado={ingreso.estadoIngreso} /></TableCell>
+                        <TableCell className="text-right">
+                          <Button variant="outline" size="sm" onClick={() => setTrabajadorSeleccionadoId(ingreso.id)}>Abrir Ficha</Button>
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })
                 ) : (
-                  <TableRow>
-                    <TableCell colSpan={5} className="text-center text-muted-foreground py-8">
-                      No hay trabajadores registrados para esta obra y tipo de empresa.
-                    </TableCell>
-                  </TableRow>
+                  <TableRow><TableCell colSpan={5} className="text-center text-muted-foreground py-8">No hay trabajadores registrados para esta obra y tipo de empresa.</TableCell></TableRow>
                 )}
               </TableBody>
             </Table>
           </div>
         </CardContent>
       </Card>
-
+      
+      {trabajadorSeleccionado && progresoSeleccionado && (
+        <Card className="border-accent shadow-lg">
+          <CardHeader className="flex flex-row items-start justify-between">
+            <div className="space-y-1.5">
+                <CardTitle className="text-2xl font-bold text-accent">Ficha de Cumplimiento: {trabajadorSeleccionado.nombre}</CardTitle>
+                <CardDescription className="text-base">{trabajadorSeleccionado.rut} | {trabajadorSeleccionado.cargo} en {trabajadorSeleccionado.empresa}</CardDescription>
+                <div className="flex items-center gap-4 pt-2">
+                    <EstadoBadge estado={trabajadorSeleccionado.estadoIngreso} />
+                    <div className="flex items-center gap-2">
+                        <Progress value={progresoSeleccionado.porcentaje} className="w-32 h-2.5" />
+                        <span className="text-sm font-semibold">{progresoSeleccionado.cumplidos}/{progresoSeleccionado.total} pasos DS44</span>
+                    </div>
+                </div>
+            </div>
+            <Button variant="ghost" size="icon" onClick={() => setTrabajadorSeleccionadoId(null)}><X className="h-5 w-5" /></Button>
+          </CardHeader>
+          <CardContent>
+            <Separator className="my-4" />
+            <h3 className="text-lg font-semibold mb-4">3. Pasos de Cumplimiento DS44</h3>
+             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                {pasosDS44.map(paso => {
+                    const isCompleted = trabajadorSeleccionado[paso.docField as keyof IngresoPersonal];
+                    return (
+                        <Card key={paso.id} className={cn("flex flex-col", isCompleted ? "bg-green-50 border-green-200" : "bg-yellow-50 border-yellow-200")}>
+                            <CardHeader className="flex-row items-center gap-3 space-y-0 pb-2">
+                                <paso.icon className={cn("h-6 w-6", isCompleted ? "text-green-600" : "text-yellow-600")} />
+                                <h4 className="font-semibold">{paso.label}</h4>
+                            </CardHeader>
+                            <CardContent className="pb-4">
+                                <Badge variant={isCompleted ? "default" : "secondary"} className={cn(isCompleted ? "bg-green-600" : "bg-yellow-600")}>
+                                    {isCompleted ? "Completado" : "Pendiente"}
+                                </Badge>
+                            </CardContent>
+                            <CardFooter className="mt-auto">
+                                <Button className="w-full" size="sm" variant={isCompleted ? "outline" : "default"} onClick={() => abrirPaso(paso.id as PasoDS44)} disabled={isCompleted}>
+                                    {isCompleted ? 'Ver Registro' : 'Abrir Formulario'}
+                                </Button>
+                            </CardFooter>
+                        </Card>
+                    );
+                })}
+            </div>
+            {renderSubForm()}
+          </CardContent>
+        </Card>
+      )}
     </div>
   );
 }
