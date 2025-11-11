@@ -1,16 +1,16 @@
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
-import { Users, FileText } from 'lucide-react';
+import { Users, FileText, Building } from 'lucide-react';
 
 export default function PrevencionPage() {
   const modules = [
     {
-      title: "Ingreso empresa subcontratista (DS44)",
-      description: "Formulario guiado para revisar todos los requisitos de ingreso de una empresa a la obra según DS44.",
-      href: "/prevencion/ds44-subcontratos",
-      icon: FileText,
-      linkText: "Abrir formulario"
+      title: "Empresas contratistas – DS44",
+      description: "Registrar y evaluar el cumplimiento de requisitos DS44 de empresas contratistas y subcontratistas por obra.",
+      href: "/prevencion/empresas-contratistas",
+      icon: Building,
+      linkText: "Ir a Empresas contratistas"
     },
     {
       title: "Ingreso de personal – Empresa (mandante)",
