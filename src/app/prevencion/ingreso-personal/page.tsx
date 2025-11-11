@@ -108,6 +108,29 @@ type RegistroEntregaEPP = {
   observaciones: string;
 };
 
+type TipoCharla =
+  | "Charla diaria"
+  | "Charla específica"
+  | "Reinducción"
+  | "Otra";
+
+type RegistroCharlaSeguridad = {
+  id: string;
+  trabajadorId: string;
+  obraId: string;
+  fechaCharla: string;          // YYYY-MM-DD
+  tipoCharla: TipoCharla;
+  tema: string;
+  relator: string;
+  riesgoPrincipal: string;      // ej: altura, atrapamientos, eléctrico, etc.
+  medidasReforzadas: string;    // texto libre
+  asistencia: "Asiste" | "No asiste" | "Llega tarde";
+  observaciones: string;
+  aceptaCharla: boolean;        // declara haber participado
+  nombreFirmaTrabajador: string; // simulación de firma
+};
+
+
 // --- Datos Simulados ---
 const OBRAS_SIMULADAS: Obra[] = [
   { id: 'obra-1', nombreFaena: 'Edificio Los Álamos' },
@@ -185,6 +208,7 @@ const INGRESOS_INICIALES: IngresoPersonal[] = [
 
 const REGISTROS_INDUCCION_INICIALES: RegistroInduccionTrabajador[] = [];
 const REGISTROS_EPP_INICIALES: RegistroEntregaEPP[] = [];
+const REGISTROS_CHARLAS_INICIALES: RegistroCharlaSeguridad[] = [];
 
 // --- Componentes y Funciones Auxiliares ---
 function EstadoBadge({ estado }: { estado: EstadoIngresoPersonal }) {
@@ -357,6 +381,36 @@ export default function IngresoPersonalPage() {
   });
   const [errorEPP, setErrorEPP] = useState<string | null>(null);
 
+  const [registrosCharlas, setRegistrosCharlas] =
+    useState<RegistroCharlaSeguridad[]>(REGISTROS_CHARLAS_INICIALES);
+
+  const [mostrarFormCharla, setMostrarFormCharla] = useState<boolean>(false);
+
+  const [formCharla, setFormCharla] = useState<{
+    fechaCharla: string;
+    tipoCharla: TipoCharla;
+    tema: string;
+    relator: string;
+    riesgoPrincipal: string;
+    medidasReforzadas: string;
+    asistencia: "Asiste" | "No asiste" | "Llega tarde";
+    observaciones: string;
+    aceptaCharla: boolean;
+    nombreFirmaTrabajador: string;
+  }>({
+    fechaCharla: new Date().toISOString().slice(0, 10),
+    tipoCharla: "Charla diaria",
+    tema: "",
+    relator: "",
+    riesgoPrincipal: "",
+    medidasReforzadas: "",
+    asistencia: "Asiste",
+    observaciones: "",
+    aceptaCharla: false,
+    nombreFirmaTrabajador: "",
+  });
+
+  const [errorCharla, setErrorCharla] = useState<string | null>(null);
 
   const ingresosFiltrados = useMemo(() =>
     ingresos.filter((i) => i.obraId === obraSeleccionadaId && i.tipoRelacion === tipoRelacion),
@@ -383,6 +437,14 @@ export default function IngresoPersonalPage() {
   : [];
 
   const ultimoRegistroEPP = registrosEPPTrabajador[0] ?? null;
+
+  const registrosCharlasTrabajador = trabajadorSeleccionado
+    ? registrosCharlas
+        .filter((r) => r.trabajadorId === trabajadorSeleccionado.id)
+        .sort((a, b) => (a.fechaCharla < b.fechaCharla ? 1 : -1))
+    : [];
+
+  const ultimaCharla = registrosCharlasTrabajador[0] ?? null;
 
   const progresoSeleccionado = useMemo(() => 
     trabajadorSeleccionado ? getProgresoDs44(trabajadorSeleccionado) : null,
@@ -1533,6 +1595,363 @@ export default function IngresoPersonalPage() {
                         </div>
                     )}
                     </div>
+                
+                {/* Tarjeta de Charla de seguridad */}
+                <div className="rounded-xl border bg-card p-4 shadow-sm space-y-3">
+                  <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
+                    <div>
+                      <h4 className="text-sm font-semibold text-card-foreground">
+                        Charla de seguridad / charla específica
+                      </h4>
+                      <p className="text-xs text-muted-foreground">
+                        Registra la participación del trabajador en charlas de seguridad
+                        (diarias, específicas o reinducciones), incluyendo tema, riesgo
+                        principal y observaciones.
+                      </p>
+                    </div>
+                    <div className="flex flex-col items-start gap-1 text-xs md:items-end">
+                      {ultimaCharla ? (
+                        <>
+                          <span className="font-semibold text-card-foreground">
+                            Última charla: {ultimaCharla.fechaCharla}
+                          </span>
+                          <span className="text-muted-foreground">
+                            Tema: {ultimaCharla.tema || "Sin tema registrado"}
+                          </span>
+                        </>
+                      ) : (
+                        <span className="text-muted-foreground">
+                          Este trabajador aún no tiene charlas registradas en el sistema.
+                        </span>
+                      )}
+                      <Button
+                        type="button"
+                        onClick={() => {
+                          setErrorCharla(null);
+                          setMostrarFormCharla((prev) => !prev);
+                        }}
+                        variant="outline"
+                        size="sm"
+                        className="mt-1"
+                      >
+                        {mostrarFormCharla
+                          ? "Cerrar formulario de charla"
+                          : "Registrar nueva charla"}
+                      </Button>
+                    </div>
+                  </div>
+
+                  {/* Formulario de Charla */}
+                  {mostrarFormCharla && (
+                    <form
+                      className="space-y-3 border-t pt-3 text-xs"
+                      onSubmit={(e) => {
+                        e.preventDefault();
+                        setErrorCharla(null);
+
+                        if (!trabajadorSeleccionado) {
+                          setErrorCharla("Debes seleccionar un trabajador.");
+                          return;
+                        }
+                        if (!formCharla.fechaCharla) {
+                          setErrorCharla("Debes indicar la fecha de la charla.");
+                          return;
+                        }
+                        if (!formCharla.tema.trim()) {
+                          setErrorCharla("Indica el tema de la charla.");
+                          return;
+                        }
+                        if (!formCharla.relator.trim()) {
+                          setErrorCharla("Indica quién dictó la charla.");
+                          return;
+                        }
+                        if (!formCharla.aceptaCharla) {
+                          setErrorCharla(
+                            "Debes marcar que el trabajador declara haber participado en la charla."
+                          );
+                          return;
+                        }
+                        if (!formCharla.nombreFirmaTrabajador.trim()) {
+                          setErrorCharla(
+                            "Indica el nombre del trabajador como simulación de firma."
+                          );
+                          return;
+                        }
+
+                        const nuevoRegistro: RegistroCharlaSeguridad = {
+                          id:
+                            typeof crypto !== "undefined" && crypto.randomUUID
+                              ? crypto.randomUUID()
+                              : Date.now().toString(),
+                          trabajadorId: trabajadorSeleccionado.id,
+                          obraId: trabajadorSeleccionado.obraId,
+                          fechaCharla: formCharla.fechaCharla,
+                          tipoCharla: formCharla.tipoCharla,
+                          tema: formCharla.tema,
+                          relator: formCharla.relator,
+                          riesgoPrincipal: formCharla.riesgoPrincipal,
+                          medidasReforzadas: formCharla.medidasReforzadas,
+                          asistencia: formCharla.asistencia,
+                          observaciones: formCharla.observaciones,
+                          aceptaCharla: formCharla.aceptaCharla,
+                          nombreFirmaTrabajador: formCharla.nombreFirmaTrabajador,
+                        };
+
+                        setRegistrosCharlas((prev) => [nuevoRegistro, ...prev]);
+
+                        setFormCharla((prev) => ({
+                          ...prev,
+                          tema: "",
+                          relator: "",
+                          riesgoPrincipal: "",
+                          medidasReforzadas: "",
+                          observaciones: "",
+                          aceptaCharla: false,
+                          nombreFirmaTrabajador: "",
+                        }));
+                        setMostrarFormCharla(false);
+                      }}
+                    >
+                      {errorCharla && (
+                        <p className="text-[11px] text-red-600">{errorCharla}</p>
+                      )}
+
+                      <div className="grid gap-3 md:grid-cols-3">
+                        <div className="space-y-1">
+                          <Label className="font-medium text-muted-foreground">
+                            Fecha de la charla
+                          </Label>
+                          <Input
+                            type="date"
+                            value={formCharla.fechaCharla}
+                            onChange={(e) =>
+                              setFormCharla((prev) => ({
+                                ...prev,
+                                fechaCharla: e.target.value,
+                              }))
+                            }
+                          />
+                        </div>
+                        <div className="space-y-1">
+                          <Label className="font-medium text-muted-foreground">
+                            Tipo de charla
+                          </Label>
+                          <Select
+                            value={formCharla.tipoCharla}
+                            onValueChange={(v) =>
+                              setFormCharla((prev) => ({
+                                ...prev,
+                                tipoCharla: v as TipoCharla,
+                              }))
+                            }
+                          >
+                            <SelectTrigger>
+                                <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="Charla diaria">Charla diaria</SelectItem>
+                                <SelectItem value="Charla específica">Charla específica</SelectItem>
+                                <SelectItem value="Reinducción">Reinducción</SelectItem>
+                                <SelectItem value="Otra">Otra</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        <div className="space-y-1">
+                          <Label className="font-medium text-muted-foreground">Relator</Label>
+                          <Input
+                            type="text"
+                            value={formCharla.relator}
+                            onChange={(e) =>
+                              setFormCharla((prev) => ({
+                                ...prev,
+                                relator: e.target.value,
+                              }))
+                            }
+                            placeholder="Nombre de quien dicta la charla"
+                          />
+                        </div>
+                      </div>
+
+                      <div className="grid gap-3 md:grid-cols-2">
+                        <div className="space-y-1">
+                          <Label className="font-medium text-muted-foreground">Tema de la charla</Label>
+                          <Input
+                            type="text"
+                            value={formCharla.tema}
+                            onChange={(e) =>
+                              setFormCharla((prev) => ({
+                                ...prev,
+                                tema: e.target.value,
+                              }))
+                            }
+                            placeholder="Ej: Trabajo en altura, orden y limpieza, etc."
+                          />
+                        </div>
+                        <div className="space-y-1">
+                          <Label className="font-medium text-muted-foreground">
+                            Riesgo principal abordado
+                          </Label>
+                          <Input
+                            type="text"
+                            value={formCharla.riesgoPrincipal}
+                            onChange={(e) =>
+                              setFormCharla((prev) => ({
+                                ...prev,
+                                riesgoPrincipal: e.target.value,
+                              }))
+                            }
+                            placeholder="Ej: Caídas de altura, atrapamientos, eléctrico..."
+                          />
+                        </div>
+                      </div>
+
+                      <div className="space-y-1">
+                        <Label className="font-medium text-muted-foreground">
+                          Medidas específicas reforzadas
+                        </Label>
+                        <Textarea
+                          value={formCharla.medidasReforzadas}
+                          onChange={(e) =>
+                            setFormCharla((prev) => ({
+                              ...prev,
+                              medidasReforzadas: e.target.value,
+                            }))
+                          }
+                          rows={3}
+                        />
+                      </div>
+
+                      <div className="grid gap-3 md:grid-cols-2">
+                        <div className="space-y-1">
+                          <Label className="font-medium text-muted-foreground">
+                            Asistencia del trabajador
+                          </Label>
+                          <Select
+                            value={formCharla.asistencia}
+                            onValueChange={(v) =>
+                              setFormCharla((prev) => ({
+                                ...prev,
+                                asistencia: v as
+                                  | "Asiste"
+                                  | "No asiste"
+                                  | "Llega tarde",
+                              }))
+                            }
+                          >
+                            <SelectTrigger>
+                                <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="Asiste">Asiste</SelectItem>
+                                <SelectItem value="No asiste">No asiste</SelectItem>
+                                <SelectItem value="Llega tarde">Llega tarde</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        <div className="space-y-1">
+                          <Label className="font-medium text-muted-foreground">
+                            Observaciones
+                          </Label>
+                          <Textarea
+                            value={formCharla.observaciones}
+                            onChange={(e) =>
+                              setFormCharla((prev) => ({
+                                ...prev,
+                                observaciones: e.target.value,
+                              }))
+                            }
+                            rows={3}
+                          />
+                        </div>
+                      </div>
+
+                      <div className="border-t pt-3 space-y-2">
+                        <Label className="flex items-center gap-2 font-normal">
+                          <Checkbox
+                            checked={formCharla.aceptaCharla}
+                            onCheckedChange={(c) =>
+                              setFormCharla((prev) => ({
+                                ...prev,
+                                aceptaCharla: !!c,
+                              }))
+                            }
+                          />
+                          <span>
+                            El trabajador declara haber participado en la charla de seguridad.
+                          </span>
+                        </Label>
+                        <div className="space-y-1">
+                          <Label className="font-medium text-muted-foreground">
+                            Nombre del trabajador (simulación de firma)
+                          </Label>
+                          <Input
+                            type="text"
+                            value={formCharla.nombreFirmaTrabajador}
+                            onChange={(e) =>
+                              setFormCharla((prev) => ({
+                                ...prev,
+                                nombreFirmaTrabajador: e.target.value,
+                              }))
+                            }
+                            placeholder="Nombre completo del trabajador"
+                          />
+                          <p className="text-[11px] text-muted-foreground">
+                            Más adelante se puede reemplazar por una firma digital con el dedo
+                            (canvas). Por ahora se registra el nombre como aceptación.
+                          </p>
+                        </div>
+                      </div>
+
+                      <div className="pt-2">
+                        <Button
+                          type="submit"
+                        >
+                          Guardar registro de charla
+                        </Button>
+                      </div>
+                    </form>
+                  )}
+
+                  {/* Historial de charlas */}
+                  {registrosCharlasTrabajador.length > 0 && (
+                    <div className="border-t pt-3">
+                      <h5 className="text-xs font-semibold text-muted-foreground mb-2">
+                        Historial de charlas de seguridad
+                      </h5>
+                      <div className="space-y-2 max-h-64 overflow-y-auto pr-1">
+                        {registrosCharlasTrabajador.map((reg) => (
+                          <article
+                            key={reg.id}
+                            className="rounded-lg border bg-muted/30 p-3 text-[11px] space-y-1"
+                          >
+                            <p className="font-semibold text-foreground">
+                              {reg.fechaCharla} – {reg.tema || "Sin tema registrado"}
+                            </p>
+                            <p className="text-muted-foreground">
+                              Tipo: {reg.tipoCharla} · Relator:{" "}
+                              {reg.relator || "No registrado"}
+                            </p>
+                            {reg.riesgoPrincipal && (
+                              <p className="text-muted-foreground">
+                                Riesgo principal: {reg.riesgoPrincipal}
+                              </p>
+                            )}
+                            {reg.medidasReforzadas && (
+                              <p className="text-muted-foreground">
+                                Medidas reforzadas: {reg.medidasReforzadas}
+                              </p>
+                            )}
+                            {reg.observaciones && (
+                              <p className="text-muted-foreground">
+                                Observaciones: {reg.observaciones}
+                              </p>
+                            )}
+                          </article>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
               </section>
             )}
 
