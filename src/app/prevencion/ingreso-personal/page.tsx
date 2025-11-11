@@ -376,7 +376,7 @@ export default function IngresoPersonalPage() {
             <Label htmlFor="obra-select">Seleccione una obra</Label>
             <Select value={obraSeleccionadaId} onValueChange={(val) => { setObraSeleccionadaId(val); setTrabajadorSeleccionadoId(null); }}>
               <SelectTrigger id="obra-select"><SelectValue placeholder="Seleccione una obra" /></SelectTrigger>
-              <SelectContent>{OBRAS_SIMULadas.map((obra) => <SelectItem key={obra.id} value={obra.id}>{obra.nombreFaena}</SelectItem>)}</SelectContent>
+              <SelectContent>{OBRAS_SIMULADAS.map((obra) => <SelectItem key={obra.id} value={obra.id}>{obra.nombreFaena}</SelectItem>)}</SelectContent>
             </Select>
           </div>
           <div className="space-y-2">
