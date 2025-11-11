@@ -100,7 +100,7 @@ const INGRESOS_INICIALES: IngresoPersonal[] = [
   },
 ];
 
-// --- Componentes Auxiliares ---
+// --- Componentes y Funciones Auxiliares ---
 function EstadoBadge({ estado }: { estado: EstadoIngresoPersonal }) {
   const className = {
     "Autorizado": "bg-green-100 text-green-800 border-green-200",
@@ -124,6 +124,52 @@ function getProgresoDs44(ing: IngresoPersonal) {
   return { total, cumplidos, porcentaje: total > 0 ? (cumplidos / total) * 100 : 0 };
 }
 
+function getIndicadoresObraTipo(
+  ingresos: IngresoPersonal[],
+  obraId: string,
+  tipoRelacion: TipoRelacionPersonal
+) {
+  const relevantes = ingresos.filter(
+    (i) => i.obraId === obraId && i.tipoRelacion === tipoRelacion
+  );
+
+  const total = relevantes.length;
+  const autorizados = relevantes.filter(
+    (i) => i.estadoIngreso === "Autorizado"
+  ).length;
+  const pendientes = relevantes.filter(
+    (i) => i.estadoIngreso === "Pendiente"
+  ).length;
+  const rechazados = relevantes.filter(
+    (i) => i.estadoIngreso === "Rechazado"
+  ).length;
+
+  const pasosPorPersona = relevantes.map((ing) => {
+    const { total, cumplidos } = getProgresoDs44(ing);
+    return { totalPasos: total, cumplidos };
+  });
+
+  const totalPasosGlobal = pasosPorPersona.reduce(
+    (acc, p) => acc + p.totalPasos,
+    0
+  );
+  const cumplidosGlobal = pasosPorPersona.reduce(
+    (acc, p) => acc + p.cumplidos,
+    0
+  );
+  
+  const porcentaje = totalPasosGlobal > 0 ? Math.round((cumplidosGlobal * 100) / totalPasosGlobal) : 0;
+
+  return {
+    total,
+    autorizados,
+    pendientes,
+    rechazados,
+    totalPasosGlobal,
+    cumplidosGlobal,
+    porcentaje,
+  };
+}
 
 // --- Componente Principal ---
 export default function IngresoPersonalPage() {
@@ -162,6 +208,11 @@ export default function IngresoPersonalPage() {
   const progresoSeleccionado = useMemo(() => 
     trabajadorSeleccionado ? getProgresoDs44(trabajadorSeleccionado) : null,
     [trabajadorSeleccionado]
+  );
+  
+  const indicadoresActuales = useMemo(() => 
+    getIndicadoresObraTipo(ingresos, obraSeleccionadaId, tipoRelacion),
+    [ingresos, obraSeleccionadaId, tipoRelacion]
   );
 
   const resetForm = () => {
@@ -204,7 +255,7 @@ export default function IngresoPersonalPage() {
 
       switch (pasoActivo) {
         case 'Reglamento':
-          updatedIngreso.docContrato = true; // Asumiendo que este paso valida el contrato/reglamento
+          updatedIngreso.docContrato = true;
           updatedIngreso.fechaReglamento = subFormState.fecha;
           updatedIngreso.obsReglamento = subFormState.texto1;
           break;
@@ -220,7 +271,7 @@ export default function IngresoPersonalPage() {
           updatedIngreso.eppEntregados = subFormState.texto1;
           break;
         case 'Charla':
-          updatedIngreso.docRegistroListaPersonal = true; // Reutilizando como charla de seguridad
+          updatedIngreso.docRegistroListaPersonal = true; 
           updatedIngreso.fechaCharla = subFormState.fecha;
           updatedIngreso.temaCharla = subFormState.texto1;
           updatedIngreso.obsCharla = subFormState.texto2;
@@ -306,6 +357,8 @@ export default function IngresoPersonalPage() {
       { id: 'EPP', label: 'Entrega de EPP', icon: Shield, docField: 'docEPPEntregados' },
       { id: 'Charla', label: 'Charla de Seguridad', icon: MessageSquare, docField: 'docRegistroListaPersonal' },
   ] as const;
+  
+  const selectedObra = OBRAS_SIMULADAS.find(o => o.id === obraSeleccionadaId);
 
   return (
     <div className="space-y-8">
@@ -323,7 +376,7 @@ export default function IngresoPersonalPage() {
             <Label htmlFor="obra-select">Seleccione una obra</Label>
             <Select value={obraSeleccionadaId} onValueChange={(val) => { setObraSeleccionadaId(val); setTrabajadorSeleccionadoId(null); }}>
               <SelectTrigger id="obra-select"><SelectValue placeholder="Seleccione una obra" /></SelectTrigger>
-              <SelectContent>{OBRAS_SIMULADAS.map((obra) => <SelectItem key={obra.id} value={obra.id}>{obra.nombreFaena}</SelectItem>)}</SelectContent>
+              <SelectContent>{OBRAS_SIMULadas.map((obra) => <SelectItem key={obra.id} value={obra.id}>{obra.nombreFaena}</SelectItem>)}</SelectContent>
             </Select>
           </div>
           <div className="space-y-2">
@@ -336,6 +389,42 @@ export default function IngresoPersonalPage() {
         </CardContent>
       </Card>
       
+      <Card>
+        <CardHeader>
+            <CardTitle>Indicadores DS44 – {selectedObra?.nombreFaena} / {tipoRelacion}</CardTitle>
+        </CardHeader>
+        <CardContent>
+            {indicadoresActuales.total === 0 ? (
+                 <p className="text-muted-foreground text-center py-4">No hay personal registrado aún para esta obra y tipo. Los indicadores aparecerán cuando registres trabajadores.</p>
+            ) : (
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-center">
+                    <div className="p-4 bg-muted/50 rounded-lg">
+                        <p className="text-sm text-muted-foreground">Total Personas</p>
+                        <p className="text-3xl font-bold">{indicadoresActuales.total}</p>
+                    </div>
+                     <div className="p-4 bg-green-100/60 rounded-lg">
+                        <p className="text-sm text-green-800">Autorizados</p>
+                        <p className="text-3xl font-bold text-green-900">{indicadoresActuales.autorizados}</p>
+                    </div>
+                     <div className="p-4 bg-yellow-100/60 rounded-lg">
+                        <p className="text-sm text-yellow-800">Pendientes</p>
+                        <p className="text-3xl font-bold text-yellow-900">{indicadoresActuales.pendientes}</p>
+                    </div>
+                    <div className="col-span-2 md:col-span-4 p-4 border rounded-lg mt-4">
+                        <p className="text-sm text-muted-foreground">Progreso de Cumplimiento (Pasos DS44)</p>
+                        <div className="flex items-center justify-center gap-4 mt-2">
+                             <p className="text-2xl font-bold">{indicadoresActuales.cumplidosGlobal} / {indicadoresActuales.totalPasosGlobal}</p>
+                             <div className="w-full max-w-xs">
+                                <Progress value={indicadoresActuales.porcentaje} className="h-4" />
+                             </div>
+                             <p className="text-2xl font-bold">{indicadoresActuales.porcentaje}%</p>
+                        </div>
+                    </div>
+                </div>
+            )}
+        </CardContent>
+      </Card>
+
       <Card>
         <CardHeader><CardTitle>1. Crear Ficha de Nuevo Trabajador</CardTitle></CardHeader>
         <CardContent>
@@ -359,7 +448,7 @@ export default function IngresoPersonalPage() {
       <Card>
         <CardHeader>
           <CardTitle>2. Listado de Personal y Gestión de Fichas</CardTitle>
-          <CardDescription>Mostrando personal de tipo "{tipoRelacion}" para la obra "{OBRAS_SIMULADAS.find(o => o.id === obraSeleccionadaId)?.nombreFaena}". Seleccione un trabajador para ver su ficha de cumplimiento.</CardDescription>
+          <CardDescription>Mostrando personal de tipo "{tipoRelacion}" para la obra "{selectedObra?.nombreFaena}". Seleccione un trabajador para ver su ficha de cumplimiento.</CardDescription>
         </CardHeader>
         <CardContent className="p-0">
           <div className="overflow-x-auto">
@@ -443,7 +532,7 @@ export default function IngresoPersonalPage() {
                                 </Badge>
                             </CardContent>
                             <CardFooter className="mt-auto">
-                                <Button className="w-full" size="sm" variant={isCompleted ? "outline" : "default"} onClick={() => abrirPaso(paso.id as PasoDS44)} disabled={isCompleted}>
+                                <Button className="w-full" size="sm" variant={isCompleted ? "outline" : "default"} onClick={() => abrirPaso(paso.id as PasoDS44)} disabled={!!isCompleted}>
                                     {isCompleted ? 'Ver Registro' : 'Abrir Formulario'}
                                 </Button>
                             </CardFooter>
