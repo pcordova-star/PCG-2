@@ -1,7 +1,7 @@
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
-import { Users, FileText, Building } from 'lucide-react';
+import { Users, FileText, Building, ClipboardPlus } from 'lucide-react';
 
 export default function PrevencionPage() {
   const modules = [
@@ -32,6 +32,13 @@ export default function PrevencionPage() {
       href: "/prevencion/ds44-mandante",
       icon: Building,
       linkText: "Ir a DS44 – Mandante / Obra"
+    },
+    {
+      title: "Formularios generales DS44",
+      description: "IPER, investigación de incidentes, planes de acción y otros formularios del sistema.",
+      href: "/prevencion/formularios-generales",
+      icon: ClipboardPlus,
+      linkText: "Ir a Formularios"
     }
   ];
 
