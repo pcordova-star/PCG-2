@@ -23,6 +23,8 @@ type Trabajador = {
   id: string;
   nombre: string;
   oficio: string;
+  rut: string;
+  empresa: string;
 };
 
 type EstadoAsignacion = "Activo" | "Suspendido" | "Finalizado";
@@ -45,12 +47,12 @@ const OBRAS_SIMULADAS: Obra[] = [
 ];
 
 const TRABAJADORES_SIMULADOS: Trabajador[] = [
-  { id: 't1', nombre: 'Juan Pérez', oficio: 'Maestro Carpintero' },
-  { id: 't2', nombre: 'Ana Gómez', oficio: 'Jornal' },
-  { id: 't3', nombre: 'Carlos Soto', oficio: 'Operador de Grúa' },
-  { id: 't4', nombre: 'Luisa Marín', oficio: 'Prevencionista de Riesgos' },
-  { id: 't5', nombre: 'Pedro Rojas', oficio: 'Electricista' },
-  { id: 't6', nombre: 'Sofía Lara', oficio: 'Jefe de Obra' },
+    { id: 't1', nombre: 'Juan Pérez', oficio: 'Maestro Carpintero', rut: '15.123.456-7', empresa: 'Constructora Principal' },
+    { id: 't2', nombre: 'Ana Gómez', oficio: 'Jornal', rut: '18.987.654-3', empresa: 'Constructora Principal' },
+    { id: 't3', nombre: 'Carlos Soto', oficio: 'Operador de Grúa', rut: '12.345.678-9', empresa: 'Subcontrato Maquinaria Pesada SPA' },
+    { id: 't4', nombre: 'Luisa Marín', oficio: 'Prevencionista de Riesgos', rut: '17.555.444-K', empresa: 'Consultores en Seguridad Ltda.' },
+    { id: 't5', nombre: 'Pedro Rojas', oficio: 'Electricista', rut: '16.888.777-2', empresa: 'Instalaciones Eléctricas SEG' },
+    { id: 't6', nombre: 'Sofía Lara', oficio: 'Jefe de Obra', rut: '14.222.333-1', empresa: 'Constructora Principal' },
 ];
 
 const ASIGNACIONES_INICIALES: Asignacion[] = [
@@ -80,7 +82,10 @@ export default function PersonalPage() {
   // Form state para nuevo trabajador
   const [nuevoTrabajadorNombre, setNuevoTrabajadorNombre] = useState('');
   const [nuevoTrabajadorOficio, setNuevoTrabajadorOficio] = useState('');
+  const [nuevoTrabajadorRut, setNuevoTrabajadorRut] = useState('');
+  const [nuevoTrabajadorEmpresa, setNuevoTrabajadorEmpresa] = useState('');
   const [errorNuevoTrabajador, setErrorNuevoTrabajador] = useState('');
+
 
   // Form state para asignación
   const [trabajadorIdAsignar, setTrabajadorIdAsignar] = useState('');
@@ -105,8 +110,8 @@ export default function PersonalPage() {
   
   const handleNuevoTrabajadorSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!nuevoTrabajadorNombre || !nuevoTrabajadorOficio) {
-      setErrorNuevoTrabajador('El nombre y el oficio son obligatorios.');
+    if (!nuevoTrabajadorNombre || !nuevoTrabajadorOficio || !nuevoTrabajadorRut || !nuevoTrabajadorEmpresa) {
+      setErrorNuevoTrabajador('Todos los campos son obligatorios.');
       return;
     }
     setErrorNuevoTrabajador('');
@@ -115,11 +120,15 @@ export default function PersonalPage() {
       id: `t-${Date.now()}`,
       nombre: nuevoTrabajadorNombre,
       oficio: nuevoTrabajadorOficio,
+      rut: nuevoTrabajadorRut,
+      empresa: nuevoTrabajadorEmpresa,
     };
     
     setTrabajadores(prev => [...prev, nuevoTrabajador]);
     setNuevoTrabajadorNombre('');
     setNuevoTrabajadorOficio('');
+    setNuevoTrabajadorRut('');
+    setNuevoTrabajadorEmpresa('');
   };
 
   const handleAsignacionSubmit = (e: React.FormEvent) => {
@@ -185,20 +194,26 @@ export default function PersonalPage() {
         <CardContent className="space-y-6">
           <form onSubmit={handleNuevoTrabajadorSubmit} className="space-y-4 p-4 border rounded-lg bg-muted/20">
             <h3 className="font-semibold">Agregar Nuevo Trabajador</h3>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
               <div className="space-y-2">
                 <Label htmlFor="nuevo-nombre">Nombre Completo</Label>
                 <Input id="nuevo-nombre" value={nuevoTrabajadorNombre} onChange={e => setNuevoTrabajadorNombre(e.target.value)} placeholder="Ej: Miguel Torres" />
               </div>
               <div className="space-y-2">
+                <Label htmlFor="nuevo-rut">RUT</Label>
+                <Input id="nuevo-rut" value={nuevoTrabajadorRut} onChange={e => setNuevoTrabajadorRut(e.target.value)} placeholder="Ej: 11.222.333-4" />
+              </div>
+              <div className="space-y-2">
                 <Label htmlFor="nuevo-oficio">Oficio</Label>
                 <Input id="nuevo-oficio" value={nuevoTrabajadorOficio} onChange={e => setNuevoTrabajadorOficio(e.target.value)} placeholder="Ej: Ayudante" />
               </div>
-              <div className="flex items-end">
-                <Button type="submit" className="w-full">Agregar Trabajador</Button>
+              <div className="space-y-2">
+                <Label htmlFor="nuevo-empresa">Empresa</Label>
+                <Input id="nuevo-empresa" value={nuevoTrabajadorEmpresa} onChange={e => setNuevoTrabajadorEmpresa(e.target.value)} placeholder="Ej: Constructora Principal" />
               </div>
             </div>
-            {errorNuevoTrabajador && <p className="text-sm font-medium text-destructive">{errorNuevoTrabajador}</p>}
+             {errorNuevoTrabajador && <p className="text-sm font-medium text-destructive mt-2">{errorNuevoTrabajador}</p>}
+            <Button type="submit">Agregar Trabajador</Button>
           </form>
 
           <div className="space-y-2">
@@ -208,18 +223,22 @@ export default function PersonalPage() {
                 <TableHeader className="sticky top-0 bg-muted/50">
                   <TableRow>
                     <TableHead>Nombre</TableHead>
+                    <TableHead>RUT</TableHead>
                     <TableHead>Oficio</TableHead>
+                    <TableHead>Empresa</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {trabajadores.length > 0 ? trabajadores.map(t => (
                     <TableRow key={t.id}>
                       <TableCell className="font-medium">{t.nombre}</TableCell>
+                      <TableCell>{t.rut}</TableCell>
                       <TableCell>{t.oficio}</TableCell>
+                      <TableCell>{t.empresa}</TableCell>
                     </TableRow>
                   )) : (
                     <TableRow>
-                      <TableCell colSpan={2} className="text-center text-muted-foreground">No hay trabajadores registrados.</TableCell>
+                      <TableCell colSpan={4} className="text-center text-muted-foreground">No hay trabajadores registrados.</TableCell>
                     </TableRow>
                   )}
                 </TableBody>
@@ -290,7 +309,7 @@ export default function PersonalPage() {
                   <SelectContent>
                     {trabajadores.map((t) => (
                       <SelectItem key={t.id} value={t.id}>
-                        {t.nombre} ({t.oficio})
+                        {t.nombre} — {t.oficio} — {t.empresa}
                       </SelectItem>
                     ))}
                   </SelectContent>
@@ -334,8 +353,7 @@ export default function PersonalPage() {
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Nombre</TableHead>
-                  <TableHead>Oficio</TableHead>
+                  <TableHead>Trabajador</TableHead>
                   <TableHead>Rol en Obra</TableHead>
                   <TableHead>Estado</TableHead>
                   <TableHead className="text-right">Acciones</TableHead>
@@ -349,8 +367,10 @@ export default function PersonalPage() {
                     
                     return (
                       <TableRow key={asignacion.id}>
-                        <TableCell className="font-medium">{trabajador.nombre}</TableCell>
-                        <TableCell>{trabajador.oficio}</TableCell>
+                        <TableCell className="font-medium">
+                          <div>{trabajador.nombre} ({trabajador.oficio})</div>
+                          <div className="text-xs text-muted-foreground">{trabajador.rut} — {trabajador.empresa}</div>
+                        </TableCell>
                         <TableCell>{asignacion.rol}</TableCell>
                         <TableCell>
                           <div className="flex flex-col gap-2 md:flex-row md:items-center">
@@ -402,7 +422,7 @@ export default function PersonalPage() {
                   })
                 ) : (
                   <TableRow>
-                    <TableCell colSpan={5} className="text-center text-muted-foreground py-8">
+                    <TableCell colSpan={4} className="text-center text-muted-foreground py-8">
                       No hay personal asignado a esta obra.
                     </TableCell>
                   </TableRow>
@@ -415,4 +435,6 @@ export default function PersonalPage() {
     </div>
   );
 }
+    
+
     
