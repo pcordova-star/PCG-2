@@ -9,6 +9,9 @@ import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
+import { Trash2 } from 'lucide-react';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
+
 
 type Obra = {
   id: string;
@@ -58,7 +61,7 @@ function EstadoBadge({ estado }: { estado: EstadoActividad }) {
     "Pendiente": "bg-yellow-100 text-yellow-800 border-yellow-200",
   }[estado];
   
-  return <Badge variant={variant} className={cn("font-semibold", className)}>{estado}</Badge>;
+  return <Badge variant={variant} className={cn("font-semibold whitespace-nowrap", className)}>{estado}</Badge>;
 }
 
 export default function ProgramacionPage() {
@@ -120,12 +123,25 @@ export default function ProgramacionPage() {
     setEstado('Pendiente');
   };
 
+  const handleEstadoChange = (id: string, nuevoEstado: EstadoActividad) => {
+    setActividades((prev) =>
+      prev.map((act) =>
+        act.id === id ? { ...act, estado: nuevoEstado } : act
+      )
+    );
+  };
+
+  const handleEliminar = (id: string) => {
+    setActividades((prev) => prev.filter((act) => act.id !== id));
+  };
+
+
   return (
     <div className="space-y-8">
       <div>
         <h1 className="text-4xl font-bold font-headline tracking-tight">Programación de Obras - PCG 2.0</h1>
         <p className="mt-2 text-lg text-muted-foreground">
-          Seleccione una obra para ver sus actividades programadas. Los datos son simulados y se reiniciarán al recargar.
+          Seleccione una obra para ver y gestionar sus actividades programadas.
         </p>
       </div>
 
@@ -158,13 +174,13 @@ export default function ProgramacionPage() {
             <CardTitle>Resumen de Actividades</CardTitle>
         </CardHeader>
         <CardContent>
-            <div className="text-sm text-muted-foreground space-x-4">
+            <div className="text-sm text-muted-foreground flex flex-wrap gap-x-4 gap-y-2">
                 <span className="font-medium text-foreground">Total: {resumenActividades.total}</span>
-                <span>·</span>
+                <span className="hidden sm:inline">·</span>
                 <span>Pendientes: {resumenActividades.pendientes}</span>
-                <span>·</span>
+                <span className="hidden sm:inline">·</span>
                 <span>En curso: {resumenActividades.enCurso}</span>
-                <span>·</span>
+                <span className="hidden sm:inline">·</span>
                 <span>Completadas: {resumenActividades.completadas}</span>
             </div>
         </CardContent>
@@ -226,11 +242,12 @@ export default function ProgramacionPage() {
                 <Table>
                     <TableHeader>
                     <TableRow>
-                        <TableHead>Nombre de actividad</TableHead>
-                        <TableHead>Fecha inicio</TableHead>
-                        <TableHead>Fecha término</TableHead>
+                        <TableHead>Actividad</TableHead>
+                        <TableHead>Inicio</TableHead>
+                        <TableHead>Fin</TableHead>
                         <TableHead>Responsable</TableHead>
                         <TableHead>Estado</TableHead>
+                        <TableHead className="text-right">Acciones</TableHead>
                     </TableRow>
                     </TableHeader>
                     <TableBody>
@@ -241,12 +258,56 @@ export default function ProgramacionPage() {
                             <TableCell>{actividad.fechaInicio}</TableCell>
                             <TableCell>{actividad.fechaFin}</TableCell>
                             <TableCell>{actividad.responsable}</TableCell>
-                            <TableCell><EstadoBadge estado={actividad.estado} /></TableCell>
+                            <TableCell>
+                                <div className="flex flex-col gap-2 md:flex-row md:items-center">
+                                    <EstadoBadge estado={actividad.estado} />
+                                    <Select 
+                                        value={actividad.estado}
+                                        onValueChange={(value) => handleEstadoChange(actividad.id, value as EstadoActividad)}
+                                    >
+                                        <SelectTrigger className="text-xs h-8 w-full md:w-[120px]">
+                                            <SelectValue />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            {ESTADOS_ACTIVIDAD.map(e => (
+                                                <SelectItem key={e} value={e} className="text-xs">{e}</SelectItem>
+                                            ))}
+                                        </SelectContent>
+                                    </Select>
+                                </div>
+                            </TableCell>
+                            <TableCell className="text-right">
+                               <AlertDialog>
+                                <AlertDialogTrigger asChild>
+                                    <Button variant="ghost" size="icon" className="text-destructive hover:text-destructive hover:bg-destructive/10">
+                                        <Trash2 className="h-4 w-4" />
+                                        <span className="sr-only">Eliminar</span>
+                                    </Button>
+                                </AlertDialogTrigger>
+                                <AlertDialogContent>
+                                    <AlertDialogHeader>
+                                    <AlertDialogTitle>¿Está seguro que desea eliminar esta actividad?</AlertDialogTitle>
+                                    <AlertDialogDescription>
+                                        Esta acción no se puede deshacer. La actividad "{actividad.nombreActividad}" se eliminará permanentemente.
+                                    </AlertDialogDescription>
+                                    </AlertDialogHeader>
+                                    <AlertDialogFooter>
+                                    <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                                    <AlertDialogAction
+                                        onClick={() => handleEliminar(actividad.id)}
+                                        className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                                    >
+                                        Eliminar
+                                    </AlertDialogAction>
+                                    </AlertDialogFooter>
+                                </AlertDialogContent>
+                                </AlertDialog>
+                            </TableCell>
                         </TableRow>
                         ))
                     ) : (
                         <TableRow>
-                        <TableCell colSpan={5} className="text-center text-muted-foreground py-8">
+                        <TableCell colSpan={6} className="text-center text-muted-foreground py-8">
                             No hay actividades programadas para esta obra.
                         </TableCell>
                         </TableRow>
