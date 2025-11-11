@@ -33,7 +33,6 @@ type Empresa = {
   tipo: TipoEmpresa;
 };
 
-
 type IngresoPersonal = {
   id: string;
   obraId: string;
@@ -67,6 +66,25 @@ type IngresoPersonal = {
 
   estadoIngreso: EstadoIngresoPersonal;
   observaciones: string;
+};
+
+type RegistroInduccionTrabajador = {
+  id: string;
+  trabajadorId: string;
+  obraId: string;
+  fechaInduccion: string;   // YYYY-MM-DD
+  lugar: string;
+  relator: string;          // quién hizo la inducción
+  contenidoReglasGenerales: boolean;
+  contenidoPlanEmergencia: boolean;
+  contenidoRiesgosCriticos: boolean;
+  contenidoUsoEPP: boolean;
+  contenidoReporteIncidentes: boolean;
+  evaluacionAplicada: boolean;
+  resultadoEvaluacion: "Aprobado" | "Reforzar contenidos" | "No aplica";
+  observaciones: string;
+  aceptaInduccion: boolean; // declara haber recibido y comprendido
+  nombreFirmaTrabajador: string; // por ahora simulamos la firma con el nombre
 };
 
 // --- Datos Simulados ---
@@ -143,6 +161,8 @@ const INGRESOS_INICIALES: IngresoPersonal[] = [
     eppEntregados: 'Casco, Lentes, Zapatos de seguridad, Guantes', fechaEntregaEPP: '2025-11-20',
   },
 ];
+
+const REGISTROS_INDUCCION_INICIALES: RegistroInduccionTrabajador[] = [];
 
 // --- Componentes y Funciones Auxiliares ---
 function EstadoBadge({ estado }: { estado: EstadoIngresoPersonal }) {
@@ -239,6 +259,44 @@ export default function IngresoPersonalPage() {
       texto2: ''
   });
 
+  const [registrosInduccion, setRegistrosInduccion] =
+    useState<RegistroInduccionTrabajador[]>(REGISTROS_INDUCCION_INICIALES);
+
+  const [mostrarFormInduccion, setMostrarFormInduccion] =
+    useState<boolean>(false);
+
+  const [formInduccion, setFormInduccion] = useState<{
+    fechaInduccion: string;
+    lugar: string;
+    relator: string;
+    contenidoReglasGenerales: boolean;
+    contenidoPlanEmergencia: boolean;
+    contenidoRiesgosCriticos: boolean;
+    contenidoUsoEPP: boolean;
+    contenidoReporteIncidentes: boolean;
+    evaluacionAplicada: boolean;
+    resultadoEvaluacion: "Aprobado" | "Reforzar contenidos" | "No aplica";
+    observaciones: string;
+    aceptaInduccion: boolean;
+    nombreFirmaTrabajador: string;
+  }>({
+    fechaInduccion: new Date().toISOString().slice(0, 10),
+    lugar: "",
+    relator: "",
+    contenidoReglasGenerales: true,
+    contenidoPlanEmergencia: true,
+    contenidoRiesgosCriticos: true,
+    contenidoUsoEPP: true,
+    contenidoReporteIncidentes: true,
+    evaluacionAplicada: false,
+    resultadoEvaluacion: "No aplica",
+    observaciones: "",
+    aceptaInduccion: false,
+    nombreFirmaTrabajador: "",
+  });
+  
+  const [errorInduccion, setErrorInduccion] = useState<string | null>(null);
+
   const ingresosFiltrados = useMemo(() =>
     ingresos.filter((i) => i.obraId === obraSeleccionadaId && i.tipoRelacion === tipoRelacion),
     [ingresos, obraSeleccionadaId, tipoRelacion]
@@ -249,6 +307,14 @@ export default function IngresoPersonalPage() {
     [ingresos, trabajadorSeleccionadoId]
   );
   
+  const registrosInduccionTrabajador = trabajadorSeleccionado
+    ? registrosInduccion
+        .filter((r) => r.trabajadorId === trabajadorSeleccionado.id)
+        .sort((a, b) => (a.fechaInduccion < b.fechaInduccion ? 1 : -1))
+    : [];
+
+  const ultimoRegistroInduccion = registrosInduccionTrabajador[0] ?? null;
+
   const progresoSeleccionado = useMemo(() => 
     trabajadorSeleccionado ? getProgresoDs44(trabajadorSeleccionado) : null,
     [trabajadorSeleccionado]
@@ -309,7 +375,7 @@ export default function IngresoPersonalPage() {
       switch (pasoActivo) {
         case 'Reglamento':
           updatedIngreso.docContrato = true;
-          updatedIngreso.docMutualAlDia = true; // Asumiendo que se revisan juntos
+          updatedIngreso.docMutualAlDia = true; 
           updatedIngreso.docExamenMedico = true;
           updatedIngreso.fechaReglamento = subFormState.fecha;
           updatedIngreso.obsReglamento = subFormState.texto1;
@@ -609,11 +675,414 @@ export default function IngresoPersonalPage() {
                 })}
             </div>
             {renderSubForm()}
+            
+            {trabajadorSeleccionado && (
+              <section className="mt-6 space-y-4">
+                <header className="flex flex-col gap-1 md:flex-row md:items-center md:justify-between">
+                  <div>
+                    <h3 className="text-lg font-semibold text-card-foreground">
+                      Formularios DS44 – Trabajador
+                    </h3>
+                    <p className="text-xs text-muted-foreground">
+                      Aquí se registran los formularios clave de Prevención de Riesgos
+                      asociados a este trabajador (inducción, EPP, charlas, etc.).
+                      En esta primera iteración solo implementamos la Inducción de
+                      seguridad de la obra.
+                    </p>
+                  </div>
+                  <div className="flex flex-col items-start gap-1 text-xs md:items-end">
+                    {ultimoRegistroInduccion ? (
+                      <>
+                        <span className="font-semibold text-card-foreground">
+                          Última inducción: {ultimoRegistroInduccion.fechaInduccion}
+                        </span>
+                        <span className="text-muted-foreground">
+                          Relator: {ultimoRegistroInduccion.relator || "No registrado"}
+                        </span>
+                      </>
+                    ) : (
+                      <span className="text-muted-foreground">
+                        Este trabajador aún no tiene una inducción registrada en el sistema.
+                      </span>
+                    )}
+                  </div>
+                </header>
+
+                <div className="rounded-xl border bg-card p-4 shadow-sm space-y-3">
+                  <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
+                    <div>
+                      <h4 className="text-sm font-semibold text-card-foreground">
+                        Inducción de seguridad de la obra
+                      </h4>
+                      <p className="text-xs text-muted-foreground">
+                        Formulario para registrar que el trabajador recibió la inducción
+                        de seguridad específica de la obra, de acuerdo al DS44.
+                      </p>
+                    </div>
+                    <Button
+                      type="button"
+                      onClick={() => {
+                        setErrorInduccion(null);
+                        setMostrarFormInduccion((prev) => !prev);
+                      }}
+                      variant="outline"
+                      size="sm"
+                    >
+                      {mostrarFormInduccion
+                        ? "Cerrar formulario"
+                        : "Registrar nueva inducción"}
+                    </Button>
+                  </div>
+
+                  {mostrarFormInduccion && (
+                    <form
+                      className="space-y-3 border-t pt-3 text-xs"
+                      onSubmit={(e) => {
+                        e.preventDefault();
+                        setErrorInduccion(null);
+
+                        if (!trabajadorSeleccionado) {
+                          setErrorInduccion("Debes seleccionar un trabajador.");
+                          return;
+                        }
+                        if (!formInduccion.fechaInduccion) {
+                          setErrorInduccion("Debes indicar la fecha de la inducción.");
+                          return;
+                        }
+                        if (!formInduccion.lugar.trim()) {
+                          setErrorInduccion("Indica el lugar donde se realizó la inducción.");
+                          return;
+                        }
+                        if (!formInduccion.relator.trim()) {
+                          setErrorInduccion("Indica quién realizó la inducción.");
+                          return;
+                        }
+                        if (!formInduccion.aceptaInduccion) {
+                          setErrorInduccion(
+                            "Debes marcar que el trabajador declara haber recibido y comprendido la inducción."
+                          );
+                          return;
+                        }
+                        if (!formInduccion.nombreFirmaTrabajador.trim()) {
+                          setErrorInduccion(
+                            "Indica el nombre del trabajador como simulación de firma."
+                          );
+                          return;
+                        }
+
+                        const nuevoRegistro: RegistroInduccionTrabajador = {
+                          id:
+                            typeof crypto !== "undefined" && crypto.randomUUID
+                              ? crypto.randomUUID()
+                              : Date.now().toString(),
+                          trabajadorId: trabajadorSeleccionado.id,
+                          obraId: trabajadorSeleccionado.obraId,
+                          fechaInduccion: formInduccion.fechaInduccion,
+                          lugar: formInduccion.lugar,
+                          relator: formInduccion.relator,
+                          contenidoReglasGenerales:
+                            formInduccion.contenidoReglasGenerales,
+                          contenidoPlanEmergencia: formInduccion.contenidoPlanEmergencia,
+                          contenidoRiesgosCriticos: formInduccion.contenidoRiesgosCriticos,
+                          contenidoUsoEPP: formInduccion.contenidoUsoEPP,
+                          contenidoReporteIncidentes:
+                            formInduccion.contenidoReporteIncidentes,
+                          evaluacionAplicada: formInduccion.evaluacionAplicada,
+                          resultadoEvaluacion: formInduccion.resultadoEvaluacion,
+                          observaciones: formInduccion.observaciones,
+                          aceptaInduccion: formInduccion.aceptaInduccion,
+                          nombreFirmaTrabajador: formInduccion.nombreFirmaTrabajador,
+                        };
+
+                        setRegistrosInduccion((prev) => [nuevoRegistro, ...prev]);
+
+                        setFormInduccion((prev) => ({
+                          ...prev,
+                          lugar: "",
+                          relator: "",
+                          observaciones: "",
+                          aceptaInduccion: false,
+                          nombreFirmaTrabajador: "",
+                        }));
+                        setMostrarFormInduccion(false);
+                      }}
+                    >
+                      {errorInduccion && (
+                        <p className="text-[11px] text-red-600">{errorInduccion}</p>
+                      )}
+
+                      <div className="grid gap-3 md:grid-cols-3">
+                        <div className="space-y-1">
+                          <Label className="font-medium text-muted-foreground">
+                            Fecha de inducción
+                          </Label>
+                          <Input
+                            type="date"
+                            value={formInduccion.fechaInduccion}
+                            onChange={(e) =>
+                              setFormInduccion((prev) => ({
+                                ...prev,
+                                fechaInduccion: e.target.value,
+                              }))
+                            }
+                          />
+                        </div>
+                        <div className="space-y-1">
+                          <Label className="font-medium text-muted-foreground">Lugar</Label>
+                          <Input
+                            type="text"
+                            value={formInduccion.lugar}
+                            onChange={(e) =>
+                              setFormInduccion((prev) => ({
+                                ...prev,
+                                lugar: e.target.value,
+                              }))
+                            }
+                            placeholder="Ej: Oficina de obra, sala reuniones, terreno..."
+                          />
+                        </div>
+                        <div className="space-y-1">
+                          <Label className="font-medium text-muted-foreground">
+                            Relator / Responsable
+                          </Label>
+                          <Input
+                            type="text"
+                            value={formInduccion.relator}
+                            onChange={(e) =>
+                              setFormInduccion((prev) => ({
+                                ...prev,
+                                relator: e.target.value,
+                              }))
+                            }
+                            placeholder="Nombre del prevencionista o jefe de obra"
+                          />
+                        </div>
+                      </div>
+
+                      <div className="grid gap-2 md:grid-cols-2">
+                        <div className="space-y-1">
+                          <p className="font-medium text-muted-foreground">
+                            Contenidos mínimos impartidos
+                          </p>
+                          <div className="space-y-1">
+                            <Label className="flex items-center gap-2 font-normal">
+                              <Checkbox
+                                checked={formInduccion.contenidoReglasGenerales}
+                                onCheckedChange={(c) =>
+                                  setFormInduccion((prev) => ({
+                                    ...prev,
+                                    contenidoReglasGenerales: !!c,
+                                  }))
+                                }
+                              />
+                              <span>
+                                Reglas generales de seguridad y comportamiento en la obra.
+                              </span>
+                            </Label>
+                             <Label className="flex items-center gap-2 font-normal">
+                              <Checkbox
+                                checked={formInduccion.contenidoPlanEmergencia}
+                                onCheckedChange={(c) =>
+                                  setFormInduccion((prev) => ({
+                                    ...prev,
+                                    contenidoPlanEmergencia: !!c,
+                                  }))
+                                }
+                              />
+                              <span>
+                                Plan de emergencia, rutas de evacuación y puntos de
+                                encuentro.
+                              </span>
+                            </Label>
+                             <Label className="flex items-center gap-2 font-normal">
+                              <Checkbox
+                                checked={formInduccion.contenidoRiesgosCriticos}
+                                onCheckedChange={(c) =>
+                                  setFormInduccion((prev) => ({
+                                    ...prev,
+                                    contenidoRiesgosCriticos: !!c,
+                                  }))
+                                }
+                              />
+                              <span>Riesgos críticos específicos de la obra.</span>
+                            </Label>
+                             <Label className="flex items-center gap-2 font-normal">
+                              <Checkbox
+                                checked={formInduccion.contenidoUsoEPP}
+                                onCheckedChange={(c) =>
+                                  setFormInduccion((prev) => ({
+                                    ...prev,
+                                    contenidoUsoEPP: !!c,
+                                  }))
+                                }
+                              />
+                              <span>Uso obligatorio y cuidado de EPP.</span>
+                            </Label>
+                             <Label className="flex items-center gap-2 font-normal">
+                              <Checkbox
+                                checked={formInduccion.contenidoReporteIncidentes}
+                                onCheckedChange={(c) =>
+                                  setFormInduccion((prev) => ({
+                                    ...prev,
+                                    contenidoReporteIncidentes: !!c,
+                                  }))
+                                }
+                              />
+                              <span>
+                                Procedimiento para reportar incidentes, condiciones y
+                                actos inseguros.
+                              </span>
+                            </Label>
+                          </div>
+                        </div>
+
+                        <div className="space-y-2">
+                          <div className="space-y-1">
+                            <Label className="font-medium text-muted-foreground">
+                              Evaluación / verificación
+                            </Label>
+                             <Label className="flex items-center gap-2 font-normal">
+                              <Checkbox
+                                checked={formInduccion.evaluacionAplicada}
+                                onCheckedChange={(c) =>
+                                  setFormInduccion((prev) => ({
+                                    ...prev,
+                                    evaluacionAplicada: !!c,
+                                  }))
+                                }
+                              />
+                              <span>Se aplicó una verificación de comprensión.</span>
+                            </Label>
+                            <Select
+                              value={formInduccion.resultadoEvaluacion}
+                              onValueChange={(v) =>
+                                setFormInduccion((prev) => ({
+                                  ...prev,
+                                  resultadoEvaluacion:
+                                    v as
+                                    | "Aprobado"
+                                    | "Reforzar contenidos"
+                                    | "No aplica",
+                                }))
+                              }
+                            >
+                              <SelectTrigger className="mt-1 w-full">
+                                <SelectValue />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="Aprobado">Aprobado</SelectItem>
+                                <SelectItem value="Reforzar contenidos">
+                                  Reforzar contenidos
+                                </SelectItem>
+                                <SelectItem value="No aplica">No aplica</SelectItem>
+                              </SelectContent>
+                            </Select>
+                          </div>
+
+                          <div className="space-y-1">
+                            <Label className="font-medium text-muted-foreground">
+                              Observaciones
+                            </Label>
+                            <Textarea
+                              value={formInduccion.observaciones}
+                              onChange={(e) =>
+                                setFormInduccion((prev) => ({
+                                  ...prev,
+                                  observaciones: e.target.value,
+                                }))
+                              }
+                              rows={3}
+                            />
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="border-t pt-3 space-y-2">
+                         <Label className="flex items-center gap-2 font-normal">
+                          <Checkbox
+                            checked={formInduccion.aceptaInduccion}
+                            onCheckedChange={(c) =>
+                              setFormInduccion((prev) => ({
+                                ...prev,
+                                aceptaInduccion: !!c,
+                              }))
+                            }
+                          />
+                          <span>
+                            El trabajador declara haber recibido y comprendido la
+                            inducción de seguridad de la obra.
+                          </span>
+                        </Label>
+                        <div className="space-y-1">
+                          <Label className="font-medium text-muted-foreground">
+                            Nombre del trabajador (simulación de firma)
+                          </Label>
+                          <Input
+                            type="text"
+                            value={formInduccion.nombreFirmaTrabajador}
+                            onChange={(e) =>
+                              setFormInduccion((prev) => ({
+                                ...prev,
+                                nombreFirmaTrabajador: e.target.value,
+                              }))
+                            }
+                            placeholder="Nombre completo del trabajador"
+                          />
+                          <p className="text-[11px] text-muted-foreground">
+                            Más adelante se puede reemplazar por una firma digital con el
+                            dedo (canvas). Por ahora se registra el nombre como
+                            aceptación.
+                          </p>
+                        </div>
+                      </div>
+
+                      <div className="pt-2">
+                        <Button
+                          type="submit"
+                        >
+                          Guardar registro de inducción
+                        </Button>
+                      </div>
+                    </form>
+                  )}
+
+                  {registrosInduccionTrabajador.length > 0 && (
+                    <div className="border-t pt-3">
+                      <h5 className="text-xs font-semibold text-muted-foreground mb-2">
+                        Historial de inducciones registradas
+                      </h5>
+                      <div className="space-y-2 max-h-64 overflow-y-auto pr-1">
+                        {registrosInduccionTrabajador.map((reg) => (
+                          <article
+                            key={reg.id}
+                            className="rounded-lg border bg-muted/30 p-3 text-[11px] space-y-1"
+                          >
+                            <p className="font-semibold text-foreground">
+                              {reg.fechaInduccion} – {reg.lugar}
+                            </p>
+                            <p className="text-muted-foreground">
+                              Relator: {reg.relator || "No registrado"}
+                            </p>
+                            <p className="text-muted-foreground">
+                              Resultado: {reg.resultadoEvaluacion}
+                            </p>
+                            {reg.observaciones && (
+                              <p className="text-muted-foreground">
+                                Observaciones: {reg.observaciones}
+                              </p>
+                            )}
+                          </article>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </section>
+            )}
+
           </CardContent>
         </Card>
       )}
     </div>
   );
 }
-
-    
