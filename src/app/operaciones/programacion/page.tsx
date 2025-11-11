@@ -48,6 +48,51 @@ const ACTIVIDADES_SIMULADAS: ActividadProgramada[] = [
   { id: 'a6', obraId: '3', nombreActividad: 'Demoliciones', fechaInicio: '2025-12-01', fechaFin: '2025-12-05', responsable: 'Luis Marín', estado: 'Pendiente' },
 ];
 
+type AvanceDiario = {
+  id: string;
+  obraId: string;
+  fecha: string;             // "YYYY-MM-DD"
+  porcentajeAvance: number;  // avance acumulado a esa fecha (0-100)
+  comentario: string;
+  fotoUrl?: string;          // por ahora solo URL de la foto (simulado)
+  visibleParaCliente: boolean;
+  creadoPor: string;         // nombre o rol de quien registra
+};
+
+const AVANCES_INICIALES: AvanceDiario[] = [
+  {
+    id: "av-1",
+    obraId: "1",
+    fecha: "2025-11-10",
+    porcentajeAvance: 15,
+    comentario: "Inicio de excavaciones y replanteo general.",
+    fotoUrl: "https://via.placeholder.com/300x180?text=Obra+Dia+1",
+    visibleParaCliente: true,
+    creadoPor: "Jefe de Obra",
+  },
+  {
+    id: "av-2",
+    obraId: "1",
+    fecha: "2025-11-12",
+    porcentajeAvance: 25,
+    comentario: "Avance en excavación de fundaciones y retiro de material.",
+    fotoUrl: "https://via.placeholder.com/300x180?text=Obra+Dia+2",
+    visibleParaCliente: true,
+    creadoPor: "Administrador de Obra",
+  },
+  {
+    id: "av-3",
+    obraId: "2",
+    fecha: "2025-11-11",
+    porcentajeAvance: 8,
+    comentario: "Instalación de faena y cierre perimetral.",
+    fotoUrl: "https://via.placeholder.com/300x180?text=Obra+Condominio",
+    visibleParaCliente: false,
+    creadoPor: "Jefe de Terreno",
+  },
+];
+
+
 function EstadoBadge({ estado }: { estado: EstadoActividad }) {
   const variant: "default" | "secondary" | "outline" = {
     "Completada": "default",
@@ -76,6 +121,17 @@ export default function ProgramacionPage() {
   const [estado, setEstado] = useState<EstadoActividad>('Pendiente');
   const [error, setError] = useState('');
 
+  const [avances, setAvances] = useState<AvanceDiario[]>(AVANCES_INICIALES);
+  const [fechaAvance, setFechaAvance] = useState<string>(
+    new Date().toISOString().slice(0, 10)
+  );
+  const [porcentajeAvance, setPorcentajeAvance] = useState<number>(0);
+  const [comentarioAvance, setComentarioAvance] = useState<string>("");
+  const [fotoUrl, setFotoUrl] = useState<string>("");
+  const [visibleParaCliente, setVisibleParaCliente] = useState<boolean>(true);
+  const [creadoPor, setCreadoPor] = useState<string>("");
+  const [errorAvance, setErrorAvance] = useState<string | null>(null);
+
 
   const actividadesFiltradas = actividades.filter(
     (act) => act.obraId === obraSeleccionadaId
@@ -89,6 +145,10 @@ export default function ProgramacionPage() {
     return { total, pendientes, enCurso, completadas };
   }, [actividadesFiltradas]);
   
+    const avancesFiltrados = avances
+    .filter((a) => a.obraId === obraSeleccionadaId)
+    .sort((a, b) => (a.fecha < b.fecha ? 1 : -1)); // más recientes primero
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!nombreActividad || !fechaInicio || !fechaFin || !responsable) {
@@ -317,6 +377,229 @@ export default function ProgramacionPage() {
             </div>
         </CardContent>
       </Card>
+      
+      <section className="space-y-4 mt-8">
+        <header className="space-y-1">
+          <h3 className="text-xl font-semibold">Avance diario de la obra</h3>
+          <p className="text-sm text-slate-600">
+            Registra el avance del día, sube una foto y deja un comentario. Esta
+            información se podrá mostrar en el futuro dashboard del cliente.
+          </p>
+        </header>
+
+        <div className="grid gap-6 md:grid-cols-2">
+          {/* Formulario de nuevo avance */}
+          <form
+            className="space-y-3 rounded-xl border bg-white p-4 shadow-sm"
+            onSubmit={(e) => {
+              e.preventDefault();
+              setErrorAvance(null);
+
+              if (!obraSeleccionadaId) {
+                setErrorAvance("Debes seleccionar una obra.");
+                return;
+              }
+              if (!fechaAvance) {
+                setErrorAvance("Debes indicar la fecha del avance.");
+                return;
+              }
+              if (porcentajeAvance < 0 || porcentajeAvance > 100) {
+                setErrorAvance("El porcentaje de avance debe estar entre 0 y 100.");
+                return;
+              }
+              if (!comentarioAvance.trim()) {
+                setErrorAvance("Agrega al menos un comentario breve del avance.");
+                return;
+              }
+              if (!creadoPor.trim()) {
+                setErrorAvance("Indica quién registra este avance (ej. Jefe de Obra).");
+                return;
+              }
+
+              const nuevoAvance: AvanceDiario = {
+                id: crypto.randomUUID ? crypto.randomUUID() : Date.now().toString(),
+                obraId: obraSeleccionadaId,
+                fecha: fechaAvance,
+                porcentajeAvance,
+                comentario: comentarioAvance,
+                fotoUrl: fotoUrl.trim() || undefined,
+                visibleParaCliente,
+                creadoPor,
+              };
+
+              setAvances((prev) => [nuevoAvance, ...prev]);
+
+              // limpiar formulario (salvo la fecha)
+              setPorcentajeAvance(0);
+              setComentarioAvance("");
+              setFotoUrl("");
+              setCreadoPor("");
+              setVisibleParaCliente(true);
+            }}
+          >
+            <h4 className="text-sm font-semibold text-slate-800">
+              Registrar avance del día
+            </h4>
+
+            {errorAvance && (
+              <p className="text-xs text-red-600">{errorAvance}</p>
+            )}
+
+            <div className="grid gap-3 md:grid-cols-2">
+              <div className="space-y-1">
+                <label className="text-xs font-medium text-slate-700">
+                  Fecha del avance
+                </label>
+                <input
+                  type="date"
+                  value={fechaAvance}
+                  onChange={(e) => setFechaAvance(e.target.value)}
+                  className="w-full rounded-lg border px-3 py-2 text-sm"
+                />
+              </div>
+
+              <div className="space-y-1">
+                <label className="text-xs font-medium text-slate-700">
+                  Porcentaje de avance acumulado (%)
+                </label>
+                <input
+                  type="number"
+                  min={0}
+                  max={100}
+                  value={porcentajeAvance}
+                  onChange={(e) => setPorcentajeAvance(Number(e.target.value) || 0)}
+                  className="w-full rounded-lg border px-3 py-2 text-sm"
+                />
+              </div>
+            </div>
+
+            <div className="space-y-1">
+              <label className="text-xs font-medium text-slate-700">
+                Comentario del día
+              </label>
+              <textarea
+                value={comentarioAvance}
+                onChange={(e) => setComentarioAvance(e.target.value)}
+                rows={3}
+                className="w-full rounded-lg border px-3 py-2 text-sm"
+                placeholder="Describe brevemente qué se avanzó hoy en la obra..."
+              />
+            </div>
+
+            <div className="space-y-1">
+              <label className="text-xs font-medium text-slate-700">
+                URL de foto (simulada)
+              </label>
+              <input
+                type="text"
+                value={fotoUrl}
+                onChange={(e) => setFotoUrl(e.target.value)}
+                className="w-full rounded-lg border px-3 py-2 text-sm"
+                placeholder="https://..."
+              />
+              <p className="text-[11px] text-slate-500">
+                Más adelante esto se conectará a un almacenamiento real de fotos. Por
+                ahora solo usamos una URL simulada.
+              </p>
+            </div>
+
+            <div className="space-y-1">
+              <label className="text-xs font-medium text-slate-700">
+                Registrado por
+              </label>
+              <input
+                type="text"
+                value={creadoPor}
+                onChange={(e) => setCreadoPor(e.target.value)}
+                className="w-full rounded-lg border px-3 py-2 text-sm"
+                placeholder="Ej: Jefe de Obra, Administrador de Obra..."
+              />
+            </div>
+
+            <div className="flex items-center gap-2">
+              <input
+                id="visibleCliente"
+                type="checkbox"
+                checked={visibleParaCliente}
+                onChange={(e) => setVisibleParaCliente(e.target.checked)}
+                className="h-4 w-4 rounded border"
+              />
+              <label
+                htmlFor="visibleCliente"
+                className="text-xs text-slate-700"
+              >
+                Mostrar este avance en el futuro dashboard del cliente
+              </label>
+            </div>
+
+            <button
+              type="submit"
+              className="mt-2 inline-flex items-center justify-center rounded-lg border bg-accent text-accent-foreground hover:bg-accent/90 px-4 py-2 text-sm font-medium transition"
+            >
+              Registrar avance
+            </button>
+          </form>
+
+          {/* Historial de avances */}
+          <div className="space-y-3">
+            <h4 className="text-sm font-semibold text-slate-800">
+              Historial de avances de esta obra
+            </h4>
+            {avancesFiltrados.length === 0 ? (
+              <p className="text-sm text-slate-500">
+                Aún no hay avances registrados para esta obra.
+              </p>
+            ) : (
+              <div className="space-y-3 max-h-[420px] overflow-y-auto pr-1">
+                {avancesFiltrados.map((av) => (
+                  <article
+                    key={av.id}
+                    className="rounded-xl border bg-white p-3 shadow-sm text-sm space-y-2"
+                  >
+                    <div className="flex items-center justify-between gap-2">
+                      <div>
+                        <p className="font-semibold">
+                          {av.fecha} · {av.porcentajeAvance}% avance
+                        </p>
+                        <p className="text-[11px] text-slate-500">
+                          Registrado por: {av.creadoPor}
+                        </p>
+                      </div>
+                      <span
+                        className={`inline-flex items-center rounded-full px-2 py-1 text-[11px] ${
+                          av.visibleParaCliente
+                            ? "bg-emerald-50 text-emerald-700 border border-emerald-200"
+                            : "bg-slate-100 text-slate-600 border border-slate-200"
+                        }`}
+                      >
+                        {av.visibleParaCliente
+                          ? "Visible para cliente"
+                          : "Solo uso interno"}
+                      </span>
+                    </div>
+
+                    {av.fotoUrl && (
+                      <div className="overflow-hidden rounded-lg border bg-slate-50">
+                        <img
+                          src={av.fotoUrl}
+                          alt={`Avance ${av.fecha}`}
+                          className="h-40 w-full object-cover"
+                        />
+                      </div>
+                    )}
+
+                    <p className="text-slate-700 text-sm whitespace-pre-line">
+                      {av.comentario}
+                    </p>
+                  </article>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+      </section>
+
     </div>
   );
 }
+
