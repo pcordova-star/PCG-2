@@ -13,18 +13,11 @@ export default function PrevencionPage() {
       linkText: "Ir a Empresas contratistas"
     },
     {
-      title: "Ingreso de personal – Empresa (mandante)",
-      description: "Registrar el ingreso de trabajadores propios del mandante a la obra según requisitos DS44.",
+      title: "Ingreso de personal – DS44",
+      description: "Registrar el ingreso de trabajadores (propios y de subcontratos) a la obra según requisitos DS44.",
       href: "/prevencion/ingreso-personal",
       icon: Users,
-      linkText: "Ingresar personal de la empresa"
-    },
-    {
-      title: "Ingreso de personal – Subcontrato",
-      description: "Registrar el ingreso de trabajadores de empresas contratistas/subcontratistas según requisitos DS44.",
-      href: "/prevencion/ingreso-personal",
-      icon: Users,
-      linkText: "Ingresar personal de subcontrato"
+      linkText: "Ir a Ingreso de Personal"
     },
      {
       title: "Ingreso empresa subcontratista – DS44",
@@ -35,10 +28,10 @@ export default function PrevencionPage() {
     },
     {
       title: "DS44 – Mandante / Obra",
-      description: "Dashboard de cumplimiento global a nivel de mandante y coordinación de actividades preventivas.",
+      description: "Ficha global de coordinación y cumplimiento DS44 para cada obra.",
       href: "/prevencion/ds44-mandante",
       icon: Building,
-      linkText: "Ir al Dashboard Global"
+      linkText: "Ir a DS44 – Mandante / Obra"
     }
   ];
 
