@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useMemo, useState } from 'react';
+import { useSearchParams } from 'next/navigation';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
@@ -110,7 +111,18 @@ function EstadoBadge({ estado }: { estado: EstadoActividad }) {
 }
 
 export default function ProgramacionPage() {
-  const [obraSeleccionadaId, setObraSeleccionadaId] = useState<string>(OBRAS_SIMULADAS[0].id);
+  const searchParams = useSearchParams();
+  const obraIdFromUrl = searchParams.get("obraId");
+
+  const obraIdInicial = (() => {
+    if (obraIdFromUrl) {
+      const existe = OBRAS_SIMULADAS.some((o) => o.id === obraIdFromUrl);
+      if (existe) return obraIdFromUrl;
+    }
+    return OBRAS_SIMULADAS[0]?.id ?? "";
+  })();
+
+  const [obraSeleccionadaId, setObraSeleccionadaId] = useState<string>(obraIdInicial);
   const [actividades, setActividades] = useState<ActividadProgramada[]>(ACTIVIDADES_SIMULADAS);
 
   // Form state
