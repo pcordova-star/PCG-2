@@ -1,10 +1,12 @@
 "use client";
 
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Label } from '@/components/ui/label';
+import { Badge } from '@/components/ui/badge';
+import { cn } from '@/lib/utils';
 
 type Obra = {
   id: string;
@@ -38,12 +40,36 @@ const ACTIVIDADES_SIMULADAS: ActividadProgramada[] = [
   { id: 'a6', obraId: '3', nombreActividad: 'Demoliciones', fechaInicio: '2025-12-01', fechaFin: '2025-12-05', responsable: 'Luis Marín', estado: 'Pendiente' },
 ];
 
+function EstadoBadge({ estado }: { estado: EstadoActividad }) {
+  const variant: "default" | "secondary" | "destructive" | "outline" = {
+    "Completada": "default",
+    "En curso": "secondary",
+    "Pendiente": "outline",
+  }[estado];
+  
+  const className = {
+    "Completada": "bg-green-100 text-green-800 border-green-200",
+    "En curso": "bg-blue-100 text-blue-800 border-blue-200",
+    "Pendiente": "bg-yellow-100 text-yellow-800 border-yellow-200",
+  }[estado];
+  
+  return <Badge variant={variant} className={cn("font-semibold", className)}>{estado}</Badge>;
+}
+
 export default function ProgramacionPage() {
   const [obraSeleccionadaId, setObraSeleccionadaId] = useState<string>(OBRAS_SIMULADAS[0].id);
 
   const actividadesFiltradas = ACTIVIDADES_SIMULADAS.filter(
     (act) => act.obraId === obraSeleccionadaId
   );
+  
+  const resumenActividades = useMemo(() => {
+    const total = actividadesFiltradas.length;
+    const pendientes = actividadesFiltradas.filter(a => a.estado === "Pendiente").length;
+    const enCurso = actividadesFiltradas.filter(a => a.estado === "En curso").length;
+    const completadas = actividadesFiltradas.filter(a => a.estado === "Completada").length;
+    return { total, pendientes, enCurso, completadas };
+  }, [actividadesFiltradas]);
 
   return (
     <div className="space-y-8">
@@ -80,6 +106,23 @@ export default function ProgramacionPage() {
       
       <Card>
         <CardHeader>
+            <CardTitle>Resumen de Actividades</CardTitle>
+        </CardHeader>
+        <CardContent>
+            <div className="text-sm text-muted-foreground space-x-4">
+                <span className="font-medium text-foreground">Total: {resumenActividades.total}</span>
+                <span>·</span>
+                <span>Pendientes: {resumenActividades.pendientes}</span>
+                <span>·</span>
+                <span>En curso: {resumenActividades.enCurso}</span>
+                <span>·</span>
+                <span>Completadas: {resumenActividades.completadas}</span>
+            </div>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
             <CardTitle>Actividades Programadas</CardTitle>
         </CardHeader>
         <CardContent className="p-0">
@@ -102,7 +145,7 @@ export default function ProgramacionPage() {
                             <TableCell>{actividad.fechaInicio}</TableCell>
                             <TableCell>{actividad.fechaFin}</TableCell>
                             <TableCell>{actividad.responsable}</TableCell>
-                            <TableCell>{actividad.estado}</TableCell>
+                            <TableCell><EstadoBadge estado={actividad.estado} /></TableCell>
                         </TableRow>
                         ))
                     ) : (
