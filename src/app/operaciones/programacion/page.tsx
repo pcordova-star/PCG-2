@@ -17,6 +17,7 @@ import {
   orderBy,
   deleteDoc,
   Timestamp,
+  serverTimestamp
 } from "firebase/firestore";
 import { firebaseDb, firebaseStorage, firebaseFunctions } from "../../../lib/firebaseClient";
 import { ref, uploadBytes, getDownloadURL, deleteObject } from "firebase/storage";
@@ -85,12 +86,12 @@ type ActividadProgramada = {
 type AvanceDiario = {
   id: string;
   obraId: string;
-  actividadId?: string; 
-  fecha: string; 
+  actividadId?: string;
+  fecha: string;
   porcentajeAvance: number;
   comentario: string;
-  fotoUrl?: string; 
-  fotos?: string[];  
+  fotoUrl?: string;
+  fotos?: string[];
   visibleParaCliente: boolean;
   creadoPor: {
     uid: string;
@@ -108,6 +109,86 @@ type EstadoDePago = {
   total: number;
   obraId: string;
 };
+
+// --- Start Helper Functions ---
+function toNumberSafe(v: any, def = 0) {
+  const n = Number(v);
+  return Number.isFinite(n) ? n : def;
+}
+
+function toStringArray(a: any): string[] {
+  if (!Array.isArray(a)) return [];
+  return a.map((x) => String(x)).filter((s) => s.length > 0);
+}
+
+function deepCleanForFirestore(input: any): any {
+  if (input === undefined) return undefined;
+  if (input === null) return null;
+
+  if (Array.isArray(input)) {
+    const arr = input
+      .map((v) => deepCleanForFirestore(v))
+      .filter((v) => v !== undefined);
+    return arr;
+  }
+
+  const t = typeof input;
+  if (t === "string" || t === "boolean") return input;
+  if (t === "number") return Number.isFinite(input) ? input : undefined;
+
+  if (input instanceof Date) return input;
+  if (typeof input?.toDate === "function" && "seconds" in input && "nanoseconds" in input) return input;
+  if (input?._methodName === "FieldValue.serverTimestamp" || input?._delegate?._methodName === "FieldValue.serverTimestamp") return input;
+
+  if (t === "object") {
+    if (input?.$$typeof || input?._owner) throw new Error("React element en payload");
+    if (input?.nativeEvent || input?.preventDefault || input?.stopPropagation) throw new Error("SyntheticEvent en payload");
+    if (typeof File !== "undefined" && input instanceof File) throw new Error("File en payload; usa URL");
+    if (input?.id && input?.ref && input?.exists !== undefined) throw new Error("Snapshot en payload");
+    if (input?.path && input?.parent && input?.firestore) throw new Error("Ref en payload");
+
+    const out: any = {};
+    for (const [k, v] of Object.entries(input)) {
+      const cleaned = deepCleanForFirestore(v);
+      if (cleaned !== undefined) out[k] = cleaned;
+    }
+    return out;
+  }
+
+  return undefined;
+}
+
+async function submitAvanceProgramacion({
+  db,
+  obraId,
+  actividadSeleccionada,
+  porcentaje,
+  comentario,
+  uploadedUrls,
+  visibleCliente,
+  currentUser,
+}: any) {
+  const payloadRaw = {
+    obraId: String(obraId),
+    actividadId: actividadSeleccionada?.id ?? null,
+    porcentajeAvance: toNumberSafe(porcentaje, 0),
+    comentario: comentario ? String(comentario) : "",
+    fotos: toStringArray(uploadedUrls),
+    visibleCliente: visibleCliente === true,
+    fecha: serverTimestamp(),
+    creadoPor: {
+      uid: String(currentUser?.uid || ""),
+      displayName: String(currentUser?.displayName || currentUser?.email || ""),
+    },
+  };
+
+  const payload = deepCleanForFirestore(payloadRaw);
+  
+  const registrarAvance = httpsCallable(firebaseFunctions, "registrarAvanceRapido");
+  await registrarAvance(payload);
+}
+// --- End Helper Functions ---
+
 
 function EstadoBadge({ estado }: { estado: EstadoActividad }) {
   const className = {
@@ -429,28 +510,23 @@ function ProgramacionPageInner() {
         })
       );
       
-      const registrarAvance = httpsCallable(firebaseFunctions, "registrarAvanceRapido");
+      const actividadSeleccionada = actividadId === 'null' ? null : actividades.find(a => a.id === actividadId);
       
-      const payload = {
+      await submitAvanceProgramacion({
+        db: firebaseDb,
         obraId: obraSeleccionadaId,
-        actividadId: actividadId === "null" ? null : actividadId || null,
+        actividadSeleccionada: actividadSeleccionada,
         porcentaje: porcentaje,
         comentario: comentario.trim(),
-        fotos: urlsFotos,
-        visibleCliente: !!visibleCliente,
-        creadoPorNombre: user.displayName || user.email || ''
-      };
-
-      const result: any = await registrarAvance(payload);
-
-      if (!result?.data?.ok) {
-        throw new Error(result?.data?.error || "Error al registrar avance con la función callable.");
-      }
+        uploadedUrls: urlsFotos,
+        visibleCliente: visibleCliente,
+        currentUser: user,
+      });
       
       const nuevoAvance: AvanceDiario = { 
-        id: result.data.id,
+        id: `local-${Date.now()}`,
         obraId: obraSeleccionadaId,
-        actividadId: actividadId === "null" ? null : actividadId || null, 
+        actividadId: actividadId === "null" ? undefined : actividadId, 
         fecha, 
         porcentajeAvance: porcentaje, 
         comentario: comentario.trim(), 
@@ -461,7 +537,7 @@ function ProgramacionPageInner() {
         },
         visibleParaCliente: !!visibleCliente,
       };
-
+      
       setAvances((prev) => [nuevoAvance, ...prev].sort((a,b) => a.fecha < b.fecha ? 1 : -1));
       
       toast({
@@ -493,7 +569,6 @@ function ProgramacionPageInner() {
     if (!obraSeleccionadaId) return;
 
     try {
-      // 1. Delete photos from Storage
       const photoUrls = avance.fotos || (avance.fotoUrl ? [avance.fotoUrl] : []);
       if (photoUrls.length > 0) {
         await Promise.all(
@@ -502,7 +577,6 @@ function ProgramacionPageInner() {
               const photoRef = ref(firebaseStorage, url);
               await deleteObject(photoRef);
             } catch (storageError: any) {
-              // If file not found, we can ignore the error
               if (storageError.code !== 'storage/object-not-found') {
                 throw storageError;
               }
@@ -511,11 +585,9 @@ function ProgramacionPageInner() {
         );
       }
 
-      // 2. Delete document from Firestore
       const docRef = doc(firebaseDb, "obras", obraSeleccionadaId, "avancesDiarios", avance.id);
       await deleteDoc(docRef);
 
-      // 3. Update UI state
       setAvances(prev => prev.filter(a => a.id !== avance.id));
 
     } catch (err) {
@@ -812,7 +884,10 @@ function ProgramacionPageInner() {
                         ))}
                     </div>
                  )}
-                 <div className="flex items-center gap-2"><Checkbox id="visibleCliente" checked={visibleCliente} onCheckedChange={(checked) => setVisibleCliente(checked === true)} /><Label htmlFor="visibleCliente" className="text-xs text-muted-foreground">Visible para el cliente</Label></div>
+                 <div className="flex items-center gap-2">
+                    <Checkbox id="visibleCliente" checked={visibleCliente} onCheckedChange={(c) => setVisibleCliente(c === true)} />
+                    <Label htmlFor="visibleCliente" className="text-xs text-muted-foreground">Visible para el cliente</Label>
+                 </div>
                 <Button type="submit" disabled={uploading}>
                   {uploading ? "Guardando avance y subiendo fotos..." : "Registrar avance"}
                 </Button>
