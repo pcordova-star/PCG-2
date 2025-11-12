@@ -34,6 +34,11 @@ type Obra = {
   nombreFaena: string;
 };
 
+type Actividad = {
+  id: string;
+  nombreActividad: string;
+};
+
 type QuickAvanceSheetProps = {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -48,8 +53,11 @@ export function QuickAvanceSheet({ open, onOpenChange }: QuickAvanceSheetProps) 
 
   const [obras, setObras] = useState<Obra[]>([]);
   const [loadingObras, setLoadingObras] = useState(true);
+  const [actividades, setActividades] = useState<Actividad[]>([]);
+  const [loadingActividades, setLoadingActividades] = useState(false);
 
   const [obraId, setObraId] = useState("");
+  const [actividadId, setActividadId] = useState<string | null>(null);
   const [porcentaje, setPorcentaje] = useState("");
   const [comentario, setComentario] = useState("");
   const [archivos, setArchivos] = useState<File[]>([]);
@@ -74,7 +82,7 @@ export function QuickAvanceSheet({ open, onOpenChange }: QuickAvanceSheetProps) 
           (doc) => ({ id: doc.id, ...doc.data() } as Obra)
         );
         setObras(obrasData);
-        if (obrasData.length > 0) {
+        if (obrasData.length > 0 && !obraId) {
           setObraId(obrasData[0].id);
         }
       } catch (error) {
@@ -92,8 +100,33 @@ export function QuickAvanceSheet({ open, onOpenChange }: QuickAvanceSheetProps) 
       fetchObras();
     }
   }, [user, open, toast]);
+
+  // Cargar actividades cuando cambia la obra
+  useEffect(() => {
+    async function fetchActividades() {
+      if (!obraId) {
+        setActividades([]);
+        return;
+      };
+      try {
+        setLoadingActividades(true);
+        const q = query(collection(firebaseDb, "obras", obraId, "actividades"), orderBy("nombreActividad"));
+        const snapshot = await getDocs(q);
+        const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Actividad));
+        setActividades(data);
+      } catch (error) {
+        console.error("Error fetching actividades:", error);
+        setActividades([]);
+      } finally {
+        setLoadingActividades(false);
+      }
+    }
+    fetchActividades();
+  }, [obraId]);
   
   const resetForm = () => {
+    // No reseteamos la obraId para que el usuario no tenga que volver a seleccionarla
+    setActividadId(null);
     setPorcentaje("");
     setComentario("");
     setArchivos([]);
@@ -198,6 +231,7 @@ export function QuickAvanceSheet({ open, onOpenChange }: QuickAvanceSheetProps) 
             },
             body: JSON.stringify({
                 obraId,
+                actividadId: actividadId || null,
                 porcentaje: numPorcentaje,
                 comentario,
                 fotos: uploadedUrls,
@@ -251,6 +285,21 @@ export function QuickAvanceSheet({ open, onOpenChange }: QuickAvanceSheetProps) 
                     </SelectTrigger>
                     <SelectContent>
                         {obras.map(o => <SelectItem key={o.id} value={o.id}>{o.nombreFaena}</SelectItem>)}
+                    </SelectContent>
+                </Select>
+                }
+            </div>
+
+            <div className="space-y-1">
+                <Label htmlFor="actividad-select">Actividad (Opcional)</Label>
+                {loadingActividades ? <p className="text-sm text-muted-foreground">Cargando actividades...</p> : 
+                <Select value={actividadId ?? "general"} onValueChange={value => setActividadId(value === "general" ? null : value)}>
+                    <SelectTrigger id="actividad-select">
+                        <SelectValue placeholder="Selecciona una actividad" />
+                    </SelectTrigger>
+                    <SelectContent>
+                        <SelectItem value="general">Avance General de Obra</SelectItem>
+                        {actividades.map(a => <SelectItem key={a.id} value={a.id}>{a.nombreActividad}</SelectItem>)}
                     </SelectContent>
                 </Select>
                 }

@@ -8,6 +8,7 @@ import { getFirestore, FieldValue } from "firebase-admin/firestore";
 // Esquema de entrada (JSON). Fotos llegan como URLs ya subidas a Storage.
 const AvanceSchema = z.object({
   obraId: z.string().min(1),
+  actividadId: z.string().nullable().optional(),
   porcentaje: z.number().min(0).max(100),
   comentario: z.string().optional().default(""),
   fotos: z.array(z.string().url()).optional().default([]),
@@ -43,7 +44,7 @@ export async function POST(req: Request) {
     if (!parsed.success) {
       return NextResponse.json({ ok: false, error: "BAD_REQUEST", details: parsed.error.flatten() }, { status: 400 });
     }
-    const { obraId, porcentaje, comentario, fotos, visibleCliente } = parsed.data;
+    const { obraId, actividadId, porcentaje, comentario, fotos, visibleCliente } = parsed.data;
 
     const adminApp = getAdminApp();
     const db = getFirestore(adminApp);
@@ -58,6 +59,7 @@ export async function POST(req: Request) {
     // Documento de avance
     const avanceData = {
       obraId,
+      actividadId,
       porcentajeAvance: porcentaje,
       comentario,
       fotos,
