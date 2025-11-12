@@ -376,178 +376,440 @@ function InvestigacionIncidenteSection() {
   };
 
   return (
-    <section className="space-y-4 mt-6">
-      <Card>
-        <CardHeader>
-          <CardTitle>Investigación de incidente / casi accidente (Ishikawa / 5 porqués)</CardTitle>
-          <CardDescription>
-            MVP con datos simulados para registrar incidentes, causas e investigación básica. Más adelante se puede conectar con matriz de riesgos y planes de acción.
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-6">
-           <div className="max-w-xs space-y-2">
-            <Label htmlFor="obra-select-incidente">Obra / Faena</Label>
-            <Select value={obraSeleccionadaId} onValueChange={setObraSeleccionadaId}>
-              <SelectTrigger id="obra-select-incidente">
-                <SelectValue placeholder="Seleccione una obra" />
-              </SelectTrigger>
-              <SelectContent>
-                {OBRAS_IPER.map((obra) => (
-                  <SelectItem key={obra.id} value={obra.id}>
-                    {obra.nombreFaena}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-        </div>
+    <Card className="mt-6">
+      <CardHeader>
+        <CardTitle>Investigación de incidente / casi accidente (Ishikawa / 5 porqués)</CardTitle>
+        <CardDescription>
+          MVP con datos simulados para registrar incidentes, causas e investigación básica. Más adelante se puede conectar con matriz de riesgos y planes de acción.
+        </CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-6">
+         <div className="max-w-xs space-y-2">
+          <Label htmlFor="obra-select-incidente">Obra / Faena</Label>
+          <Select value={obraSeleccionadaId} onValueChange={setObraSeleccionadaId}>
+            <SelectTrigger id="obra-select-incidente">
+              <SelectValue placeholder="Seleccione una obra" />
+            </SelectTrigger>
+            <SelectContent>
+              {OBRAS_IPER.map((obra) => (
+                <SelectItem key={obra.id} value={obra.id}>
+                  {obra.nombreFaena}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+      </div>
 
-        <div className="grid gap-8 md:grid-cols-2">
-          <form
-            className="space-y-4"
-            onSubmit={(e) => {
-              e.preventDefault();
-              setErrorForm(null);
+      <div className="grid gap-8 md:grid-cols-2">
+        <form
+          className="space-y-4"
+          onSubmit={(e) => {
+            e.preventDefault();
+            setErrorForm(null);
 
-              if (!obraSeleccionadaId) {
-                setErrorForm("Debes seleccionar una obra.");
-                return;
-              }
-              if (!formIncidente.fecha) {
-                setErrorForm("Debes indicar la fecha del incidente.");
-                return;
-              }
-              if (!formIncidente.descripcionHecho.trim()) {
-                setErrorForm("Debes describir el hecho.");
-                return;
-              }
+            if (!obraSeleccionadaId) {
+              setErrorForm("Debes seleccionar una obra.");
+              return;
+            }
+            if (!formIncidente.fecha) {
+              setErrorForm("Debes indicar la fecha del incidente.");
+              return;
+            }
+            if (!formIncidente.descripcionHecho.trim()) {
+              setErrorForm("Debes describir el hecho.");
+              return;
+            }
 
-              const nuevoRegistro: RegistroIncidente = {
-                id: crypto.randomUUID ? crypto.randomUUID() : Date.now().toString(),
-                obraId: obraSeleccionadaId,
-                ...formIncidente,
-              };
+            const nuevoRegistro: RegistroIncidente = {
+              id: crypto.randomUUID ? crypto.randomUUID() : Date.now().toString(),
+              obraId: obraSeleccionadaId,
+              ...formIncidente,
+            };
 
-              setRegistrosIncidentes((prev) => [nuevoRegistro, ...prev]);
+            setRegistrosIncidentes((prev) => [nuevoRegistro, ...prev]);
 
-              setFormIncidente((prev) => ({
-                ...prev,
-                lugar: "",
-                descripcionHecho: "",
-                lesionPersona: "",
-                actoInseguro: "",
-                condicionInsegura: "",
-                causasInmediatas: "",
-                causasBasicas: "",
-                analisisIshikawa: "",
-                analisis5Porques: "",
-                medidasCorrectivas: "",
-                responsableSeguimiento: "",
-                plazoCierre: "",
-              }));
-            }}
-          >
-            <h3 className="text-lg font-semibold border-b pb-2">Registrar Nuevo Incidente</h3>
-            {errorForm && (
-              <p className="text-sm font-medium text-destructive">{errorForm}</p>
-            )}
+            setFormIncidente((prev) => ({
+              ...prev,
+              lugar: "",
+              descripcionHecho: "",
+              lesionPersona: "",
+              actoInseguro: "",
+              condicionInsegura: "",
+              causasInmediatas: "",
+              causasBasicas: "",
+              analisisIshikawa: "",
+              analisis5Porques: "",
+              medidasCorrectivas: "",
+              responsableSeguimiento: "",
+              plazoCierre: "",
+            }));
+          }}
+        >
+          <h3 className="text-lg font-semibold border-b pb-2">Registrar Nuevo Incidente</h3>
+          {errorForm && (
+            <p className="text-sm font-medium text-destructive">{errorForm}</p>
+          )}
 
-            <div className="grid gap-4 md:grid-cols-2">
-              <div className="space-y-2"><Label>Fecha del incidente*</Label><Input type="date" value={formIncidente.fecha} onChange={e => handleInputChange('fecha', e.target.value)} /></div>
-              <div className="space-y-2"><Label>Lugar del incidente</Label><Input value={formIncidente.lugar} onChange={e => handleInputChange('lugar', e.target.value)} /></div>
-            </div>
-            <div className="grid gap-4 md:grid-cols-2">
-                 <div className="space-y-2"><Label>Tipo de incidente</Label>
-                    <Select value={formIncidente.tipoIncidente} onValueChange={v => handleInputChange('tipoIncidente', v as any)}>
-                        <SelectTrigger><SelectValue/></SelectTrigger>
-                        <SelectContent>
-                            <SelectItem value="Accidente con tiempo perdido">Accidente con tiempo perdido</SelectItem>
-                            <SelectItem value="Accidente sin tiempo perdido">Accidente sin tiempo perdido</SelectItem>
-                            <SelectItem value="Casi accidente">Casi accidente</SelectItem>
-                            <SelectItem value="Daño a la propiedad">Daño a la propiedad</SelectItem>
-                        </SelectContent>
-                    </Select>
-                 </div>
-                 <div className="space-y-2"><Label>Gravedad</Label>
-                    <Select value={formIncidente.gravedad} onValueChange={v => handleInputChange('gravedad', v as any)}>
-                        <SelectTrigger><SelectValue/></SelectTrigger>
-                        <SelectContent>
-                            <SelectItem value="Leve">Leve</SelectItem>
-                            <SelectItem value="Grave">Grave</SelectItem>
-                            <SelectItem value="Fatal potencial">Fatal potencial</SelectItem>
-                        </SelectContent>
-                    </Select>
-                 </div>
-            </div>
-            <div className="space-y-2"><Label>Descripción del hecho*</Label><Textarea value={formIncidente.descripcionHecho} onChange={e => handleInputChange('descripcionHecho', e.target.value)} /></div>
-            <div className="space-y-2"><Label>Lesión a la persona</Label><Input value={formIncidente.lesionPersona} onChange={e => handleInputChange('lesionPersona', e.target.value)} placeholder="Ej: Esguince tobillo, No aplica..." /></div>
-            <div className="space-y-2"><Label>Acto inseguro (si aplica)</Label><Input value={formIncidente.actoInseguro} onChange={e => handleInputChange('actoInseguro', e.target.value)} /></div>
-            <div className="space-y-2"><Label>Condición insegura (si aplica)</Label><Input value={formIncidente.condicionInsegura} onChange={e => handleInputChange('condicionInsegura', e.target.value)} /></div>
-            <div className="space-y-2"><Label>Causas inmediatas</Label><Textarea value={formIncidente.causasInmediatas} onChange={e => handleInputChange('causasInmediatas', e.target.value)} rows={2}/></div>
-            <div className="space-y-2"><Label>Causas básicas</Label><Textarea value={formIncidente.causasBasicas} onChange={e => handleInputChange('causasBasicas', e.target.value)} rows={2}/></div>
-            <div className="space-y-2"><Label>Análisis Ishikawa (resumen)</Label><Textarea value={formIncidente.analisisIshikawa} onChange={e => handleInputChange('analisisIshikawa', e.target.value)} rows={2}/></div>
-            <div className="space-y-2"><Label>Análisis 5 porqués (resumen)</Label><Textarea value={formIncidente.analisis5Porques} onChange={e => handleInputChange('analisis5Porques', e.target.value)} rows={2}/></div>
-            <div className="space-y-2"><Label>Medidas correctivas</Label><Textarea value={formIncidente.medidasCorrectivas} onChange={e => handleInputChange('medidasCorrectivas', e.target.value)} rows={3}/></div>
-            <div className="grid gap-4 md:grid-cols-2">
-                <div className="space-y-2"><Label>Responsable seguimiento</Label><Input value={formIncidente.responsableSeguimiento} onChange={e => handleInputChange('responsableSeguimiento', e.target.value)} /></div>
-                <div className="space-y-2"><Label>Plazo de cierre</Label><Input type="date" value={formIncidente.plazoCierre} onChange={e => handleInputChange('plazoCierre', e.target.value)} /></div>
-            </div>
-             <div className="space-y-2"><Label>Estado del cierre</Label>
-                <Select value={formIncidente.estadoCierre} onValueChange={v => handleInputChange('estadoCierre', v as any)}>
-                    <SelectTrigger><SelectValue/></SelectTrigger>
-                    <SelectContent>
-                        <SelectItem value="Abierto">Abierto</SelectItem>
-                        <SelectItem value="En seguimiento">En seguimiento</SelectItem>
-                        <SelectItem value="Cerrado">Cerrado</SelectItem>
-                    </SelectContent>
-                </Select>
-             </div>
-
-            <Button type="submit" className="w-full sm:w-auto">Registrar Incidente</Button>
-          </form>
-
-          <div className="space-y-2">
-            <h4 className="text-lg font-semibold border-b pb-2">Incidentes Registrados en Obra</h4>
-            {incidentesDeObra.length === 0 ? (
-              <p className="text-sm text-muted-foreground text-center pt-8">
-                No hay incidentes registrados para esta obra.
-              </p>
-            ) : (
-              <div className="space-y-3 max-h-[600px] overflow-y-auto pr-2">
-                {incidentesDeObra.map((inc) => (
-                  <article
-                    key={inc.id}
-                    className="rounded-lg border bg-card p-3 shadow-sm text-sm space-y-2"
-                  >
-                    <p className="font-semibold text-primary">
-                      {inc.fecha} – {inc.lugar || "Sin lugar especificado"}
-                    </p>
-                    <div className="flex justify-between items-center text-xs">
-                        <span>Tipo: {inc.tipoIncidente}</span>
-                        <span>Gravedad: {inc.gravedad}</span>
-                        <span>Estado: <span className="font-semibold">{inc.estadoCierre}</span></span>
-                    </div>
-                    <p><strong className="text-muted-foreground">Hecho:</strong> {inc.descripcionHecho}</p>
-                    {inc.medidasCorrectivas && (
-                      <p><strong className="text-muted-foreground">Medidas:</strong> {inc.medidasCorrectivas}</p>
-                    )}
-                    <div className="text-xs pt-2 border-t mt-2 flex justify-between">
-                      <span><strong className="text-muted-foreground">Responsable:</strong> {inc.responsableSeguimiento || "No asignado"}</span>
-                      <span><strong className="text-muted-foreground">Plazo:</strong> {inc.plazoCierre || "Sin plazo"}</span>
-                    </div>
-                  </article>
-                ))}
-              </div>
-            )}
+          <div className="grid gap-4 md:grid-cols-2">
+            <div className="space-y-2"><Label>Fecha del incidente*</Label><Input type="date" value={formIncidente.fecha} onChange={e => handleInputChange('fecha', e.target.value)} /></div>
+            <div className="space-y-2"><Label>Lugar del incidente</Label><Input value={formIncidente.lugar} onChange={e => handleInputChange('lugar', e.target.value)} /></div>
           </div>
+          <div className="grid gap-4 md:grid-cols-2">
+               <div className="space-y-2"><Label>Tipo de incidente</Label>
+                  <Select value={formIncidente.tipoIncidente} onValueChange={v => handleInputChange('tipoIncidente', v as any)}>
+                      <SelectTrigger><SelectValue/></SelectTrigger>
+                      <SelectContent>
+                          <SelectItem value="Accidente con tiempo perdido">Accidente con tiempo perdido</SelectItem>
+                          <SelectItem value="Accidente sin tiempo perdido">Accidente sin tiempo perdido</SelectItem>
+                          <SelectItem value="Casi accidente">Casi accidente</SelectItem>
+                          <SelectItem value="Daño a la propiedad">Daño a la propiedad</SelectItem>
+                      </SelectContent>
+                  </Select>
+               </div>
+               <div className="space-y-2"><Label>Gravedad</Label>
+                  <Select value={formIncidente.gravedad} onValueChange={v => handleInputChange('gravedad', v as any)}>
+                      <SelectTrigger><SelectValue/></SelectTrigger>
+                      <SelectContent>
+                          <SelectItem value="Leve">Leve</SelectItem>
+                          <SelectItem value="Grave">Grave</SelectItem>
+                          <SelectItem value="Fatal potencial">Fatal potencial</SelectItem>
+                      </SelectContent>
+                  </Select>
+               </div>
+          </div>
+          <div className="space-y-2"><Label>Descripción del hecho*</Label><Textarea value={formIncidente.descripcionHecho} onChange={e => handleInputChange('descripcionHecho', e.target.value)} /></div>
+          <div className="space-y-2"><Label>Lesión a la persona</Label><Input value={formIncidente.lesionPersona} onChange={e => handleInputChange('lesionPersona', e.target.value)} placeholder="Ej: Esguince tobillo, No aplica..." /></div>
+          <div className="space-y-2"><Label>Acto inseguro (si aplica)</Label><Input value={formIncidente.actoInseguro} onChange={e => handleInputChange('actoInseguro', e.target.value)} /></div>
+          <div className="space-y-2"><Label>Condición insegura (si aplica)</Label><Input value={formIncidente.condicionInsegura} onChange={e => handleInputChange('condicionInsegura', e.target.value)} /></div>
+          <div className="space-y-2"><Label>Causas inmediatas</Label><Textarea value={formIncidente.causasInmediatas} onChange={e => handleInputChange('causasInmediatas', e.target.value)} rows={2}/></div>
+          <div className="space-y-2"><Label>Causas básicas</Label><Textarea value={formIncidente.causasBasicas} onChange={e => handleInputChange('causasBasicas', e.target.value)} rows={2}/></div>
+          <div className="space-y-2"><Label>Análisis Ishikawa (resumen)</Label><Textarea value={formIncidente.analisisIshikawa} onChange={e => handleInputChange('analisisIshikawa', e.target.value)} rows={2}/></div>
+          <div className="space-y-2"><Label>Análisis 5 porqués (resumen)</Label><Textarea value={formIncidente.analisis5Porques} onChange={e => handleInputChange('analisis5Porques', e.target.value)} rows={2}/></div>
+          <div className="space-y-2"><Label>Medidas correctivas</Label><Textarea value={formIncidente.medidasCorrectivas} onChange={e => handleInputChange('medidasCorrectivas', e.target.value)} rows={3}/></div>
+          <div className="grid gap-4 md:grid-cols-2">
+              <div className="space-y-2"><Label>Responsable seguimiento</Label><Input value={formIncidente.responsableSeguimiento} onChange={e => handleInputChange('responsableSeguimiento', e.target.value)} /></div>
+              <div className="space-y-2"><Label>Plazo de cierre</Label><Input type="date" value={formIncidente.plazoCierre} onChange={e => handleInputChange('plazoCierre', e.target.value)} /></div>
+          </div>
+           <div className="space-y-2"><Label>Estado del cierre</Label>
+              <Select value={formIncidente.estadoCierre} onValueChange={v => handleInputChange('estadoCierre', v as any)}>
+                  <SelectTrigger><SelectValue/></SelectTrigger>
+                  <SelectContent>
+                      <SelectItem value="Abierto">Abierto</SelectItem>
+                      <SelectItem value="En seguimiento">En seguimiento</SelectItem>
+                      <SelectItem value="Cerrado">Cerrado</SelectItem>
+                  </SelectContent>
+              </Select>
+           </div>
+
+          <Button type="submit" className="w-full sm:w-auto">Registrar Incidente</Button>
+        </form>
+
+        <div className="space-y-2">
+          <h4 className="text-lg font-semibold border-b pb-2">Incidentes Registrados en Obra</h4>
+          {incidentesDeObra.length === 0 ? (
+            <p className="text-sm text-muted-foreground text-center pt-8">
+              No hay incidentes registrados para esta obra.
+            </p>
+          ) : (
+            <div className="space-y-3 max-h-[600px] overflow-y-auto pr-2">
+              {incidentesDeObra.map((inc) => (
+                <article
+                  key={inc.id}
+                  className="rounded-lg border bg-card p-3 shadow-sm text-sm space-y-2"
+                >
+                  <p className="font-semibold text-primary">
+                    {inc.fecha} – {inc.lugar || "Sin lugar especificado"}
+                  </p>
+                  <div className="flex justify-between items-center text-xs">
+                      <span>Tipo: {inc.tipoIncidente}</span>
+                      <span>Gravedad: {inc.gravedad}</span>
+                      <span>Estado: <span className="font-semibold">{inc.estadoCierre}</span></span>
+                  </div>
+                  <p><strong className="text-muted-foreground">Hecho:</strong> {inc.descripcionHecho}</p>
+                  {inc.medidasCorrectivas && (
+                    <p><strong className="text-muted-foreground">Medidas:</strong> {inc.medidasCorrectivas}</p>
+                  )}
+                  <div className="text-xs pt-2 border-t mt-2 flex justify-between">
+                    <span><strong className="text-muted-foreground">Responsable:</strong> {inc.responsableSeguimiento || "No asignado"}</span>
+                    <span><strong className="text-muted-foreground">Plazo:</strong> {inc.plazoCierre || "Sin plazo"}</span>
+                  </div>
+                </article>
+              ))}
+            </div>
+          )}
         </div>
-        </CardContent>
-      </Card>
-    </section>
+      </div>
+      </CardContent>
+    </Card>
   );
 }
 
+// --- Tipos y Datos para Plan de Acción ---
+type OrigenAccion =
+  | "IPER"
+  | "INCIDENTE"
+  | "OBSERVACION"
+  | "OTRO";
+
+type EstadoAccion = "Pendiente" | "En progreso" | "Cerrada";
+
+type RegistroPlanAccion = {
+  id: string;
+  obraId: string;
+  origen: OrigenAccion;
+  referencia: string; 
+  descripcionAccion: string;
+  responsable: string;
+  plazo: string;
+  estado: EstadoAccion;
+  avance: string;
+  observacionesCierre: string;
+  fechaCreacion: string;
+  creadoPor: string;
+};
+
+const PLANES_ACCION_INICIALES: RegistroPlanAccion[] = [
+  {
+    id: "accion-1",
+    obraId: "obra-1",
+    origen: "INCIDENTE",
+    referencia: "inc-1",
+    descripcionAccion:
+      "Mejorar demarcación y señalización del área de izaje en bodega.",
+    responsable: "Jefe de Obra",
+    plazo: "2025-11-15",
+    estado: "En progreso",
+    avance: "Demarcación ejecutada; pendiente instalar cadenas en accesos.",
+    observacionesCierre: "",
+    fechaCreacion: "2025-11-06",
+    creadoPor: "Prevencionista de obra",
+  },
+];
+
+// --- Componente Plan de Acción ---
+function PlanAccionSection() {
+    const [obraSeleccionadaId, setObraSeleccionadaId] = useState<string>(
+        OBRAS_IPER[0]?.id ?? ""
+    );
+
+    const [planesAccion, setPlanesAccion] = useState<RegistroPlanAccion[]>(
+        PLANES_ACCION_INICIALES
+    );
+
+    const [errorForm, setErrorForm] = useState<string | null>(null);
+
+    const [formAccion, setFormAccion] = useState<{
+        origen: OrigenAccion;
+        referencia: string;
+        descripcionAccion: string;
+        responsable: string;
+        plazo: string;
+        estado: EstadoAccion;
+        avance: string;
+        observacionesCierre: string;
+        creadoPor: string;
+    }>({
+        origen: "IPER",
+        referencia: "",
+        descripcionAccion: "",
+        responsable: "",
+        plazo: "",
+        estado: "Pendiente",
+        avance: "",
+        observacionesCierre: "",
+        creadoPor: "",
+    });
+
+    const planesDeObra = planesAccion.filter(
+        (p) => p.obraId === obraSeleccionadaId
+    );
+
+    return (
+        <Card className="mt-6">
+            <CardHeader>
+                <CardTitle>Plan de acción y seguimiento</CardTitle>
+                <CardDescription>
+                    Define y gestiona acciones correctivas y preventivas asociadas a IPER,
+                    incidentes u otras observaciones. Datos simulados en este MVP.
+                </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-6">
+                <div className="max-w-xs space-y-2">
+                    <Label htmlFor="obra-select-plan">Obra / faena</Label>
+                    <Select value={obraSeleccionadaId} onValueChange={setObraSeleccionadaId}>
+                        <SelectTrigger id="obra-select-plan"><SelectValue placeholder="Seleccione una obra"/></SelectTrigger>
+                        <SelectContent>
+                            {OBRAS_IPER.map((obra) => (
+                                <SelectItem key={obra.id} value={obra.id}>
+                                    {obra.nombreFaena}
+                                </SelectItem>
+                            ))}
+                        </SelectContent>
+                    </Select>
+                </div>
+
+                <div className="grid gap-8 md:grid-cols-2">
+                    <form
+                        className="space-y-4"
+                        onSubmit={(e) => {
+                            e.preventDefault();
+                            setErrorForm(null);
+
+                            if (!obraSeleccionadaId) {
+                                setErrorForm("Debes seleccionar una obra.");
+                                return;
+                            }
+                            if (!formAccion.descripcionAccion.trim()) {
+                                setErrorForm("Debes describir la acción a implementar.");
+                                return;
+                            }
+                            if (!formAccion.responsable.trim()) {
+                                setErrorForm("Debes asignar un responsable.");
+                                return;
+                            }
+
+                            const nuevoRegistro: RegistroPlanAccion = {
+                                id:
+                                    typeof crypto !== "undefined" && crypto.randomUUID
+                                        ? crypto.randomUUID()
+                                        : Date.now().toString(),
+                                obraId: obraSeleccionadaId,
+                                fechaCreacion: new Date().toISOString().slice(0, 10),
+                                ...formAccion,
+                            };
+
+                            setPlanesAccion((prev) => [nuevoRegistro, ...prev]);
+
+                            setFormAccion((prev) => ({
+                                ...prev,
+                                referencia: "",
+                                descripcionAccion: "",
+                                responsable: "",
+                                plazo: "",
+                                avance: "",
+                                observacionesCierre: "",
+                                creadoPor: "",
+                            }));
+                        }}
+                    >
+                        <h3 className="text-lg font-semibold border-b pb-2">Registrar Nueva Acción</h3>
+                        {errorForm && <p className="text-sm font-medium text-destructive">{errorForm}</p>}
+                        
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                           <div className="space-y-2">
+                                <Label>Origen de la Acción</Label>
+                                <Select value={formAccion.origen} onValueChange={v => setFormAccion(p => ({...p, origen: v as OrigenAccion}))}>
+                                    <SelectTrigger><SelectValue/></SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="IPER">IPER / Matriz de Riesgo</SelectItem>
+                                        <SelectItem value="INCIDENTE">Investigación de Incidente</SelectItem>
+                                        <SelectItem value="OBSERVACION">Observación de Seguridad</SelectItem>
+                                        <SelectItem value="OTRO">Otro</SelectItem>
+                                    </SelectContent>
+                                </Select>
+                           </div>
+                            <div className="space-y-2">
+                                <Label>Referencia (ID IPER, INC, etc.)</Label>
+                                <Input value={formAccion.referencia} onChange={e => setFormAccion(p => ({...p, referencia: e.target.value}))}/>
+                            </div>
+                        </div>
+
+                        <div className="space-y-2">
+                            <Label>Descripción de la Acción*</Label>
+                            <Textarea value={formAccion.descripcionAccion} onChange={e => setFormAccion(p => ({...p, descripcionAccion: e.target.value}))} />
+                        </div>
+                        
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div className="space-y-2">
+                                <Label>Responsable*</Label>
+                                <Input value={formAccion.responsable} onChange={e => setFormAccion(p => ({...p, responsable: e.target.value}))}/>
+                            </div>
+                             <div className="space-y-2">
+                                <Label>Plazo</Label>
+                                <Input type="date" value={formAccion.plazo} onChange={e => setFormAccion(p => ({...p, plazo: e.target.value}))}/>
+                            </div>
+                        </div>
+
+                        <div className="space-y-2">
+                            <Label>Estado de la Acción</Label>
+                            <Select value={formAccion.estado} onValueChange={v => setFormAccion(p => ({...p, estado: v as EstadoAccion}))}>
+                                <SelectTrigger><SelectValue/></SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="Pendiente">Pendiente</SelectItem>
+                                    <SelectItem value="En progreso">En progreso</SelectItem>
+                                    <SelectItem value="Cerrada">Cerrada</SelectItem>
+                                </SelectContent>
+                            </Select>
+                        </div>
+
+                        <div className="space-y-2">
+                            <Label>Avance / Comentarios</Label>
+                            <Textarea value={formAccion.avance} onChange={e => setFormAccion(p => ({...p, avance: e.target.value}))} rows={2} />
+                        </div>
+
+                         <div className="space-y-2">
+                            <Label>Observaciones de Cierre</Label>
+                            <Textarea value={formAccion.observacionesCierre} onChange={e => setFormAccion(p => ({...p, observacionesCierre: e.target.value}))} rows={2} />
+                        </div>
+                        
+                        <div className="space-y-2">
+                            <Label>Creado Por</Label>
+                            <Input value={formAccion.creadoPor} onChange={e => setFormAccion(p => ({...p, creadoPor: e.target.value}))}/>
+                        </div>
+
+                        <Button type="submit">Registrar Acción</Button>
+                    </form>
+                    
+                    <div className="space-y-2">
+                        <h4 className="text-lg font-semibold border-b pb-2">Acciones Registradas en la Obra</h4>
+                        {planesDeObra.length === 0 ? (
+                            <p className="text-sm text-muted-foreground text-center pt-8">
+                                No hay acciones registradas para esta obra aún.
+                            </p>
+                        ) : (
+                            <div className="space-y-3 max-h-[600px] overflow-y-auto pr-2">
+                                {planesDeObra.map((p) => (
+                                    <article
+                                        key={p.id}
+                                        className="rounded-lg border bg-card p-3 shadow-sm text-sm space-y-2"
+                                    >
+                                        <p className="font-semibold">
+                                            {p.descripcionAccion}
+                                        </p>
+                                        <p className="text-xs text-muted-foreground">
+                                            Origen:{" "}
+                                            {p.origen}
+                                            {p.referencia && ` · Ref: ${p.referencia}`}
+                                        </p>
+                                        <p className="text-xs text-muted-foreground">
+                                            Responsable: {p.responsable || "No asignado"} · Plazo:{" "}
+                                            {p.plazo || "Sin plazo"}
+                                        </p>
+                                        <p className="font-medium">
+                                            Estado: {p.estado}
+                                        </p>
+                                        {p.avance && (
+                                            <p className="text-xs">Avance: {p.avance}</p>
+                                        )}
+                                        {p.observacionesCierre && (
+                                            <p className="text-xs">
+                                                Cierre: {p.observacionesCierre}
+                                            </p>
+                                        )}
+                                    </article>
+                                ))}
+                            </div>
+                        )}
+                    </div>
+                </div>
+            </CardContent>
+        </Card>
+    );
+}
+
+
 // --- Componente Principal ---
-type FormularioGeneralActivo = "IPER" | "INCIDENTE" | null;
+type FormularioGeneralActivo = "IPER" | "INCIDENTE" | "PLAN_ACCION" | null;
 
 export default function FormulariosGeneralesPrevencionPage() {
   const [activeForm, setActiveForm] = useState<FormularioGeneralActivo>("IPER");
@@ -603,17 +865,33 @@ export default function FormulariosGeneralesPrevencionPage() {
           </CardContent>
         </Card>
 
-        <Card className="border-dashed bg-muted/50 flex items-center justify-center text-center">
-             <CardHeader>
-                <CardTitle className="text-muted-foreground">Planes de acción</CardTitle>
-                <CardDescription>Próximamente</CardDescription>
-            </CardHeader>
+        <Card className="flex flex-col justify-between transition-all hover:shadow-lg hover:-translate-y-1">
+          <CardHeader>
+            <CardTitle>Plan de acción y seguimiento</CardTitle>
+            <CardDescription>
+              Registro de acciones correctivas y preventivas asociadas a IPER,
+              incidentes u otras observaciones de seguridad.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <Button
+                type="button"
+                onClick={() => setActiveForm("PLAN_ACCION")}
+                className="w-full"
+                variant={activeForm === 'PLAN_ACCION' ? 'default' : 'outline'}
+            >
+                Ver plan de acción
+            </Button>
+          </CardContent>
         </Card>
       </div>
 
       {activeForm === 'IPER' && <IPERFormSection />}
       {activeForm === 'INCIDENTE' && <InvestigacionIncidenteSection />}
+      {activeForm === 'PLAN_ACCION' && <PlanAccionSection />}
 
     </section>
   );
 }
+
+    
