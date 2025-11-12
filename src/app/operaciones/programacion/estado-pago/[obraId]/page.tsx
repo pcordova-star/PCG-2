@@ -190,7 +190,8 @@ function EstadoDePagoPageInner({ params }: { params: { obraId: string } }) {
 }
 
 
-export default function EstadoDePagoPage({ params }: { params: { obraId: string } }) {
+export default async function EstadoDePagoPage({ params: paramsPromise }: { params: Promise<{ obraId: string }> }) {
+  const params = await paramsPromise;
   return (
     <Suspense fallback={<div>Cargando Estado de Pago...</div>}>
       <EstadoDePagoPageInner params={params} />
