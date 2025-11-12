@@ -10,10 +10,11 @@ import {
   getDocs,
   query,
   where,
-  doc,
   updateDoc,
+  doc,
 } from "firebase/firestore";
-import { firebaseDb } from "../../../lib/firebaseClient";
+import { firebaseDb, firebaseStorage } from "../../../lib/firebaseClient";
+import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -41,18 +42,6 @@ import {
 } from "@/components/ui/table";
 import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-  AlertDialogTrigger,
-} from "@/components/ui/alert-dialog";
-import { Trash2 } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
 
 type Obra = {
@@ -84,9 +73,8 @@ type AvanceDiario = {
   fecha: string; // "YYYY-MM-DD"
   porcentajeAvance: number; // avance acumulado a esa fecha (0-100)
   comentario: string;
-  fotoUrl?: string; // por ahora solo URL de la foto (simulado)
+  fotoUrl?: string;
   visibleParaCliente: boolean;
-  creadoPor: string; // nombre o rol de quien registra
 };
 
 function EstadoBadge({ estado }: { estado: EstadoActividad }) {
@@ -134,12 +122,12 @@ export default function ProgramacionPage() {
 
   const [formAvance, setFormAvance] = useState({
     fecha: new Date().toISOString().slice(0, 10),
-    porcentajeAvance: 0,
+    porcentajeAvance: "",
     comentario: "",
-    fotoUrl: "",
-    visibleParaCliente: true,
     creadoPor: "",
+    visibleParaCliente: true,
   });
+  const [archivoFoto, setArchivoFoto] = useState<File | null>(null);
 
   // Auth Protection
   useEffect(() => {
@@ -183,11 +171,9 @@ export default function ProgramacionPage() {
   useEffect(() => {
     if (!obraSeleccionadaId || !user) return;
 
-    async function cargarDatosDeObra() {
-      // Cargar Actividades
+    async function cargarActividades() {
       try {
         setCargandoActividades(true);
-        setError(null);
         const actColRef = collection(firebaseDb, "actividadesProgramadas");
         const qAct = query(actColRef, where("obraId", "==", obraSeleccionadaId));
         const snapshotAct = await getDocs(qAct);
@@ -210,11 +196,11 @@ export default function ProgramacionPage() {
       } finally {
         setCargandoActividades(false);
       }
+    }
 
-      // Cargar Avances
+    async function cargarAvances() {
       try {
         setCargandoAvances(true);
-        setError(null);
         const avColRef = collection(firebaseDb, "avancesDiarios");
         const qAv = query(avColRef, where("obraId", "==", obraSeleccionadaId));
         const snapshotAv = await getDocs(qAv);
@@ -225,12 +211,14 @@ export default function ProgramacionPage() {
         setAvances(dataAv.sort((a, b) => (a.fecha < b.fecha ? 1 : -1)));
       } catch (err) {
         console.error("Error cargando avances:", err);
-        setError((prev) => prev + " No se pudieron cargar los avances diarios.");
+        setError((prev) => (prev ? prev + " " : "") + "No se pudieron cargar los avances diarios.");
       } finally {
         setCargandoAvances(false);
       }
     }
-    cargarDatosDeObra();
+
+    cargarActividades();
+    cargarAvances();
   }, [obraSeleccionadaId, user]);
   
   const handleEstadoChange = async (id: string, nuevoEstado: EstadoActividad) => {
@@ -247,25 +235,6 @@ export default function ProgramacionPage() {
         setError("No se pudo actualizar el estado de la actividad.");
     }
   };
-
-  if (loadingAuth) {
-    return <p className="text-sm text-muted-foreground">Cargando sesión...</p>;
-  }
-  if (!user) {
-    return (
-      <p className="text-sm text-muted-foreground">Redirigiendo a login...</p>
-    );
-  }
-  
-  const clientPath = obraSeleccionadaId ? `/clientes/${obraSeleccionadaId}` : "";
-  
-  const resumenActividades = useMemo(() => {
-    const total = actividades.length;
-    const pendientes = actividades.filter(a => a.estado === "Pendiente").length;
-    const enCurso = actividades.filter(a => a.estado === "En curso").length;
-    const completadas = actividades.filter(a => a.estado === "Completada").length;
-    return { total, pendientes, enCurso, completadas };
-  }, [actividades]);
 
   async function handleActividadSubmit(e: FormEvent) {
     e.preventDefault();
@@ -293,26 +262,94 @@ export default function ProgramacionPage() {
   async function handleAvanceSubmit(e: FormEvent) {
     e.preventDefault();
     if (!obraSeleccionadaId) {
-      setError("Seleccione una obra antes de registrar un avance.");
+      setError("Debes seleccionar una obra para registrar avance.");
       return;
     }
-    const { comentario, creadoPor, porcentajeAvance } = formAvance;
-    if (!comentario || !creadoPor || porcentajeAvance < 0 || porcentajeAvance > 100) {
-      setError("Comentario, Creado Por y un Porcentaje válido son obligatorios.");
+    if (!user) {
+      setError("Debes estar autenticado para registrar avance.");
       return;
     }
+
+    const { fecha, porcentajeAvance, comentario, creadoPor, visibleParaCliente } = formAvance;
+
+    if (!fecha || !porcentajeAvance || !creadoPor) {
+      setError("La fecha, el porcentaje de avance y 'registrado por' son obligatorios.");
+      return;
+    }
+
+    const porcentaje = Number(porcentajeAvance);
+    if (isNaN(porcentaje) || porcentaje < 0 || porcentaje > 100) {
+      setError("El porcentaje de avance debe ser un número entre 0 y 100.");
+      return;
+    }
+
     try {
+      setError(null);
+      let fotoUrl: string | undefined = undefined;
+
+      if (archivoFoto) {
+        const nombreArchivo = `${Date.now()}-${archivoFoto.name}`;
+        const storageRef = ref(firebaseStorage, `avances/${obraSeleccionadaId}/${nombreArchivo}`);
+        await uploadBytes(storageRef, archivoFoto);
+        fotoUrl = await getDownloadURL(storageRef);
+      }
+
       const colRef = collection(firebaseDb, "avancesDiarios");
-      const docRef = await addDoc(colRef, { obraId: obraSeleccionadaId, ...formAvance });
-      const nuevoAvance: AvanceDiario = { id: docRef.id, obraId: obraSeleccionadaId, ...formAvance };
+      const docData = {
+        obraId: obraSeleccionadaId,
+        fecha,
+        porcentajeAvance: porcentaje,
+        comentario: comentario.trim(),
+        fotoUrl,
+        creadoPor: creadoPor.trim(),
+        visibleParaCliente,
+        creadoEn: new Date().toISOString(),
+        creadoPorUid: user.uid,
+      };
+      const docRef = await addDoc(colRef, docData);
+
+      const nuevoAvance: AvanceDiario = {
+        id: docRef.id,
+        obraId: obraSeleccionadaId,
+        fecha,
+        porcentajeAvance: porcentaje,
+        comentario: comentario.trim(),
+        fotoUrl,
+        visibleParaCliente,
+      };
+
       setAvances((prev) => [nuevoAvance, ...prev].sort((a,b) => a.fecha < b.fecha ? 1 : -1));
-      setFormAvance(prev => ({ ...prev, porcentajeAvance: 0, comentario: "", fotoUrl: "", creadoPor: "" }));
-    } catch(err) {
+      setFormAvance({ fecha: new Date().toISOString().slice(0, 10), porcentajeAvance: "", comentario: "", creadoPor: "", visibleParaCliente: true });
+      setArchivoFoto(null);
+      // Reset file input
+      const fileInput = document.getElementById('foto-avance-input') as HTMLInputElement;
+      if (fileInput) fileInput.value = "";
+
+
+    } catch (err) {
       console.error(err);
-      setError("No se pudo registrar el avance.");
+      setError("No se pudo registrar el avance. Intenta nuevamente.");
     }
   }
-
+  
+  if (loadingAuth) {
+    return <p className="text-sm text-muted-foreground">Cargando sesión...</p>;
+  }
+  if (!user) {
+    return (
+      <p className="text-sm text-muted-foreground">Redirigiendo a login...</p>
+    );
+  }
+  
+  const clientPath = obraSeleccionadaId ? `/clientes/${obraSeleccionadaId}` : "";
+  
+  const resumenActividades = useMemo(() => {
+    const total = actividades.length;
+    const pendientes = actividades.filter(a => a.estado === "Pendiente").length;
+    const enCurso = actividades.filter(a => a.estado === "En curso").length;
+    const completadas = actividades.filter(a => a.estado === "Completada").length;
+    return { total, pendientes, enCurso, completadas };
+  }, [actividades]);
 
   return (
     <div className="space-y-8">
@@ -511,106 +548,46 @@ export default function ProgramacionPage() {
         </header>
 
         <div className="grid gap-6 md:grid-cols-2">
-          {/* Formulario de nuevo avance */}
-          <form
-            className="space-y-3 rounded-xl border bg-card p-4 shadow-sm"
-            onSubmit={handleAvanceSubmit}
-          >
-            <h4 className="text-sm font-semibold text-card-foreground">
-              Registrar avance del día
-            </h4>
-
-            <div className="grid gap-3 md:grid-cols-2">
-              <div className="space-y-1">
-                <Label className="text-xs font-medium text-muted-foreground">
-                  Fecha del avance
-                </Label>
-                <Input
-                  type="date"
-                  value={formAvance.fecha}
-                  onChange={(e) => setFormAvance(prev => ({...prev, fecha: e.target.value}))}
-                  className="w-full"
-                />
-              </div>
-
-              <div className="space-y-1">
-                <Label className="text-xs font-medium text-muted-foreground">
-                  Porcentaje de avance acumulado (%)
-                </Label>
-                <Input
-                  type="number"
-                  min={0}
-                  max={100}
-                  value={formAvance.porcentajeAvance}
-                  onChange={(e) => setFormAvance(prev => ({...prev, porcentajeAvance: Number(e.target.value) || 0}))}
-                  className="w-full"
-                />
-              </div>
-            </div>
-
-            <div className="space-y-1">
-              <Label className="text-xs font-medium text-muted-foreground">
-                Comentario del día
-              </Label>
-              <textarea
-                value={formAvance.comentario}
-                onChange={(e) => setFormAvance(prev => ({...prev, comentario: e.target.value}))}
-                rows={3}
-                className="w-full rounded-lg border bg-background px-3 py-2 text-sm"
-                placeholder="Describe brevemente qué se avanzó hoy en la obra..."
-              />
-            </div>
-
-            <div className="space-y-1">
-              <Label className="text-xs font-medium text-muted-foreground">
-                URL de foto (simulada)
-              </Label>
-              <Input
-                type="text"
-                value={formAvance.fotoUrl}
-                onChange={(e) => setFormAvance(prev => ({...prev, fotoUrl: e.target.value}))}
-                className="w-full"
-                placeholder="https://..."
-              />
-              <p className="text-[11px] text-muted-foreground">
-                Más adelante esto se conectará a Firebase Storage.
-              </p>
-            </div>
-
-            <div className="space-y-1">
-              <Label className="text-xs font-medium text-muted-foreground">
-                Registrado por
-              </Label>
-              <Input
-                type="text"
-                value={formAvance.creadoPor}
-                onChange={(e) => setFormAvance(prev => ({...prev, creadoPor: e.target.value}))}
-                className="w-full"
-                placeholder="Ej: Jefe de Obra, Administrador de Obra..."
-              />
-            </div>
-
-            <div className="flex items-center gap-2">
-              <Checkbox
-                id="visibleCliente"
-                checked={formAvance.visibleParaCliente}
-                onCheckedChange={(checked) => setFormAvance(prev => ({...prev, visibleParaCliente: !!checked}))}
-              />
-              <Label
-                htmlFor="visibleCliente"
-                className="text-xs text-muted-foreground"
+          <Card>
+            <CardHeader>
+              <CardTitle>Registrar avance del día</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <form
+                onSubmit={handleAvanceSubmit}
+                className="space-y-4"
               >
-                Mostrar este avance en el dashboard del cliente
-              </Label>
-            </div>
-
-            <Button
-              type="submit"
-              className="mt-2"
-            >
-              Registrar avance
-            </Button>
-          </form>
+                <div className="grid gap-3 md:grid-cols-2">
+                  <div className="space-y-1">
+                    <Label htmlFor="avance-fecha" className="text-xs font-medium">Fecha del avance</Label>
+                    <Input id="avance-fecha" type="date" value={formAvance.fecha} onChange={(e) => setFormAvance(prev => ({...prev, fecha: e.target.value}))} />
+                  </div>
+                  <div className="space-y-1">
+                    <Label htmlFor="avance-porcentaje" className="text-xs font-medium">Avance acumulado (%)</Label>
+                    <Input id="avance-porcentaje" type="number" min={0} max={100} value={formAvance.porcentajeAvance} onChange={(e) => setFormAvance(prev => ({...prev, porcentajeAvance: e.target.value}))} />
+                  </div>
+                </div>
+                <div className="space-y-1">
+                  <Label htmlFor="avance-comentario" className="text-xs font-medium">Comentario del día</Label>
+                  <textarea id="avance-comentario" value={formAvance.comentario} onChange={(e) => setFormAvance(prev => ({...prev, comentario: e.target.value}))} rows={3} className="w-full rounded-lg border bg-background px-3 py-2 text-sm" placeholder="Describe brevemente qué se avanzó hoy en la obra..." />
+                </div>
+                <div className="space-y-1">
+                  <Label htmlFor="foto-avance-input" className="text-xs font-medium">Foto (opcional)</Label>
+                  <Input id="foto-avance-input" type="file" accept="image/*" onChange={(e) => setArchivoFoto(e.target.files ? e.target.files[0] : null)} />
+                  <p className="text-[11px] text-muted-foreground">La foto se subirá a Firebase Storage.</p>
+                </div>
+                 <div className="space-y-1">
+                    <Label htmlFor="avance-creadoPor" className="text-xs font-medium">Registrado por</Label>
+                    <Input id="avance-creadoPor" type="text" value={formAvance.creadoPor} onChange={(e) => setFormAvance(prev => ({...prev, creadoPor: e.target.value}))} placeholder="Ej: Jefe de Obra" />
+                </div>
+                <div className="flex items-center gap-2">
+                    <Checkbox id="visibleCliente" checked={formAvance.visibleParaCliente} onCheckedChange={(checked) => setFormAvance(prev => ({...prev, visibleParaCliente: !!checked}))} />
+                    <Label htmlFor="visibleCliente" className="text-xs text-muted-foreground">Mostrar este avance en el dashboard del cliente</Label>
+                </div>
+                <Button type="submit">Registrar avance</Button>
+              </form>
+            </CardContent>
+          </Card>
 
           {/* Historial de avances */}
           <div className="space-y-3">
@@ -624,48 +601,26 @@ export default function ProgramacionPage() {
                 Aún no hay avances registrados para esta obra.
               </p>
             ) : (
-              <div className="space-y-3 max-h-[420px] overflow-y-auto pr-1">
+              <div className="space-y-3 max-h-[500px] overflow-y-auto pr-2">
                 {avances.map((av) => (
-                  <article
-                    key={av.id}
-                    className="rounded-xl border bg-card p-3 shadow-sm text-sm space-y-2"
-                  >
-                    <div className="flex items-center justify-between gap-2">
-                      <div>
-                        <p className="font-semibold">
-                          {av.fecha} · {av.porcentajeAvance}% avance
-                        </p>
-                        <p className="text-[11px] text-muted-foreground">
-                          Registrado por: {av.creadoPor}
-                        </p>
-                      </div>
-                      <Badge
-                        variant="outline"
-                        className={cn(av.visibleParaCliente
-                            ? "border-emerald-200 bg-emerald-50 text-emerald-700"
-                            : "border-slate-200 bg-slate-100 text-slate-600"
-                        )}
-                      >
-                        {av.visibleParaCliente
-                          ? "Visible para cliente"
-                          : "Solo uso interno"}
-                      </Badge>
-                    </div>
-
+                  <Card key={av.id} className="overflow-hidden">
                     {av.fotoUrl && (
-                      <div className="overflow-hidden rounded-lg border bg-muted/30">
-                        <img
-                          src={av.fotoUrl}
-                          alt={`Avance ${av.fecha}`}
-                          className="h-40 w-full object-cover"
-                        />
+                      <div className="border-b bg-muted/30">
+                        <img src={av.fotoUrl} alt={`Avance ${av.fecha}`} className="h-48 w-full object-cover"/>
                       </div>
                     )}
-
-                    <p className="text-card-foreground/90 text-sm whitespace-pre-line">
-                      {av.comentario}
-                    </p>
-                  </article>
+                    <CardContent className="p-4 space-y-2">
+                        <div className="flex items-center justify-between gap-2">
+                            <div>
+                                <p className="font-semibold text-primary">{av.fecha} · {av.porcentajeAvance}% avance</p>
+                            </div>
+                            <Badge variant="outline" className={cn(av.visibleParaCliente ? "border-emerald-200 bg-emerald-50 text-emerald-700" : "border-slate-200 bg-slate-100 text-slate-600")}>
+                                {av.visibleParaCliente ? "Visible cliente" : "Interno"}
+                            </Badge>
+                        </div>
+                        <p className="text-card-foreground/90 text-sm whitespace-pre-line pt-1">{av.comentario}</p>
+                    </CardContent>
+                  </Card>
                 ))}
               </div>
             )}
