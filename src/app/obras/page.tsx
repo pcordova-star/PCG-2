@@ -26,6 +26,7 @@ type Obra = {
   mandanteRut: string;
   jefeObraNombre: string;
   prevencionistaNombre: string;
+  mutualidad?: string;
 };
 
 
@@ -102,7 +103,8 @@ export default function ObrasPage() {
       mandanteRazonSocial: "",
       mandanteRut: "",
       jefeObraNombre: "",
-      prevencionistaNombre: ""
+      prevencionistaNombre: "",
+      mutualidad: "",
     });
     setDialogOpen(true);
     setError(null);
@@ -131,6 +133,7 @@ export default function ObrasPage() {
       mandanteRut: currentObra.mandanteRut || "",
       jefeObraNombre: currentObra.jefeObraNombre || "",
       prevencionistaNombre: currentObra.prevencionistaNombre || "",
+      mutualidad: currentObra.mutualidad || "",
     };
 
     try {
@@ -332,6 +335,10 @@ export default function ObrasPage() {
                <div className="space-y-2">
                 <Label htmlFor="mandanteRut">RUT Mandante</Label>
                 <Input id="mandanteRut" name="mandanteRut" value={currentObra?.mandanteRut || ""} onChange={handleFormChange} />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="mutualidad">Mutualidad</Label>
+                <Input id="mutualidad" name="mutualidad" value={currentObra?.mutualidad || ""} onChange={handleFormChange} />
               </div>
               {error && <p className="col-span-full text-sm font-medium text-destructive">{error}</p>}
             </div>

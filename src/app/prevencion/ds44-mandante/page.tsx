@@ -10,7 +10,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Separator } from '@/components/ui/separator';
 import { firebaseDb } from '@/lib/firebaseClient';
-import { doc, getDoc, setDoc, serverTimestamp, Timestamp, collection, getDocs } from 'firebase/firestore';
+import { doc, getDoc, setDoc, serverTimestamp, Timestamp, collection, getDocs, onSnapshot } from 'firebase/firestore';
 import Link from 'next/link';
 
 type Obra = {
@@ -18,6 +18,7 @@ type Obra = {
   nombreFaena: string;
   mandanteRazonSocial?: string;
   mandanteRut?: string;
+  mutualidad?: string;
 };
 
 type EstadoGlobalDS44Obra =
@@ -32,7 +33,6 @@ type FichaDs44MandanteObra = {
     responsableCoordinacionNombre: string;
     responsableCoordinacionCargo: string;
     responsableCoordinacionContacto: string;
-    mutualidad: string;
     fechaInicioObra: string;
     fechaTerminoEstimado: string;
     existeReglamentoEspecial: boolean;
@@ -52,44 +52,48 @@ type FichaDs44MandanteObra = {
 export default function DS44MandanteObraPage() {
   const [obras, setObras] = useState<Obra[]>([]);
   const [obraSeleccionadaId, setObraSeleccionadaId] = useState<string>("");
-
+  
+  const [obraSeleccionada, setObraSeleccionada] = useState<Obra | null>(null);
   const [ficha, setFicha] = useState<FichaDs44MandanteObra | null>(null);
+
   const [cargandoFicha, setCargandoFicha] = useState(true);
   const [guardando, setGuardando] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [mensajeOk, setMensajeOk] = useState<string | null>(null);
 
-  // obraId viene del estado obraSeleccionadaId
   const obraId = obraSeleccionadaId;
 
   useEffect(() => {
-    const cargarObras = async () => {
-        try {
-            const colRef = collection(firebaseDb, "obras");
-            const snapshot = await getDocs(colRef);
-            const data: Obra[] = snapshot.docs.map(doc => ({
-                id: doc.id,
-                nombreFaena: doc.data().nombreFaena ?? "",
-            }));
-            setObras(data);
-            if(data.length > 0 && !obraSeleccionadaId) {
-                setObraSeleccionadaId(data[0].id);
-            }
-        } catch (err) {
-            console.error("Error cargando obras", err);
-            setError("No se pudieron cargar las obras desde Firestore.");
-        }
-    }
-    cargarObras();
-  }, [obraSeleccionadaId]);
+    const unsub = onSnapshot(collection(firebaseDb, "obras"), (snapshot) => {
+      const data: Obra[] = snapshot.docs.map(doc => ({
+        id: doc.id,
+        nombreFaena: doc.data().nombreFaena ?? "",
+        mandanteRazonSocial: doc.data().mandanteRazonSocial ?? "",
+        mandanteRut: doc.data().mandanteRut ?? "",
+        mutualidad: doc.data().mutualidad ?? "",
+      }));
+      setObras(data);
+      if (data.length > 0 && !obraSeleccionadaId) {
+        setObraSeleccionadaId(data[0].id);
+      }
+    }, (err) => {
+      console.error("Error cargando obras", err);
+      setError("No se pudieron cargar las obras desde Firestore.");
+    });
+    return () => unsub();
+  }, []);
 
   useEffect(() => {
     const cargarFicha = async () => {
       if (!obraId) {
         setFicha(null);
+        setObraSeleccionada(null);
         setCargandoFicha(false);
         return;
       }
+      
+      const obraData = obras.find(o => o.id === obraId);
+      setObraSeleccionada(obraData || null);
 
       setCargandoFicha(true);
       setError(null);
@@ -107,7 +111,6 @@ export default function DS44MandanteObraPage() {
             responsableCoordinacionNombre: data.responsableCoordinacionNombre ?? "",
             responsableCoordinacionCargo: data.responsableCoordinacionCargo ?? "",
             responsableCoordinacionContacto: data.responsableCoordinacionContacto ?? "",
-            mutualidad: data.mutualidad ?? "",
             fechaInicioObra: data.fechaInicioObra ?? "",
             fechaTerminoEstimado: data.fechaTerminoEstimado ?? "",
             existeReglamentoEspecial: data.existeReglamentoEspecial ?? false,
@@ -130,7 +133,6 @@ export default function DS44MandanteObraPage() {
             responsableCoordinacionNombre: "",
             responsableCoordinacionCargo: "",
             responsableCoordinacionContacto: "",
-            mutualidad: "",
             fechaInicioObra: "",
             fechaTerminoEstimado: "",
             existeReglamentoEspecial: false,
@@ -153,7 +155,7 @@ export default function DS44MandanteObraPage() {
     };
 
     cargarFicha();
-  }, [obraId]);
+  }, [obraId, obras]);
   
   const handleInputChange = (field: keyof FichaDs44MandanteObra, value: any) => {
     setFicha((prev) => (prev ? { ...prev, [field]: value } : prev));
@@ -206,36 +208,14 @@ export default function DS44MandanteObraPage() {
     }
   };
 
-  if (cargandoFicha) {
+  if (!obras.length) {
       return (
           <div className="text-center p-8 text-muted-foreground">
-              Cargando datos de la ficha...
+              Cargando obras...
           </div>
       );
   }
   
-  if (!obraId) {
-    return (
-      <div className="space-y-8">
-         <header className="space-y-2">
-          <h1 className="text-3xl font-bold font-headline tracking-tight">DS44 – Mandante / Obra</h1>
-          <p className="text-lg text-muted-foreground">
-            Ficha global de cumplimiento de la obligación de coordinar las actividades preventivas en la obra, desde la perspectiva del mandante (DS44, Art. 3).
-          </p>
-        </header>
-        <Card>
-          <CardHeader>
-            <CardTitle>Selección de Obra</CardTitle>
-            <CardDescription>Seleccione la obra para la cual desea ver o editar la ficha DS44 global.</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <p className="text-muted-foreground">Cargando obras disponibles...</p>
-          </CardContent>
-        </Card>
-      </div>
-    );
-  }
-
   return (
     <div className="space-y-8">
       <header className="space-y-2">
@@ -269,18 +249,31 @@ export default function DS44MandanteObraPage() {
         </CardContent>
       </Card>
       
-     {ficha && (
+     {cargandoFicha && <p className="text-muted-foreground text-center">Cargando ficha...</p>}
+
+     {ficha && obraSeleccionada && (
         <form onSubmit={handleSubmit} className="space-y-6">
             <Card>
                 <CardHeader>
                     <CardTitle>A. Datos de la Obra y del Mandante</CardTitle>
                      <CardDescription>
-                        La Razón Social y el RUT del Mandante se gestionan desde el módulo de Obras.
+                        La Razón Social, el RUT del Mandante y la Mutualidad se gestionan desde el módulo de Obras.
                     </CardDescription>
                 </CardHeader>
                 <CardContent className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                    <div className="space-y-2">
+                        <Label>Razón Social Mandante</Label>
+                        <Input value={obraSeleccionada.mandanteRazonSocial || 'No definido en Obra'} disabled />
+                    </div>
+                     <div className="space-y-2">
+                        <Label>RUT Mandante</Label>
+                        <Input value={obraSeleccionada.mandanteRut || 'No definido en Obra'} disabled />
+                    </div>
+                     <div className="space-y-2">
+                        <Label>Mutualidad</Label>
+                        <Input value={obraSeleccionada.mutualidad || 'No definido en Obra'} disabled />
+                    </div>
                     <div className="space-y-2"><Label>Representante Legal</Label><Input value={ficha.representanteLegal} onChange={e => handleInputChange('representanteLegal', e.target.value)} /></div>
-                    <div className="space-y-2"><Label>Mutualidad</Label><Input value={ficha.mutualidad} onChange={e => handleInputChange('mutualidad', e.target.value)} /></div>
                     <div className="space-y-2"><Label>Fecha de Inicio de Obra</Label><Input type="date" value={ficha.fechaInicioObra} onChange={e => handleInputChange('fechaInicioObra', e.target.value)} /></div>
                     <div className="space-y-2"><Label>Fecha de Término Estimado</Label><Input type="date" value={ficha.fechaTerminoEstimado} onChange={e => handleInputChange('fechaTerminoEstimado', e.target.value)} /></div>
                 </CardContent>
