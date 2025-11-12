@@ -109,17 +109,6 @@ function getEmpresaDocConfig(
   return found;
 }
 
-const OBRAS_PREVENCION: ObraPrevencion[] = [
-  { id: "obra-1", nombreFaena: "Edificio Los Álamos" },
-  { id: "obra-2", nombreFaena: "Condominio Cuatro Vientos" },
-  { id: "obra-3", nombreFaena: "Mejoramiento Vial Ruta 5" },
-];
-
-function getNombreObraPrevencionById(obraId: string): string {
-  const obra = OBRAS_PREVENCION.find((o) => o.id === obraId);
-  return obra ? obra.nombreFaena : "Obra sin nombre";
-}
-
 type EncabezadoEmpresaProps = {
   config: DocumentoEmpresaConfigLocal;
   nombreObra: string;
@@ -186,9 +175,9 @@ function EncabezadoDocumentoEmpresa({
 }
 
 export default function EmpresasContratistasPage() {
-  const [obraSeleccionadaId, setObraSeleccionadaId] = useState<string>(
-    OBRAS_PREVENCION[0]?.id ?? ""
-  );
+  const [obras, setObras] = useState<ObraPrevencion[]>([]);
+  const [loadingObras, setLoadingObras] = useState(true);
+  const [obraSeleccionadaId, setObraSeleccionadaId] = useState<string>("");
 
   const [empresas, setEmpresas] = useState<EmpresaContratista[]>([]);
   const [loading, setLoading] = useState(true);
@@ -227,6 +216,30 @@ export default function EmpresasContratistasPage() {
     fechaEvaluacion: new Date().toISOString().slice(0, 10),
     evaluador: "",
   });
+  
+  useEffect(() => {
+    async function cargarObras() {
+      setLoadingObras(true);
+      try {
+        const colRef = collection(firebaseDb, "obras");
+        const snapshot = await getDocs(colRef);
+        const data: ObraPrevencion[] = snapshot.docs.map(doc => ({
+          id: doc.id,
+          nombreFaena: doc.data().nombreFaena ?? "",
+        }));
+        setObras(data);
+        if (data.length > 0 && !obraSeleccionadaId) {
+          setObraSeleccionadaId(data[0].id);
+        }
+      } catch (error) {
+        console.error("Error fetching obras: ", error);
+        setErrorForm("No se pudieron cargar las obras disponibles.");
+      } finally {
+        setLoadingObras(false);
+      }
+    }
+    cargarObras();
+  }, []);
   
   useEffect(() => {
     const fetchEmpresas = async () => {
@@ -325,7 +338,7 @@ export default function EmpresasContratistasPage() {
     (e) => e.obraId === obraSeleccionadaId
   );
 
-  const obraSeleccionada = OBRAS_PREVENCION.find(
+  const obraSeleccionada = obras.find(
     (o) => o.id === obraSeleccionadaId
   );
 
@@ -361,14 +374,18 @@ export default function EmpresasContratistasPage() {
             }}
           >
             <SelectTrigger id="obra-select" className="w-full md:w-auto">
-              <SelectValue placeholder="Seleccione una obra" />
+              <SelectValue placeholder={loadingObras ? "Cargando obras..." : "Seleccione una obra"} />
             </SelectTrigger>
             <SelectContent>
-              {OBRAS_PREVENCION.map((obra) => (
-                <SelectItem key={obra.id} value={obra.id}>
-                  {obra.nombreFaena}
-                </SelectItem>
-              ))}
+              {loadingObras ? (
+                 <SelectItem value="loading" disabled>Cargando...</SelectItem>
+              ) : (
+                obras.map((obra) => (
+                  <SelectItem key={obra.id} value={obra.id}>
+                    {obra.nombreFaena}
+                  </SelectItem>
+                ))
+              )}
             </SelectContent>
           </Select>
         </div>
@@ -548,7 +565,7 @@ export default function EmpresasContratistasPage() {
               <div id="printable-empresa" className="space-y-3 rounded-xl border bg-card p-4 shadow-sm text-xs print:rounded-none print:shadow-none print:border-0 print:p-0">
                 <EncabezadoDocumentoEmpresa
                   config={getEmpresaDocConfig("EVAL_EMPRESA_CONTRATISTA")}
-                  nombreObra={getNombreObraPrevencionById(empresaSeleccionada.obraId)}
+                  nombreObra={obraSeleccionada?.nombreFaena ?? ''}
                 />
                 <header className="space-y-1 pb-2 border-b">
                   <h3 className="text-sm font-semibold text-primary">
@@ -639,5 +656,3 @@ export default function EmpresasContratistasPage() {
     </section>
   );
 }
-
-    
