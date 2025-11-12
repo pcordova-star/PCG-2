@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -9,6 +9,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Textarea } from '@/components/ui/textarea';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Separator } from '@/components/ui/separator';
+import { firebaseDb } from "@/lib/firebaseClient";
+import { collection, addDoc, Timestamp, getDocs, orderBy, query } from "firebase/firestore";
 
 type ObraPrevencion = {
   id: string;
@@ -27,7 +29,7 @@ type EstadoEvaluacionEmpresa =
   | "APROBADA_CON_OBSERVACIONES"
   | "RECHAZADA";
 
-type EmpresaContratistaObra = {
+type EmpresaContratista = {
   id: string;
   obraId: string;
   razonSocial: string;
@@ -38,30 +40,28 @@ type EmpresaContratistaObra = {
   contactoTelefono: string;
   contactoEmail: string;
 
-  // Documentación contractual / administrativa
   contratoMarco: boolean;
   certificadoMutual: boolean;
   certificadoCotizaciones: boolean;
   padronTrabajadores: boolean;
   reglamentoInterno: boolean;
 
-  // Documentos de prevención
   matrizRiesgos: boolean;
   procedimientosTrabajoSeguro: boolean;
   programaTrabajo: boolean;
   planEmergenciaPropio: boolean;
   registroCapacitacionInterna: boolean;
 
-  // Coordinación DS44
   actaReunionInicial: boolean;
-  frecuenciaReuniones: string; // texto libre, ej: "semanal", "quincenal"
+  frecuenciaReuniones: string;
   compromisosEspecificos: string;
 
   estadoEvaluacion: EstadoEvaluacionEmpresa;
   observacionesGenerales: string;
 
-  fechaEvaluacion: string; // YYYY-MM-DD
+  fechaEvaluacion: string;
   evaluador: string;
+  fechaCreacion: Timestamp;
 };
 
 type TipoDocumentoEmpresaPrevencion = "EVAL_EMPRESA_CONTRATISTA";
@@ -71,7 +71,7 @@ type DocumentoEmpresaConfigLocal = {
   codigo: string;
   titulo: string;
   version: string;
-  fechaEmision: string; // YYYY-MM-DD
+  fechaEmision: string;
   elaboradoPor: string;
   revisadoPor?: string;
   aprobadoPor?: string;
@@ -119,8 +119,6 @@ function getNombreObraPrevencionById(obraId: string): string {
   const obra = OBRAS_PREVENCION.find((o) => o.id === obraId);
   return obra ? obra.nombreFaena : "Obra sin nombre";
 }
-
-const EMPRESAS_INICIALES: EmpresaContratistaObra[] = [];
 
 type EncabezadoEmpresaProps = {
   config: DocumentoEmpresaConfigLocal;
@@ -192,79 +190,136 @@ export default function EmpresasContratistasPage() {
     OBRAS_PREVENCION[0]?.id ?? ""
   );
 
-  const [empresas, setEmpresas] = useState<EmpresaContratistaObra[]>(
-    EMPRESAS_INICIALES
-  );
+  const [empresas, setEmpresas] = useState<EmpresaContratista[]>([]);
+  const [loading, setLoading] = useState(true);
 
   const [mostrarFormNueva, setMostrarFormNueva] = useState<boolean>(false);
   const [errorForm, setErrorForm] = useState<string | null>(null);
+  const [successMessage, setSuccessMessage] = useState<string | null>(null);
 
   const [empresaSeleccionadaId, setEmpresaSeleccionadaId] = useState<string | null>(null);
 
   const empresaSeleccionada = empresas.find((e) => e.id === empresaSeleccionadaId) ?? null;
 
-
-  const [formEmpresa, setFormEmpresa] = useState<{
-    razonSocial: string;
-    rut: string;
-    tipoEmpresa: TipoEmpresaPrevencion;
-    representanteLegal: string;
-    contactoNombre: string;
-    contactoTelefono: string;
-    contactoEmail: string;
-
-    contratoMarco: boolean;
-    certificadoMutual: boolean;
-    certificadoCotizaciones: boolean;
-    padronTrabajadores: boolean;
-    reglamentoInterno: boolean;
-
-    matrizRiesgos: boolean;
-    procedimientosTrabajoSeguro: boolean;
-    programaTrabajo: boolean;
-    planEmergenciaPropio: boolean;
-    registroCapacitacionInterna: boolean;
-
-    actaReunionInicial: boolean;
-    frecuenciaReuniones: string;
-    compromisosEspecificos: string;
-
-    estadoEvaluacion: EstadoEvaluacionEmpresa;
-    observacionesGenerales: string;
-
-    fechaEvaluacion: string;
-    evaluador: string;
-  }>({
+  const [formState, setFormState] = useState({
     razonSocial: "",
     rut: "",
-    tipoEmpresa: "SUBCONTRATISTA",
+    tipoEmpresa: "SUBCONTRATISTA" as TipoEmpresaPrevencion,
     representanteLegal: "",
     contactoNombre: "",
     contactoTelefono: "",
     contactoEmail: "",
-
     contratoMarco: false,
     certificadoMutual: false,
     certificadoCotizaciones: false,
     padronTrabajadores: false,
     reglamentoInterno: false,
-
     matrizRiesgos: false,
     procedimientosTrabajoSeguro: false,
     programaTrabajo: false,
     planEmergenciaPropio: false,
     registroCapacitacionInterna: false,
-
     actaReunionInicial: false,
     frecuenciaReuniones: "",
     compromisosEspecificos: "",
-
-    estadoEvaluacion: "POR_EVALUAR",
+    estadoEvaluacion: "POR_EVALUAR" as EstadoEvaluacionEmpresa,
     observacionesGenerales: "",
-
     fechaEvaluacion: new Date().toISOString().slice(0, 10),
     evaluador: "",
   });
+  
+  useEffect(() => {
+    const fetchEmpresas = async () => {
+      setLoading(true);
+      try {
+        const empresasRef = collection(firebaseDb, "empresasContratistas");
+        const q = query(empresasRef, orderBy("fechaCreacion", "desc"));
+        const snap = await getDocs(q);
+        const data: EmpresaContratista[] = snap.docs.map((doc) => ({
+          id: doc.id,
+          ...(doc.data() as Omit<EmpresaContratista, "id">),
+        }));
+        setEmpresas(data);
+      } catch (err) {
+        console.error("Error fetching companies:", err);
+        setErrorForm("No se pudieron cargar las empresas.");
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchEmpresas();
+  }, []);
+  
+  const resetForm = () => {
+    setFormState({
+        razonSocial: "",
+        rut: "",
+        tipoEmpresa: "SUBCONTRATISTA",
+        representanteLegal: "",
+        contactoNombre: "",
+        contactoTelefono: "",
+        contactoEmail: "",
+        contratoMarco: false,
+        certificadoMutual: false,
+        certificadoCotizaciones: false,
+        padronTrabajadores: false,
+        reglamentoInterno: false,
+        matrizRiesgos: false,
+        procedimientosTrabajoSeguro: false,
+        programaTrabajo: false,
+        planEmergenciaPropio: false,
+        registroCapacitacionInterna: false,
+        actaReunionInicial: false,
+        frecuenciaReuniones: "",
+        compromisosEspecificos: "",
+        estadoEvaluacion: "POR_EVALUAR",
+        observacionesGenerales: "",
+        fechaEvaluacion: new Date().toISOString().slice(0, 10),
+        evaluador: "",
+    })
+  }
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setErrorForm(null);
+    setSuccessMessage(null);
+
+    if (!obraSeleccionadaId) {
+      setErrorForm("Debes seleccionar una obra.");
+      return;
+    }
+    if (!formState.razonSocial.trim() || !formState.rut.trim() || !formState.representanteLegal.trim()) {
+      setErrorForm("Razón social, RUT y representante legal son obligatorios.");
+      return;
+    }
+
+    try {
+      const empresasRef = collection(firebaseDb, "empresasContratistas");
+      const docRef = await addDoc(empresasRef, {
+        ...formState,
+        obraId: obraSeleccionadaId,
+        fechaCreacion: Timestamp.now(),
+      });
+
+      const newEmpresa: EmpresaContratista = {
+        id: docRef.id,
+        obraId: obraSeleccionadaId,
+        ...formState,
+        fechaCreacion: Timestamp.now(),
+      };
+      
+      setEmpresas(prev => [newEmpresa, ...prev]);
+      setSuccessMessage("Empresa registrada con éxito.");
+      resetForm();
+      setMostrarFormNueva(false);
+
+    } catch (err) {
+      console.error("Error creating company:", err);
+      setErrorForm("No se pudo registrar la empresa. Inténtelo de nuevo.");
+    }
+  };
+
 
   const empresasDeObra = empresas.filter(
     (e) => e.obraId === obraSeleccionadaId
@@ -291,8 +346,7 @@ export default function EmpresasContratistasPage() {
         </h2>
         <p className="text-sm text-muted-foreground">
           Registro y evaluación de empresas que ingresan a la obra, de acuerdo
-          a las obligaciones de coordinación del DS44. Todos los datos son
-          simulados (MVP).
+          a las obligaciones de coordinación del DS44.
         </p>
       </header>
 
@@ -331,13 +385,16 @@ export default function EmpresasContratistasPage() {
         </Button>
       </div>
 
+      {successMessage && <p className="text-sm font-medium text-green-600">{successMessage}</p>}
+
       <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
         {/* Columna izquierda: listado de empresas */}
         <div className="space-y-2 lg:col-span-1 print:hidden">
           <h3 className="text-sm font-semibold text-card-foreground">
             Empresas registradas en la obra
           </h3>
-          {empresasDeObra.length === 0 ? (
+          {loading ? (<p className="text-xs text-muted-foreground pt-4 text-center">Cargando empresas...</p>) : 
+          empresasDeObra.length === 0 ? (
             <p className="text-xs text-muted-foreground pt-4 text-center">
               No hay empresas registradas aún para esta obra.
             </p>
@@ -394,58 +451,7 @@ export default function EmpresasContratistasPage() {
           {mostrarFormNueva ? (
             <form
               className="space-y-6 rounded-xl border bg-card p-4 shadow-sm text-xs print:hidden"
-              onSubmit={(e) => {
-                e.preventDefault();
-                setErrorForm(null);
-                if (!obraSeleccionadaId) {
-                  setErrorForm("Debes seleccionar una obra.");
-                  return;
-                }
-                if (!formEmpresa.razonSocial.trim()) {
-                  setErrorForm("Debes indicar la razón social de la empresa.");
-                  return;
-                }
-                if (!formEmpresa.rut.trim()) {
-                  setErrorForm("Debes indicar el RUT de la empresa.");
-                  return;
-                }
-                if (!formEmpresa.contactoEmail.trim()) {
-                  setErrorForm("Debes indicar un correo de contacto.");
-                  return;
-                }
-                if (!formEmpresa.evaluador.trim()) {
-                  setErrorForm("Debes indicar quién evalúa la empresa.");
-                  return;
-                }
-
-                const nuevaEmpresa: EmpresaContratistaObra = {
-                  id:
-                    typeof crypto !== "undefined" && crypto.randomUUID
-                      ? crypto.randomUUID()
-                      : Date.now().toString(),
-                  obraId: obraSeleccionadaId,
-                  ...formEmpresa,
-                };
-
-                setEmpresas((prev) => [nuevaEmpresa, ...prev]);
-
-                setFormEmpresa((prev) => ({
-                    ...prev,
-                    razonSocial: "",
-                    rut: "",
-                    representanteLegal: "",
-                    contactoNombre: "",
-                    contactoTelefono: "",
-                    contactoEmail: "",
-                    compromisosEspecificos: "",
-                    observacionesGenerales: "",
-                    evaluador: "",
-                    contratoMarco: false, certificadoMutual: false, certificadoCotizaciones: false, padronTrabajadores: false, reglamentoInterno: false,
-                    matrizRiesgos: false, procedimientosTrabajoSeguro: false, programaTrabajo: false, planEmergenciaPropio: false, registroCapacitacionInterna: false,
-                    actaReunionInicial: false
-                }));
-                setMostrarFormNueva(false);
-              }}
+              onSubmit={handleSubmit}
             >
               <h3 className="text-sm font-semibold text-card-foreground">
                 Formulario de Ingreso y Evaluación de Empresa
@@ -459,16 +465,67 @@ export default function EmpresasContratistasPage() {
                 <div>
                   <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Identificación de la empresa</p>
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mt-2">
-                    {/* fields */}
+                    <div className="space-y-1"><Label>Razón Social*</Label><Input value={formState.razonSocial} onChange={e => setFormState(s => ({...s, razonSocial: e.target.value}))}/></div>
+                    <div className="space-y-1"><Label>RUT*</Label><Input value={formState.rut} onChange={e => setFormState(s => ({...s, rut: e.target.value}))}/></div>
+                    <div className="space-y-1"><Label>Representante Legal*</Label><Input value={formState.representanteLegal} onChange={e => setFormState(s => ({...s, representanteLegal: e.target.value}))}/></div>
+                    <div className="space-y-1"><Label>Tipo de Empresa</Label>
+                        <Select value={formState.tipoEmpresa} onValueChange={v => setFormState(s => ({...s, tipoEmpresa: v as TipoEmpresaPrevencion}))}>
+                            <SelectTrigger><SelectValue/></SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="SUBCONTRATISTA">Subcontratista</SelectItem>
+                                <SelectItem value="CONTRATISTA_PRINCIPAL">Contratista Principal</SelectItem>
+                                <SelectItem value="SERVICIOS">Servicios</SelectItem>
+                                <SelectItem value="MANDANTE">Mandante</SelectItem>
+                            </SelectContent>
+                        </Select>
+                    </div>
+                    <div className="space-y-1"><Label>Contacto</Label><Input value={formState.contactoNombre} onChange={e => setFormState(s => ({...s, contactoNombre: e.target.value}))}/></div>
+                    <div className="space-y-1"><Label>Teléfono</Label><Input value={formState.contactoTelefono} onChange={e => setFormState(s => ({...s, contactoTelefono: e.target.value}))}/></div>
+                    <div className="space-y-1 col-span-full"><Label>Email</Label><Input type="email" value={formState.contactoEmail} onChange={e => setFormState(s => ({...s, contactoEmail: e.target.value}))}/></div>
                   </div>
                 </div>
+                 <Separator/>
                  <div>
                   <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Documentación contractual / administrativa</p>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-3 mt-2">
-                    {/* checkboxes */}
+                    <Label className="flex items-center gap-2 font-normal"><Checkbox checked={formState.contratoMarco} onCheckedChange={c => setFormState(s => ({...s, contratoMarco: !!c}))} /><span>Contrato marco / orden de compra</span></Label>
+                    <Label className="flex items-center gap-2 font-normal"><Checkbox checked={formState.certificadoMutual} onCheckedChange={c => setFormState(s => ({...s, certificadoMutual: !!c}))} /><span>Certificado de mutual</span></Label>
+                    <Label className="flex items-center gap-2 font-normal"><Checkbox checked={formState.certificadoCotizaciones} onCheckedChange={c => setFormState(s => ({...s, certificadoCotizaciones: !!c}))} /><span>Certificado cotizaciones</span></Label>
+                    <Label className="flex items-center gap-2 font-normal"><Checkbox checked={formState.padronTrabajadores} onCheckedChange={c => setFormState(s => ({...s, padronTrabajadores: !!c}))} /><span>Padrón de trabajadores</span></Label>
+                    <Label className="flex items-center gap-2 font-normal"><Checkbox checked={formState.reglamentoInterno} onCheckedChange={c => setFormState(s => ({...s, reglamentoInterno: !!c}))} /><span>Reglamento interno</span></Label>
                   </div>
                 </div>
-                {/* otros bloques */}
+                <Separator/>
+                <div>
+                  <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Documentos de prevención</p>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-3 mt-2">
+                    <Label className="flex items-center gap-2 font-normal"><Checkbox checked={formState.matrizRiesgos} onCheckedChange={c => setFormState(s => ({...s, matrizRiesgos: !!c}))} /><span>Matriz de riesgos / IPER</span></Label>
+                    <Label className="flex items-center gap-2 font-normal"><Checkbox checked={formState.procedimientosTrabajoSeguro} onCheckedChange={c => setFormState(s => ({...s, procedimientosTrabajoSeguro: !!c}))} /><span>Procedimientos de trabajo seguro</span></Label>
+                    <Label className="flex items-center gap-2 font-normal"><Checkbox checked={formState.programaTrabajo} onCheckedChange={c => setFormState(s => ({...s, programaTrabajo: !!c}))} /><span>Programa de trabajo</span></Label>
+                    <Label className="flex items-center gap-2 font-normal"><Checkbox checked={formState.planEmergenciaPropio} onCheckedChange={c => setFormState(s => ({...s, planEmergenciaPropio: !!c}))} /><span>Plan de emergencia propio</span></Label>
+                    <Label className="flex items-center gap-2 font-normal"><Checkbox checked={formState.registroCapacitacionInterna} onCheckedChange={c => setFormState(s => ({...s, registroCapacitacionInterna: !!c}))} /><span>Registro capacitación interna</span></Label>
+                  </div>
+                </div>
+                <Separator/>
+                <div>
+                  <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Resultado de evaluación</p>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-2">
+                    <div className="space-y-1"><Label>Estado de Evaluación</Label>
+                         <Select value={formState.estadoEvaluacion} onValueChange={v => setFormState(s => ({...s, estadoEvaluacion: v as EstadoEvaluacionEmpresa}))}>
+                            <SelectTrigger><SelectValue/></SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="POR_EVALUAR">Por evaluar</SelectItem>
+                                <SelectItem value="APROBADA">Aprobada</SelectItem>
+                                <SelectItem value="APROBADA_CON_OBSERVACIONES">Aprobada con observaciones</SelectItem>
+                                <SelectItem value="RECHAZADA">Rechazada / no autorizada</SelectItem>
+                            </SelectContent>
+                        </Select>
+                    </div>
+                    <div className="space-y-1"><Label>Observaciones Generales</Label><Textarea value={formState.observacionesGenerales} onChange={e => setFormState(s => ({...s, observacionesGenerales: e.target.value}))}/></div>
+                    <div className="space-y-1"><Label>Fecha Evaluación</Label><Input type="date" value={formState.fechaEvaluacion} onChange={e => setFormState(s => ({...s, fechaEvaluacion: e.target.value}))}/></div>
+                    <div className="space-y-1"><Label>Evaluador</Label><Input value={formState.evaluador} onChange={e => setFormState(s => ({...s, evaluador: e.target.value}))}/></div>
+                  </div>
+                </div>
               </div>
 
               <Button type="submit" className="w-full sm:w-auto">Registrar Empresa</Button>
@@ -582,3 +639,5 @@ export default function EmpresasContratistasPage() {
     </section>
   );
 }
+
+    
