@@ -81,12 +81,12 @@ type ActividadProgramada = {
 type AvanceDiario = {
   id: string;
   obraId: string;
-  actividadId?: string; // ahora opcional
-  fecha: string; // "YYYY-MM-DD"
-  porcentajeAvance: number; // avance acumulado a esa fecha (0-100)
+  actividadId?: string; 
+  fecha: string; 
+  porcentajeAvance: number;
   comentario: string;
-  fotoUrl?: string; // Para compatibilidad con registros antiguos
-  fotos?: string[];   // Nuevo campo para múltiples fotos
+  fotoUrl?: string; 
+  fotos?: string[];  
   visibleParaCliente: boolean;
   creadoPor: string;
 };
@@ -149,9 +149,8 @@ function ProgramacionPageInner() {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [currentActividad, setCurrentActividad] = useState<Partial<ActividadProgramada> | null>(null);
 
-  // Estados para el formulario de avance
   const [formAvance, setFormAvance] = useState({
-    actividadId: "null", // Vuelve a agregar el ID de actividad
+    actividadId: "null", 
     fecha: new Date().toISOString().slice(0, 10),
     porcentajeAvance: "",
     comentario: "",
@@ -162,13 +161,11 @@ function ProgramacionPageInner() {
   const [previews, setPreviews] = useState<string[]>([]);
   const [uploading, setUploading] = useState(false);
   
-  // Estado para el modal de generación de EDP
   const [dialogEdpOpen, setDialogEdpOpen] = useState(false);
   const [fechaCorteEdp, setFechaCorteEdp] = useState(new Date().toISOString().slice(0, 10));
 
   const avancesPorActividad = useMemo(() => {
     const mapaAvances = new Map<string, number>();
-    // Ordenar avances por fecha descendente para cada actividad
     const avancesOrdenados = [...avances].sort((a,b) => a.fecha < b.fecha ? 1 : -1);
 
     for (const avance of avancesOrdenados) {
@@ -247,7 +244,6 @@ function ProgramacionPageInner() {
 
     const cargarDatosDeObra = async () => {
       setError(null);
-      // Cargar Actividades
       setCargandoActividades(true);
       try {
         const actColRef = collection(firebaseDb, "obras", obraSeleccionadaId, "actividades");
@@ -262,7 +258,6 @@ function ProgramacionPageInner() {
         setCargandoActividades(false);
       }
 
-      // Cargar Avances
       setCargandoAvances(true);
       try {
         const avColRef = collection(firebaseDb, "obras", obraSeleccionadaId, "avancesDiarios");
@@ -277,7 +272,6 @@ function ProgramacionPageInner() {
         setCargandoAvances(false);
       }
 
-      // Cargar Estados de Pago
       setCargandoEdp(true);
       try {
         const edpColRef = collection(firebaseDb, "obras", obraSeleccionadaId, "estadosDePago");
@@ -328,12 +322,10 @@ function ProgramacionPageInner() {
       const docData = { obraId: obraSeleccionadaId, nombreActividad, fechaInicio, fechaFin, precioContrato: precioNum };
       
       if (currentActividad.id) {
-        // Actualizar
         const docRef = doc(firebaseDb, "obras", obraSeleccionadaId, "actividades", currentActividad.id);
         await updateDoc(docRef, docData);
         setActividades(prev => prev.map(act => act.id === currentActividad.id ? { ...act, ...docData } : act));
       } else {
-        // Crear
         const colRef = collection(firebaseDb, "obras", obraSeleccionadaId, "actividades");
         const docRef = await addDoc(colRef, docData);
         const nuevaActividad: ActividadProgramada = { ...docData, id: docRef.id };
@@ -361,7 +353,6 @@ function ProgramacionPageInner() {
     }
   }
 
-  // ---- Lógica para el formulario de avance ----
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (!e.target.files) return;
 
@@ -384,7 +375,6 @@ function ProgramacionPageInner() {
     setArchivos(archivosValidos);
 
     const nuevasPreviews = archivosValidos.map(file => URL.createObjectURL(file));
-    // Limpiar previews antiguas para evitar fugas de memoria
     previews.forEach(url => URL.revokeObjectURL(url));
     setPreviews(nuevasPreviews);
   };
@@ -423,7 +413,6 @@ function ProgramacionPageInner() {
     setUploading(true);
     setError(null);
     try {
-      // Subir fotos a Storage y obtener URLs
       const urlsFotos: string[] = await Promise.all(
         archivos.map(async (file, index) => {
           const nombreArchivo = `${Date.now()}-${index}-${file.name}`;
@@ -436,12 +425,12 @@ function ProgramacionPageInner() {
       const colRef = collection(firebaseDb, "obras", obraSeleccionadaId, "avancesDiarios");
       const docData = { 
         obraId: obraSeleccionadaId,
-        actividadId: actividadId === "null" ? null : actividadId || null, // Guardar null si no se selecciona
+        actividadId: actividadId === "null" ? null : actividadId || null, 
         fecha, 
         porcentajeAvance: porcentaje, 
         comentario: comentario.trim(), 
         fotos: urlsFotos,
-        fotoUrl: urlsFotos[0] ?? null, // Para compatibilidad
+        fotoUrl: urlsFotos[0] ?? null, 
         creadoPor: creadoPor.trim(), 
         visibleParaCliente, 
         creadoEn: new Date().toISOString(), 
@@ -452,7 +441,6 @@ function ProgramacionPageInner() {
 
       setAvances((prev) => [nuevoAvance, ...prev].sort((a,b) => a.fecha < b.fecha ? 1 : -1));
       
-      // Resetear formulario
       setFormAvance({ actividadId: "null", fecha: new Date().toISOString().slice(0, 10), porcentajeAvance: "", comentario: "", creadoPor: "", visibleParaCliente: true });
       setArchivos([]);
       previews.forEach(url => URL.revokeObjectURL(url));
@@ -475,14 +463,12 @@ function ProgramacionPageInner() {
     setError(null);
 
     try {
-      // 1. Obtener el siguiente correlativo
       const ultimoCorrelativo = estadosDePago.reduce((max, edp) => Math.max(max, edp.correlativo), 0);
       const nuevoCorrelativo = ultimoCorrelativo + 1;
       
-      // 2. Calcular montos con la fecha de corte
       const actividadesConAvance = actividades.map(act => {
         const ultimoAvance = avances
-          .filter(av => av.actividadId === act.id && av.fecha <= fechaCorteEdp) // Filtrar por fecha de corte
+          .filter(av => av.actividadId === act.id && av.fecha <= fechaCorteEdp) 
           .sort((a, b) => a.fecha > b.fecha ? -1 : 1)[0];
         
         const porcentajeAvance = ultimoAvance?.porcentajeAvance ?? 0;
@@ -495,7 +481,6 @@ function ProgramacionPageInner() {
       const iva = subtotal * 0.19;
       const total = subtotal + iva;
 
-      // 3. Crear el nuevo documento de Estado de Pago
       const edpColRef = collection(firebaseDb, "obras", obraSeleccionadaId, "estadosDePago");
       const nuevoEdpDoc = {
         obraId: obraSeleccionadaId,
@@ -505,13 +490,12 @@ function ProgramacionPageInner() {
         subtotal,
         iva,
         total,
-        actividades: actividadesConAvance, // Guardamos una copia de las actividades y su estado en ese momento
+        actividades: actividadesConAvance, 
         creadoEn: new Date().toISOString(),
       };
       
       const docRef = await addDoc(edpColRef, nuevoEdpDoc);
       
-      // 4. Actualizar el estado local y navegar a la página de visualización
       setEstadosDePago(prev => [{...nuevoEdpDoc, id: docRef.id } as EstadoDePago, ...prev]);
       setDialogEdpOpen(false);
       router.push(`/operaciones/programacion/estado-pago/${obraSeleccionadaId}?edpId=${docRef.id}&fechaCorte=${fechaCorteEdp}`);
@@ -718,10 +702,13 @@ function ProgramacionPageInner() {
                     <Label htmlFor="avance-actividad" className="text-xs font-medium">Actividad (opcional)</Label>
                     <Select value={formAvance.actividadId} onValueChange={(value) => setFormAvance(prev => ({ ...prev, actividadId: value }))}>
                         <SelectTrigger id="avance-actividad">
-                            <SelectValue placeholder="Seleccionar actividad (o dejar en blanco para avance general)" />
+                            <SelectValue placeholder="Seleccionar actividad" />
                         </SelectTrigger>
                         <SelectContent>
-                            <SelectItem value="null">Avance General de Obra</SelectItem>
+                            <SelectItem value="null">
+                              <div>Avance General de Obra</div>
+                              <div className="text-xs text-muted-foreground">Para fotos o comentarios que no afectan el % de una tarea específica.</div>
+                            </SelectItem>
                             {actividades.map(act => (
                                 <SelectItem key={act.id} value={act.id}>
                                     {act.nombreActividad}
@@ -916,3 +903,5 @@ export default function ProgramacionPage() {
     </Suspense>
   );
 }
+
+    
