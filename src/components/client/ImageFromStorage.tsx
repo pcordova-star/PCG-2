@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from 'react';
-import { getStorage, ref, getDownloadURL } from 'firebase/storage';
+import { ref, getDownloadURL } from 'firebase/storage';
 import { firebaseStorage } from '@/lib/firebaseClient';
 import Image from 'next/image';
 import { Skeleton } from '@/components/ui/skeleton';

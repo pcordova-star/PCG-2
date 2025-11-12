@@ -1,13 +1,48 @@
 // src/app/clientes/[shareId]/page.tsx
-import React, { Suspense } from 'react';
-import { notFound } from 'next/navigation';
+"use client";
+
+import React, { Suspense, useEffect, useState } from 'react';
+import { notFound, useParams } from 'next/navigation';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { Percent, Calendar, CheckCircle } from 'lucide-react';
 import ImageFromStorage from '@/components/client/ImageFromStorage';
 import PrintButton from '@/components/client/PrintButton';
-import { getPublicObraByShareId } from '@/server/queries/publicObra';
+import { collection, getDocs, query, where, orderBy, doc, getDoc, limit } from 'firebase/firestore';
+import { firebaseDb } from '@/lib/firebaseClient';
+
+type Obra = {
+    id: string;
+    nombreFaena: string;
+    direccion: string;
+    mandante: string;
+    contacto: {
+        email: string;
+    };
+    [key: string]: any; 
+};
+
+type Avance = {
+    id: string;
+    fecha: string; 
+    porcentaje?: number;
+    comentario?: string;
+    fotos?: string[];
+};
+
+type PublicObraData = {
+  obraId: string;
+  nombre: string;
+  direccion: string;
+  mandante: string;
+  contacto: { email: string };
+  avanceAcumulado: number;
+  ultimaActualizacion: string | null;
+  actividades: { programadas: number; completadas: number };
+  avancesPublicados: Avance[];
+};
+
 
 function formatCL(iso?: string | null) {
   if (!iso) return "N/D";
@@ -20,13 +55,94 @@ function formatCL(iso?: string | null) {
   }
 }
 
-export default async function ClienteObraPage({ params }: { params: { obraId: string } }) {
-  // El nombre del parámetro es 'obraId' por la estructura de la carpeta, pero lo tratamos como 'shareId'
-  const shareId = params.obraId;
-  const data = await getPublicObraByShareId(shareId);
+export default function ClienteObraPage() {
+    const params = useParams();
+    const shareId = params.obraId as string;
+    const [data, setData] = useState<PublicObraData | null>(null);
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState<string | null>(null);
 
-  if (!data) {
-    return notFound();
+    useEffect(() => {
+        if (!shareId) {
+            setError("No se proporcionó un ID para compartir.");
+            setLoading(false);
+            return;
+        }
+
+        async function getPublicObraByShareId(id: string): Promise<PublicObraData | null> {
+            try {
+                const obrasRef = collection(firebaseDb, 'obras');
+                const q = query(obrasRef, where('clientePanel.shareId', '==', id), where('clientePanel.enabled', '==', true), limit(1));
+                const snap = await getDocs(q);
+        
+                if (snap.empty) return null;
+        
+                const obraDoc = snap.docs[0];
+                const obraData = obraDoc.data() as Obra;
+                const obraId = obraDoc.id;
+        
+                const actsSnap = await getDocs(collection(firebaseDb, "obras", obraId, "actividades"));
+                let programadas = actsSnap.size;
+                let completadas = actsSnap.docs.filter(d => d.data().estado === 'Completada').length;
+
+                const avSnap = await getDocs(query(
+                    collection(firebaseDb, "obras", obraId, "avancesDiarios"),
+                    where("visibleParaCliente", "==", true),
+                    orderBy("fecha", "desc"),
+                    limit(10)
+                ));
+
+                const avancesPublicados: Avance[] = avSnap.docs.map(d => {
+                    const x = d.data();
+                    const fecha = x.fecha?.toDate ? x.fecha.toDate() : new Date(x.fecha);
+                    return {
+                        id: d.id,
+                        fecha: fecha.toISOString(),
+                        porcentaje: x.porcentajeAvance,
+                        comentario: x.comentario,
+                        fotos: x.fotos || (x.fotoUrl ? [x.fotoUrl] : []),
+                    };
+                });
+                
+                const ultimoAvance = avancesPublicados[0];
+                const avanceAcumulado = ultimoAvance?.porcentaje ?? obraData.avanceAcumulado ?? 0;
+                const ultimaActualizacion = ultimoAvance?.fecha ?? null;
+
+                return {
+                    obraId,
+                    nombre: obraData.nombreFaena || 'Obra sin nombre',
+                    direccion: obraData.direccion || '',
+                    mandante: obraData.mandante || '',
+                    contacto: obraData.contacto || { email: '' },
+                    avanceAcumulado,
+                    ultimaActualizacion,
+                    actividades: { programadas, completadas },
+                    avancesPublicados,
+                };
+
+            } catch (err) {
+                console.error("Error fetching public obra data:", err);
+                return null;
+            }
+        }
+
+        getPublicObraByShareId(shareId).then(result => {
+            if (result) {
+                setData(result);
+            } else {
+                setError("No se pudo encontrar la obra con el enlace proporcionado.");
+            }
+            setLoading(false);
+        });
+
+    }, [shareId]);
+
+  if (loading) {
+      return <div className="text-center p-8">Cargando datos de la obra...</div>
+  }
+  
+  if (error || !data) {
+      return notFound();
   }
 
   const {
