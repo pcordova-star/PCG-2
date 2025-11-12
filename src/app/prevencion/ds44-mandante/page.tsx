@@ -11,17 +11,12 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Separator } from '@/components/ui/separator';
 import { firebaseDb } from '@/lib/firebaseClient';
 import { doc, getDoc, setDoc, serverTimestamp, Timestamp, collection, getDocs } from 'firebase/firestore';
+import Link from 'next/link';
 
 type Obra = {
   id: string;
   nombreFaena: string;
 };
-
-const OBRAS_PREVENCION: Obra[] = [
-  { id: "obra-1", nombreFaena: "Edificio Los Álamos" },
-  { id: "obra-2", nombreFaena: "Condominio Cuatro Vientos" },
-  { id: "obra-3", nombreFaena: "Mejoramiento Vial Ruta 5" },
-];
 
 type EstadoGlobalDS44Obra =
   | "EN_IMPLEMENTACION"
@@ -55,10 +50,8 @@ type FichaDs44MandanteObra = {
 
 
 export default function DS44MandanteObraPage() {
-  const [obras, setObras] = useState<Obra[]>(OBRAS_PREVENCION);
-  const [obraSeleccionadaId, setObraSeleccionadaId] = useState<string>(
-    OBRAS_PREVENCION[0]?.id ?? ""
-  );
+  const [obras, setObras] = useState<Obra[]>([]);
+  const [obraSeleccionadaId, setObraSeleccionadaId] = useState<string>("");
 
   const [ficha, setFicha] = useState<FichaDs44MandanteObra | null>(null);
   const [cargandoFicha, setCargandoFicha] = useState(true);
@@ -87,16 +80,14 @@ export default function DS44MandanteObraPage() {
             setError("No se pudieron cargar las obras desde Firestore.");
         }
     }
-    // Para este MVP, usamos las obras simuladas. Si se quisiera cargar de Firestore:
-    // cargarObras();
-  }, []);
+    cargarObras();
+  }, [obraSeleccionadaId]);
 
   useEffect(() => {
     const cargarFicha = async () => {
       if (!obraId) {
-        setError("Debes seleccionar una obra para ver la ficha DS44 Mandante / Obra.");
-        setCargandoFicha(false);
         setFicha(null);
+        setCargandoFicha(false);
         return;
       }
 
@@ -227,12 +218,26 @@ export default function DS44MandanteObraPage() {
       );
   }
   
-  if (!ficha && !cargandoFicha) {
-     return (
-          <div className="text-center p-8 text-destructive">
-             {error || "No se pudo inicializar la ficha. Seleccione una obra."}
-          </div>
-      );
+  if (!obraId) {
+    return (
+      <div className="space-y-8">
+         <header className="space-y-2">
+          <h1 className="text-3xl font-bold font-headline tracking-tight">DS44 – Mandante / Obra</h1>
+          <p className="text-lg text-muted-foreground">
+            Ficha global de cumplimiento de la obligación de coordinar las actividades preventivas en la obra, desde la perspectiva del mandante (DS44, Art. 3).
+          </p>
+        </header>
+        <Card>
+          <CardHeader>
+            <CardTitle>Selección de Obra</CardTitle>
+            <CardDescription>Seleccione la obra para la cual desea ver o editar la ficha DS44 global.</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <p className="text-muted-foreground">Cargando obras disponibles...</p>
+          </CardContent>
+        </Card>
+      </div>
+    );
   }
 
   return (
@@ -353,6 +358,11 @@ export default function DS44MandanteObraPage() {
             <div className="flex flex-col sm:flex-row items-center gap-4">
                 <Button type="submit" className="w-full sm:w-auto bg-accent text-accent-foreground hover:bg-accent/90" disabled={guardando}>
                     {guardando ? "Guardando..." : "Guardar Ficha DS44 de la Obra"}
+                </Button>
+                 <Button asChild variant="outline" className="w-full sm:w-auto" disabled={!obraId}>
+                  <Link href={`/prevencion/ds44-mandante/${obraId}/imprimir`}>
+                    Imprimir Ficha
+                  </Link>
                 </Button>
                 {error && <p className="text-sm font-medium text-destructive">{error}</p>}
                 {mensajeOk && <p className="text-sm font-medium text-green-600">{mensajeOk}</p>}
