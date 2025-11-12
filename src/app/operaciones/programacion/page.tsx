@@ -66,13 +66,8 @@ type Obra = {
   nombreFaena: string;
 };
 
-type EstadoActividad = "Pendiente" | "En curso" | "Completada";
+type EstadoActividad = "Pendiente" | "En curso" | "Terminada" | "Atrasada";
 
-const ESTADOS_ACTIVIDAD: EstadoActividad[] = [
-  "Pendiente",
-  "En curso",
-  "Completada",
-];
 
 type ActividadProgramada = {
   id: string;
@@ -80,7 +75,6 @@ type ActividadProgramada = {
   nombreActividad: string;
   fechaInicio: string;
   fechaFin: string;
-  estado: EstadoActividad;
   precioContrato: number;
 };
 
@@ -109,16 +103,18 @@ type EstadoDePago = {
 };
 
 function EstadoBadge({ estado }: { estado: EstadoActividad }) {
-  const variant: "default" | "secondary" | "outline" = {
-    Completada: "default",
+  const variant: "default" | "secondary" | "outline" | "destructive" = {
+    Terminada: "default",
     "En curso": "secondary",
     Pendiente: "outline",
+    Atrasada: "destructive"
   }[estado];
 
   const className = {
-    Completada: "bg-green-100 text-green-800 border-green-200",
+    Terminada: "bg-green-100 text-green-800 border-green-200",
     "En curso": "bg-blue-100 text-blue-800 border-blue-200",
     Pendiente: "bg-yellow-100 text-yellow-800 border-yellow-200",
+    Atrasada: "bg-red-100 text-red-800 border-red-200"
   }[estado];
 
   return (
@@ -155,7 +151,7 @@ function ProgramacionPageInner() {
 
   // Estados para el formulario de avance
   const [formAvance, setFormAvance] = useState({
-    actividadId: "", // Vuelve a agregar el ID de actividad
+    actividadId: "null", // Vuelve a agregar el ID de actividad
     fecha: new Date().toISOString().slice(0, 10),
     porcentajeAvance: "",
     comentario: "",
@@ -183,14 +179,31 @@ function ProgramacionPageInner() {
     return mapaAvances;
   }, [avances]);
 
+  const getEstadoActividad = (act: ActividadProgramada): EstadoActividad => {
+    const avance = avancesPorActividad.get(act.id) ?? 0;
+    if (avance >= 100) return "Terminada";
+
+    const hoy = new Date();
+    hoy.setHours(0, 0, 0, 0);
+    const fin = new Date(act.fechaFin + 'T00:00:00');
+    if (fin < hoy) return "Atrasada";
+
+    const inicio = new Date(act.fechaInicio + 'T00:00:00');
+    if (inicio <= hoy) return "En curso";
+    
+    return "Pendiente";
+  };
+
 
   const resumenActividades = useMemo(() => {
     const total = actividades.length;
-    const pendientes = actividades.filter(a => a.estado === "Pendiente").length;
-    const enCurso = actividades.filter(a => a.estado === "En curso").length;
-    const completadas = actividades.filter(a => a.estado === "Completada").length;
-    return { total, pendientes, enCurso, completadas };
-  }, [actividades]);
+    const estados = actividades.map(getEstadoActividad);
+    const pendientes = estados.filter(e => e === "Pendiente").length;
+    const enCurso = estados.filter(e => e === "En curso").length;
+    const completadas = estados.filter(e => e === "Terminada").length;
+    const atrasadas = estados.filter(e => e === "Atrasada").length;
+    return { total, pendientes, enCurso, completadas, atrasadas };
+  }, [actividades, avancesPorActividad]);
 
   useEffect(() => {
     if (!loadingAuth && !user) {
@@ -283,23 +296,11 @@ function ProgramacionPageInner() {
   }, [obraSeleccionadaId, user]);
 
   const handleOpenDialog = (actividad: Partial<ActividadProgramada> | null = null) => {
-    setCurrentActividad(actividad || { nombreActividad: "", fechaInicio: "", fechaFin: "", estado: "Pendiente", precioContrato: 0 });
+    setCurrentActividad(actividad || { nombreActividad: "", fechaInicio: "", fechaFin: "", precioContrato: 0 });
     setDialogOpen(true);
     setError(null);
   };
   
-  const handleEstadoChange = async (id: string, nuevoEstado: EstadoActividad) => {
-    if (!obraSeleccionadaId) return;
-    try {
-        const docRef = doc(firebaseDb, "obras", obraSeleccionadaId, "actividades", id);
-        await updateDoc(docRef, { estado: nuevoEstado });
-        setActividades((prev) => prev.map((act) => act.id === id ? { ...act, estado: nuevoEstado } : act));
-    } catch(err) {
-        console.error(err);
-        setError("No se pudo actualizar el estado de la actividad.");
-    }
-  };
-
   async function handleActividadSubmit(e: FormEvent) {
     e.preventDefault();
     if (!obraSeleccionadaId) {
@@ -311,7 +312,7 @@ function ProgramacionPageInner() {
         return;
     }
 
-    const { nombreActividad, fechaInicio, fechaFin, estado, precioContrato } = currentActividad;
+    const { nombreActividad, fechaInicio, fechaFin, precioContrato } = currentActividad;
     const precioNum = Number(precioContrato);
 
     if (!nombreActividad || !fechaInicio || !precioContrato) {
@@ -324,7 +325,7 @@ function ProgramacionPageInner() {
     }
 
     try {
-      const docData = { obraId: obraSeleccionadaId, nombreActividad, fechaInicio, fechaFin, estado, precioContrato: precioNum };
+      const docData = { obraId: obraSeleccionadaId, nombreActividad, fechaInicio, fechaFin, precioContrato: precioNum };
       
       if (currentActividad.id) {
         // Actualizar
@@ -452,7 +453,7 @@ function ProgramacionPageInner() {
       setAvances((prev) => [nuevoAvance, ...prev].sort((a,b) => a.fecha < b.fecha ? 1 : -1));
       
       // Resetear formulario
-      setFormAvance({ actividadId: "", fecha: new Date().toISOString().slice(0, 10), porcentajeAvance: "", comentario: "", creadoPor: "", visibleParaCliente: true });
+      setFormAvance({ actividadId: "null", fecha: new Date().toISOString().slice(0, 10), porcentajeAvance: "", comentario: "", creadoPor: "", visibleParaCliente: true });
       setArchivos([]);
       previews.forEach(url => URL.revokeObjectURL(url));
       setPreviews([]);
@@ -583,6 +584,8 @@ function ProgramacionPageInner() {
                 <span>Pendientes: {resumenActividades.pendientes}</span>
                 <span className="hidden sm:inline">·</span>
                 <span>En curso: {resumenActividades.enCurso}</span>
+                 <span className="hidden sm:inline">·</span>
+                <span>Atrasadas: {resumenActividades.atrasadas}</span>
                 <span className="hidden sm:inline">·</span>
                 <span>Completadas: {resumenActividades.completadas}</span>
             </div>
@@ -626,13 +629,7 @@ function ProgramacionPageInner() {
                             <TableCell>{act.fechaInicio}</TableCell>
                             <TableCell>{act.fechaFin}</TableCell>
                             <TableCell>
-                                <div className="flex flex-col gap-2 md:flex-row md:items-center">
-                                    <EstadoBadge estado={act.estado} />
-                                    <Select value={act.estado} onValueChange={(v) => handleEstadoChange(act.id, v as EstadoActividad)}>
-                                        <SelectTrigger className="text-xs h-8 w-full md:w-[120px]"><SelectValue /></SelectTrigger>
-                                        <SelectContent>{ESTADOS_ACTIVIDAD.map(e => <SelectItem key={e} value={e} className="text-xs">{e}</SelectItem>)}</SelectContent>
-                                    </Select>
-                                </div>
+                               <EstadoBadge estado={getEstadoActividad(act)} />
                             </TableCell>
                             <TableCell className="text-right">
                                 <div className="flex justify-end gap-2">
