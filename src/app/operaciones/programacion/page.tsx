@@ -13,6 +13,7 @@ import {
   updateDoc,
   doc,
   orderBy,
+  deleteDoc,
 } from "firebase/firestore";
 import { firebaseDb, firebaseStorage } from "../../../lib/firebaseClient";
 import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
@@ -41,11 +42,22 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import {
+    AlertDialog,
+    AlertDialogAction,
+    AlertDialogCancel,
+    AlertDialogContent,
+    AlertDialogDescription,
+    AlertDialogFooter,
+    AlertDialogHeader,
+    AlertDialogTitle,
+    AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 import Link from "next/link";
-import { FilePlus2, FileText } from 'lucide-react';
+import { FilePlus2, FileText, Trash2 } from 'lucide-react';
 
 type Obra = {
   id: string;
@@ -389,6 +401,19 @@ function ProgramacionPageInner() {
       setGenerandoEdp(false);
     }
   }
+
+  const handleEliminarEstadoDePago = async (edpId: string) => {
+    if (!obraSeleccionadaId) return;
+
+    try {
+        const docRef = doc(firebaseDb, "obras", obraSeleccionadaId, "estadosDePago", edpId);
+        await deleteDoc(docRef);
+        setEstadosDePago(prev => prev.filter(edp => edp.id !== edpId));
+    } catch(err) {
+        console.error("Error eliminando estado de pago:", err);
+        setError("No se pudo eliminar el estado de pago.");
+    }
+  }
   
   if (loadingAuth) return <p className="text-sm text-muted-foreground">Cargando sesión...</p>;
   if (!user) return <p className="text-sm text-muted-foreground">Redirigiendo a login...</p>;
@@ -615,12 +640,39 @@ function ProgramacionPageInner() {
                         <TableCell>{edp.fechaGeneracion}</TableCell>
                         <TableCell className="text-right">{new Intl.NumberFormat('es-CL', { style: 'currency', currency: 'CLP' }).format(edp.total)}</TableCell>
                         <TableCell className="text-right">
-                          <Button asChild variant="outline" size="sm">
-                            <Link href={`/operaciones/programacion/estado-pago/${obraSeleccionadaId}?edpId=${edp.id}`}>
-                              <FileText className="mr-2 h-3 w-3" />
-                              Ver
-                            </Link>
-                          </Button>
+                          <div className="flex justify-end gap-2">
+                            <Button asChild variant="outline" size="sm">
+                                <Link href={`/operaciones/programacion/estado-pago/${obraSeleccionadaId}?edpId=${edp.id}`}>
+                                <FileText className="mr-2 h-3 w-3" />
+                                Ver
+                                </Link>
+                            </Button>
+                            <AlertDialog>
+                                <AlertDialogTrigger asChild>
+                                    <Button variant="destructive" size="sm">
+                                        <Trash2 className="mr-2 h-3 w-3"/>
+                                        Eliminar
+                                    </Button>
+                                </AlertDialogTrigger>
+                                <AlertDialogContent>
+                                    <AlertDialogHeader>
+                                    <AlertDialogTitle>¿Está seguro de que desea eliminar este estado de pago?</AlertDialogTitle>
+                                    <AlertDialogDescription>
+                                        Esta acción no se puede deshacer. Se eliminará el registro EDP-{edp.correlativo.toString().padStart(3, '0')} y el correlativo quedará libre.
+                                    </AlertDialogDescription>
+                                    </AlertDialogHeader>
+                                    <AlertDialogFooter>
+                                    <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                                    <AlertDialogAction
+                                        onClick={() => handleEliminarEstadoDePago(edp.id)}
+                                        className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                                    >
+                                        Eliminar
+                                    </AlertDialogAction>
+                                    </AlertDialogFooter>
+                                </AlertDialogContent>
+                            </AlertDialog>
+                          </div>
                         </TableCell>
                       </TableRow>
                     ))}
