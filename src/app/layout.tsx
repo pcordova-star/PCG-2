@@ -32,7 +32,7 @@ export const metadata: Metadata = {
 };
 
 const navItems = [
-  { href: '/', label: 'Dashboard', icon: Home },
+  { href: '/', label: 'Plataforma de Control y Gestión', icon: Home },
   { href: '/obras', label: 'Obras', icon: HardHat },
   { href: '/operaciones', label: 'Operaciones', icon: Activity },
   { href: '/prevencion', label: 'Prevención', icon: ShieldCheck },
@@ -159,7 +159,7 @@ export default function RootLayout({
                   </SheetContent>
                 </Sheet>
                 <div className="w-full flex-1">
-                  <h1 className="text-lg font-semibold text-muted-foreground">Dashboard</h1>
+                  <h1 className="text-lg font-semibold text-muted-foreground">Plataforma de Control y Gestión</h1>
                 </div>
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
