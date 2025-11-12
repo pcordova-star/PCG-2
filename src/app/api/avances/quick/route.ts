@@ -64,7 +64,7 @@ export async function POST(req: Request) {
       // Basic permission check: does the user have access to this obra?
       // This is a simplified check. A real-world app would have more complex roles.
       const miembros = obraData.miembros || [];
-      const tienePermiso = miembros.some((m: any) => m.uid === user.uid);
+      // const tienePermiso = miembros.some((m: any) => m.uid === user.uid);
 
       // if (!tienePermiso && obraData.creadoPorUid !== user.uid) {
       //   throw new Error("PERMISSION_DENIED");

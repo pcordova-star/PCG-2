@@ -23,9 +23,10 @@ import {
 import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
 import { useToast } from "@/hooks/use-toast";
-import { firebaseDb, firebaseStorage } from "@/lib/firebaseClient";
+import { firebaseDb, firebaseStorage, firebaseFunctions } from "@/lib/firebaseClient";
 import { collection, getDocs, query, orderBy } from "firebase/firestore";
 import { ref, uploadBytesResumable, getDownloadURL } from "firebase/storage";
+import { httpsCallable } from "firebase/functions";
 import { X, Loader2 } from "lucide-react";
 import Image from "next/image";
 
@@ -67,7 +68,6 @@ export function QuickAvanceSheet({ open, onOpenChange }: QuickAvanceSheetProps) 
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [uploadProgress, setUploadProgress] = useState<number | null>(null);
 
-  // Cargar obras del usuario
   useEffect(() => {
     async function fetchObras() {
       if (!user) return;
@@ -101,7 +101,6 @@ export function QuickAvanceSheet({ open, onOpenChange }: QuickAvanceSheetProps) 
     }
   }, [user, open, toast]);
 
-  // Cargar actividades cuando cambia la obra
   useEffect(() => {
     async function fetchActividades() {
       if (!obraId) {
@@ -125,7 +124,6 @@ export function QuickAvanceSheet({ open, onOpenChange }: QuickAvanceSheetProps) 
   }, [obraId]);
   
   const resetForm = () => {
-    // No reseteamos la obraId para que el usuario no tenga que volver a seleccionarla
     setActividadId(null);
     setPorcentaje("");
     setComentario("");
@@ -136,14 +134,11 @@ export function QuickAvanceSheet({ open, onOpenChange }: QuickAvanceSheetProps) 
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (!e.target.files) return;
-
     const nuevosArchivos = Array.from(e.target.files).slice(0, MAX_FOTOS - archivos.length);
-
     if (archivos.length + nuevosArchivos.length > MAX_FOTOS) {
         toast({ title: "Límite de fotos", description: `Solo puedes subir un máximo de ${MAX_FOTOS} fotos.`});
         return;
     }
-
     const archivosValidos = nuevosArchivos.filter(file => {
       const esValido = file.size <= MAX_TAMANO_MB * 1024 * 1024;
       if (!esValido) {
@@ -151,10 +146,8 @@ export function QuickAvanceSheet({ open, onOpenChange }: QuickAvanceSheetProps) 
       }
       return esValido;
     });
-
     const combinedArchivos = [...archivos, ...archivosValidos];
     setArchivos(combinedArchivos);
-
     const nuevasPreviews = combinedArchivos.map(file => URL.createObjectURL(file));
     previews.forEach(url => URL.revokeObjectURL(url)); 
     setPreviews(nuevasPreviews);
@@ -191,13 +184,11 @@ export function QuickAvanceSheet({ open, onOpenChange }: QuickAvanceSheetProps) 
     try {
         const uploadedUrls: string[] = [];
         if (archivos.length > 0) {
-            // Subir fotos a Storage
             await Promise.all(
                 archivos.map(async (file, index) => {
                     const filePath = `avances/${obraId}/${new Date().getFullYear()}/${new Date().getMonth()+1}/${new Date().getDate()}/${user.uid}-${Date.now()}-${file.name}`;
                     const storageRef = ref(firebaseStorage, filePath);
                     const uploadTask = uploadBytesResumable(storageRef, file);
-
                     return new Promise<void>((resolve, reject) => {
                         uploadTask.on('state_changed',
                             (snapshot) => {
@@ -221,35 +212,59 @@ export function QuickAvanceSheet({ open, onOpenChange }: QuickAvanceSheetProps) 
 
         setUploadProgress(null);
 
-        // Enviar datos al API route
-        const token = await user.getIdToken();
-        const response = await fetch('/api/avances/quick', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${token}`
-            },
-            body: JSON.stringify({
-                obraId,
-                actividadId: actividadId || null,
-                porcentaje: numPorcentaje,
-                comentario,
-                fotos: uploadedUrls,
-                visibleCliente,
-            }),
-            redirect: 'manual', // evita seguir redirecciones a HTML (p.ej. /login)
-        });
+        const useCallable = process.env.NEXT_PUBLIC_AVANCE_USA_CALLABLE === "1";
+        let callableFailed = false;
 
-        const ct = response.headers.get('content-type') || '';
-        if (!ct.includes('application/json')) {
-            const text = await response.text();
-            throw new Error(`Respuesta no JSON (${response.status}). Posible redirección o 404. Preview: ${text.slice(0,120)}…`);
+        if (useCallable) {
+          try {
+            const registrarAvance = httpsCallable(firebaseFunctions, "registrarAvanceRapido");
+            const result: any = await registrarAvance({
+              obraId,
+              actividadId: actividadId || null,
+              porcentaje: numPorcentaje,
+              comentario,
+              fotos: uploadedUrls,
+              visibleCliente,
+            });
+            if (!result?.data?.ok) {
+              throw new Error(result?.data?.error || "Error al registrar avance con la función callable.");
+            }
+          } catch (error) {
+            console.warn("Callable function 'registrarAvanceRapido' failed, falling back to API route.", error);
+            callableFailed = true;
+          }
         }
 
-        const data = await response.json();
-        if (!response.ok || !data?.ok) {
-            const msg = data?.details || data?.error || 'Error en el servidor';
-            throw new Error(msg);
+        if (!useCallable || callableFailed) {
+            const token = await user.getIdToken();
+            const response = await fetch('/api/avances/quick', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`
+                },
+                body: JSON.stringify({
+                    obraId,
+                    actividadId: actividadId || null,
+                    porcentaje: numPorcentaje,
+                    comentario,
+                    fotos: uploadedUrls,
+                    visibleCliente,
+                }),
+                redirect: 'manual',
+            });
+
+            const ct = response.headers.get('content-type') || '';
+            if (!ct.includes('application/json')) {
+                const text = await response.text();
+                throw new Error(`Respuesta no JSON (${response.status}). Posible redirección o 404. Preview: ${text.slice(0,120)}…`);
+            }
+
+            const data = await response.json();
+            if (!response.ok || !data?.ok) {
+                const msg = data?.details || data?.error || 'Error en el servidor';
+                throw new Error(msg);
+            }
         }
 
         toast({
