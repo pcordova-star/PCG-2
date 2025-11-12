@@ -105,11 +105,31 @@
   }
 }
 
+/* Estilos para impresión */
 @media print {
   body {
     background: white !important;
+    color: black !important;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
   }
-  header.print-hidden, .print-hidden {
+  /* Oculta elementos no deseados */
+  .print-hidden {
     display: none !important;
+  }
+  /* Ajusta el layout de impresión */
+  .print-container {
+    padding: 0;
+    margin: 0;
+    width: 100%;
+    max-width: 100%;
+    box-shadow: none;
+    border: none;
+  }
+  
+  /* Asegura que los colores de fondo de las tarjetas se impriman */
+  .card, .badge {
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
   }
 }
