@@ -70,17 +70,37 @@ export default function ImprimirDs44MandantePage({ params }: { params: Promise<{
         
         const obraRef = doc(firebaseDb, "obras", obraId);
         const obraSnap = await getDoc(obraRef);
+        
+        if (!obraSnap.exists()) {
+             throw new Error("No se encontró la obra con el ID proporcionado.");
+        }
+        setObra({ id: obraSnap.id, ...obraSnap.data() } as Obra);
 
         if (fichaSnap.exists()) {
           setFicha({ obraId, ...fichaSnap.data() } as FichaDs44MandanteObra);
         } else {
-           throw new Error("No se encontró la ficha DS44 para la obra con el ID proporcionado.");
-        }
-        
-        if (obraSnap.exists()) {
-            setObra({ id: obraSnap.id, ...obraSnap.data() } as Obra);
-        } else {
-             throw new Error("No se encontró la obra con el ID proporcionado.");
+           // Si no existe la ficha, creamos una vacía para poder imprimirla.
+           setFicha({
+            obraId,
+            mandanteRazonSocial: "",
+            mandanteRut: "",
+            representanteLegal: "",
+            responsableCoordinacionNombre: "",
+            responsableCoordinacionCargo: "",
+            responsableCoordinacionContacto: "",
+            mutualidad: "",
+            fechaInicioObra: "",
+            fechaTerminoEstimado: "",
+            existeReglamentoEspecial: false,
+            existePlanUnicoSeguridad: false,
+            existeProgramaCoordinacion: false,
+            frecuenciaReunionesCoordinacion: "",
+            mecanismosComunicacion: "",
+            estadoGlobal: "EN_IMPLEMENTACION",
+            observacionesGenerales: "",
+            fechaUltimaRevision: new Date().toISOString().slice(0, 10),
+            revisadoPor: "",
+          });
         }
 
       } catch (err) {
