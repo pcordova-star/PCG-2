@@ -227,7 +227,7 @@ export default function ObrasPage() {
               <TableHeader>
                 <TableRow>
                   <TableHead>Nombre Faena</TableHead>
-                  <TableHead>Jefe de Obra</TableHead>
+                  <TableHead>Administrador de obra</TableHead>
                   <TableHead>Prevencionista</TableHead>
                   <TableHead>URL Cliente</TableHead>
                   <TableHead className="text-right">Acciones</TableHead>
