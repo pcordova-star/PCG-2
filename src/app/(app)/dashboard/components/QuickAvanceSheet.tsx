@@ -224,7 +224,7 @@ export function QuickAvanceSheet({ open, onOpenChange }: QuickAvanceSheetProps) 
               porcentaje: numPorcentaje,
               comentario,
               fotos: uploadedUrls,
-              visibleCliente,
+              visibleCliente: !!visibleCliente,
             });
             if (!result?.data?.ok) {
               throw new Error(result?.data?.error || "Error al registrar avance con la función callable.");
@@ -249,7 +249,7 @@ export function QuickAvanceSheet({ open, onOpenChange }: QuickAvanceSheetProps) 
                     porcentaje: numPorcentaje,
                     comentario,
                     fotos: uploadedUrls,
-                    visibleCliente,
+                    visibleCliente: !!visibleCliente,
                 }),
                 redirect: 'manual',
             });
@@ -360,7 +360,7 @@ export function QuickAvanceSheet({ open, onOpenChange }: QuickAvanceSheetProps) 
             </div>
             
             <div className="flex items-center space-x-2">
-                <Checkbox id="visible-cliente" checked={visibleCliente} onCheckedChange={c => setVisibleCliente(!!c)} />
+                <Checkbox id="visible-cliente" checked={visibleCliente} onCheckedChange={c => setVisibleCliente(c === true)} />
                 <Label htmlFor="visible-cliente">Visible para el cliente</Label>
             </div>
         </div>
