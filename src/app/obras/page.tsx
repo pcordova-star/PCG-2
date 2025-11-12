@@ -22,7 +22,12 @@ type Obra = {
   direccion: string;
   clienteEmail: string;
   creadoEn: Timestamp | Date;
+  mandanteRazonSocial: string;
+  mandanteRut: string;
+  jefeObraNombre: string;
+  prevencionistaNombre: string;
 };
+
 
 // Nueva función para borrar subcolecciones
 async function deleteSubcollection(db: any, collectionPath: string) {
@@ -90,7 +95,15 @@ export default function ObrasPage() {
   }, [user]);
   
   const handleOpenDialog = (obra: Partial<Obra> | null = null) => {
-    setCurrentObra(obra || { nombreFaena: "", direccion: "", clienteEmail: "" });
+    setCurrentObra(obra || { 
+      nombreFaena: "", 
+      direccion: "", 
+      clienteEmail: "",
+      mandanteRazonSocial: "",
+      mandanteRut: "",
+      jefeObraNombre: "",
+      prevencionistaNombre: ""
+    });
     setDialogOpen(true);
     setError(null);
   };
@@ -110,31 +123,33 @@ export default function ObrasPage() {
       return;
     }
 
+    const obraData = {
+      nombreFaena: currentObra.nombreFaena,
+      direccion: currentObra.direccion,
+      clienteEmail: currentObra.clienteEmail,
+      mandanteRazonSocial: currentObra.mandanteRazonSocial || "",
+      mandanteRut: currentObra.mandanteRut || "",
+      jefeObraNombre: currentObra.jefeObraNombre || "",
+      prevencionistaNombre: currentObra.prevencionistaNombre || "",
+    };
+
     try {
       if (currentObra.id) {
         // Actualizar obra existente
         const docRef = doc(firebaseDb, "obras", currentObra.id);
-        await updateDoc(docRef, {
-          nombreFaena: currentObra.nombreFaena,
-          direccion: currentObra.direccion,
-          clienteEmail: currentObra.clienteEmail,
-        });
-        setObras(obras.map(o => o.id === currentObra!.id ? { ...o, ...currentObra } as Obra : o));
+        await updateDoc(docRef, obraData);
+        setObras(obras.map(o => o.id === currentObra!.id ? { ...o, ...currentObra, ...obraData } as Obra : o));
       } else {
         // Crear nueva obra
         const colRef = collection(firebaseDb, "obras");
         const docRef = await addDoc(colRef, {
-          nombreFaena: currentObra.nombreFaena,
-          direccion: currentObra.direccion,
-          clienteEmail: currentObra.clienteEmail,
+          ...obraData,
           creadoEn: serverTimestamp(),
         });
         // Para la UI, usamos una fecha local hasta que se recargue
         const nuevaObra: Obra = {
           id: docRef.id,
-          nombreFaena: currentObra.nombreFaena,
-          direccion: currentObra.direccion,
-          clienteEmail: currentObra.clienteEmail,
+          ...obraData,
           creadoEn: new Date(),
         };
         setObras([nuevaObra, ...obras]);
@@ -212,8 +227,8 @@ export default function ObrasPage() {
               <TableHeader>
                 <TableRow>
                   <TableHead>Nombre Faena</TableHead>
-                  <TableHead>Dirección</TableHead>
-                  <TableHead>Email Cliente</TableHead>
+                  <TableHead>Jefe de Obra</TableHead>
+                  <TableHead>Prevencionista</TableHead>
                   <TableHead>URL Cliente</TableHead>
                   <TableHead className="text-right">Acciones</TableHead>
                 </TableRow>
@@ -233,8 +248,8 @@ export default function ObrasPage() {
                   obras.map((obra) => (
                     <TableRow key={obra.id}>
                       <TableCell className="font-medium">{obra.nombreFaena}</TableCell>
-                      <TableCell>{obra.direccion}</TableCell>
-                      <TableCell>{obra.clienteEmail}</TableCell>
+                      <TableCell>{obra.jefeObraNombre}</TableCell>
+                      <TableCell>{obra.prevencionistaNombre}</TableCell>
                       <TableCell>
                         <Button variant="outline" size="sm" asChild>
                           <Link href={`/clientes/${obra.id}`} target="_blank">
@@ -281,7 +296,7 @@ export default function ObrasPage() {
       </Card>
 
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent className="sm:max-w-[425px]">
+        <DialogContent className="sm:max-w-2xl">
           <form onSubmit={handleSubmit}>
             <DialogHeader>
               <DialogTitle>{currentObra?.id ? "Editar Obra" : "Crear Nueva Obra"}</DialogTitle>
@@ -289,20 +304,36 @@ export default function ObrasPage() {
                 {currentObra?.id ? "Modifica los detalles de la obra y haz clic en Guardar." : "Completa los detalles para registrar una nueva obra."}
               </DialogDescription>
             </DialogHeader>
-            <div className="grid gap-4 py-4">
-              <div className="grid grid-cols-4 items-center gap-4">
-                <Label htmlFor="nombreFaena" className="text-right">Nombre</Label>
-                <Input id="nombreFaena" name="nombreFaena" value={currentObra?.nombreFaena || ""} onChange={handleFormChange} className="col-span-3" />
+            <div className="grid gap-4 py-4 md:grid-cols-2">
+              <div className="space-y-2">
+                <Label htmlFor="nombreFaena">Nombre Faena*</Label>
+                <Input id="nombreFaena" name="nombreFaena" value={currentObra?.nombreFaena || ""} onChange={handleFormChange} />
               </div>
-              <div className="grid grid-cols-4 items-center gap-4">
-                <Label htmlFor="direccion" className="text-right">Dirección</Label>
-                <Input id="direccion" name="direccion" value={currentObra?.direccion || ""} onChange={handleFormChange} className="col-span-3" />
+              <div className="space-y-2">
+                <Label htmlFor="direccion">Dirección*</Label>
+                <Input id="direccion" name="direccion" value={currentObra?.direccion || ""} onChange={handleFormChange} />
               </div>
-              <div className="grid grid-cols-4 items-center gap-4">
-                <Label htmlFor="clienteEmail" className="text-right">Email Cliente</Label>
-                <Input id="clienteEmail" name="clienteEmail" type="email" value={currentObra?.clienteEmail || ""} onChange={handleFormChange} className="col-span-3" />
+              <div className="space-y-2">
+                <Label htmlFor="clienteEmail">Email Cliente*</Label>
+                <Input id="clienteEmail" name="clienteEmail" type="email" value={currentObra?.clienteEmail || ""} onChange={handleFormChange} />
               </div>
-              {error && <p className="col-span-4 text-sm font-medium text-destructive">{error}</p>}
+               <div className="space-y-2">
+                <Label htmlFor="jefeObraNombre">Nombre Jefe de Obra</Label>
+                <Input id="jefeObraNombre" name="jefeObraNombre" value={currentObra?.jefeObraNombre || ""} onChange={handleFormChange} />
+              </div>
+               <div className="space-y-2">
+                <Label htmlFor="prevencionistaNombre">Nombre Prevencionista</Label>
+                <Input id="prevencionistaNombre" name="prevencionistaNombre" value={currentObra?.prevencionistaNombre || ""} onChange={handleFormChange} />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="mandanteRazonSocial">Razón Social Mandante</Label>
+                <Input id="mandanteRazonSocial" name="mandanteRazonSocial" value={currentObra?.mandanteRazonSocial || ""} onChange={handleFormChange} />
+              </div>
+               <div className="space-y-2">
+                <Label htmlFor="mandanteRut">RUT Mandante</Label>
+                <Input id="mandanteRut" name="mandanteRut" value={currentObra?.mandanteRut || ""} onChange={handleFormChange} />
+              </div>
+              {error && <p className="col-span-full text-sm font-medium text-destructive">{error}</p>}
             </div>
             <DialogFooter>
               <Button type="submit">Guardar Obra</Button>

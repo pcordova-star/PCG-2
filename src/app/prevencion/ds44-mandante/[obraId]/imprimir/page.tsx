@@ -15,6 +15,8 @@ import { Label } from '@/components/ui/label';
 type Obra = {
   id: string;
   nombreFaena: string;
+  mandanteRazonSocial?: string;
+  mandanteRut?: string;
 };
 
 type EstadoGlobalDS44Obra =
@@ -25,8 +27,6 @@ type EstadoGlobalDS44Obra =
 
 type FichaDs44MandanteObra = {
     obraId: string;
-    mandanteRazonSocial: string;
-    mandanteRut: string;
     representanteLegal: string;
     responsableCoordinacionNombre: string;
     responsableCoordinacionCargo: string;
@@ -83,8 +83,6 @@ export default function ImprimirDs44MandantePage({ params }: { params: Promise<{
            // Si no existe la ficha, creamos una vacía para poder imprimirla.
            setFicha({
             obraId,
-            mandanteRazonSocial: "",
-            mandanteRut: "",
             representanteLegal: "",
             responsableCoordinacionNombre: "",
             responsableCoordinacionCargo: "",
@@ -163,7 +161,7 @@ export default function ImprimirDs44MandantePage({ params }: { params: Promise<{
                 <div className="flex justify-between items-start border-b pb-4">
                     <div>
                         <h2 className="text-2xl font-bold text-primary">PCG 2.0</h2>
-                        <p className="text-sm text-muted-foreground">{ficha.mandanteRazonSocial || 'Constructora Principal'}</p>
+                        <p className="text-sm text-muted-foreground">{obra.mandanteRazonSocial || 'Constructora Principal'}</p>
                     </div>
                     <div className="text-right text-sm">
                         <p><strong className="font-semibold">Obra:</strong> {obra.nombreFaena}</p>
@@ -180,8 +178,8 @@ export default function ImprimirDs44MandantePage({ params }: { params: Promise<{
                 <section>
                     <h4 className="font-bold text-base mb-2 border-b pb-1">A. Datos del Mandante y de la Obra</h4>
                     <div className="grid grid-cols-2 gap-x-8 gap-y-2">
-                        <p><strong>Razón Social Mandante:</strong> {ficha.mandanteRazonSocial}</p>
-                        <p><strong>RUT Mandante:</strong> {ficha.mandanteRut}</p>
+                        <p><strong>Razón Social Mandante:</strong> {obra.mandanteRazonSocial}</p>
+                        <p><strong>RUT Mandante:</strong> {obra.mandanteRut}</p>
                         <p><strong>Representante Legal:</strong> {ficha.representanteLegal}</p>
                         <p><strong>Mutualidad:</strong> {ficha.mutualidad}</p>
                         <p><strong>Fecha de Inicio:</strong> {ficha.fechaInicioObra ? new Date(ficha.fechaInicioObra + 'T00:00:00').toLocaleDateString('es-CL') : 'N/A'}</p>

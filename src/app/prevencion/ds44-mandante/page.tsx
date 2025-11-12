@@ -16,6 +16,8 @@ import Link from 'next/link';
 type Obra = {
   id: string;
   nombreFaena: string;
+  mandanteRazonSocial?: string;
+  mandanteRut?: string;
 };
 
 type EstadoGlobalDS44Obra =
@@ -26,8 +28,6 @@ type EstadoGlobalDS44Obra =
 
 type FichaDs44MandanteObra = {
     obraId: string;
-    mandanteRazonSocial: string;
-    mandanteRut: string;
     representanteLegal: string;
     responsableCoordinacionNombre: string;
     responsableCoordinacionCargo: string;
@@ -103,8 +103,6 @@ export default function DS44MandanteObraPage() {
           const data = snap.data() as any;
           setFicha({
             obraId,
-            mandanteRazonSocial: data.mandanteRazonSocial ?? "",
-            mandanteRut: data.mandanteRut ?? "",
             representanteLegal: data.representanteLegal ?? "",
             responsableCoordinacionNombre: data.responsableCoordinacionNombre ?? "",
             responsableCoordinacionCargo: data.responsableCoordinacionCargo ?? "",
@@ -128,8 +126,6 @@ export default function DS44MandanteObraPage() {
           // Si no existe, inicializa con valores vacíos
           setFicha({
             obraId,
-            mandanteRazonSocial: "",
-            mandanteRut: "",
             representanteLegal: "",
             responsableCoordinacionNombre: "",
             responsableCoordinacionCargo: "",
@@ -178,8 +174,8 @@ export default function DS44MandanteObraPage() {
       return;
     }
     
-    if (!ficha.mandanteRazonSocial || !ficha.responsableCoordinacionNombre) {
-      setError("Completa al menos el nombre del mandante y el responsable de coordinación.");
+    if (!ficha.responsableCoordinacionNombre) {
+      setError("Completa al menos el nombre del responsable de coordinación.");
       return;
     }
 
@@ -277,11 +273,12 @@ export default function DS44MandanteObraPage() {
         <form onSubmit={handleSubmit} className="space-y-6">
             <Card>
                 <CardHeader>
-                    <CardTitle>A. Datos del Mandante y de la Obra</CardTitle>
+                    <CardTitle>A. Datos de la Obra y del Mandante</CardTitle>
+                     <CardDescription>
+                        La Razón Social y el RUT del Mandante se gestionan desde el módulo de Obras.
+                    </CardDescription>
                 </CardHeader>
                 <CardContent className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                    <div className="space-y-2"><Label>Razón Social Mandante</Label><Input value={ficha.mandanteRazonSocial} onChange={e => handleInputChange('mandanteRazonSocial', e.target.value)} /></div>
-                    <div className="space-y-2"><Label>RUT Mandante</Label><Input value={ficha.mandanteRut} onChange={e => handleInputChange('mandanteRut', e.target.value)} /></div>
                     <div className="space-y-2"><Label>Representante Legal</Label><Input value={ficha.representanteLegal} onChange={e => handleInputChange('representanteLegal', e.target.value)} /></div>
                     <div className="space-y-2"><Label>Mutualidad</Label><Input value={ficha.mutualidad} onChange={e => handleInputChange('mutualidad', e.target.value)} /></div>
                     <div className="space-y-2"><Label>Fecha de Inicio de Obra</Label><Input type="date" value={ficha.fechaInicioObra} onChange={e => handleInputChange('fechaInicioObra', e.target.value)} /></div>

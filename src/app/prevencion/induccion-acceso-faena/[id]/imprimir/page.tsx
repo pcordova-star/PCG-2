@@ -14,8 +14,8 @@ interface Obra {
   mandante?: string;
   direccion?: string;
   codigoInterno?: string;
-  razonSocialEmpresa?: string;
-  rutEmpresa?: string;
+  mandanteRazonSocial?: string;
+  mandanteRut?: string;
   prevencionistaNombre?: string;
   jefeObraNombre?: string;
 }
@@ -117,7 +117,7 @@ export default function ImprimirInduccionPage() {
                   <p className="text-muted-foreground">Registro de Visitas / Proveedores / Inspectores</p>
                 </div>
                 <div className="text-right text-xs">
-                  <p className="font-bold text-lg">Faena Manager 2.0</p>
+                  <p className="font-bold text-lg">PCG 2.0</p>
                   <p className="font-mono text-muted-foreground">ID: {induccion.id}</p>
                 </div>
               </div>
@@ -127,10 +127,10 @@ export default function ImprimirInduccionPage() {
             <section className="mb-6">
               <h3 className="font-bold text-base mb-2 border-b pb-1">1. Datos de la Obra</h3>
               <div className="grid grid-cols-2 gap-x-6 gap-y-1">
-                <p><strong>Razón Social:</strong> {obra.razonSocialEmpresa || 'No especificada'}</p>
-                <p><strong>RUT:</strong> {obra.rutEmpresa || 'No especificado'}</p>
+                <p><strong>Razón Social:</strong> {obra.mandanteRazonSocial || 'No especificada'}</p>
+                <p><strong>RUT:</strong> {obra.mandanteRut || 'No especificado'}</p>
                 <p><strong>Nombre de Obra:</strong> {obra.nombreFaena}</p>
-                <p><strong>Código Obra:</strong> {obra.codigoInterno || obra.id}</p>
+                <p><strong>Código Obra:</strong> {obra.id}</p>
                 <p><strong>Mandante:</strong> {obra.mandante || 'No especificado'}</p>
                 <p><strong>Ubicación:</strong> {obra.direccion || 'No especificada'}</p>
                 <p><strong>Jefe de Obra:</strong> {obra.jefeObraNombre || 'No especificado'}</p>
