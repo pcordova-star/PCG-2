@@ -44,16 +44,23 @@ export default function RootLayout({
 }>) {
   const pathname = usePathname();
   const [isCollapsed, setIsCollapsed] = useState(false);
-  const [isHovered, setIsHovered] = useState(false);
   const timerRef = useRef<NodeJS.Timeout | null>(null);
 
   const isActive = (href: string) => {
     if (href === '/') return pathname === '/';
     return pathname.startsWith(href);
   };
+  
+  const startTimer = () => {
+    if (timerRef.current) {
+        clearTimeout(timerRef.current);
+    }
+    timerRef.current = setTimeout(() => {
+        setIsCollapsed(true);
+    }, 4000);
+  }
 
   const handleMouseEnter = () => {
-    setIsHovered(true);
     if (timerRef.current) {
       clearTimeout(timerRef.current);
     }
@@ -61,12 +68,7 @@ export default function RootLayout({
   };
 
   const handleMouseLeave = () => {
-    setIsHovered(false);
-    timerRef.current = setTimeout(() => {
-      if (!isHovered) {
-        setIsCollapsed(true);
-      }
-    }, 4000);
+    startTimer();
   };
   
   const toggleCollapse = () => {
@@ -77,16 +79,14 @@ export default function RootLayout({
   }
 
   useEffect(() => {
-    timerRef.current = setTimeout(() => {
-      setIsCollapsed(true);
-    }, 4000);
+    startTimer();
 
     return () => {
       if (timerRef.current) {
         clearTimeout(timerRef.current);
       }
     };
-  }, []);
+  }, [pathname]);
 
   const sidebarWidth = isCollapsed ? "w-20" : "w-64";
 
