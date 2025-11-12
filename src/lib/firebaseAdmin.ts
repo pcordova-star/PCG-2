@@ -1,32 +1,19 @@
 // src/lib/firebaseAdmin.ts
-import { getApps, initializeApp, cert, applicationDefault } from "firebase-admin/app";
-import { getFirestore } from "firebase-admin/firestore";
+import 'server-only'
+import { cert, getApps, initializeApp, applicationDefault, App } from 'firebase-admin/app'
 
-type ServiceAccount = {
-  project_id: string;
-  client_email: string;
-  private_key: string;
-};
-
-function initAdmin() {
-  if (getApps().length) return;
-  // Ruta A: JSON en env (recomendado para Firebase Studio / local)
-  const json = process.env.FIREBASE_SERVICE_ACCOUNT;
-  if (json) {
-    const sa = JSON.parse(json) as ServiceAccount;
-    initializeApp({ credential: cert(sa) });
-    return;
-  }
-  // Ruta B: Credenciales por defecto (Cloud/Firebase Hosting)
-  try {
-    initializeApp({ credential: applicationDefault() });
-  } catch {
-    // Ruta C (fallback): intenta sin credenciales explícitas (solo si corremos en entornos con permisos)
-    initializeApp();
-  }
-}
-
-export function dbAdmin() {
-  initAdmin();
-  return getFirestore();
+export function getAdminApp(): App {
+  const apps = getApps()
+  if (apps.length) return apps[0]!
+  
+  // En Firebase Studio, usamos la variable de entorno SERVICE_ACCOUNT_JSON.
+  // En Cloud Run/App Hosting, `applicationDefault()` funcionará automáticamente.
+  const svc = process.env.FIREBASE_SERVICE_ACCOUNT
+    ? cert(JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT))
+    : applicationDefault()
+    
+  return initializeApp({
+    credential: svc,
+    projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID || process.env.GCLOUD_PROJECT,
+  })
 }
