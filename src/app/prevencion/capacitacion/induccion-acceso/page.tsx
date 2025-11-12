@@ -131,8 +131,6 @@ export default function InduccionAccesoPage() {
 
   const [fechaIngreso, setFechaIngreso] = useState(new Date().toISOString().slice(0, 10));
   const [horaIngreso, setHoraIngreso] = useState(new Date().toLocaleTimeString('es-CL', { hour: '2-digit', minute: '2-digit' }));
-  const [autorizadorNombre, setAutorizadorNombre] = useState("");
-  const [autorizadorCargo, setAutorizadorCargo] = useState("");
 
   const [respuestaPregunta1, setRespuestaPregunta1] =
     useState<"SI" | "NO">("SI");
@@ -185,8 +183,6 @@ export default function InduccionAccesoPage() {
     setCorreo("");
     setFechaIngreso(new Date().toISOString().slice(0, 10));
     setHoraIngreso(new Date().toLocaleTimeString('es-CL', { hour: '2-digit', minute: '2-digit' }));
-    setAutorizadorNombre("");
-    setAutorizadorCargo("");
     setRespuestaPregunta1("SI");
     setRespuestaPregunta2("SI");
     setRespuestaPregunta3("SI");
@@ -238,8 +234,6 @@ export default function InduccionAccesoPage() {
         correo,
         fechaIngreso,
         horaIngreso,
-        autorizadorNombre,
-        autorizadorCargo,
         respuestaPregunta1,
         respuestaPregunta2,
         respuestaPregunta3,
@@ -345,9 +339,7 @@ export default function InduccionAccesoPage() {
             <CardContent>
                 <div className="grid gap-4 md:grid-cols-2">
                     <div className="space-y-2"><Label>Fecha de Ingreso</Label><Input type="date" value={fechaIngreso} onChange={e => setFechaIngreso(e.target.value)} /></div>
-                    <div className="space-y-2"><Label>Hora de Ingreso</Label><Input type="time" value={horaIngreso} onChange={e => setHoraIngreso(e.target.value)} /></div>
-                    <div className="space-y-2"><Label>Autorizado por (Nombre)</Label><Input value={autorizadorNombre} onChange={e => setAutorizadorNombre(e.target.value)} /></div>
-                    <div className="space-y-2"><Label>Autorizado por (Cargo)</Label><Input value={autorizadorCargo} onChange={e => setAutorizadorCargo(e.target.value)} /></div>
+                    <div className="space-y-2"><Label>Hora de Ingreso (automática)</Label><Input type="time" value={horaIngreso} readOnly disabled /></div>
                 </div>
             </CardContent>
         </Card>

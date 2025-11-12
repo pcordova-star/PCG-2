@@ -25,8 +25,6 @@ export interface InduccionAccesoFaena {
   // Datos de ingreso
   fechaIngreso: string; // formato "YYYY-MM-DD"
   horaIngreso: string;  // formato "HH:mm"
-  autorizadorNombre: string;
-  autorizadorCargo: string;
 
   // Preguntas de comprensión (pueden ser tipo SI/NO)
   respuestaPregunta1: "SI" | "NO";
