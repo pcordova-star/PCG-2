@@ -27,13 +27,13 @@ type ObraPrevencion = {
   nombreFaena: string;
 };
 
-type TipoEmpresaPrevencion =
+export type TipoEmpresaPrevencion =
   | "MANDANTE"
   | "CONTRATISTA_PRINCIPAL"
   | "SUBCONTRATISTA"
   | "SERVICIOS";
 
-type EstadoEvaluacionEmpresa =
+export type EstadoEvaluacionEmpresa =
   | "POR_EVALUAR"
   | "APROBADA"
   | "APROBADA_CON_OBSERVACIONES"
@@ -348,10 +348,10 @@ export default function EmpresasContratistasPage() {
               </Select>
             </div>
             <div className="flex gap-2">
-                <Button onClick={() => { setMostrarForm(true); setEmpresaSeleccionadaId(null); resetForm(); }}><PlusCircle />Agregar Empresa</Button>
+                <Button onClick={() => { setMostrarForm(true); setEmpresaSeleccionadaId(null); resetForm(); }}><PlusCircle className="mr-2 h-4 w-4" />Agregar Empresa</Button>
                 <Button variant="outline" asChild>
                     <Link href={`/prevencion/empresas-contratistas/imprimir-listado?obraId=${obraSeleccionadaId}&estado=${filtroEstado}`} target="_blank">
-                        <FileDown/>Exportar Listado
+                        <FileDown className="mr-2 h-4 w-4"/>Exportar Listado
                     </Link>
                 </Button>
             </div>
@@ -373,7 +373,7 @@ export default function EmpresasContratistasPage() {
                 {loading ? <TableRow><TableCell colSpan={6} className="text-center h-24">Cargando...</TableCell></TableRow> 
                 : empresasFiltradas.length === 0 ? <TableRow><TableCell colSpan={6} className="text-center h-24">No hay empresas para los filtros seleccionados.</TableCell></TableRow>
                 : empresasFiltradas.map(emp => (
-                    <TableRow key={emp.id}>
+                    <TableRow key={emp.id} className={cn("cursor-pointer hover:bg-muted/50", empresaSeleccionadaId === emp.id && 'bg-accent/10')} onClick={() => { setEmpresaSeleccionadaId(emp.id); setMostrarForm(true); }}>
                         <TableCell>
                             <div className="font-medium">{emp.razonSocial}</div>
                             <div className="text-xs text-muted-foreground">{emp.rut}</div>
@@ -383,7 +383,7 @@ export default function EmpresasContratistasPage() {
                         <TableCell>{emp.evaluador}</TableCell>
                         <TableCell>{emp.fechaEvaluacion}</TableCell>
                         <TableCell className="text-right">
-                          <Button variant="outline" size="sm" asChild>
+                          <Button variant="outline" size="sm" asChild onClick={(e) => e.stopPropagation()}>
                             <Link href={`/prevencion/empresas-contratistas/${emp.id}`}>
                               Ver Ficha
                             </Link>

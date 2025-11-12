@@ -24,6 +24,7 @@ import {
   query,
   where,
   orderBy,
+  onSnapshot,
 } from "firebase/firestore";
 
 // --- Tipos ---
@@ -32,14 +33,9 @@ type Obra = {
   nombreFaena: string;
 };
 
-type TipoEmpresa = "Mandante" | "Contratista" | "Subcontratista";
+// Se importa desde el otro módulo para consistencia
+import { EmpresaContratista, TipoEmpresaPrevencion } from '../empresas-contratistas/page';
 
-type Empresa = {
-  id: string;
-  nombre: string;
-  rut: string;
-  tipo: TipoEmpresa;
-};
 
 type TipoRelacionPersonal = "Empresa" | "Subcontrato";
 type EstadoIngresoPersonal = "Pendiente" | "Autorizado" | "Rechazado";
@@ -145,16 +141,6 @@ type DocumentoPrevencionConfigLocal = {
 };
 
 // --- Datos Simulados (para UI, serán reemplazados por Firestore) ---
-const EMPRESAS_SIMULADAS: Empresa[] = [
-  { id: "emp-1", nombre: "Constructora Principal S.A.", rut: "76.123.456-7", tipo: "Mandante" },
-  { id: "emp-2", nombre: "Excavaciones del Sur Ltda.", rut: "77.234.567-8", tipo: "Subcontratista" },
-  { id: "emp-3", nombre: "Montajes Estructurales Andinos SpA", rut: "78.345.678-9", tipo: "Subcontratista" },
-  { id: "emp-4", nombre: "Instalaciones Eléctricas Norte", rut: "79.456.789-0", tipo: "Subcontratista" },
-];
-
-const empresasMandante = EMPRESAS_SIMULADAS.filter(e => e.tipo === "Mandante");
-const empresasSubcontrato = EMPRESAS_SIMULADAS.filter(e => e.tipo === "Subcontratista" || e.tipo === "Contratista");
-
 const REGISTROS_INDUCCION_INICIALES: RegistroInduccionTrabajador[] = [];
 const REGISTROS_EPP_INICIALES: RegistroEntregaEPP[] = [];
 const REGISTROS_CHARLAS_INICIALES: RegistroCharlaSeguridad[] = [];
@@ -239,6 +225,9 @@ export default function IngresoPersonalPage() {
   const [trabajadorSeleccionadoId, setTrabajadorSeleccionadoId] = useState<string | null>(null);
   const [pasoActivo, setPasoActivo] = useState<PasoDS44>(null);
   
+  // Lista de empresas contratistas cargadas desde Firestore
+  const [empresasContratistas, setEmpresasContratistas] = useState<EmpresaContratista[]>([]);
+  
   // Estados para el formulario de nuevo ingreso
   const [tipoTrabajador, setTipoTrabajador] = useState<TipoRelacionPersonal>("Empresa");
   const [nombre, setNombre] = useState("");
@@ -314,9 +303,36 @@ export default function IngresoPersonalPage() {
         setCargandoIngresos(false);
       }
     };
+    
+    // Cargar empresas contratistas de la obra seleccionada
+    const empresasRef = collection(firebaseDb, "empresasContratistas");
+    const qEmpresas = query(empresasRef, where("obraId", "==", obraSeleccionadaId));
+    const unsubscribeEmpresas = onSnapshot(qEmpresas, (snap) => {
+        const data: EmpresaContratista[] = snap.docs.map((doc) => ({
+            id: doc.id,
+            ...(doc.data() as Omit<EmpresaContratista, "id">),
+        }));
+        setEmpresasContratistas(data);
+    }, (err) => {
+        console.error("Error cargando empresas contratistas:", err);
+        setError("No se pudieron cargar las empresas para el formulario.");
+    });
+
 
     fetchIngresos();
+    
+    return () => {
+        unsubscribeEmpresas();
+    }
   }, [obraSeleccionadaId]);
+
+  const empresasDisponibles = useMemo(() => {
+    if (tipoRelacion === 'Empresa') {
+      return empresasContratistas.filter(e => e.tipoEmpresa === 'MANDANTE' || e.tipoEmpresa === 'CONTRATISTA_PRINCIPAL');
+    }
+    return empresasContratistas.filter(e => e.tipoEmpresa === 'SUBCONTRATISTA' || e.tipoEmpresa === 'SERVICIOS');
+  }, [empresasContratistas, tipoRelacion]);
+
 
   const ingresosFiltrados = useMemo(() =>
     ingresos.filter((i) => i.obraId === obraSeleccionadaId && i.tipoRelacion === tipoRelacion),
@@ -351,7 +367,7 @@ export default function IngresoPersonalPage() {
     setMensaje(null);
     setError(null);
 
-    const empresaSeleccionada = EMPRESAS_SIMULADAS.find(emp => emp.id === empresaIdSeleccionada);
+    const empresaSeleccionada = empresasDisponibles.find(emp => emp.id === empresaIdSeleccionada);
 
     try {
       if (!obraSeleccionadaId) throw new Error("No se encontró el ID de la obra (obraId).");
@@ -363,7 +379,7 @@ export default function IngresoPersonalPage() {
         tipoRelacion,
         nombre,
         rut,
-        empresa: empresaSeleccionada.nombre,
+        empresa: empresaSeleccionada.razonSocial,
         cargo,
         fechaIngreso,
         observaciones: observaciones || null,
@@ -498,7 +514,7 @@ export default function IngresoPersonalPage() {
   ] as const;
   
   const selectedObra = obras.find(o => o.id === obraSeleccionadaId);
-  const empresasDisponibles = tipoRelacion === 'Empresa' ? empresasMandante : empresasSubcontrato;
+  
 
   return (
     <div className="space-y-8">
@@ -587,7 +603,7 @@ export default function IngresoPersonalPage() {
                     </SelectTrigger>
                     <SelectContent>
                         {empresasDisponibles.map(emp => (
-                            <SelectItem key={emp.id} value={emp.id}>{emp.nombre} - {emp.rut}</SelectItem>
+                            <SelectItem key={emp.id} value={emp.id}>{emp.razonSocial} - {emp.rut}</SelectItem>
                         ))}
                     </SelectContent>
                 </Select>
@@ -652,7 +668,7 @@ export default function IngresoPersonalPage() {
                         </TableCell>
                         <TableCell><EstadoBadge estado={ingreso.estadoIngreso} /></TableCell>
                         <TableCell className="text-right">
-                          <Button variant="outline" size="sm" onClick={() => setTrabajadorSeleccionadoId(ingreso.id)}>Abrir Ficha</Button>
+                          <Button variant="outline" size="sm" onClick={() => setTrabajadorSeleccionadoId(ingreso.id!)}>Abrir Ficha</Button>
                         </TableCell>
                       </TableRow>
                     );
@@ -833,7 +849,7 @@ export default function IngresoPersonalPage() {
                             typeof crypto !== "undefined" && crypto.randomUUID
                             ? crypto.randomUUID()
                             : Date.now().toString(),
-                        trabajadorId: trabajadorSeleccionado.id,
+                        trabajadorId: trabajadorSeleccionado.id!,
                         obraId: trabajadorSeleccionado.obraId,
                         fechaInduccion: formInduccion.fechaInduccion,
                         lugar: formInduccion.lugar,
@@ -1218,7 +1234,7 @@ export default function IngresoPersonalPage() {
                                 typeof crypto !== "undefined" && crypto.randomUUID
                                 ? crypto.randomUUID()
                                 : Date.now().toString(),
-                            trabajadorId: trabajadorSeleccionado.id,
+                            trabajadorId: trabajadorSeleccionado.id!,
                             obraId: trabajadorSeleccionado.obraId,
                             fechaEntrega: formEPP.fechaEntrega,
                             responsableEntrega: formEPP.responsableEntrega,
@@ -1610,7 +1626,7 @@ export default function IngresoPersonalPage() {
                             typeof crypto !== "undefined" && crypto.randomUUID
                               ? crypto.randomUUID()
                               : Date.now().toString(),
-                          trabajadorId: trabajadorSeleccionado.id,
+                          trabajadorId: trabajadorSeleccionado.id!,
                           obraId: trabajadorSeleccionado.obraId,
                           fechaCharla: formCharla.fechaCharla,
                           tipoCharla: formCharla.tipoCharla,
