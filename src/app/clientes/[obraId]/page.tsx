@@ -1,86 +1,80 @@
+// src/app/clientes/[shareId]/page.tsx
 import React, { Suspense } from 'react';
-import { doc, getDoc, collection, query, where, orderBy, limit, getDocs } from 'firebase/firestore';
-import { firebaseDb } from '@/lib/firebaseClient';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
-import { Building, Calendar, CheckCircle, Percent, Clock } from 'lucide-react';
+import { Building, Calendar, CheckCircle, Percent } from 'lucide-react';
 import ImageFromStorage from '@/components/client/ImageFromStorage';
 import PrintButton from '@/components/client/PrintButton';
 
-// --- Tipos de datos de Firestore ---
-type Obra = {
-  id: string;
-  nombreFaena: string;
-  direccion: string;
-  mandanteRazonSocial?: string;
-  clienteEmail?: string;
+type PublicObraData = {
+  obra: {
+    nombreFaena: string;
+    direccion: string;
+    mandanteRazonSocial: string;
+    clienteEmail: string;
+  };
+  indicadores: {
+    avanceAcumulado: number;
+    ultimaActualizacionISO: string | null;
+    actividades: {
+      programadas: number;
+      completadas: number;
+    };
+  };
+  ultimosAvances: {
+    fechaISO: string;
+    porcentaje: number;
+    comentario: string;
+    imagenes: string[];
+  }[];
 };
 
-type AvanceDiario = {
-  id: string;
-  fecha: string; // "YYYY-MM-DD"
-  porcentajeAvance: number; // 0-100
-  comentario: string;
-  fotos?: string[];
-  creadoPor?: string;
-};
+// URL base de la API. En producción, debería ser una variable de entorno absoluta.
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:9002';
 
-// --- Obtención de datos del servidor ---
-async function getObraData(obraId: string): Promise<{ obra: Obra; avances: AvanceDiario[] } | null> {
+
+async function getPublicObraData(shareId: string): Promise<PublicObraData | null> {
   try {
-    // 1. Obtener los datos de la obra
-    const obraRef = doc(firebaseDb, 'obras', obraId);
-    const obraSnap = await getDoc(obraRef);
+    const res = await fetch(`${API_BASE_URL}/api/public/obra/${shareId}`, {
+      next: { revalidate: 60 } // Revalida cada 60 segundos
+    });
 
-    if (!obraSnap.exists()) {
-      return null; // La obra no existe
+    if (!res.ok) {
+      // Si la respuesta no es 200-299, retorna null para mostrar página de error.
+      console.error(`Error fetching data for ${shareId}: ${res.status} ${res.statusText}`);
+      return null;
     }
-    const obra = { id: obraSnap.id, ...obraSnap.data() } as Obra;
 
-    // 2. Obtener los avances de la obra visibles para el cliente
-    const avancesColRef = collection(firebaseDb, 'obras', obraId, 'avancesDiarios');
-    const q = query(
-      avancesColRef,
-      where('visibleParaCliente', '==', true),
-      orderBy('fecha', 'desc'),
-      limit(10) // Limitar a los 10 más recientes
-    );
-    const avancesSnap = await getDocs(q);
-    const avances = avancesSnap.docs.map((doc) => ({ id: doc.id, ...doc.data() } as AvanceDiario));
-
-    return { obra, avances };
+    return res.json();
   } catch (error) {
-    console.error('Error fetching obra data:', error);
+    console.error('Error fetching public obra data:', error);
     return null;
   }
 }
 
-// --- Componente principal de la página (Server Component) ---
 export default async function ClienteObraPage({ params }: { params: { obraId: string } }) {
-  const data = await getObraData(params.obraId);
+  // El nombre del parámetro es 'obraId' por la estructura de la carpeta, pero lo tratamos como 'shareId'
+  const shareId = params.obraId;
+  const data = await getPublicObraData(shareId);
 
   if (!data) {
     return (
       <div className="max-w-4xl mx-auto text-center py-20">
-        <h1 className="text-2xl font-bold">Obra no encontrada</h1>
+        <h1 className="text-2xl font-bold">Panel no disponible</h1>
         <p className="text-muted-foreground mt-2">
-          El enlace de seguimiento no es válido o la obra ha sido eliminada.
+          El enlace de seguimiento no es válido, ha sido deshabilitado o la obra ha sido eliminada.
         </p>
       </div>
     );
   }
 
-  const { obra, avances } = data;
+  const { obra, indicadores, ultimosAvances } = data;
 
-  // --- Cálculo de KPIs en el servidor ---
-  const ultimoAvance = avances[0];
-  const porcentajeActual = ultimoAvance?.porcentajeAvance ?? 0;
-  
   let ultimaActualizacionFormateada = 'N/D';
-  if (ultimoAvance?.fecha) {
-    // Formatear fecha en el servidor para evitar hydration mismatch
-    const [year, month, day] = ultimoAvance.fecha.split('-').map(Number);
+  if (indicadores.ultimaActualizacionISO) {
+    // Formateo de fecha en el servidor para evitar hydration mismatch.
+    const [year, month, day] = indicadores.ultimaActualizacionISO.split('-').map(Number);
     const fecha = new Date(Date.UTC(year, month - 1, day));
     ultimaActualizacionFormateada = new Intl.DateTimeFormat('es-CL', {
       year: 'numeric',
@@ -98,20 +92,14 @@ export default async function ClienteObraPage({ params }: { params: { obraId: st
           <h1 className="text-3xl font-bold tracking-tight text-primary print:text-2xl">
             Avance de obra: {obra.nombreFaena}
           </h1>
-          <div className="print:hidden">
+          <div className="no-print">
             <PrintButton />
           </div>
         </div>
         <div className="text-muted-foreground text-sm space-y-1 print:text-xs">
-          <p>
-            <strong>Dirección:</strong> {obra.direccion}
-          </p>
-          <p>
-            <strong>Mandante:</strong> {obra.mandanteRazonSocial || 'No especificado'}
-          </p>
-          <p>
-            <strong>Contacto Cliente:</strong> {obra.clienteEmail || 'No especificado'}
-          </p>
+          <p><strong>Dirección:</strong> {obra.direccion}</p>
+          <p><strong>Mandante:</strong> {obra.mandanteRazonSocial}</p>
+          <p><strong>Contacto Cliente:</strong> {obra.clienteEmail}</p>
         </div>
         <Badge variant="secondary" className="mt-2">Panel de seguimiento para el cliente</Badge>
       </header>
@@ -124,7 +112,7 @@ export default async function ClienteObraPage({ params }: { params: { obraId: st
             <Percent className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-5xl font-bold">{porcentajeActual.toFixed(1)}%</div>
+            <div className="text-5xl font-bold">{indicadores.avanceAcumulado.toFixed(1)}%</div>
             <p className="text-xs text-muted-foreground">Progreso total del proyecto</p>
           </CardContent>
         </Card>
@@ -144,8 +132,8 @@ export default async function ClienteObraPage({ params }: { params: { obraId: st
             <CheckCircle className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">N/D</div>
-            <p className="text-xs text-muted-foreground">Programadas / Completadas</p>
+            <div className="text-2xl font-bold">{indicadores.actividades.completadas} / {indicadores.actividades.programadas}</div>
+            <p className="text-xs text-muted-foreground">Completadas / Programadas</p>
           </CardContent>
         </Card>
       </div>
@@ -155,30 +143,28 @@ export default async function ClienteObraPage({ params }: { params: { obraId: st
       {/* Feed de Avances */}
       <section className="space-y-4">
         <h2 className="text-2xl font-semibold print:text-xl">Últimos Avances Publicados</h2>
-        {avances.length === 0 ? (
+        {ultimosAvances.length === 0 ? (
           <div className="text-center py-12 text-muted-foreground border-2 border-dashed rounded-lg">
             <p>Todavía no hay avances publicados para esta obra.</p>
             <p className="text-sm">Vuelve a revisar más tarde.</p>
           </div>
         ) : (
           <div className="space-y-6">
-            {avances.map((avance) => (
-              <Card key={avance.id} className="overflow-hidden shadow-sm print:shadow-none print:border-gray-300">
+            {ultimosAvances.map((avance, i) => (
+              <Card key={`${avance.fechaISO}-${i}`} className="overflow-hidden shadow-sm print:shadow-none print:border-gray-300">
                 <CardHeader>
                   <CardTitle className="flex items-center justify-between text-lg">
-                    <span>Fecha: {avance.fecha}</span>
-                    <span className="text-base font-semibold text-primary">{avance.porcentajeAvance}%</span>
+                    <span>Fecha: {new Intl.DateTimeFormat('es-CL', { timeZone: 'UTC' }).format(new Date(avance.fechaISO))}</span>
+                    <span className="text-base font-semibold text-primary">{avance.porcentaje}%</span>
                   </CardTitle>
-                  <CardDescription>
-                    Registrado por: {avance.creadoPor || 'Equipo de Obra'}
-                  </CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
                   <p className="whitespace-pre-line">{avance.comentario}</p>
-                  {avance.fotos && avance.fotos.length > 0 && (
+                  {avance.imagenes && avance.imagenes.length > 0 && (
                     <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2">
-                      {avance.fotos.map((fotoPath, index) => (
+                      {avance.imagenes.map((fotoPath, index) => (
                         <Suspense key={index} fallback={<div className="bg-muted aspect-square rounded-md animate-pulse"></div>}>
+                          {/* El path aquí puede ser una URL completa de GCS o un path que el componente sepa resolver */}
                           <ImageFromStorage storagePath={fotoPath} />
                         </Suspense>
                       ))}

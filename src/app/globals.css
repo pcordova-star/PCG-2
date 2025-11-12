@@ -114,22 +114,22 @@
     print-color-adjust: exact;
   }
   /* Oculta elementos no deseados */
-  .print-hidden {
+  .no-print {
     display: none !important;
   }
-  /* Ajusta el layout de impresión */
-  .print-container {
-    padding: 0;
-    margin: 0;
-    width: 100%;
-    max-width: 100%;
-    box-shadow: none;
-    border: none;
+  main {
+    max-width: 100% !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    box-shadow: none !important;
+    border: none !important;
   }
   
   /* Asegura que los colores de fondo de las tarjetas se impriman */
   .card, .badge {
     -webkit-print-color-adjust: exact;
     print-color-adjust: exact;
+    box-shadow: none !important;
+    border: 1px solid #ccc !important;
   }
 }
