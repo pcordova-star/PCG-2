@@ -1,27 +1,14 @@
 
 "use client";
 
-import { useEffect, useState } from 'react';
-import { useParams } from 'next/navigation';
+import { useEffect, useState, Suspense } from 'react';
+import { useParams, useSearchParams } from 'next/navigation';
 import {
-  collection,
   doc,
   getDoc,
-  getDocs,
-  query,
-  where,
 } from 'firebase/firestore';
 import { firebaseDb } from '@/lib/firebaseClient';
-import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-
-type Actividad = {
-  id: string;
-  nombre: string;
-  unidad?: string;
-  cantidadContrato?: number;
-  precioContrato: number;
-};
 
 type ItemEstadoPago = {
   actividadId: string;
@@ -38,21 +25,35 @@ type Obra = {
   codigo?: string;
 };
 
-export default function EstadoDePagoPage() {
+type EstadoDePagoCompleto = {
+  obraId: string;
+  correlativo: number;
+  fechaGeneracion: string;
+  fechaDeCorte: string;
+  subtotal: number;
+  iva: number;
+  total: number;
+  actividades: ItemEstadoPago[];
+};
+
+function EstadoDePagoPageInner() {
   const { obraId } = useParams<{ obraId: string }>();
+  const searchParams = useSearchParams();
+  const edpId = searchParams.get('edpId');
+  const fechaCorteParam = searchParams.get('fechaCorte');
 
   const [obra, setObra] = useState<Obra | null>(null);
-  const [items, setItems] = useState<ItemEstadoPago[]>([]);
-  const [subtotal, setSubtotal] = useState(0);
-  const [iva, setIva] = useState(0);
-  const [total, setTotal] = useState(0);
+  const [estadoDePago, setEstadoDePago] = useState<EstadoDePagoCompleto | null>(null);
+
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [fechaDeCorte, setFechaDeCorte] = useState(new Date().toISOString().slice(0, 10));
-
 
   useEffect(() => {
-    if (!obraId) return;
+    if (!obraId || !edpId) {
+      setError('Faltan parámetros en la URL para cargar el estado de pago.');
+      setLoading(false);
+      return;
+    }
 
     async function cargarEstadoDePago() {
       try {
@@ -77,72 +78,18 @@ export default function EstadoDePagoPage() {
           codigo: obraId,
         });
 
-        // 2) Actividades de la obra
-        const actividadesRef = collection(obraRef, 'actividades');
-        const actividadesSnap = await getDocs(actividadesRef);
+        // 2) Datos del Estado de Pago guardado
+        const edpRef = doc(firebaseDb, 'obras', obraId, 'estadosDePago', edpId);
+        const edpSnap = await getDoc(edpRef);
 
-        const actividades: Actividad[] = actividadesSnap.docs.map((d) => {
-          const data = d.data() as any;
-          return {
-            id: d.id,
-            nombre: data.nombreActividad ?? 'Actividad sin nombre',
-            precioContrato: Number(data.precioContrato ?? 0),
-          };
-        });
+        if (!edpSnap.exists()) {
+          setError('No se encontró el estado de pago con el ID proporcionado.');
+          setLoading(false);
+          return;
+        }
 
-        // 3) Avances diarios de la obra, filtrados por fecha de corte
-        const avancesRef = collection(obraRef, 'avancesDiarios');
-        const q = query(avancesRef, where("fecha", "<=", fechaDeCorte));
-        const avancesSnap = await getDocs(q);
-
-        const avancesPorActividad = new Map<
-          string,
-          { porcentajeAvance: number; fecha: Date }
-        >();
-
-        avancesSnap.forEach((docAvance) => {
-          const data = docAvance.data() as any;
-          const actividadId = data.actividadId as string | undefined;
-          if (!actividadId) return;
-
-          const porcentaje = Number(data.porcentajeAvance ?? 0);
-          
-          const fechaString = data.fecha as string;
-          const fecha = new Date(`${fechaString}T00:00:00`);
-
-          const actual = avancesPorActividad.get(actividadId);
-          if (!actual || fecha > actual.fecha) {
-            avancesPorActividad.set(actividadId, { porcentajeAvance: porcentaje, fecha });
-          }
-        });
-
-        // 4) Construir items de estado de pago
-        const itemsCalculados: ItemEstadoPago[] = actividades.map((act) => {
-          const avance = avancesPorActividad.get(act.id);
-          const porcentaje = avance?.porcentajeAvance ?? 0;
-          const montoProyectado = (act.precioContrato * porcentaje) / 100;
-
-          return {
-            actividadId: act.id,
-            nombre: act.nombre,
-            precioContrato: act.precioContrato,
-            porcentajeAvance: porcentaje,
-            montoProyectado,
-          };
-        });
-
-        const subtotalCalculado = itemsCalculados.reduce(
-          (sum, item) => sum + item.montoProyectado,
-          0,
-        );
-        
-        const ivaCalculado = subtotalCalculado * 0.19;
-        const totalCalculado = subtotalCalculado + ivaCalculado;
-
-        setItems(itemsCalculados);
-        setSubtotal(subtotalCalculado);
-        setIva(ivaCalculado);
-        setTotal(totalCalculado);
+        const edpData = edpSnap.data() as EstadoDePagoCompleto;
+        setEstadoDePago(edpData);
 
       } catch (err) {
         console.error(err);
@@ -153,7 +100,7 @@ export default function EstadoDePagoPage() {
     }
 
     cargarEstadoDePago();
-  }, [obraId, fechaDeCorte]);
+  }, [obraId, edpId]);
 
   const handlePrint = () => {
     if (typeof window !== 'undefined') {
@@ -177,8 +124,8 @@ export default function EstadoDePagoPage() {
     return <div className="p-8 text-red-600">{error}</div>;
   }
 
-  if (!obra) {
-    return <div className="p-8">No se encontraron datos de la obra.</div>;
+  if (!obra || !estadoDePago) {
+    return <div className="p-8">No se encontraron datos para mostrar.</div>;
   }
 
   return (
@@ -197,18 +144,8 @@ export default function EstadoDePagoPage() {
         {obra.direccion && (
           <p className="text-sm text-gray-600">Dirección: {obra.direccion}</p>
         )}
-        <div className="text-sm text-gray-600 mt-2 flex items-center gap-2 print:hidden">
-            <Label htmlFor="fecha-corte">Fecha de corte:</Label>
-            <Input 
-                id="fecha-corte"
-                type="date" 
-                value={fechaDeCorte} 
-                onChange={(e) => setFechaDeCorte(e.target.value)}
-                className="w-auto"
-            />
-        </div>
-        <p className="text-sm text-gray-600 mt-2 hidden print:block">
-            Fecha de corte: {new Date(fechaDeCorte + 'T00:00:00').toLocaleDateString('es-CL')}
+        <p className="text-sm text-gray-600 mt-2">
+            Fecha de corte: {new Date(estadoDePago.fechaDeCorte + 'T00:00:00').toLocaleDateString('es-CL')}
         </p>
         <button
           onClick={handlePrint}
@@ -231,7 +168,7 @@ export default function EstadoDePagoPage() {
             </tr>
           </thead>
           <tbody>
-            {items.map((item, idx) => (
+            {estadoDePago.actividades.map((item, idx) => (
               <tr key={item.actividadId}>
                 <td className="border border-gray-200 px-2 py-1">{idx + 1}</td>
                 <td className="border border-gray-200 px-2 py-1">{item.nombre}</td>
@@ -255,15 +192,15 @@ export default function EstadoDePagoPage() {
         <div className="w-full max-w-sm space-y-2 text-sm">
             <div className="flex justify-between">
                 <span>Subtotal Neto:</span>
-                <span>{formatCurrency(subtotal)}</span>
+                <span>{formatCurrency(estadoDePago.subtotal)}</span>
             </div>
             <div className="flex justify-between">
                 <span>IVA (19%):</span>
-                <span>{formatCurrency(iva)}</span>
+                <span>{formatCurrency(estadoDePago.iva)}</span>
             </div>
              <div className="flex justify-between border-t pt-2 font-bold text-base">
                 <span>Total a Pagar:</span>
-                <span>{formatCurrency(total)}</span>
+                <span>{formatCurrency(estadoDePago.total)}</span>
             </div>
         </div>
       </section>
@@ -286,3 +223,10 @@ export default function EstadoDePagoPage() {
   );
 }
 
+export default function EstadoDePagoPage() {
+  return (
+    <Suspense fallback={<div className="p-8">Cargando...</div>}>
+      <EstadoDePagoPageInner />
+    </Suspense>
+  )
+}

@@ -101,6 +101,7 @@ type EstadoDePago = {
   id: string;
   correlativo: number;
   fechaGeneracion: string;
+  fechaDeCorte: string;
   subtotal: number;
   iva: number;
   total: number;
@@ -164,6 +165,10 @@ function ProgramacionPageInner() {
   const [archivos, setArchivos] = useState<File[]>([]);
   const [previews, setPreviews] = useState<string[]>([]);
   const [uploading, setUploading] = useState(false);
+  
+  // Estado para el modal de generación de EDP
+  const [dialogEdpOpen, setDialogEdpOpen] = useState(false);
+  const [fechaCorteEdp, setFechaCorteEdp] = useState(new Date().toISOString().slice(0, 10));
 
 
   const resumenActividades = useMemo(() => {
@@ -455,10 +460,10 @@ function ProgramacionPageInner() {
       const ultimoCorrelativo = estadosDePago.reduce((max, edp) => Math.max(max, edp.correlativo), 0);
       const nuevoCorrelativo = ultimoCorrelativo + 1;
       
-      // 2. Calcular montos
+      // 2. Calcular montos con la fecha de corte
       const actividadesConAvance = actividades.map(act => {
         const ultimoAvance = avances
-          .filter(av => av.actividadId === act.id)
+          .filter(av => av.actividadId === act.id && av.fecha <= fechaCorteEdp) // Filtrar por fecha de corte
           .sort((a, b) => a.fecha > b.fecha ? -1 : 1)[0];
         
         const porcentajeAvance = ultimoAvance?.porcentajeAvance ?? 0;
@@ -477,6 +482,7 @@ function ProgramacionPageInner() {
         obraId: obraSeleccionadaId,
         correlativo: nuevoCorrelativo,
         fechaGeneracion: new Date().toISOString().slice(0, 10),
+        fechaDeCorte: fechaCorteEdp,
         subtotal,
         iva,
         total,
@@ -488,7 +494,8 @@ function ProgramacionPageInner() {
       
       // 4. Actualizar el estado local y navegar a la página de visualización
       setEstadosDePago(prev => [{...nuevoEdpDoc, id: docRef.id } as EstadoDePago, ...prev]);
-      router.push(`/operaciones/programacion/estado-pago/${obraSeleccionadaId}?edpId=${docRef.id}`);
+      setDialogEdpOpen(false);
+      router.push(`/operaciones/programacion/estado-pago/${obraSeleccionadaId}?edpId=${docRef.id}&fechaCorte=${fechaCorteEdp}`);
 
     } catch (err) {
       console.error("Error generando estado de pago:", err);
@@ -593,7 +600,7 @@ function ProgramacionPageInner() {
                     actividades.length > 0 ? (actividades.map((act) => (
                         <TableRow key={act.id}>
                             <TableCell className="font-medium">{act.nombreActividad}</TableCell>
-                            <TableCell>${act.precioContrato.toLocaleString('es-CL')}</TableCell>
+                            <TableCell>{act.precioContrato.toLocaleString('es-CL', { style: 'currency', currency: 'CLP', maximumFractionDigits: 0 })}</TableCell>
                             <TableCell>{act.fechaInicio}</TableCell>
                             <TableCell>{act.fechaFin}</TableCell>
                             <TableCell>
@@ -774,10 +781,33 @@ function ProgramacionPageInner() {
           <CardDescription>Genere y revise los estados de pago de la obra. Cada estado de pago es una foto del avance en un momento determinado.</CardDescription>
         </CardHeader>
         <CardContent>
-          <Button onClick={handleGenerarEstadoDePago} disabled={generandoEdp}>
+          <Button onClick={() => setDialogEdpOpen(true)}>
             <FilePlus2 className="mr-2 h-4 w-4" />
-            {generandoEdp ? "Generando..." : "Generar Nuevo Estado de Pago"}
+            Generar Nuevo Estado de Pago
           </Button>
+
+          <Dialog open={dialogEdpOpen} onOpenChange={setDialogEdpOpen}>
+            <DialogContent className="sm:max-w-[425px]">
+                <DialogHeader>
+                  <DialogTitle>Generar Estado de Pago</DialogTitle>
+                  <DialogDescription>
+                    Seleccione la fecha de corte para calcular el avance y generar el informe.
+                  </DialogDescription>
+                </DialogHeader>
+                <div className="grid gap-4 py-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="fecha-corte-edp">Fecha de corte del informe</Label>
+                    <Input id="fecha-corte-edp" type="date" value={fechaCorteEdp} onChange={(e) => setFechaCorteEdp(e.target.value)} />
+                  </div>
+                </div>
+                <DialogFooter>
+                  <Button onClick={handleGenerarEstadoDePago} disabled={generandoEdp}>
+                    {generandoEdp ? "Generando..." : "Confirmar y Generar"}
+                  </Button>
+                </DialogFooter>
+            </DialogContent>
+          </Dialog>
+
           <div className="mt-4 space-y-2">
             <h4 className="text-sm font-semibold">Historial de Estados de Pago</h4>
             {cargandoEdp ? <p className="text-xs text-muted-foreground">Cargando historial...</p> :
@@ -801,7 +831,7 @@ function ProgramacionPageInner() {
                         <TableCell className="text-right">
                           <div className="flex justify-end gap-2">
                             <Button asChild variant="outline" size="sm">
-                                <Link href={`/operaciones/programacion/estado-pago/${obraSeleccionadaId}?edpId=${edp.id}`}>
+                                <Link href={`/operaciones/programacion/estado-pago/${obraSeleccionadaId}?edpId=${edp.id}&fechaCorte=${edp.fechaDeCorte}`}>
                                 <FileText className="mr-2 h-3 w-3" />
                                 Ver
                                 </Link>
@@ -854,5 +884,3 @@ export default function ProgramacionPage() {
     </Suspense>
   );
 }
-
-
