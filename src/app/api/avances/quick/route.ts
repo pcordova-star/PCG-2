@@ -1,11 +1,14 @@
+// src/app/api/avances/quick/route.ts
 import { NextResponse } from "next/server";
 import { z } from "zod";
-import { headers } from "next/headers";
 import { getAdminApp } from "@/lib/firebaseAdmin";
 import { getAuth } from "firebase-admin/auth";
 import { getFirestore, FieldValue } from "firebase-admin/firestore";
 
-// Esquema de entrada (JSON). Fotos llegan como URLs ya subidas a Storage.
+export const runtime = "nodejs";
+export const dynamic = "force_dynamic";
+
+// Esquema de entrada (JSON)
 const AvanceSchema = z.object({
   obraId: z.string().min(1),
   actividadId: z.string().nullable().optional(),
@@ -15,26 +18,25 @@ const AvanceSchema = z.object({
   visibleCliente: z.boolean().optional().default(true),
 });
 
-async function getUserFromAuthHeader() {
+async function getUserFromAuthHeader(req: Request) {
   const adminApp = getAdminApp();
   const auth = getAuth(adminApp);
-  
-  // Espera Authorization: Bearer <ID_TOKEN>
-  const authHeader = headers().get("authorization");
+
+  const authHeader = req.headers.get("authorization");
   if (!authHeader?.startsWith("Bearer ")) return null;
+
   const token = authHeader.split(" ")[1];
   try {
-      const decoded = await auth.verifyIdToken(token);
-      return decoded; // { uid, email, ... }
+    return await auth.verifyIdToken(token);
   } catch (error) {
-      console.warn("Invalid auth token received:", error);
-      return null;
+    console.warn("Invalid auth token received:", error);
+    return null;
   }
 }
 
 export async function POST(req: Request) {
   try {
-    const user = await getUserFromAuthHeader();
+    const user = await getUserFromAuthHeader(req);
     if (!user) {
       return NextResponse.json({ ok: false, error: "UNAUTHORIZED" }, { status: 401 });
     }
@@ -42,71 +44,66 @@ export async function POST(req: Request) {
     const json = await req.json().catch(() => null);
     const parsed = AvanceSchema.safeParse(json);
     if (!parsed.success) {
-      return NextResponse.json({ ok: false, error: "BAD_REQUEST", details: parsed.error.flatten() }, { status: 400 });
+      return NextResponse.json(
+        { ok: false, error: "BAD_REQUEST", details: parsed.error.flatten() },
+        { status: 400 }
+      );
     }
-    const { obraId, actividadId, porcentaje, comentario, fotos, visibleCliente } = parsed.data;
 
+    const { obraId, actividadId, porcentaje, comentario, fotos, visibleCliente } = parsed.data;
     const adminApp = getAdminApp();
     const db = getFirestore(adminApp);
-
     const obraRef = db.collection("obras").doc(obraId);
-    
-    // Usamos una transacción para asegurar la atomicidad de las operaciones
-    const avanceId = await db.runTransaction(async (transaction) => {
-        const obraSnap = await transaction.get(obraRef);
-        if (!obraSnap.exists) {
-            throw new Error("OBRA_NOT_FOUND");
-        }
 
-        // 1. Crear el nuevo documento de avance
-        const avancesRef = obraRef.collection("avancesDiarios");
-        const nuevoAvanceRef = avancesRef.doc(); // Generamos una referencia vacía para obtener el ID
-        
-        const avanceData = {
-          obraId,
-          actividadId: actividadId || null,
-          porcentajeAvance: porcentaje,
-          comentario,
-          fotos,
-          visibleCliente,
-          fecha: FieldValue.serverTimestamp(),
-          creadoPor: {
-            uid: user.uid,
-            displayName: user.name || user.email || "",
-          },
-        };
-        transaction.set(nuevoAvanceRef, avanceData);
+    const avanceId = await db.runTransaction(async (tx) => {
+      const obraSnap = await tx.get(obraRef);
+      if (!obraSnap.exists) throw new Error("OBRA_NOT_FOUND");
 
-        // 2. Actualizar el documento principal de la obra
-        if (porcentaje > 0) {
-            const currentData = obraSnap.data() || {};
-            const avancePrevio = currentData.avanceAcumulado || 0;
-            // Esto es una simplificación. Un cálculo real podría ser más complejo.
-            const totalActividades = currentData.totalActividades || 10; // Fallback a 10 si no está definido
-            const avancePonderadoDelDia = (porcentaje / totalActividades);
-            const nuevoAvanceAcumulado = Math.min(100, avancePrevio + avancePonderadoDelDia);
+      const avancesRef = obraRef.collection("avancesDiarios");
+      const nuevoAvanceRef = avancesRef.doc();
 
-            transaction.update(obraRef, {
-                ultimaActualizacion: FieldValue.serverTimestamp(),
-                avanceAcumulado: nuevoAvanceAcumulado,
-            });
-        } else {
-             transaction.update(obraRef, {
-                ultimaActualizacion: FieldValue.serverTimestamp(),
-             });
-        }
-        
-        return nuevoAvanceRef.id;
+      const avanceData = {
+        obraId,
+        actividadId: actividadId || null,
+        porcentajeAvance: porcentaje,
+        comentario,
+        fotos,
+        visibleCliente,
+        fecha: FieldValue.serverTimestamp(),
+        creadoPor: {
+          uid: user.uid,
+          displayName: (user as any).name || user.email || "",
+        },
+      };
+      tx.set(nuevoAvanceRef, avanceData);
+
+      if (porcentaje > 0) {
+        const currentData = obraSnap.data() || {};
+        const avancePrevio = Number(currentData.avanceAcumulado || 0);
+        const totalActividades = Number(currentData.totalActividades || 10);
+        const avancePonderadoDelDia = porcentaje / totalActividades;
+        const nuevoAvanceAcumulado = Math.min(100, avancePrevio + avancePonderadoDelDia);
+
+        tx.update(obraRef, {
+          ultimaActualizacion: FieldValue.serverTimestamp(),
+          avanceAcumulado: nuevoAvanceAcumulado,
+        });
+      } else {
+        tx.update(obraRef, { ultimaActualizacion: FieldValue.serverTimestamp() });
+      }
+
+      return nuevoAvanceRef.id;
     });
 
     return NextResponse.json({ ok: true, id: avanceId }, { status: 201 });
   } catch (err: any) {
     console.error("[API avances/quick] Unexpected Error:", err);
-    
-    if (err.message === "OBRA_NOT_FOUND") {
+    if (err?.message === "OBRA_NOT_FOUND") {
       return NextResponse.json({ ok: false, error: "OBRA_NOT_FOUND" }, { status: 404 });
     }
-
-    return NextResponse.json({ ok: false, error: "INTERNAL_ERROR", message: err.message }, { status: 500 });
+    return NextResponse.json(
+      { ok: false, error: "INTERNAL_ERROR", details: err?.message ?? String(err) },
+      { status: 500 }
+    );
   }
 }

@@ -236,12 +236,20 @@ export function QuickAvanceSheet({ open, onOpenChange }: QuickAvanceSheetProps) 
                 comentario,
                 fotos: uploadedUrls,
                 visibleCliente,
-            })
+            }),
+            redirect: 'manual', // evita seguir redirecciones a HTML (p.ej. /login)
         });
 
-        if (!response.ok) {
-            const errorData = await response.json();
-            throw new Error(errorData.error || 'Error en el servidor');
+        const ct = response.headers.get('content-type') || '';
+        if (!ct.includes('application/json')) {
+            const text = await response.text();
+            throw new Error(`Respuesta no JSON (${response.status}). Posible redirección o 404. Preview: ${text.slice(0,120)}…`);
+        }
+
+        const data = await response.json();
+        if (!response.ok || !data?.ok) {
+            const msg = data?.details || data?.error || 'Error en el servidor';
+            throw new Error(msg);
         }
 
         toast({
