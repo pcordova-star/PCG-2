@@ -17,7 +17,7 @@ import {
   deleteDoc,
 } from "firebase/firestore";
 import { firebaseDb, firebaseStorage } from "../../../lib/firebaseClient";
-import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
+import { ref, uploadBytes, getDownloadURL, deleteObject } from "firebase/storage";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -103,13 +103,6 @@ type EstadoDePago = {
 };
 
 function EstadoBadge({ estado }: { estado: EstadoActividad }) {
-  const variant: "default" | "secondary" | "outline" | "destructive" = {
-    Terminada: "default",
-    "En curso": "secondary",
-    Pendiente: "outline",
-    Atrasada: "destructive"
-  }[estado];
-
   const className = {
     Terminada: "bg-green-100 text-green-800 border-green-200",
     "En curso": "bg-blue-100 text-blue-800 border-blue-200",
@@ -118,7 +111,7 @@ function EstadoBadge({ estado }: { estado: EstadoActividad }) {
   }[estado];
 
   return (
-    <Badge variant={variant} className={cn("font-semibold whitespace-nowrap", className)}>
+    <Badge variant="outline" className={cn("font-semibold whitespace-nowrap", className)}>
       {estado}
     </Badge>
   );
@@ -456,6 +449,41 @@ function ProgramacionPageInner() {
     }
   }
 
+  const handleDeleteAvance = async (avance: AvanceDiario) => {
+    if (!obraSeleccionadaId) return;
+
+    try {
+      // 1. Delete photos from Storage
+      const photoUrls = avance.fotos || (avance.fotoUrl ? [avance.fotoUrl] : []);
+      if (photoUrls.length > 0) {
+        await Promise.all(
+          photoUrls.map(async (url) => {
+            try {
+              const photoRef = ref(firebaseStorage, url);
+              await deleteObject(photoRef);
+            } catch (storageError: any) {
+              // If file not found, we can ignore the error
+              if (storageError.code !== 'storage/object-not-found') {
+                throw storageError;
+              }
+            }
+          })
+        );
+      }
+
+      // 2. Delete document from Firestore
+      const docRef = doc(firebaseDb, "obras", obraSeleccionadaId, "avancesDiarios", avance.id);
+      await deleteDoc(docRef);
+
+      // 3. Update UI state
+      setAvances(prev => prev.filter(a => a.id !== avance.id));
+
+    } catch (err) {
+      console.error("Error deleting daily progress:", err);
+      setError("No se pudo eliminar el registro de avance. Inténtelo de nuevo.");
+    }
+  };
+
   const handleGenerarEstadoDePago = async () => {
     if (!obraSeleccionadaId) return;
 
@@ -780,9 +808,33 @@ function ProgramacionPageInner() {
                                 )}
                                 <p className="text-xs text-muted-foreground mt-1">Registrado por: {av.creadoPor}</p>
                             </div>
-                            <Badge variant="outline" className={cn(av.visibleParaCliente ? "border-emerald-200 bg-emerald-50 text-emerald-700" : "border-slate-200 bg-slate-100 text-slate-600")}>
-                                {av.visibleParaCliente ? "Visible cliente" : "Interno"}
-                            </Badge>
+                            <div className="flex items-center gap-2">
+                                <Badge variant="outline" className={cn(av.visibleParaCliente ? "border-emerald-200 bg-emerald-50 text-emerald-700" : "border-slate-200 bg-slate-100 text-slate-600")}>
+                                    {av.visibleParaCliente ? "Visible cliente" : "Interno"}
+                                </Badge>
+                                <AlertDialog>
+                                    <AlertDialogTrigger asChild>
+                                        <Button variant="ghost" size="icon" className="text-destructive hover:text-destructive h-7 w-7">
+                                            <Trash2 className="h-4 w-4" />
+                                            <span className="sr-only">Eliminar Avance</span>
+                                        </Button>
+                                    </AlertDialogTrigger>
+                                    <AlertDialogContent>
+                                        <AlertDialogHeader>
+                                            <AlertDialogTitle>¿Desea eliminar este registro de avance?</AlertDialogTitle>
+                                            <AlertDialogDescription>
+                                                Esta acción es irreversible. Se eliminará el registro del día {av.fecha} y todas sus fotos asociadas.
+                                            </AlertDialogDescription>
+                                        </AlertDialogHeader>
+                                        <AlertDialogFooter>
+                                            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                                            <AlertDialogAction onClick={() => handleDeleteAvance(av)} className="bg-destructive hover:bg-destructive/90">
+                                                Eliminar Permanentemente
+                                            </AlertDialogAction>
+                                        </AlertDialogFooter>
+                                    </AlertDialogContent>
+                                </AlertDialog>
+                            </div>
                         </div>
                         <p className="text-card-foreground/90 text-sm whitespace-pre-line pt-1">{av.comentario}</p>
                     </CardContent>
@@ -903,5 +955,3 @@ export default function ProgramacionPage() {
     </Suspense>
   );
 }
-
-    
