@@ -155,6 +155,7 @@ function ProgramacionPageInner() {
 
   // Estados para el formulario de avance
   const [formAvance, setFormAvance] = useState({
+    actividadId: "", // Vuelve a agregar el ID de actividad
     fecha: new Date().toISOString().slice(0, 10),
     porcentajeAvance: "",
     comentario: "",
@@ -168,6 +169,19 @@ function ProgramacionPageInner() {
   // Estado para el modal de generación de EDP
   const [dialogEdpOpen, setDialogEdpOpen] = useState(false);
   const [fechaCorteEdp, setFechaCorteEdp] = useState(new Date().toISOString().slice(0, 10));
+
+  const avancesPorActividad = useMemo(() => {
+    const mapaAvances = new Map<string, number>();
+    // Ordenar avances por fecha descendente para cada actividad
+    const avancesOrdenados = [...avances].sort((a,b) => a.fecha < b.fecha ? 1 : -1);
+
+    for (const avance of avancesOrdenados) {
+        if (avance.actividadId && !mapaAvances.has(avance.actividadId)) {
+            mapaAvances.set(avance.actividadId, avance.porcentajeAvance);
+        }
+    }
+    return mapaAvances;
+  }, [avances]);
 
 
   const resumenActividades = useMemo(() => {
@@ -389,7 +403,7 @@ function ProgramacionPageInner() {
       setError("Debes seleccionar una obra y estar autenticado.");
       return;
     }
-    const { fecha, porcentajeAvance, comentario, creadoPor, visibleParaCliente } = formAvance;
+    const { actividadId, fecha, porcentajeAvance, comentario, creadoPor, visibleParaCliente } = formAvance;
     if (!fecha || !porcentajeAvance || !comentario.trim() || !creadoPor) {
       setError("Fecha, porcentaje, comentario y 'registrado por' son obligatorios.");
       return;
@@ -415,7 +429,8 @@ function ProgramacionPageInner() {
       
       const colRef = collection(firebaseDb, "obras", obraSeleccionadaId, "avancesDiarios");
       const docData = { 
-        obraId: obraSeleccionadaId, 
+        obraId: obraSeleccionadaId,
+        actividadId: actividadId || null, // Guardar null si no se selecciona
         fecha, 
         porcentajeAvance: porcentaje, 
         comentario: comentario.trim(), 
@@ -432,7 +447,7 @@ function ProgramacionPageInner() {
       setAvances((prev) => [nuevoAvance, ...prev].sort((a,b) => a.fecha < b.fecha ? 1 : -1));
       
       // Resetear formulario
-      setFormAvance({ fecha: new Date().toISOString().slice(0, 10), porcentajeAvance: "", comentario: "", creadoPor: "", visibleParaCliente: true });
+      setFormAvance({ actividadId: "", fecha: new Date().toISOString().slice(0, 10), porcentajeAvance: "", comentario: "", creadoPor: "", visibleParaCliente: true });
       setArchivos([]);
       previews.forEach(url => URL.revokeObjectURL(url));
       setPreviews([]);
@@ -587,6 +602,7 @@ function ProgramacionPageInner() {
                       <TableRow>
                         <TableHead>Actividad</TableHead>
                         <TableHead>Precio</TableHead>
+                        <TableHead>% Avance Real</TableHead>
                         <TableHead>Inicio</TableHead>
                         <TableHead>Fin</TableHead>
                         <TableHead>Estado</TableHead>
@@ -594,11 +610,14 @@ function ProgramacionPageInner() {
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                    {cargandoActividades ? <TableRow><TableCell colSpan={6} className="text-center">Cargando...</TableCell></TableRow> : 
+                    {cargandoActividades ? <TableRow><TableCell colSpan={7} className="text-center">Cargando...</TableCell></TableRow> : 
                     actividades.length > 0 ? (actividades.map((act) => (
                         <TableRow key={act.id}>
                             <TableCell className="font-medium">{act.nombreActividad}</TableCell>
                             <TableCell>{act.precioContrato.toLocaleString('es-CL', { style: 'currency', currency: 'CLP', maximumFractionDigits: 0 })}</TableCell>
+                            <TableCell className="font-semibold">
+                                {avancesPorActividad.get(act.id)?.toFixed(1) ?? '0.0'}%
+                            </TableCell>
                             <TableCell>{act.fechaInicio}</TableCell>
                             <TableCell>{act.fechaFin}</TableCell>
                             <TableCell>
@@ -640,7 +659,7 @@ function ProgramacionPageInner() {
                             </TableCell>
                         </TableRow>
                     ))) : (
-                        <TableRow><TableCell colSpan={6} className="text-center text-muted-foreground py-8">No hay actividades para esta obra.</TableCell></TableRow>
+                        <TableRow><TableCell colSpan={7} className="text-center text-muted-foreground py-8">No hay actividades para esta obra.</TableCell></TableRow>
                     )}
                     </TableBody>
                 </Table>
@@ -693,6 +712,22 @@ function ProgramacionPageInner() {
             <CardHeader><CardTitle>Registrar avance del día</CardTitle></CardHeader>
             <CardContent>
               <form onSubmit={handleAvanceSubmit} className="space-y-4">
+                <div className="space-y-1">
+                    <Label htmlFor="avance-actividad" className="text-xs font-medium">Actividad (opcional)</Label>
+                    <Select value={formAvance.actividadId} onValueChange={(value) => setFormAvance(prev => ({ ...prev, actividadId: value }))}>
+                        <SelectTrigger id="avance-actividad">
+                            <SelectValue placeholder="Seleccionar actividad (o dejar en blanco para avance general)" />
+                        </SelectTrigger>
+                        <SelectContent>
+                            <SelectItem value="">Avance General de Obra</SelectItem>
+                            {actividades.map(act => (
+                                <SelectItem key={act.id} value={act.id}>
+                                    {act.nombreActividad}
+                                </SelectItem>
+                            ))}
+                        </SelectContent>
+                    </Select>
+                </div>
                 <div className="grid gap-3 md:grid-cols-2">
                   <div className="space-y-1"><Label htmlFor="avance-fecha" className="text-xs font-medium">Fecha*</Label><Input id="avance-fecha" type="date" value={formAvance.fecha} onChange={(e) => setFormAvance(prev => ({...prev, fecha: e.target.value}))} /></div>
                   <div className="space-y-1"><Label htmlFor="avance-porcentaje" className="text-xs font-medium">Avance Acumulado (%)*</Label><Input id="avance-porcentaje" type="number" min={0} max={100} value={formAvance.porcentajeAvance} onChange={(e) => setFormAvance(prev => ({...prev, porcentajeAvance: e.target.value}))} /></div>
@@ -749,7 +784,11 @@ function ProgramacionPageInner() {
                         <div className="flex items-start justify-between gap-2">
                             <div>
                                 <p className="font-semibold text-primary">{av.fecha} · {av.porcentajeAvance}% avance</p>
-                                {actividadAsociada && <p className="text-xs font-medium text-foreground mt-1">{actividadAsociada.nombreActividad}</p>}
+                                {actividadAsociada ? (
+                                    <p className="text-xs font-medium text-foreground mt-1">{actividadAsociada.nombreActividad}</p>
+                                ) : (
+                                    <p className="text-xs italic text-muted-foreground mt-1">Avance General</p>
+                                )}
                                 <p className="text-xs text-muted-foreground mt-1">Registrado por: {av.creadoPor}</p>
                             </div>
                             <Badge variant="outline" className={cn(av.visibleParaCliente ? "border-emerald-200 bg-emerald-50 text-emerald-700" : "border-slate-200 bg-slate-100 text-slate-600")}>
