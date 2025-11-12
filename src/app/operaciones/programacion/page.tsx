@@ -15,6 +15,7 @@ import {
   doc,
   orderBy,
   deleteDoc,
+  Timestamp,
 } from "firebase/firestore";
 import { firebaseDb, firebaseStorage } from "../../../lib/firebaseClient";
 import { ref, uploadBytes, getDownloadURL, deleteObject } from "firebase/storage";
@@ -256,7 +257,14 @@ function ProgramacionPageInner() {
         const avColRef = collection(firebaseDb, "obras", obraSeleccionadaId, "avancesDiarios");
         const qAv = query(avColRef, orderBy("fecha", "desc"));
         const snapshotAv = await getDocs(qAv);
-        const dataAv: AvanceDiario[] = snapshotAv.docs.map((d) => ({ ...d.data(), id: d.id } as AvanceDiario));
+        const dataAv: AvanceDiario[] = snapshotAv.docs.map((d) => {
+          const data = d.data();
+          return { 
+            id: d.id,
+            ...data,
+            fecha: data.fecha instanceof Timestamp ? data.fecha.toDate().toISOString() : data.fecha,
+          } as AvanceDiario
+        });
         setAvances(dataAv);
       } catch (err) {
         console.error("Error cargando avances:", err);
