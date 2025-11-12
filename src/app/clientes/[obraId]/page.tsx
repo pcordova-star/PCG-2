@@ -6,6 +6,7 @@ import { Separator } from '@/components/ui/separator';
 import { Building, Calendar, CheckCircle, Percent } from 'lucide-react';
 import ImageFromStorage from '@/components/client/ImageFromStorage';
 import PrintButton from '@/components/client/PrintButton';
+import { absoluteUrl } from '@/lib/absoluteUrl';
 
 function formatCL(iso?: string | null) {
   if (!iso) return "N/D";
@@ -21,8 +22,9 @@ function formatCL(iso?: string | null) {
 export default async function ClienteObraPage({ params }: { params: { obraId: string } }) {
   // El nombre del parámetro es 'obraId' por la estructura de la carpeta, pero lo tratamos como 'shareId'
   const shareId = params.obraId;
+  const url = absoluteUrl(`/api/public/obra/${shareId}`);
 
-  const res = await fetch(`/api/public/obra/${shareId}`, { cache: "no-store" });
+  const res = await fetch(url, { cache: "no-store", next: { revalidate: 0 } });
   if (res.status === 404) {
      return (
       <div className="max-w-4xl mx-auto text-center py-20">
