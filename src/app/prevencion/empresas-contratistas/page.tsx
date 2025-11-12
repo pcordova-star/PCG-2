@@ -39,7 +39,7 @@ type EstadoEvaluacionEmpresa =
   | "APROBADA_CON_OBSERVACIONES"
   | "RECHAZADA";
 
-type EmpresaContratista = {
+export type EmpresaContratista = {
   id: string;
   obraId: string;
   razonSocial: string;
@@ -383,7 +383,11 @@ export default function EmpresasContratistasPage() {
                         <TableCell>{emp.evaluador}</TableCell>
                         <TableCell>{emp.fechaEvaluacion}</TableCell>
                         <TableCell className="text-right">
-                            <Button variant="outline" size="sm" onClick={() => { setEmpresaSeleccionadaId(emp.id); setMostrarForm(true); }}>Ver / Editar</Button>
+                          <Button variant="outline" size="sm" asChild>
+                            <Link href={`/prevencion/empresas-contratistas/${emp.id}`}>
+                              Ver Ficha
+                            </Link>
+                          </Button>
                         </TableCell>
                     </TableRow>
                 ))}
