@@ -1,6 +1,7 @@
 "use client";
 
-import { use, useEffect, useState, useMemo } from "react";
+import { useEffect, useState, useMemo, Suspense } from "react";
+import { useSearchParams } from "next/navigation";
 import { doc, getDoc, getDocs, collection, query, where, orderBy } from "firebase/firestore";
 import { firebaseDb } from "@/lib/firebaseClient";
 import { Button } from "@/components/ui/button";
@@ -15,39 +16,37 @@ type Obra = {
   clienteEmail?: string;
 };
 
-type ActividadProgramada = {
+type ActividadEnEDP = {
   id: string;
   nombreActividad: string;
   precioContrato: number;
-  unidad?: string;
-  cantidadContrato?: number;
-};
-
-type AvanceDiario = {
-  id: string;
-  actividadId: string;
-  fecha: string;
-  porcentajeAvance: number;
-};
-
-// Combinación de datos para la tabla
-type ActividadConAvance = ActividadProgramada & {
   porcentajeAvance: number;
   montoProyectado: number;
 };
 
-export default function EstadoDePagoPage({ params }: { params: Promise<{ obraId: string }> }) {
+type EstadoDePago = {
+  id: string;
+  correlativo: number;
+  fechaGeneracion: string;
+  subtotal: number;
+  iva: number;
+  total: number;
+  actividades: ActividadEnEDP[];
+};
+
+function EstadoDePagoPageInner({ params }: { params: { obraId: string } }) {
+  const { obraId } = params;
+  const searchParams = useSearchParams();
+  const edpId = searchParams.get("edpId");
+
   const [obra, setObra] = useState<Obra | null>(null);
-  const [actividades, setActividades] = useState<ActividadConAvance[]>([]);
+  const [estadoDePago, setEstadoDePago] = useState<EstadoDePago | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [fechaCorte, setFechaCorte] = useState(new Date().toLocaleDateString('es-CL'));
-
-  const { obraId } = use(params);
-
+  
   useEffect(() => {
-    if (!obraId) {
-      setError("No se proporcionó un ID de obra.");
+    if (!obraId || !edpId) {
+      setError("No se proporcionó un ID de obra o de estado de pago.");
       setLoading(false);
       return;
     }
@@ -62,30 +61,14 @@ export default function EstadoDePagoPage({ params }: { params: Promise<{ obraId:
         if (!obraSnap.exists()) throw new Error("No se encontró la obra con el ID proporcionado.");
         setObra({ id: obraSnap.id, ...obraSnap.data() } as Obra);
 
-        // 2. Cargar actividades de la obra
-        const actividadesRef = collection(firebaseDb, "obras", obraId, "actividades");
-        const actividadesSnap = await getDocs(query(actividadesRef, orderBy("nombreActividad")));
-        const actsData = actividadesSnap.docs.map(d => ({ id: d.id, ...d.data() } as ActividadProgramada));
-
-        // 3. Cargar todos los avances de la obra de una vez para eficiencia
-        const avancesRef = collection(firebaseDb, "obras", obraId, "avancesDiarios");
-        const avancesSnap = await getDocs(query(avancesRef, orderBy("fecha", "desc")));
-        const allAvances = avancesSnap.docs.map(d => d.data() as AvanceDiario);
-        
-        // 4. Procesar y combinar datos
-        const actividadesConAvance = actsData.map(act => {
-          // Encuentra el último avance para esta actividad
-          const ultimoAvance = allAvances.find(av => av.actividadId === act.id);
-          const porcentajeAvance = ultimoAvance?.porcentajeAvance ?? 0;
-          const montoProyectado = act.precioContrato * (porcentajeAvance / 100);
-          
-          return { ...act, porcentajeAvance, montoProyectado };
-        });
-
-        setActividades(actividadesConAvance);
+        // 2. Cargar el estado de pago específico
+        const edpRef = doc(firebaseDb, "obras", obraId, "estadosDePago", edpId);
+        const edpSnap = await getDoc(edpRef);
+        if (!edpSnap.exists()) throw new Error("No se encontró el estado de pago con el ID proporcionado.");
+        setEstadoDePago({ id: edpSnap.id, ...edpSnap.data() } as EstadoDePago);
 
       } catch (err) {
-        console.error("Error al generar estado de pago:", err);
+        console.error("Error al cargar estado de pago:", err);
         setError(err instanceof Error ? err.message : "Ocurrió un error al cargar los datos.");
       } finally {
         setLoading(false);
@@ -93,20 +76,15 @@ export default function EstadoDePagoPage({ params }: { params: Promise<{ obraId:
     };
 
     fetchDatos();
-  }, [obraId]);
-
-  const totalMonto = useMemo(() => 
-    actividades.reduce((sum, act) => sum + act.montoProyectado, 0),
-    [actividades]
-  );
+  }, [obraId, edpId]);
   
   const formatCurrency = (value: number) => {
     return new Intl.NumberFormat('es-CL', { style: 'currency', currency: 'CLP' }).format(value);
   }
 
-  if (loading) return <div className="p-8 text-center text-muted-foreground">Generando Estado de Pago...</div>;
+  if (loading) return <div className="p-8 text-center text-muted-foreground">Cargando Estado de Pago...</div>;
   if (error) return <div className="p-8 text-center text-destructive">{error}</div>;
-  if (!obra) return <div className="p-8 text-center text-muted-foreground">No se encontró la obra.</div>;
+  if (!obra || !estadoDePago) return <div className="p-8 text-center text-muted-foreground">No se encontraron los datos solicitados.</div>;
 
   return (
     <div className="bg-background min-h-screen p-4 sm:p-8 print:p-0">
@@ -120,7 +98,7 @@ export default function EstadoDePagoPage({ params }: { params: Promise<{ obraId:
       
       <div className="max-w-4xl mx-auto">
         <div className="flex justify-between items-center mb-6 print-hidden">
-          <h1 className="text-xl font-bold">Estado de Pago</h1>
+          <h1 className="text-xl font-bold">Estado de Pago EDP-{estadoDePago.correlativo.toString().padStart(3, '0')}</h1>
            <div className="flex gap-2">
              <Button asChild variant="outline">
                 <Link href="/operaciones/programacion">Volver</Link>
@@ -133,14 +111,14 @@ export default function EstadoDePagoPage({ params }: { params: Promise<{ obraId:
             <header className="mb-8">
                 <div className="flex justify-between items-start border-b pb-4">
                     <div>
-                        <h2 className="text-2xl font-bold text-primary">Estado de Pago</h2>
+                        <h2 className="text-2xl font-bold text-primary">Estado de Pago N° {estadoDePago.correlativo.toString().padStart(3, '0')}</h2>
                         <p className="text-sm text-muted-foreground">{obra.nombreFaena}</p>
                     </div>
                     <div className="text-right text-xs">
                         <p><strong>Obra ID:</strong> <span className="font-mono">{obra.id}</span></p>
                         <p><strong>Cliente:</strong> {obra.clienteEmail || 'No especificado'}</p>
                         <p><strong>Dirección:</strong> {obra.direccion || 'No especificada'}</p>
-                        <p><strong>Fecha Corte:</strong> {fechaCorte}</p>
+                        <p><strong>Fecha Emisión:</strong> {estadoDePago.fechaGeneracion}</p>
                     </div>
                 </div>
             </header>
@@ -156,8 +134,8 @@ export default function EstadoDePagoPage({ params }: { params: Promise<{ obraId:
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {actividades.length > 0 ? (
-                    actividades.map((act) => (
+                  {estadoDePago.actividades.length > 0 ? (
+                    estadoDePago.actividades.map((act) => (
                       <TableRow key={act.id}>
                         <TableCell className="font-medium">{act.nombreActividad}</TableCell>
                         <TableCell className="text-right">{formatCurrency(act.precioContrato)}</TableCell>
@@ -168,15 +146,23 @@ export default function EstadoDePagoPage({ params }: { params: Promise<{ obraId:
                   ) : (
                     <TableRow>
                       <TableCell colSpan={4} className="text-center text-muted-foreground py-8">
-                        No hay actividades con precio definido para esta obra.
+                        No hay actividades en este estado de pago.
                       </TableCell>
                     </TableRow>
                   )}
                 </TableBody>
                 <TableFooter>
                   <TableRow>
-                    <TableCell colSpan={3} className="text-right font-bold text-lg">Total a Pagar</TableCell>
-                    <TableCell className="text-right font-bold text-lg">{formatCurrency(totalMonto)}</TableCell>
+                    <TableCell colSpan={3} className="text-right font-bold">Subtotal</TableCell>
+                    <TableCell className="text-right font-bold">{formatCurrency(estadoDePago.subtotal)}</TableCell>
+                  </TableRow>
+                  <TableRow>
+                    <TableCell colSpan={3} className="text-right font-bold">IVA (19%)</TableCell>
+                    <TableCell className="text-right font-bold">{formatCurrency(estadoDePago.iva)}</TableCell>
+                  </TableRow>
+                  <TableRow className="text-lg">
+                    <TableCell colSpan={3} className="text-right font-extrabold">Total a Pagar</TableCell>
+                    <TableCell className="text-right font-extrabold">{formatCurrency(estadoDePago.total)}</TableCell>
                   </TableRow>
                 </TableFooter>
               </Table>
@@ -200,5 +186,14 @@ export default function EstadoDePagoPage({ params }: { params: Promise<{ obraId:
         </div>
       </div>
     </div>
+  );
+}
+
+
+export default function EstadoDePagoPage({ params }: { params: { obraId: string } }) {
+  return (
+    <Suspense fallback={<div>Cargando Estado de Pago...</div>}>
+      <EstadoDePagoPageInner params={params} />
+    </Suspense>
   );
 }

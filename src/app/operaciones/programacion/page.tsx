@@ -45,6 +45,7 @@ import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 import Link from "next/link";
+import { FilePlus2, FileText } from 'lucide-react';
 
 type Obra = {
   id: string;
@@ -82,6 +83,16 @@ type AvanceDiario = {
   creadoPor: string;
 };
 
+type EstadoDePago = {
+  id: string;
+  correlativo: number;
+  fechaGeneracion: string;
+  subtotal: number;
+  iva: number;
+  total: number;
+  obraId: string;
+};
+
 function EstadoBadge({ estado }: { estado: EstadoActividad }) {
   const variant: "default" | "secondary" | "outline" = {
     Completada: "default",
@@ -112,9 +123,13 @@ function ProgramacionPageInner() {
 
   const [actividades, setActividades] = useState<ActividadProgramada[]>([]);
   const [avances, setAvances] = useState<AvanceDiario[]>([]);
+  const [estadosDePago, setEstadosDePago] = useState<EstadoDePago[]>([]);
 
   const [cargandoActividades, setCargandoActividades] = useState(true);
   const [cargandoAvances, setCargandoAvances] = useState(true);
+  const [cargandoEdp, setCargandoEdp] = useState(true);
+  const [generandoEdp, setGenerandoEdp] = useState(false);
+  
   const [error, setError] = useState<string | null>(null);
 
   const [formActividad, setFormActividad] = useState({
@@ -180,13 +195,15 @@ function ProgramacionPageInner() {
     if (!obraSeleccionadaId || !user) {
       setActividades([]);
       setAvances([]);
+      setEstadosDePago([]);
       return;
     };
-    async function cargarDatosDeObra() {
+
+    const cargarDatosDeObra = async () => {
       setError(null);
       // Cargar Actividades
+      setCargandoActividades(true);
       try {
-        setCargandoActividades(true);
         const actColRef = collection(firebaseDb, "obras", obraSeleccionadaId, "actividades");
         const qAct = query(actColRef, orderBy("fechaInicio", "asc"));
         const snapshotAct = await getDocs(qAct);
@@ -198,9 +215,10 @@ function ProgramacionPageInner() {
       } finally {
         setCargandoActividades(false);
       }
+
       // Cargar Avances
+      setCargandoAvances(true);
       try {
-        setCargandoAvances(true);
         const avColRef = collection(firebaseDb, "obras", obraSeleccionadaId, "avancesDiarios");
         const qAv = query(avColRef, orderBy("fecha", "desc"));
         const snapshotAv = await getDocs(qAv);
@@ -212,7 +230,22 @@ function ProgramacionPageInner() {
       } finally {
         setCargandoAvances(false);
       }
+
+      // Cargar Estados de Pago
+      setCargandoEdp(true);
+      try {
+        const edpColRef = collection(firebaseDb, "obras", obraSeleccionadaId, "estadosDePago");
+        const qEdp = query(edpColRef, orderBy("correlativo", "desc"));
+        const snapshotEdp = await getDocs(qEdp);
+        const dataEdp: EstadoDePago[] = snapshotEdp.docs.map((d) => ({ ...d.data(), id: d.id } as EstadoDePago));
+        setEstadosDePago(dataEdp);
+      } catch(err) {
+        console.error("Error cargando estados de pago:", err);
+      } finally {
+        setCargandoEdp(false);
+      }
     }
+    
     cargarDatosDeObra();
   }, [obraSeleccionadaId, user]);
   
@@ -302,6 +335,60 @@ function ProgramacionPageInner() {
       setError("No se pudo registrar el avance. Intenta nuevamente.");
     }
   }
+
+  const handleGenerarEstadoDePago = async () => {
+    if (!obraSeleccionadaId) return;
+
+    setGenerandoEdp(true);
+    setError(null);
+
+    try {
+      // 1. Obtener el siguiente correlativo
+      const ultimoCorrelativo = estadosDePago.reduce((max, edp) => Math.max(max, edp.correlativo), 0);
+      const nuevoCorrelativo = ultimoCorrelativo + 1;
+      
+      // 2. Calcular montos
+      const actividadesConAvance = actividades.map(act => {
+        const ultimoAvance = avances
+          .filter(av => av.actividadId === act.id)
+          .sort((a, b) => a.fecha > b.fecha ? -1 : 1)[0];
+        
+        const porcentajeAvance = ultimoAvance?.porcentajeAvance ?? 0;
+        const montoProyectado = act.precioContrato * (porcentajeAvance / 100);
+        
+        return { ...act, porcentajeAvance, montoProyectado };
+      });
+      
+      const subtotal = actividadesConAvance.reduce((sum, act) => sum + act.montoProyectado, 0);
+      const iva = subtotal * 0.19;
+      const total = subtotal + iva;
+
+      // 3. Crear el nuevo documento de Estado de Pago
+      const edpColRef = collection(firebaseDb, "obras", obraSeleccionadaId, "estadosDePago");
+      const nuevoEdpDoc = {
+        obraId: obraSeleccionadaId,
+        correlativo: nuevoCorrelativo,
+        fechaGeneracion: new Date().toISOString().slice(0, 10),
+        subtotal,
+        iva,
+        total,
+        actividades: actividadesConAvance, // Guardamos una copia de las actividades y su estado en ese momento
+        creadoEn: new Date().toISOString(),
+      };
+      
+      const docRef = await addDoc(edpColRef, nuevoEdpDoc);
+      
+      // 4. Actualizar el estado local y navegar a la página de visualización
+      setEstadosDePago(prev => [{...nuevoEdpDoc, id: docRef.id } as EstadoDePago, ...prev]);
+      router.push(`/operaciones/programacion/estado-pago/${obraSeleccionadaId}?edpId=${docRef.id}`);
+
+    } catch (err) {
+      console.error("Error generando estado de pago:", err);
+      setError("No se pudo generar el estado de pago. Inténtelo de nuevo.");
+    } finally {
+      setGenerandoEdp(false);
+    }
+  }
   
   if (loadingAuth) return <p className="text-sm text-muted-foreground">Cargando sesión...</p>;
   if (!user) return <p className="text-sm text-muted-foreground">Redirigiendo a login...</p>;
@@ -323,13 +410,6 @@ function ProgramacionPageInner() {
               <CardTitle>Selector de Obra</CardTitle>
               <CardDescription>Filtre las actividades y avances por obra.</CardDescription>
             </div>
-            {obraSeleccionadaId && (
-              <Button asChild>
-                <Link href={`/operaciones/programacion/estado-pago/${obraSeleccionadaId}`}>
-                  Generar Estado de Pago (PDF)
-                </Link>
-              </Button>
-            )}
         </CardHeader>
         <CardContent>
           <div className="max-w-xs space-y-2">
@@ -503,6 +583,55 @@ function ProgramacionPageInner() {
           </div>
         </div>
       </section>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Estados de Pago</CardTitle>
+          <CardDescription>Genere y revise los estados de pago de la obra. Cada estado de pago es una foto del avance en un momento determinado.</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <Button onClick={handleGenerarEstadoDePago} disabled={generandoEdp}>
+            <FilePlus2 className="mr-2 h-4 w-4" />
+            {generandoEdp ? "Generando..." : "Generar Nuevo Estado de Pago"}
+          </Button>
+          <div className="mt-4 space-y-2">
+            <h4 className="text-sm font-semibold">Historial de Estados de Pago</h4>
+            {cargandoEdp ? <p className="text-xs text-muted-foreground">Cargando historial...</p> :
+            estadosDePago.length === 0 ? <p className="text-xs text-muted-foreground">No se han generado estados de pago para esta obra.</p> : (
+              <div className="border rounded-md">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Correlativo</TableHead>
+                      <TableHead>Fecha</TableHead>
+                      <TableHead className="text-right">Total</TableHead>
+                      <TableHead className="text-right">Acciones</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {estadosDePago.map(edp => (
+                      <TableRow key={edp.id}>
+                        <TableCell className="font-medium">EDP-{edp.correlativo.toString().padStart(3, '0')}</TableCell>
+                        <TableCell>{edp.fechaGeneracion}</TableCell>
+                        <TableCell className="text-right">{new Intl.NumberFormat('es-CL', { style: 'currency', currency: 'CLP' }).format(edp.total)}</TableCell>
+                        <TableCell className="text-right">
+                          <Button asChild variant="outline" size="sm">
+                            <Link href={`/operaciones/programacion/estado-pago/${obraSeleccionadaId}?edpId=${edp.id}`}>
+                              <FileText className="mr-2 h-3 w-3" />
+                              Ver
+                            </Link>
+                          </Button>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+            )}
+          </div>
+        </CardContent>
+      </Card>
+
     </div>
   );
 }
