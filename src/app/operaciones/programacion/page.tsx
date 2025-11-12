@@ -155,9 +155,8 @@ function ProgramacionPageInner() {
     fecha: new Date().toISOString().slice(0, 10),
     porcentajeAvance: "",
     comentario: "",
-    creadoPor: "",
-    visibleParaCliente: true,
   });
+  const [visibleCliente, setVisibleCliente] = useState<boolean>(true);
   const [archivos, setArchivos] = useState<File[]>([]);
   const [previews, setPreviews] = useState<string[]>([]);
   const [uploading, setUploading] = useState(false);
@@ -402,7 +401,7 @@ function ProgramacionPageInner() {
       setError("Debes seleccionar una obra y estar autenticado.");
       return;
     }
-    const { actividadId, fecha, porcentajeAvance, comentario, visibleParaCliente } = formAvance;
+    const { actividadId, fecha, porcentajeAvance, comentario } = formAvance;
     
     if (!fecha || !comentario.trim()) {
       setError("La fecha y el comentario son obligatorios.");
@@ -438,7 +437,7 @@ function ProgramacionPageInner() {
         porcentaje: porcentaje,
         comentario: comentario.trim(),
         fotos: urlsFotos,
-        visibleCliente,
+        visibleCliente: !!visibleCliente,
         creadoPorNombre: user.displayName || user.email || ''
       };
 
@@ -460,17 +459,17 @@ function ProgramacionPageInner() {
           uid: user.uid,
           displayName: user.displayName || user.email || '',
         },
-        visibleParaCliente,
+        visibleParaCliente: !!visibleCliente,
       };
 
       setAvances((prev) => [nuevoAvance, ...prev].sort((a,b) => a.fecha < b.fecha ? 1 : -1));
       
       toast({
         title: "Avance registrado con éxito",
-        description: `El avance para la obra ha sido guardado. ${visibleParaCliente ? 'Se notificará al cliente.' : ''}`,
+        description: `El avance para la obra ha sido guardado. ${visibleCliente ? 'Se notificará al cliente.' : ''}`,
       });
       
-      setFormAvance({ actividadId: "null", fecha: new Date().toISOString().slice(0, 10), porcentajeAvance: "", comentario: "", creadoPor: "", visibleParaCliente: true });
+      setFormAvance({ actividadId: "null", fecha: new Date().toISOString().slice(0, 10), porcentajeAvance: "", comentario: "" });
       setArchivos([]);
       previews.forEach(url => URL.revokeObjectURL(url));
       setPreviews([]);
@@ -813,8 +812,7 @@ function ProgramacionPageInner() {
                         ))}
                     </div>
                  )}
-                 <div className="space-y-1"><Label htmlFor="avance-creadoPor" className="text-xs font-medium">Registrado por*</Label><Input id="avance-creadoPor" type="text" value={formAvance.creadoPor} onChange={(e) => setFormAvance(prev => ({...prev, creadoPor: e.target.value}))} placeholder="Ej: Jefe de Obra" /></div>
-                <div className="flex items-center gap-2"><Checkbox id="visibleCliente" checked={formAvance.visibleParaCliente} onCheckedChange={(checked) => setFormAvance(prev => ({...prev, visibleParaCliente: !!checked}))} /><Label htmlFor="visibleCliente" className="text-xs text-muted-foreground">Visible para el cliente</Label></div>
+                 <div className="flex items-center gap-2"><Checkbox id="visibleCliente" checked={visibleCliente} onCheckedChange={(checked) => setVisibleCliente(checked === true)} /><Label htmlFor="visibleCliente" className="text-xs text-muted-foreground">Visible para el cliente</Label></div>
                 <Button type="submit" disabled={uploading}>
                   {uploading ? "Guardando avance y subiendo fotos..." : "Registrar avance"}
                 </Button>
@@ -847,7 +845,7 @@ function ProgramacionPageInner() {
                                 ) : (
                                     <p className="text-xs italic text-muted-foreground mt-1">Avance General</p>
                                 )}
-                                <p className="text-xs text-muted-foreground mt-1">Registrado por: {av.creadoPor?.displayName || av.creadoPor?.uid || 'N/A'}</p>
+                                <p className="text-xs text-muted-foreground mt-1">Registrado por: {av.creadoPor.displayName || av.creadoPor.uid || 'N/A'}</p>
                             </div>
                             <div className="flex items-center gap-2">
                                 <Badge variant="outline" className={cn(av.visibleParaCliente ? "border-emerald-200 bg-emerald-50 text-emerald-700" : "border-slate-200 bg-slate-100 text-slate-600")}>
