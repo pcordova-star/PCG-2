@@ -7,6 +7,17 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
+import {
+  collection,
+  addDoc,
+  getDocs,
+  query,
+  where,
+  orderBy,
+  serverTimestamp,
+} from "firebase/firestore";
+import { firebaseDb } from "@/lib/firebaseClient";
+
 
 // --- Tipos y Datos para IPER ---
 type ObraPrevencion = {
@@ -28,34 +39,15 @@ type IPERRegistro = {
   medidasControlExistentes: string;
   medidasControlPropuestas: string;
   responsableImplementacion: string;
-  plazoImplementacion: string; 
+  plazoImplementacion: string;
+  fecha?: string;
+  createdAt?: any;
 };
 
 const OBRAS_IPER: ObraPrevencion[] = [
   { id: "obra-1", nombreFaena: "Edificio Los Álamos" },
   { id: "obra-2", nombreFaena: "Condominio Cuatro Vientos" },
   { id: "obra-3", nombreFaena: "Mejoramiento Vial Ruta 5" },
-];
-
-const IPER_INICIAL: IPERRegistro[] = [
-  {
-    id: "iper-1",
-    obraId: "obra-1",
-    area: "Excavaciones",
-    actividad: "Excavación de fundaciones con retroexcavadora",
-    peligro: "Colapso de talud",
-    descripcionRiesgo: "Sepultamiento de trabajador en fondo de excavación",
-    consecuencias: "Atrapamiento / asfixia",
-    probabilidad: "Media",
-    severidad: "Grave",
-    nivelRiesgo: "Importante",
-    medidasControlExistentes:
-      "Taludes a 45°, accesos controlados, supervisión permanente.",
-    medidasControlPropuestas:
-      "Instalar entibaciones en zonas inestables y señalización adicional.",
-    responsableImplementacion: "Jefe de Obra",
-    plazoImplementacion: "2025-11-30",
-  },
 ];
 
 // --- Tipos y Datos para Investigación de Incidentes ---
@@ -180,7 +172,8 @@ function IPERFormSection({ onCrearAccionDesdeIPER }: IPERFormSectionProps) {
   const [obraSeleccionadaId, setObraSeleccionadaId] = useState<string>(
     OBRAS_IPER[0]?.id ?? ""
   );
-  const [registrosIPER, setRegistrosIPER] = useState<IPERRegistro[]>(IPER_INICIAL);
+  const [iperRegistros, setIperRegistros] = useState<IPERRegistro[]>([]);
+  const [cargandoIper, setCargandoIper] = useState(false);
   const [errorForm, setErrorForm] = useState<string | null>(null);
 
   const [formIPER, setFormIPER] = useState<{
@@ -209,9 +202,35 @@ function IPERFormSection({ onCrearAccionDesdeIPER }: IPERFormSectionProps) {
     plazoImplementacion: "",
   });
 
-  const registrosDeObra = registrosIPER.filter(
-    (r) => r.obraId === obraSeleccionadaId
-  );
+  const cargarIperDeObra = async (obraId: string) => {
+    if (!obraId) {
+        setIperRegistros([]);
+        return;
+    }
+    setCargandoIper(true);
+    try {
+        const q = query(
+            collection(firebaseDb, "iperRegistros"),
+            where("obraId", "==", obraId),
+            orderBy("createdAt", "desc")
+        );
+        const querySnapshot = await getDocs(q);
+        const data: IPERRegistro[] = querySnapshot.docs.map(doc => ({
+            id: doc.id,
+            ...doc.data()
+        } as IPERRegistro));
+        setIperRegistros(data);
+    } catch (err) {
+        console.error("Error al cargar registros IPER: ", err);
+        setErrorForm("No se pudieron cargar los registros IPER.");
+    } finally {
+        setCargandoIper(false);
+    }
+  };
+
+  useEffect(() => {
+    cargarIperDeObra(obraSeleccionadaId);
+  }, [obraSeleccionadaId]);
 
   function calcularNivelRiesgo(
     prob: "Baja" | "Media" | "Alta",
@@ -236,7 +255,7 @@ function IPERFormSection({ onCrearAccionDesdeIPER }: IPERFormSectionProps) {
     setFormIPER(prev => ({ ...prev, [campo]: valor }));
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setErrorForm(null);
 
@@ -249,27 +268,41 @@ function IPERFormSection({ onCrearAccionDesdeIPER }: IPERFormSectionProps) {
       return;
     }
 
-    const nuevoRegistro: IPERRegistro = {
-      id: `iper-${Date.now()}`,
-      obraId: obraSeleccionadaId,
-      nivelRiesgo: calcularNivelRiesgo(formIPER.probabilidad, formIPER.severidad),
-      ...formIPER,
-    };
+    try {
+        const nivelRiesgo = calcularNivelRiesgo(formIPER.probabilidad, formIPER.severidad);
+        const obraSeleccionada = OBRAS_IPER.find(o => o.id === obraSeleccionadaId);
+        
+        await addDoc(collection(firebaseDb, "iperRegistros"), {
+            ...formIPER,
+            nivelRiesgo,
+            obraId: obraSeleccionadaId,
+            obraNombre: obraSeleccionada?.nombreFaena ?? "N/A",
+            createdAt: serverTimestamp(),
+            updatedAt: serverTimestamp(),
+            fecha: new Date().toISOString().slice(0, 10),
+        });
+        
+        setFormIPER({
+            area: "",
+            actividad: "",
+            peligro: "",
+            descripcionRiesgo: "",
+            consecuencias: "",
+            probabilidad: "Media",
+            severidad: "Grave",
+            medidasControlExistentes: "",
+            medidasControlPropuestas: "",
+            responsableImplementacion: "",
+            plazoImplementacion: "",
+        });
+        
+        // Recargar la lista
+        cargarIperDeObra(obraSeleccionadaId);
 
-    setRegistrosIPER(prev => [nuevoRegistro, ...prev]);
-    
-    setFormIPER(prev => ({
-        ...prev,
-        area: "",
-        actividad: "",
-        peligro: "",
-        descripcionRiesgo: "",
-        consecuencias: "",
-        medidasControlExistentes: "",
-        medidasControlPropuestas: "",
-        responsableImplementacion: "",
-        plazoImplementacion: "",
-    }));
+    } catch (error) {
+        console.error("Error al guardar el registro IPER:", error);
+        setErrorForm("No se pudo guardar el registro. Intente de nuevo.");
+    }
   };
 
   return (
@@ -345,13 +378,14 @@ function IPERFormSection({ onCrearAccionDesdeIPER }: IPERFormSectionProps) {
 
           <div className="space-y-2">
             <h3 className="text-lg font-semibold border-b pb-2">Registros IPER de la Obra</h3>
-            {registrosDeObra.length === 0 ? (
+            {cargandoIper ? (<p className="text-sm text-muted-foreground pt-4 text-center">Cargando registros IPER...</p>)
+            : iperRegistros.length === 0 ? (
               <p className="text-sm text-muted-foreground pt-4 text-center">
                 No hay registros IPER para esta obra aún.
               </p>
             ) : (
               <div className="max-h-[600px] overflow-y-auto space-y-3 pr-2">
-                {registrosDeObra.map((r) => (
+                {iperRegistros.map((r) => (
                   <article key={r.id} className="rounded-lg border bg-card p-4 shadow-sm space-y-2 text-sm">
                     <p className="font-semibold text-primary">{r.area} – {r.actividad}</p>
                     <p><strong className="text-muted-foreground">Peligro:</strong> {r.peligro}</p>
