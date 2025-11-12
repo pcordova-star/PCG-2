@@ -78,36 +78,8 @@ type RegistroIncidente = {
   responsableSeguimiento: string;
   plazoCierre: string;
   estadoCierre: "Abierto" | "En seguimiento" | "Cerrado";
+  createdAt?: any;
 };
-
-const INCIDENTES_INICIALES: RegistroIncidente[] = [
-  {
-    id: "inc-1",
-    obraId: "obra-1",
-    fecha: "2025-11-05",
-    lugar: "Zona de bodega",
-    tipoIncidente: "Casi accidente",
-    gravedad: "Grave",
-    descripcionHecho:
-      "Trabajador casi es golpeado por carga suspendida al pasar bajo pluma.",
-    lesionPersona: "No hubo lesión, solo casi accidente.",
-    actoInseguro: "Transitar bajo carga suspendida.",
-    condicionInsegura: "Señalización deficiente del área de izaje.",
-    causasInmediatas:
-      "Trabajador no respetó área restringida y señalización no era clara.",
-    causasBasicas:
-      "Falta de reforzamiento en charla diaria y demarcación insuficiente.",
-    analisisIshikawa:
-      "Personas: hábito de atajo; Método: procedimiento poco difundido; Entorno: área mal demarcada.",
-    analisis5Porques:
-      "1) ¿Por qué casi es golpeado? Porque pasó bajo la carga. 2) ¿Por qué pasó bajo la carga? Porque no percibió el área como restringida. 3) ¿Por qué no la percibió? Señalización deficiente y hábito de atajo. (resumen).",
-    medidasCorrectivas:
-      "Reforzar charla sobre trabajo con grúas, mejorar demarcación y colocar cadenas en accesos.",
-    responsableSeguimiento: "Prevencionista de obra",
-    plazoCierre: "2025-11-15",
-    estadoCierre: "En seguimiento",
-  },
-];
 
 // --- Tipos y Datos para Plan de Acción ---
 type OrigenAccion =
@@ -442,8 +414,9 @@ function InvestigacionIncidenteSection({ onCrearAccionDesdeIncidente }: Investig
   );
 
   const [registrosIncidentes, setRegistrosIncidentes] =
-    useState<RegistroIncidente[]>(INCIDENTES_INICIALES);
-
+    useState<RegistroIncidente[]>([]);
+    
+  const [cargandoIncidentes, setCargandoIncidentes] = useState(false);
   const [errorForm, setErrorForm] = useState<string | null>(null);
 
   const [formIncidente, setFormIncidente] = useState<{
@@ -482,12 +455,90 @@ function InvestigacionIncidenteSection({ onCrearAccionDesdeIncidente }: Investig
     estadoCierre: "Abierto",
   });
 
-  const incidentesDeObra = registrosIncidentes.filter(
-    (r) => r.obraId === obraSeleccionadaId
-  );
+  const cargarIncidentes = async (obraId: string) => {
+    if (!obraId) {
+      setRegistrosIncidentes([]);
+      return;
+    }
+    setCargandoIncidentes(true);
+    try {
+      const q = query(
+        collection(firebaseDb, "investigacionesIncidentes"),
+        where("obraId", "==", obraId),
+        orderBy("createdAt", "desc")
+      );
+      const querySnapshot = await getDocs(q);
+      const data: RegistroIncidente[] = querySnapshot.docs.map((doc) => ({
+        id: doc.id,
+        ...(doc.data() as any),
+      }));
+      setRegistrosIncidentes(data);
+    } catch (err) {
+      console.error("Error cargando incidentes:", err);
+      setErrorForm("No se pudieron cargar los registros de incidentes.");
+    } finally {
+      setCargandoIncidentes(false);
+    }
+  };
+
+  useEffect(() => {
+    cargarIncidentes(obraSeleccionadaId);
+  }, [obraSeleccionadaId]);
   
   const handleInputChange = <K extends keyof typeof formIncidente>(campo: K, valor: (typeof formIncidente)[K]) => {
     setFormIncidente(prev => ({ ...prev, [campo]: valor }));
+  };
+  
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setErrorForm(null);
+
+    if (!obraSeleccionadaId) {
+      setErrorForm("Debes seleccionar una obra.");
+      return;
+    }
+    if (!formIncidente.fecha) {
+      setErrorForm("Debes indicar la fecha del incidente.");
+      return;
+    }
+    if (!formIncidente.descripcionHecho.trim()) {
+      setErrorForm("Debes describir el hecho.");
+      return;
+    }
+    
+    const obraSeleccionada = OBRAS_IPER.find(o => o.id === obraSeleccionadaId);
+
+    try {
+        await addDoc(collection(firebaseDb, "investigacionesIncidentes"), {
+            ...formIncidente,
+            obraId: obraSeleccionadaId,
+            obraNombre: obraSeleccionada?.nombreFaena ?? "N/A",
+            createdAt: serverTimestamp(),
+            updatedAt: serverTimestamp(),
+        });
+
+        setFormIncidente((prev) => ({
+            ...prev,
+            lugar: "",
+            descripcionHecho: "",
+            lesionPersona: "",
+            actoInseguro: "",
+            condicionInsegura: "",
+            causasInmediatas: "",
+            causasBasicas: "",
+            analisisIshikawa: "",
+            analisis5Porques: "",
+            medidasCorrectivas: "",
+            responsableSeguimiento: "",
+            plazoCierre: "",
+        }));
+
+        cargarIncidentes(obraSeleccionadaId);
+
+    } catch (error) {
+        console.error("Error guardando incidente:", error);
+        setErrorForm("No se pudo guardar el incidente. Intente de nuevo.");
+    }
   };
 
   return (
@@ -495,7 +546,7 @@ function InvestigacionIncidenteSection({ onCrearAccionDesdeIncidente }: Investig
       <CardHeader>
         <CardTitle>Investigación de incidente / casi accidente (Ishikawa / 5 porqués)</CardTitle>
         <CardDescription>
-          MVP con datos simulados para registrar incidentes, causas e investigación básica. Más adelante se puede conectar con matriz de riesgos y planes de acción.
+          Registro de incidentes, causas e investigación. Conectado a Firestore.
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-6">
@@ -518,47 +569,7 @@ function InvestigacionIncidenteSection({ onCrearAccionDesdeIncidente }: Investig
       <div className="grid gap-8 md:grid-cols-2">
         <form
           className="space-y-4"
-          onSubmit={(e) => {
-            e.preventDefault();
-            setErrorForm(null);
-
-            if (!obraSeleccionadaId) {
-              setErrorForm("Debes seleccionar una obra.");
-              return;
-            }
-            if (!formIncidente.fecha) {
-              setErrorForm("Debes indicar la fecha del incidente.");
-              return;
-            }
-            if (!formIncidente.descripcionHecho.trim()) {
-              setErrorForm("Debes describir el hecho.");
-              return;
-            }
-
-            const nuevoRegistro: RegistroIncidente = {
-              id: crypto.randomUUID ? crypto.randomUUID() : Date.now().toString(),
-              obraId: obraSeleccionadaId,
-              ...formIncidente,
-            };
-
-            setRegistrosIncidentes((prev) => [nuevoRegistro, ...prev]);
-
-            setFormIncidente((prev) => ({
-              ...prev,
-              lugar: "",
-              descripcionHecho: "",
-              lesionPersona: "",
-              actoInseguro: "",
-              condicionInsegura: "",
-              causasInmediatas: "",
-              causasBasicas: "",
-              analisisIshikawa: "",
-              analisis5Porques: "",
-              medidasCorrectivas: "",
-              responsableSeguimiento: "",
-              plazoCierre: "",
-            }));
-          }}
+          onSubmit={handleSubmit}
         >
           <h3 className="text-lg font-semibold border-b pb-2">Registrar Nuevo Incidente</h3>
           {errorForm && (
@@ -621,13 +632,14 @@ function InvestigacionIncidenteSection({ onCrearAccionDesdeIncidente }: Investig
 
         <div className="space-y-2">
           <h4 className="text-lg font-semibold border-b pb-2">Incidentes Registrados en Obra</h4>
-          {incidentesDeObra.length === 0 ? (
+          {cargandoIncidentes ? <p className="text-sm text-muted-foreground pt-4 text-center">Cargando incidentes...</p> : 
+          registrosIncidentes.length === 0 ? (
             <p className="text-sm text-muted-foreground text-center pt-8">
               No hay incidentes registrados para esta obra.
             </p>
           ) : (
             <div className="space-y-3 max-h-[600px] overflow-y-auto pr-2">
-              {incidentesDeObra.map((inc) => (
+              {registrosIncidentes.map((inc) => (
                 <article
                   key={inc.id}
                   className="rounded-lg border bg-card p-3 shadow-sm text-sm space-y-2"
