@@ -87,7 +87,7 @@ type ActividadProgramada = {
 type AvanceDiario = {
   id: string;
   obraId: string;
-  actividadId: string;
+  actividadId?: string; // ahora opcional
   fecha: string; // "YYYY-MM-DD"
   porcentajeAvance: number; // avance acumulado a esa fecha (0-100)
   comentario: string;
@@ -155,7 +155,6 @@ function ProgramacionPageInner() {
 
   // Estados para el formulario de avance
   const [formAvance, setFormAvance] = useState({
-    actividadId: "",
     fecha: new Date().toISOString().slice(0, 10),
     porcentajeAvance: "",
     comentario: "",
@@ -390,9 +389,9 @@ function ProgramacionPageInner() {
       setError("Debes seleccionar una obra y estar autenticado.");
       return;
     }
-    const { actividadId, fecha, porcentajeAvance, comentario, creadoPor, visibleParaCliente } = formAvance;
-    if (!actividadId || !fecha || !porcentajeAvance || !creadoPor) {
-      setError("Actividad, fecha, porcentaje y 'registrado por' son obligatorios.");
+    const { fecha, porcentajeAvance, comentario, creadoPor, visibleParaCliente } = formAvance;
+    if (!fecha || !porcentajeAvance || !comentario.trim() || !creadoPor) {
+      setError("Fecha, porcentaje, comentario y 'registrado por' son obligatorios.");
       return;
     }
     const porcentaje = Number(porcentajeAvance);
@@ -417,7 +416,6 @@ function ProgramacionPageInner() {
       const colRef = collection(firebaseDb, "obras", obraSeleccionadaId, "avancesDiarios");
       const docData = { 
         obraId: obraSeleccionadaId, 
-        actividadId, 
         fecha, 
         porcentajeAvance: porcentaje, 
         comentario: comentario.trim(), 
@@ -434,7 +432,7 @@ function ProgramacionPageInner() {
       setAvances((prev) => [nuevoAvance, ...prev].sort((a,b) => a.fecha < b.fecha ? 1 : -1));
       
       // Resetear formulario
-      setFormAvance({ actividadId: "", fecha: new Date().toISOString().slice(0, 10), porcentajeAvance: "", comentario: "", creadoPor: "", visibleParaCliente: true });
+      setFormAvance({ fecha: new Date().toISOString().slice(0, 10), porcentajeAvance: "", comentario: "", creadoPor: "", visibleParaCliente: true });
       setArchivos([]);
       previews.forEach(url => URL.revokeObjectURL(url));
       setPreviews([]);
@@ -695,18 +693,11 @@ function ProgramacionPageInner() {
             <CardHeader><CardTitle>Registrar avance del día</CardTitle></CardHeader>
             <CardContent>
               <form onSubmit={handleAvanceSubmit} className="space-y-4">
-                 <div className="space-y-1">
-                    <Label htmlFor="avance-actividad" className="text-xs font-medium">Actividad*</Label>
-                    <Select value={formAvance.actividadId} onValueChange={(v) => setFormAvance(prev => ({...prev, actividadId: v}))}>
-                        <SelectTrigger id="avance-actividad"><SelectValue placeholder="Seleccione una actividad" /></SelectTrigger>
-                        <SelectContent>{actividades.map(a => <SelectItem key={a.id} value={a.id}>{a.nombreActividad}</SelectItem>)}</SelectContent>
-                    </Select>
-                </div>
                 <div className="grid gap-3 md:grid-cols-2">
                   <div className="space-y-1"><Label htmlFor="avance-fecha" className="text-xs font-medium">Fecha*</Label><Input id="avance-fecha" type="date" value={formAvance.fecha} onChange={(e) => setFormAvance(prev => ({...prev, fecha: e.target.value}))} /></div>
                   <div className="space-y-1"><Label htmlFor="avance-porcentaje" className="text-xs font-medium">Avance Acumulado (%)*</Label><Input id="avance-porcentaje" type="number" min={0} max={100} value={formAvance.porcentajeAvance} onChange={(e) => setFormAvance(prev => ({...prev, porcentajeAvance: e.target.value}))} /></div>
                 </div>
-                <div className="space-y-1"><Label htmlFor="avance-comentario" className="text-xs font-medium">Comentario</Label><textarea id="avance-comentario" value={formAvance.comentario} onChange={(e) => setFormAvance(prev => ({...prev, comentario: e.target.value}))} rows={3} className="w-full rounded-lg border bg-background px-3 py-2 text-sm" /></div>
+                <div className="space-y-1"><Label htmlFor="avance-comentario" className="text-xs font-medium">Comentario*</Label><textarea id="avance-comentario" value={formAvance.comentario} onChange={(e) => setFormAvance(prev => ({...prev, comentario: e.target.value}))} rows={3} className="w-full rounded-lg border bg-background px-3 py-2 text-sm" /></div>
                 <div className="space-y-1">
                     <Label htmlFor="foto-avance-input" className="text-xs font-medium">Fotos (máx. {MAX_FOTOS}, hasta {MAX_TAMANO_MB}MB c/u)</Label>
                     <Input id="foto-avance-input" type="file" accept="image/*" multiple onChange={handleFileChange} />
@@ -743,7 +734,7 @@ function ProgramacionPageInner() {
             avances.length === 0 ? <p className="text-sm text-muted-foreground">Aún no hay avances registrados para esta obra.</p> : (
               <div className="space-y-3 max-h-[600px] overflow-y-auto pr-2">
                 {avances.map((av) => {
-                  const actividadAsociada = actividades.find(a => a.id === av.actividadId);
+                  const actividadAsociada = av.actividadId ? actividades.find(a => a.id === av.actividadId) : null;
                   const imagenes = av.fotos && av.fotos.length > 0 ? av.fotos : (av.fotoUrl ? [av.fotoUrl] : []);
                   return (
                   <Card key={av.id} className="overflow-hidden">
@@ -758,7 +749,7 @@ function ProgramacionPageInner() {
                         <div className="flex items-start justify-between gap-2">
                             <div>
                                 <p className="font-semibold text-primary">{av.fecha} · {av.porcentajeAvance}% avance</p>
-                                <p className="text-xs font-medium text-foreground mt-1">{actividadAsociada?.nombreActividad ?? "Actividad no encontrada"}</p>
+                                {actividadAsociada && <p className="text-xs font-medium text-foreground mt-1">{actividadAsociada.nombreActividad}</p>}
                                 <p className="text-xs text-muted-foreground mt-1">Registrado por: {av.creadoPor}</p>
                             </div>
                             <Badge variant="outline" className={cn(av.visibleParaCliente ? "border-emerald-200 bg-emerald-50 text-emerald-700" : "border-slate-200 bg-slate-100 text-slate-600")}>
