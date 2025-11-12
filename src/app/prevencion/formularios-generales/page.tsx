@@ -8,6 +8,7 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 
+// --- Tipos y Datos para IPER ---
 type ObraPrevencion = {
   id: string;
   nombreFaena: string;
@@ -57,6 +58,7 @@ const IPER_INICIAL: IPERRegistro[] = [
   },
 ];
 
+// --- Componente IPER ---
 function IPERFormSection() {
   const [obraSeleccionadaId, setObraSeleccionadaId] = useState<string>(
     OBRAS_IPER[0]?.id ?? ""
@@ -139,7 +141,6 @@ function IPERFormSection() {
 
     setRegistrosIPER(prev => [nuevoRegistro, ...prev]);
     
-    // Limpiar formulario parcialmente
     setFormIPER(prev => ({
         ...prev,
         area: "",
@@ -260,9 +261,296 @@ function IPERFormSection() {
   );
 }
 
+// --- Tipos y Datos para Investigación de Incidentes ---
+type TipoIncidente =
+  | "Accidente con tiempo perdido"
+  | "Accidente sin tiempo perdido"
+  | "Casi accidente"
+  | "Daño a la propiedad";
+
+type GravedadIncidente = "Leve" | "Grave" | "Fatal potencial";
+
+type RegistroIncidente = {
+  id: string;
+  obraId: string;
+  fecha: string; 
+  lugar: string;
+  tipoIncidente: TipoIncidente;
+  gravedad: GravedadIncidente;
+  descripcionHecho: string;
+  lesionPersona: string;
+  actoInseguro: string;
+  condicionInsegura: string;
+  causasInmediatas: string;
+  causasBasicas: string;
+  analisisIshikawa: string;
+  analisis5Porques: string;
+  medidasCorrectivas: string;
+  responsableSeguimiento: string;
+  plazoCierre: string;
+  estadoCierre: "Abierto" | "En seguimiento" | "Cerrado";
+};
+
+const INCIDENTES_INICIALES: RegistroIncidente[] = [
+  {
+    id: "inc-1",
+    obraId: "obra-1",
+    fecha: "2025-11-05",
+    lugar: "Zona de bodega",
+    tipoIncidente: "Casi accidente",
+    gravedad: "Grave",
+    descripcionHecho:
+      "Trabajador casi es golpeado por carga suspendida al pasar bajo pluma.",
+    lesionPersona: "No hubo lesión, solo casi accidente.",
+    actoInseguro: "Transitar bajo carga suspendida.",
+    condicionInsegura: "Señalización deficiente del área de izaje.",
+    causasInmediatas:
+      "Trabajador no respetó área restringida y señalización no era clara.",
+    causasBasicas:
+      "Falta de reforzamiento en charla diaria y demarcación insuficiente.",
+    analisisIshikawa:
+      "Personas: hábito de atajo; Método: procedimiento poco difundido; Entorno: área mal demarcada.",
+    analisis5Porques:
+      "1) ¿Por qué casi es golpeado? Porque pasó bajo la carga. 2) ¿Por qué pasó bajo la carga? Porque no percibió el área como restringida. 3) ¿Por qué no la percibió? Señalización deficiente y hábito de atajo. (resumen).",
+    medidasCorrectivas:
+      "Reforzar charla sobre trabajo con grúas, mejorar demarcación y colocar cadenas en accesos.",
+    responsableSeguimiento: "Prevencionista de obra",
+    plazoCierre: "2025-11-15",
+    estadoCierre: "En seguimiento",
+  },
+];
+
+// --- Componente Investigación de Incidentes ---
+function InvestigacionIncidenteSection() {
+  const [obraSeleccionadaId, setObraSeleccionadaId] = useState<string>(
+    OBRAS_IPER[0]?.id ?? ""
+  );
+
+  const [registrosIncidentes, setRegistrosIncidentes] =
+    useState<RegistroIncidente[]>(INCIDENTES_INICIALES);
+
+  const [errorForm, setErrorForm] = useState<string | null>(null);
+
+  const [formIncidente, setFormIncidente] = useState<{
+    fecha: string;
+    lugar: string;
+    tipoIncidente: TipoIncidente;
+    gravedad: GravedadIncidente;
+    descripcionHecho: string;
+    lesionPersona: string;
+    actoInseguro: string;
+    condicionInsegura: string;
+    causasInmediatas: string;
+    causasBasicas: string;
+    analisisIshikawa: string;
+    analisis5Porques: string;
+    medidasCorrectivas: string;
+    responsableSeguimiento: string;
+    plazoCierre: string;
+    estadoCierre: "Abierto" | "En seguimiento" | "Cerrado";
+  }>({
+    fecha: new Date().toISOString().slice(0, 10),
+    lugar: "",
+    tipoIncidente: "Casi accidente",
+    gravedad: "Grave",
+    descripcionHecho: "",
+    lesionPersona: "",
+    actoInseguro: "",
+    condicionInsegura: "",
+    causasInmediatas: "",
+    causasBasicas: "",
+    analisisIshikawa: "",
+    analisis5Porques: "",
+    medidasCorrectivas: "",
+    responsableSeguimiento: "",
+    plazoCierre: "",
+    estadoCierre: "Abierto",
+  });
+
+  const incidentesDeObra = registrosIncidentes.filter(
+    (r) => r.obraId === obraSeleccionadaId
+  );
+  
+  const handleInputChange = <K extends keyof typeof formIncidente>(campo: K, valor: (typeof formIncidente)[K]) => {
+    setFormIncidente(prev => ({ ...prev, [campo]: valor }));
+  };
+
+  return (
+    <section className="space-y-4 mt-6">
+      <Card>
+        <CardHeader>
+          <CardTitle>Investigación de incidente / casi accidente (Ishikawa / 5 porqués)</CardTitle>
+          <CardDescription>
+            MVP con datos simulados para registrar incidentes, causas e investigación básica. Más adelante se puede conectar con matriz de riesgos y planes de acción.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-6">
+           <div className="max-w-xs space-y-2">
+            <Label htmlFor="obra-select-incidente">Obra / Faena</Label>
+            <Select value={obraSeleccionadaId} onValueChange={setObraSeleccionadaId}>
+              <SelectTrigger id="obra-select-incidente">
+                <SelectValue placeholder="Seleccione una obra" />
+              </SelectTrigger>
+              <SelectContent>
+                {OBRAS_IPER.map((obra) => (
+                  <SelectItem key={obra.id} value={obra.id}>
+                    {obra.nombreFaena}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+        </div>
+
+        <div className="grid gap-8 md:grid-cols-2">
+          <form
+            className="space-y-4"
+            onSubmit={(e) => {
+              e.preventDefault();
+              setErrorForm(null);
+
+              if (!obraSeleccionadaId) {
+                setErrorForm("Debes seleccionar una obra.");
+                return;
+              }
+              if (!formIncidente.fecha) {
+                setErrorForm("Debes indicar la fecha del incidente.");
+                return;
+              }
+              if (!formIncidente.descripcionHecho.trim()) {
+                setErrorForm("Debes describir el hecho.");
+                return;
+              }
+
+              const nuevoRegistro: RegistroIncidente = {
+                id: crypto.randomUUID ? crypto.randomUUID() : Date.now().toString(),
+                obraId: obraSeleccionadaId,
+                ...formIncidente,
+              };
+
+              setRegistrosIncidentes((prev) => [nuevoRegistro, ...prev]);
+
+              setFormIncidente((prev) => ({
+                ...prev,
+                lugar: "",
+                descripcionHecho: "",
+                lesionPersona: "",
+                actoInseguro: "",
+                condicionInsegura: "",
+                causasInmediatas: "",
+                causasBasicas: "",
+                analisisIshikawa: "",
+                analisis5Porques: "",
+                medidasCorrectivas: "",
+                responsableSeguimiento: "",
+                plazoCierre: "",
+              }));
+            }}
+          >
+            <h3 className="text-lg font-semibold border-b pb-2">Registrar Nuevo Incidente</h3>
+            {errorForm && (
+              <p className="text-sm font-medium text-destructive">{errorForm}</p>
+            )}
+
+            <div className="grid gap-4 md:grid-cols-2">
+              <div className="space-y-2"><Label>Fecha del incidente*</Label><Input type="date" value={formIncidente.fecha} onChange={e => handleInputChange('fecha', e.target.value)} /></div>
+              <div className="space-y-2"><Label>Lugar del incidente</Label><Input value={formIncidente.lugar} onChange={e => handleInputChange('lugar', e.target.value)} /></div>
+            </div>
+            <div className="grid gap-4 md:grid-cols-2">
+                 <div className="space-y-2"><Label>Tipo de incidente</Label>
+                    <Select value={formIncidente.tipoIncidente} onValueChange={v => handleInputChange('tipoIncidente', v as any)}>
+                        <SelectTrigger><SelectValue/></SelectTrigger>
+                        <SelectContent>
+                            <SelectItem value="Accidente con tiempo perdido">Accidente con tiempo perdido</SelectItem>
+                            <SelectItem value="Accidente sin tiempo perdido">Accidente sin tiempo perdido</SelectItem>
+                            <SelectItem value="Casi accidente">Casi accidente</SelectItem>
+                            <SelectItem value="Daño a la propiedad">Daño a la propiedad</SelectItem>
+                        </SelectContent>
+                    </Select>
+                 </div>
+                 <div className="space-y-2"><Label>Gravedad</Label>
+                    <Select value={formIncidente.gravedad} onValueChange={v => handleInputChange('gravedad', v as any)}>
+                        <SelectTrigger><SelectValue/></SelectTrigger>
+                        <SelectContent>
+                            <SelectItem value="Leve">Leve</SelectItem>
+                            <SelectItem value="Grave">Grave</SelectItem>
+                            <SelectItem value="Fatal potencial">Fatal potencial</SelectItem>
+                        </SelectContent>
+                    </Select>
+                 </div>
+            </div>
+            <div className="space-y-2"><Label>Descripción del hecho*</Label><Textarea value={formIncidente.descripcionHecho} onChange={e => handleInputChange('descripcionHecho', e.target.value)} /></div>
+            <div className="space-y-2"><Label>Lesión a la persona</Label><Input value={formIncidente.lesionPersona} onChange={e => handleInputChange('lesionPersona', e.target.value)} placeholder="Ej: Esguince tobillo, No aplica..." /></div>
+            <div className="space-y-2"><Label>Acto inseguro (si aplica)</Label><Input value={formIncidente.actoInseguro} onChange={e => handleInputChange('actoInseguro', e.target.value)} /></div>
+            <div className="space-y-2"><Label>Condición insegura (si aplica)</Label><Input value={formIncidente.condicionInsegura} onChange={e => handleInputChange('condicionInsegura', e.target.value)} /></div>
+            <div className="space-y-2"><Label>Causas inmediatas</Label><Textarea value={formIncidente.causasInmediatas} onChange={e => handleInputChange('causasInmediatas', e.target.value)} rows={2}/></div>
+            <div className="space-y-2"><Label>Causas básicas</Label><Textarea value={formIncidente.causasBasicas} onChange={e => handleInputChange('causasBasicas', e.target.value)} rows={2}/></div>
+            <div className="space-y-2"><Label>Análisis Ishikawa (resumen)</Label><Textarea value={formIncidente.analisisIshikawa} onChange={e => handleInputChange('analisisIshikawa', e.target.value)} rows={2}/></div>
+            <div className="space-y-2"><Label>Análisis 5 porqués (resumen)</Label><Textarea value={formIncidente.analisis5Porques} onChange={e => handleInputChange('analisis5Porques', e.target.value)} rows={2}/></div>
+            <div className="space-y-2"><Label>Medidas correctivas</Label><Textarea value={formIncidente.medidasCorrectivas} onChange={e => handleInputChange('medidasCorrectivas', e.target.value)} rows={3}/></div>
+            <div className="grid gap-4 md:grid-cols-2">
+                <div className="space-y-2"><Label>Responsable seguimiento</Label><Input value={formIncidente.responsableSeguimiento} onChange={e => handleInputChange('responsableSeguimiento', e.target.value)} /></div>
+                <div className="space-y-2"><Label>Plazo de cierre</Label><Input type="date" value={formIncidente.plazoCierre} onChange={e => handleInputChange('plazoCierre', e.target.value)} /></div>
+            </div>
+             <div className="space-y-2"><Label>Estado del cierre</Label>
+                <Select value={formIncidente.estadoCierre} onValueChange={v => handleInputChange('estadoCierre', v as any)}>
+                    <SelectTrigger><SelectValue/></SelectTrigger>
+                    <SelectContent>
+                        <SelectItem value="Abierto">Abierto</SelectItem>
+                        <SelectItem value="En seguimiento">En seguimiento</SelectItem>
+                        <SelectItem value="Cerrado">Cerrado</SelectItem>
+                    </SelectContent>
+                </Select>
+             </div>
+
+            <Button type="submit" className="w-full sm:w-auto">Registrar Incidente</Button>
+          </form>
+
+          <div className="space-y-2">
+            <h4 className="text-lg font-semibold border-b pb-2">Incidentes Registrados en Obra</h4>
+            {incidentesDeObra.length === 0 ? (
+              <p className="text-sm text-muted-foreground text-center pt-8">
+                No hay incidentes registrados para esta obra.
+              </p>
+            ) : (
+              <div className="space-y-3 max-h-[600px] overflow-y-auto pr-2">
+                {incidentesDeObra.map((inc) => (
+                  <article
+                    key={inc.id}
+                    className="rounded-lg border bg-card p-3 shadow-sm text-sm space-y-2"
+                  >
+                    <p className="font-semibold text-primary">
+                      {inc.fecha} – {inc.lugar || "Sin lugar especificado"}
+                    </p>
+                    <div className="flex justify-between items-center text-xs">
+                        <span>Tipo: {inc.tipoIncidente}</span>
+                        <span>Gravedad: {inc.gravedad}</span>
+                        <span>Estado: <span className="font-semibold">{inc.estadoCierre}</span></span>
+                    </div>
+                    <p><strong className="text-muted-foreground">Hecho:</strong> {inc.descripcionHecho}</p>
+                    {inc.medidasCorrectivas && (
+                      <p><strong className="text-muted-foreground">Medidas:</strong> {inc.medidasCorrectivas}</p>
+                    )}
+                    <div className="text-xs pt-2 border-t mt-2 flex justify-between">
+                      <span><strong className="text-muted-foreground">Responsable:</strong> {inc.responsableSeguimiento || "No asignado"}</span>
+                      <span><strong className="text-muted-foreground">Plazo:</strong> {inc.plazoCierre || "Sin plazo"}</span>
+                    </div>
+                  </article>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+        </CardContent>
+      </Card>
+    </section>
+  );
+}
+
+// --- Componente Principal ---
+type FormularioGeneralActivo = "IPER" | "INCIDENTE" | null;
 
 export default function FormulariosGeneralesPrevencionPage() {
-  const [mostrarIPER, setMostrarIPER] = useState(true);
+  const [activeForm, setActiveForm] = useState<FormularioGeneralActivo>("IPER");
 
   return (
     <section className="space-y-6">
@@ -287,20 +575,34 @@ export default function FormulariosGeneralesPrevencionPage() {
           </CardHeader>
           <CardContent>
             <Button
-              onClick={() => setMostrarIPER(true)}
+              onClick={() => setActiveForm("IPER")}
               className="w-full"
+              variant={activeForm === 'IPER' ? 'default' : 'outline'}
             >
               Ver IPER / Matriz
             </Button>
           </CardContent>
         </Card>
 
-        <Card className="border-dashed bg-muted/50 flex items-center justify-center text-center">
-            <CardHeader>
-                <CardTitle className="text-muted-foreground">Investigación de incidentes</CardTitle>
-                <CardDescription>(Ishikawa) – Próximamente</CardDescription>
-            </CardHeader>
+        <Card className="flex flex-col justify-between transition-all hover:shadow-lg hover:-translate-y-1">
+          <CardHeader>
+            <CardTitle>Investigación de incidentes (Ishikawa)</CardTitle>
+            <CardDescription>
+              Registro estructurado de incidentes y casi accidentes usando enfoque
+              Ishikawa / 5 porqués y plan de acción asociado.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <Button
+              onClick={() => setActiveForm("INCIDENTE")}
+              className="w-full"
+              variant={activeForm === 'INCIDENTE' ? 'default' : 'outline'}
+            >
+              Ver investigación de incidentes
+            </Button>
+          </CardContent>
         </Card>
+
         <Card className="border-dashed bg-muted/50 flex items-center justify-center text-center">
              <CardHeader>
                 <CardTitle className="text-muted-foreground">Planes de acción</CardTitle>
@@ -309,9 +611,9 @@ export default function FormulariosGeneralesPrevencionPage() {
         </Card>
       </div>
 
-      {mostrarIPER && (
-        <IPERFormSection />
-      )}
+      {activeForm === 'IPER' && <IPERFormSection />}
+      {activeForm === 'INCIDENTE' && <InvestigacionIncidenteSection />}
+
     </section>
   );
 }
