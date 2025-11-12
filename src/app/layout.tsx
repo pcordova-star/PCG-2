@@ -1,11 +1,10 @@
 "use client";
 
-import type { Metadata } from 'next';
+import './globals.css';
+import { BODY_CLASSES } from '@/lib/layoutTheme';
+import { AuthProvider } from '@/context/AuthContext';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import './globals.css';
-import { cn } from '@/lib/utils';
-import { AuthProvider } from '@/context/AuthContext';
 import { Button } from '@/components/ui/button';
 import {
   Bell,
@@ -29,6 +28,8 @@ import {
 import { Input } from '@/components/ui/input';
 import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
 import React, { useState, useEffect, useRef } from 'react';
+import { cn } from '@/lib/utils';
+
 
 const navItems = [
   { href: '/', label: 'Plataforma de Control y Gestión', icon: Home },
@@ -92,7 +93,7 @@ export default function RootLayout({
 
   return (
     <html lang="es">
-      <body className={cn('font-body antialiased bg-muted/40')}>
+      <body className={BODY_CLASSES}>
         <AuthProvider>
           <div className="grid min-h-screen w-full md:grid-cols-[auto_1fr]">
             {/* Desktop Sidebar */}
