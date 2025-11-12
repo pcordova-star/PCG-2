@@ -19,13 +19,6 @@ export default function PrevencionPage() {
       icon: Users,
       linkText: "Ir a Ingreso de Personal"
     },
-     {
-      title: "Ingreso empresa subcontratista – DS44",
-      description: "Este formulario guía al prevencionista en los requisitos de ingreso a obra según DS44. Los datos son simulados.",
-      href: "/prevencion/ds44-subcontratos",
-      icon: FileText,
-      linkText: "Ir a Ingreso de Empresa"
-    },
     {
       title: "DS44 – Mandante / Obra",
       description: "Ficha global de coordinación y cumplimiento DS44 para cada obra.",
