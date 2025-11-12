@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
+import Link from 'next/link';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -8,9 +9,10 @@ import { Label } from "@/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { guardarInduccionAccesoFaena, InduccionAccesoFaena } from "@/lib/induccionAccesoFaena";
-import { getDocs, collection } from "firebase/firestore";
+import { getDocs, collection, query, where } from "firebase/firestore";
 import { firebaseDb } from "@/lib/firebaseClient";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 
 
 // --- Tipos y Datos ---
@@ -121,6 +123,9 @@ export default function InduccionAccesoPage() {
   const [obras, setObras] = useState<ObraCapacitacion[]>([]);
   const [obraId, setObraId] = useState("");
 
+  const [inducciones, setInducciones] = useState<InduccionAccesoFaena[]>([]);
+  const [cargandoInducciones, setCargandoInducciones] = useState(false);
+
   const [tipoVisita, setTipoVisita] =
     useState<InduccionAccesoFaena['tipoVisita']>("VISITA");
   const [nombreCompleto, setNombreCompleto] = useState("");
@@ -149,26 +154,54 @@ export default function InduccionAccesoPage() {
   const [saving, setSaving] = useState(false);
   const [errorForm, setErrorForm] = useState<string | null>(null);
 
-  useEffect(() => {
-    const fetchObras = async () => {
-      try {
-        const colRef = collection(firebaseDb, "obras");
-        const snapshot = await getDocs(colRef);
-        const data: ObraCapacitacion[] = snapshot.docs.map(doc => ({
-          id: doc.id,
-          nombreFaena: doc.data().nombreFaena ?? "",
-        }));
-        setObras(data);
-        if (data.length > 0) {
-          setObraId(data[0].id);
-        }
-      } catch (error) {
-        console.error("Error fetching obras: ", error);
-        setErrorForm("No se pudieron cargar las obras disponibles.");
+  const fetchObras = async () => {
+    try {
+      const colRef = collection(firebaseDb, "obras");
+      const snapshot = await getDocs(colRef);
+      const data: ObraCapacitacion[] = snapshot.docs.map(doc => ({
+        id: doc.id,
+        nombreFaena: doc.data().nombreFaena ?? "",
+      }));
+      setObras(data);
+      if (data.length > 0) {
+        setObraId(data[0].id);
       }
-    };
+    } catch (error) {
+      console.error("Error fetching obras: ", error);
+      setErrorForm("No se pudieron cargar las obras disponibles.");
+    }
+  };
+
+  const fetchInducciones = async (idObra: string) => {
+    if (!idObra) {
+      setInducciones([]);
+      return;
+    }
+    setCargandoInducciones(true);
+    try {
+      const q = query(collection(firebaseDb, "induccionesAccesoFaena"), where("obraId", "==", idObra));
+      const snapshot = await getDocs(q);
+      const data: InduccionAccesoFaena[] = snapshot.docs.map(doc => ({
+        id: doc.id,
+        ...(doc.data() as any),
+      }));
+      setInducciones(data);
+    } catch (error) {
+      console.error("Error fetching inducciones: ", error);
+    } finally {
+      setCargandoInducciones(false);
+    }
+  };
+
+  useEffect(() => {
     fetchObras();
   }, []);
+
+  useEffect(() => {
+    if (obraId) {
+      fetchInducciones(obraId);
+    }
+  }, [obraId]);
 
   function respuestasCorrectas(): boolean {
     return respuestaPregunta1 === "SI" && respuestaPregunta2 === "NO" && respuestaPregunta3 === "SI";
@@ -245,6 +278,7 @@ export default function InduccionAccesoPage() {
       });
 
       alert("Inducción registrada correctamente.");
+      fetchInducciones(obraId);
       resetForm();
 
     } catch (error) {
@@ -423,6 +457,50 @@ export default function InduccionAccesoPage() {
         </div>
       </form>
 
+      <Card>
+        <CardHeader>
+          <CardTitle>Registros de Inducción Guardados</CardTitle>
+          <CardDescription>
+            Inducciones guardadas para la obra: {obraSeleccionada?.nombreFaena ?? "N/A"}
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          {cargandoInducciones ? (
+            <p>Cargando registros...</p>
+          ) : inducciones.length === 0 ? (
+            <p>No hay inducciones registradas para esta obra.</p>
+          ) : (
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Fecha</TableHead>
+                  <TableHead>Nombre</TableHead>
+                  <TableHead>RUT</TableHead>
+                  <TableHead>Empresa</TableHead>
+                  <TableHead>Acciones</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {inducciones.map((induccion) => (
+                  <TableRow key={induccion.id}>
+                    <TableCell>{induccion.fechaIngreso}</TableCell>
+                    <TableCell>{induccion.nombreCompleto}</TableCell>
+                    <TableCell>{induccion.rut}</TableCell>
+                    <TableCell>{induccion.empresa}</TableCell>
+                    <TableCell>
+                      <Button asChild variant="outline" size="sm">
+                        <Link href={`/prevencion/induccion-acceso-faena/${induccion.id}/imprimir`}>
+                          Ver / Imprimir Ficha
+                        </Link>
+                      </Button>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          )}
+        </CardContent>
+      </Card>
     </section>
   );
 }
