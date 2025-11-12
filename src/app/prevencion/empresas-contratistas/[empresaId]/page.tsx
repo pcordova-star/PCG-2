@@ -56,17 +56,6 @@ export default async function FichaEmpresaContratistaPage({ params }: { params: 
 
     return (
         <div className="bg-muted/40 min-h-screen p-4 sm:p-8 print:bg-white print:p-0">
-             <style jsx global>{`
-                @media print {
-                body { background-color: #fff; color: #000; }
-                .print-hidden { display: none !important; }
-                .printable-area { 
-                    box-shadow: none !important; 
-                    border: none !important; 
-                    padding: 0 !important; 
-                }
-                }
-            `}</style>
             <FichaContent empresa={data.empresa} obra={data.obra} />
         </div>
     );

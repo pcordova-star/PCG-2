@@ -1,10 +1,8 @@
 "use client";
 
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
-import { Separator } from "@/components/ui/separator";
 import Link from "next/link";
 import { EmpresaContratista } from "../page";
 
@@ -43,6 +41,17 @@ export default function FichaContent({ empresa, obra }: FichaContentProps) {
 
     return (
         <div className="max-w-4xl mx-auto space-y-6">
+             <style jsx global>{`
+                @media print {
+                body { background-color: #fff; color: #000; }
+                .print-hidden { display: none !important; }
+                .printable-area { 
+                    box-shadow: none !important; 
+                    border: none !important; 
+                    padding: 0 !important; 
+                }
+                }
+            `}</style>
             <div className="flex justify-between items-center print-hidden">
                 <h1 className="text-xl font-bold">Ficha de Empresa Contratista DS44</h1>
                 <div className="flex gap-2">
