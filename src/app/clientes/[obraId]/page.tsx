@@ -7,59 +7,24 @@ import { Building, Calendar, CheckCircle, Percent } from 'lucide-react';
 import ImageFromStorage from '@/components/client/ImageFromStorage';
 import PrintButton from '@/components/client/PrintButton';
 
-type PublicObraData = {
-  obra: {
-    nombreFaena: string;
-    direccion: string;
-    mandanteRazonSocial: string;
-    clienteEmail: string;
-  };
-  indicadores: {
-    avanceAcumulado: number;
-    ultimaActualizacionISO: string | null;
-    actividades: {
-      programadas: number;
-      completadas: number;
-    };
-  };
-  ultimosAvances: {
-    fechaISO: string;
-    porcentaje: number;
-    comentario: string;
-    imagenes: string[];
-  }[];
-};
-
-// URL base de la API. En producción, debería ser una variable de entorno absoluta.
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:9002';
-
-
-async function getPublicObraData(shareId: string): Promise<PublicObraData | null> {
+function formatCL(iso?: string | null) {
+  if (!iso) return "N/D";
   try {
-    const res = await fetch(`${API_BASE_URL}/api/public/obra/${shareId}`, {
-      next: { revalidate: 60 } // Revalida cada 60 segundos
-    });
-
-    if (!res.ok) {
-      // Si la respuesta no es 200-299, retorna null para mostrar página de error.
-      console.error(`Error fetching data for ${shareId}: ${res.status} ${res.statusText}`);
-      return null;
-    }
-
-    return res.json();
-  } catch (error) {
-    console.error('Error fetching public obra data:', error);
-    return null;
+    return new Intl.DateTimeFormat("es-CL", {
+      dateStyle: "medium", timeStyle: "short", timeZone: "America/Santiago"
+    }).format(new Date(iso));
+  } catch {
+    return "N/D";
   }
 }
 
 export default async function ClienteObraPage({ params }: { params: { obraId: string } }) {
   // El nombre del parámetro es 'obraId' por la estructura de la carpeta, pero lo tratamos como 'shareId'
   const shareId = params.obraId;
-  const data = await getPublicObraData(shareId);
 
-  if (!data) {
-    return (
+  const res = await fetch(`/api/public/obra/${shareId}`, { cache: "no-store" });
+  if (res.status === 404) {
+     return (
       <div className="max-w-4xl mx-auto text-center py-20">
         <h1 className="text-2xl font-bold">Panel no disponible</h1>
         <p className="text-muted-foreground mt-2">
@@ -68,21 +33,13 @@ export default async function ClienteObraPage({ params }: { params: { obraId: st
       </div>
     );
   }
-
-  const { obra, indicadores, ultimosAvances } = data;
-
-  let ultimaActualizacionFormateada = 'N/D';
-  if (indicadores.ultimaActualizacionISO) {
-    // Formateo de fecha en el servidor para evitar hydration mismatch.
-    const [year, month, day] = indicadores.ultimaActualizacionISO.split('-').map(Number);
-    const fecha = new Date(Date.UTC(year, month - 1, day));
-    ultimaActualizacionFormateada = new Intl.DateTimeFormat('es-CL', {
-      year: 'numeric',
-      month: 'long',
-      day: 'numeric',
-      timeZone: 'America/Santiago',
-    }).format(fecha);
+  if (!res.ok) {
+    console.error(`[ Server ] Error fetching data for ${shareId}: ${res.status} ${res.statusText}`);
+     return <div className="py-16 text-center text-destructive">Ocurrió un error cargando la información del panel.</div>;
   }
+
+  const data = await res.json();
+  const { obra, indicadores, ultimosAvances } = data;
 
   return (
     <div className="max-w-6xl mx-auto space-y-8 print:space-y-4">
@@ -90,16 +47,16 @@ export default async function ClienteObraPage({ params }: { params: { obraId: st
       <header className="space-y-2 border-b pb-4 print:border-b-2 print:border-black">
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
           <h1 className="text-3xl font-bold tracking-tight text-primary print:text-2xl">
-            Avance de obra: {obra.nombreFaena}
+            Avance de obra: {obra.nombre}
           </h1>
           <div className="no-print">
-            <PrintButton />
+            <PrintButton label="Imprimir / Guardar PDF" />
           </div>
         </div>
         <div className="text-muted-foreground text-sm space-y-1 print:text-xs">
           <p><strong>Dirección:</strong> {obra.direccion}</p>
-          <p><strong>Mandante:</strong> {obra.mandanteRazonSocial}</p>
-          <p><strong>Contacto Cliente:</strong> {obra.clienteEmail}</p>
+          <p><strong>Mandante:</strong> {obra.mandante}</p>
+          {obra.contacto && <p><strong>Contacto Cliente:</strong> {obra.contacto.email}</p>}
         </div>
         <Badge variant="secondary" className="mt-2">Panel de seguimiento para el cliente</Badge>
       </header>
@@ -112,7 +69,7 @@ export default async function ClienteObraPage({ params }: { params: { obraId: st
             <Percent className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-5xl font-bold">{indicadores.avanceAcumulado.toFixed(1)}%</div>
+            <div className="text-5xl font-bold">{(indicadores.avanceAcumulado ?? 0).toFixed(1)}%</div>
             <p className="text-xs text-muted-foreground">Progreso total del proyecto</p>
           </CardContent>
         </Card>
@@ -122,7 +79,7 @@ export default async function ClienteObraPage({ params }: { params: { obraId: st
             <Calendar className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-xl font-bold">{ultimaActualizacionFormateada}</div>
+            <div className="text-xl font-bold">{formatCL(indicadores.ultimaActualizacionISO)}</div>
             <p className="text-xs text-muted-foreground">Fecha del último reporte visible</p>
           </CardContent>
         </Card>
@@ -150,11 +107,11 @@ export default async function ClienteObraPage({ params }: { params: { obraId: st
           </div>
         ) : (
           <div className="space-y-6">
-            {ultimosAvances.map((avance, i) => (
+            {ultimosAvances.map((avance: any, i: number) => (
               <Card key={`${avance.fechaISO}-${i}`} className="overflow-hidden shadow-sm print:shadow-none print:border-gray-300">
                 <CardHeader>
                   <CardTitle className="flex items-center justify-between text-lg">
-                    <span>Fecha: {new Intl.DateTimeFormat('es-CL', { timeZone: 'UTC' }).format(new Date(avance.fechaISO))}</span>
+                    <span>Fecha: {formatCL(avance.fechaISO)}</span>
                     <span className="text-base font-semibold text-primary">{avance.porcentaje}%</span>
                   </CardTitle>
                 </CardHeader>
@@ -162,9 +119,8 @@ export default async function ClienteObraPage({ params }: { params: { obraId: st
                   <p className="whitespace-pre-line">{avance.comentario}</p>
                   {avance.imagenes && avance.imagenes.length > 0 && (
                     <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2">
-                      {avance.imagenes.map((fotoPath, index) => (
+                      {avance.imagenes.map((fotoPath: string, index: number) => (
                         <Suspense key={index} fallback={<div className="bg-muted aspect-square rounded-md animate-pulse"></div>}>
-                          {/* El path aquí puede ser una URL completa de GCS o un path que el componente sepa resolver */}
                           <ImageFromStorage storagePath={fotoPath} />
                         </Suspense>
                       ))}
