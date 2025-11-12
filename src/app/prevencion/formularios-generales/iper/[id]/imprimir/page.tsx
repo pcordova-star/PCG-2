@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, use } from 'react';
 import { doc, getDoc } from 'firebase/firestore';
 import { firebaseDb } from '@/lib/firebaseClient';
 import { Button } from '@/components/ui/button';
@@ -30,12 +30,12 @@ type IPERRegistro = {
 };
 
 
-export default function ImprimirIperPage({ params }: { params: { id: string } }) {
+export default function ImprimirIperPage({ params }: { params: Promise<{ id: string }> }) {
   const [registro, setRegistro] = useState<IPERRegistro | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  const iperId = params.id;
+  const { id: iperId } = use(params);
 
   useEffect(() => {
     if (!iperId) {
