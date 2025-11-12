@@ -4,14 +4,23 @@
 import { useEffect, useState, FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "../../context/AuthContext";
-import { collection, addDoc, getDocs } from "firebase/firestore";
+import { collection, addDoc, getDocs, doc, updateDoc, deleteDoc, query, orderBy, serverTimestamp, Timestamp } from "firebase/firestore";
 import { firebaseDb } from "../../lib/firebaseClient";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Edit, Trash2, PlusCircle } from "lucide-react";
 
 type Obra = {
   id: string;
   nombreFaena: string;
   direccion: string;
   clienteEmail: string;
+  creadoEn: Timestamp | Date;
 };
 
 export default function ObrasPage() {
@@ -22,22 +31,17 @@ export default function ObrasPage() {
   const [cargandoObras, setCargandoObras] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  const [form, setForm] = useState({
-    nombreFaena: "",
-    direccion: "",
-    clienteEmail: "",
-  });
+  const [dialogOpen, setDialogOpen] = useState(false);
+  const [currentObra, setCurrentObra] = useState<Partial<Obra> | null>(null);
 
-  // 1) Si no hay usuario, redirigir a /login
   useEffect(() => {
     if (!loading && !user) {
       router.replace("/login");
     }
   }, [loading, user, router]);
 
-  // 2) Cargar obras desde Firestore solo si hay usuario
   useEffect(() => {
-    if (!user) return; // si no hay usuario, no intento leer nada
+    if (!user) return;
 
     async function cargarObras() {
       try {
@@ -45,17 +49,13 @@ export default function ObrasPage() {
         setError(null);
 
         const colRef = collection(firebaseDb, "obras");
-        const snapshot = await getDocs(colRef);
+        const q = query(colRef, orderBy("creadoEn", "desc"));
+        const snapshot = await getDocs(q);
 
-        const data: Obra[] = snapshot.docs.map((doc) => {
-          const d = doc.data() as any;
-          return {
-            id: doc.id,
-            nombreFaena: d.nombreFaena ?? "",
-            direccion: d.direccion ?? "",
-            clienteEmail: d.clienteEmail ?? "",
-          };
-        });
+        const data: Obra[] = snapshot.docs.map((doc) => ({
+          id: doc.id,
+          ...doc.data(),
+        } as Obra));
 
         setObras(data);
       } catch (err) {
@@ -68,191 +68,203 @@ export default function ObrasPage() {
 
     cargarObras();
   }, [user]);
+  
+  const handleOpenDialog = (obra: Partial<Obra> | null = null) => {
+    setCurrentObra(obra || { nombreFaena: "", direccion: "", clienteEmail: "" });
+    setDialogOpen(true);
+    setError(null);
+  };
 
-  // Mientras AuthContext todavía está resolviendo el usuario
-  if (loading) {
-    return (
-      <p className="text-sm text-slate-600">
-        Cargando sesión...
-      </p>
-    );
-  }
+  const handleFormChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (currentObra) {
+      setCurrentObra({ ...currentObra, [e.target.name]: e.target.value });
+    }
+  };
 
-  // Si ya sabemos que NO hay usuario, mostramos algo mínimo
-  // (igual el useEffect de arriba hará router.replace("/login"))
-  if (!user) {
-    return (
-      <p className="text-sm text-slate-600">
-        Redirigiendo a login...
-      </p>
-    );
-  }
-
-  // 3) Crear nueva obra en Firestore
-  async function handleSubmit(e: FormEvent) {
+  const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
     setError(null);
 
-    const { nombreFaena, direccion, clienteEmail } = form;
-
-    if (!nombreFaena.trim() || !direccion.trim() || !clienteEmail.trim()) {
+    if (!currentObra || !currentObra.nombreFaena || !currentObra.direccion || !currentObra.clienteEmail) {
       setError("Todos los campos son obligatorios.");
       return;
     }
 
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(clienteEmail)) {
-      setError("El email del cliente no tiene un formato válido.");
-      return;
-    }
-
     try {
-      const colRef = collection(firebaseDb, "obras");
-      const docRef = await addDoc(colRef, {
-        nombreFaena: nombreFaena.trim(),
-        direccion: direccion.trim(),
-        clienteEmail: clienteEmail.trim(),
-        creadoEn: new Date().toISOString(),
-      });
-
-      const nuevaObra: Obra = {
-        id: docRef.id,
-        nombreFaena: nombreFaena.trim(),
-        direccion: direccion.trim(),
-        clienteEmail: clienteEmail.trim(),
-      };
-
-      setObras((prev) => [nuevaObra, ...prev]);
-
-      setForm({
-        nombreFaena: "",
-        direccion: "",
-        clienteEmail: "",
-      });
+      if (currentObra.id) {
+        // Actualizar obra existente
+        const docRef = doc(firebaseDb, "obras", currentObra.id);
+        await updateDoc(docRef, {
+          nombreFaena: currentObra.nombreFaena,
+          direccion: currentObra.direccion,
+          clienteEmail: currentObra.clienteEmail,
+        });
+        setObras(obras.map(o => o.id === currentObra!.id ? { ...o, ...currentObra } as Obra : o));
+      } else {
+        // Crear nueva obra
+        const colRef = collection(firebaseDb, "obras");
+        const docRef = await addDoc(colRef, {
+          nombreFaena: currentObra.nombreFaena,
+          direccion: currentObra.direccion,
+          clienteEmail: currentObra.clienteEmail,
+          creadoEn: serverTimestamp(),
+        });
+        // Para la UI, usamos una fecha local hasta que se recargue
+        const nuevaObra: Obra = {
+          id: docRef.id,
+          nombreFaena: currentObra.nombreFaena,
+          direccion: currentObra.direccion,
+          clienteEmail: currentObra.clienteEmail,
+          creadoEn: new Date(),
+        };
+        setObras([nuevaObra, ...obras]);
+      }
+      setDialogOpen(false);
+      setCurrentObra(null);
     } catch (err) {
       console.error(err);
-      setError("No se pudo crear la obra. Intenta nuevamente.");
+      setError("No se pudo guardar la obra. Intenta nuevamente.");
     }
+  };
+
+  const handleDelete = async (obraId: string) => {
+    try {
+      const docRef = doc(firebaseDb, "obras", obraId);
+      await deleteDoc(docRef);
+      setObras(obras.filter(o => o.id !== obraId));
+    } catch (err) {
+      console.error(err);
+      setError("No se pudo eliminar la obra. Intenta nuevamente.");
+    }
+  };
+
+  if (loading) {
+    return <p className="text-sm text-muted-foreground">Cargando sesión...</p>;
+  }
+
+  if (!user) {
+    return <p className="text-sm text-muted-foreground">Redirigiendo a login...</p>;
   }
 
   return (
     <section className="space-y-6">
-      <header className="space-y-1">
-        <h2 className="text-2xl font-semibold text-slate-900">
-          Gestión de Obras - PCG 2.0
-        </h2>
-        <p className="text-sm text-slate-600">
-          Módulo base común de faenas. Aquí se crean las obras a las que luego
-          se asocian Operaciones y Prevención de Riesgos.
-        </p>
+      <header className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+        <div className="space-y-1">
+          <h2 className="text-2xl font-semibold">Gestión de Obras</h2>
+          <p className="text-sm text-muted-foreground">
+            Crea, edita y gestiona las obras a las que se asocian los módulos de Operaciones y Prevención.
+          </p>
+        </div>
+        <Button onClick={() => handleOpenDialog()}>
+          <PlusCircle className="mr-2 h-4 w-4" />
+          Crear Nueva Obra
+        </Button>
       </header>
 
-      {/* Mensajes de error y estado */}
-      {error && <p className="text-sm text-red-600">{error}</p>}
-      {cargandoObras && (
-        <p className="text-sm text-slate-500">Cargando obras...</p>
-      )}
+      {error && <p className="text-sm font-medium text-destructive">{error}</p>}
 
-      {/* Formulario creación obra */}
-      <form
-        onSubmit={handleSubmit}
-        className="space-y-3 rounded-xl border bg-white p-4 shadow-sm text-sm"
-      >
-        <h3 className="text-base font-semibold text-slate-900">
-          Crear nueva obra/faena
-        </h3>
-
-        <div className="grid gap-3 md:grid-cols-3">
-          <div className="space-y-1">
-            <label className="text-xs text-slate-700">
-              Nombre de la faena
-            </label>
-            <input
-              type="text"
-              className="w-full rounded-lg border px-2 py-1.5 text-sm"
-              value={form.nombreFaena}
-              onChange={(e) =>
-                setForm((prev) => ({ ...prev, nombreFaena: e.target.value }))
-              }
-            />
-          </div>
-
-          <div className="space-y-1 md:col-span-1">
-            <label className="text-xs text-slate-700">Dirección</label>
-            <input
-              type="text"
-              className="w-full rounded-lg border px-2 py-1.5 text-sm"
-              value={form.direccion}
-              onChange={(e) =>
-                setForm((prev) => ({ ...prev, direccion: e.target.value }))
-              }
-            />
-          </div>
-
-          <div className="space-y-1">
-            <label className="text-xs text-slate-700">
-              Email del cliente (login cliente futuro)
-            </label>
-            <input
-              type="email"
-              className="w-full rounded-lg border px-2 py-1.5 text-sm"
-              value={form.clienteEmail}
-              onChange={(e) =>
-                setForm((prev) => ({ ...prev, clienteEmail: e.target.value }))
-              }
-            />
-          </div>
-        </div>
-
-        <div className="flex justify-end">
-          <button
-            type="submit"
-            className="inline-flex items-center justify-center rounded-lg border border-slate-900 px-4 py-2 text-xs font-medium hover:bg-slate-900 hover:text-white transition"
-          >
-            Crear obra
-          </button>
-        </div>
-      </form>
-
-      {/* Listado de obras */}
-      <div className="rounded-xl border bg-white p-4 shadow-sm">
-        <h3 className="text-base font-semibold text-slate-900 mb-3">
-          Obras registradas
-        </h3>
-
-        {obras.length === 0 ? (
-          <p className="text-sm text-slate-500">
-            No hay obras registradas aún.
-          </p>
-        ) : (
+      <Card>
+        <CardHeader>
+          <CardTitle>Obras Registradas</CardTitle>
+          <CardDescription>
+            {cargandoObras ? "Cargando obras..." : `Mostrando ${obras.length} obras.`}
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
           <div className="overflow-x-auto">
-            <table className="min-w-full text-sm">
-              <thead className="bg-slate-100">
-                <tr>
-                  <th className="px-3 py-2 text-left font-semibold text-slate-700">
-                    Nombre faena
-                  </th>
-                  <th className="px-3 py-2 text-left font-semibold text-slate-700">
-                    Dirección
-                  </th>
-                  <th className="px-3 py-2 text-left font-semibold text-slate-700">
-                    Email cliente
-                  </th>
-                </tr>
-              </thead>
-              <tbody>
-                {obras.map((obra) => (
-                  <tr key={obra.id} className="border-t">
-                    <td className="px-3 py-2">{obra.nombreFaena}</td>
-                    <td className="px-3 py-2">{obra.direccion}</td>
-                    <td className="px-3 py-2">{obra.clienteEmail}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Nombre Faena</TableHead>
+                  <TableHead>Dirección</TableHead>
+                  <TableHead>Email Cliente</TableHead>
+                  <TableHead className="text-right">Acciones</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {cargandoObras ? (
+                  <TableRow>
+                    <TableCell colSpan={4} className="text-center text-muted-foreground">Cargando...</TableCell>
+                  </TableRow>
+                ) : obras.length === 0 ? (
+                  <TableRow>
+                    <TableCell colSpan={4} className="text-center text-muted-foreground h-24">
+                      No hay obras registradas aún.
+                    </TableCell>
+                  </TableRow>
+                ) : (
+                  obras.map((obra) => (
+                    <TableRow key={obra.id}>
+                      <TableCell className="font-medium">{obra.nombreFaena}</TableCell>
+                      <TableCell>{obra.direccion}</TableCell>
+                      <TableCell>{obra.clienteEmail}</TableCell>
+                      <TableCell className="text-right">
+                        <div className="flex justify-end gap-2">
+                          <Button variant="ghost" size="icon" onClick={() => handleOpenDialog(obra)}>
+                            <Edit className="h-4 w-4" />
+                            <span className="sr-only">Editar</span>
+                          </Button>
+                          <AlertDialog>
+                            <AlertDialogTrigger asChild>
+                              <Button variant="ghost" size="icon" className="text-destructive hover:text-destructive">
+                                <Trash2 className="h-4 w-4" />
+                                <span className="sr-only">Eliminar</span>
+                              </Button>
+                            </AlertDialogTrigger>
+                            <AlertDialogContent>
+                              <AlertDialogHeader>
+                                <AlertDialogTitle>¿Estás seguro de que deseas eliminar esta obra?</AlertDialogTitle>
+                                <AlertDialogDescription>
+                                  Esta acción no se puede deshacer. Se eliminará permanentemente la obra "{obra.nombreFaena}" y todos sus datos asociados.
+                                </AlertDialogDescription>
+                              </AlertDialogHeader>
+                              <AlertDialogFooter>
+                                <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                                <AlertDialogAction onClick={() => handleDelete(obra.id)} className="bg-destructive hover:bg-destructive/90">Eliminar</AlertDialogAction>
+                              </AlertDialogFooter>
+                            </AlertDialogContent>
+                          </AlertDialog>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  ))
+                )}
+              </TableBody>
+            </Table>
           </div>
-        )}
-      </div>
+        </CardContent>
+      </Card>
+
+      <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+        <DialogContent className="sm:max-w-[425px]">
+          <form onSubmit={handleSubmit}>
+            <DialogHeader>
+              <DialogTitle>{currentObra?.id ? "Editar Obra" : "Crear Nueva Obra"}</DialogTitle>
+              <DialogDescription>
+                {currentObra?.id ? "Modifica los detalles de la obra y haz clic en Guardar." : "Completa los detalles para registrar una nueva obra."}
+              </DialogDescription>
+            </DialogHeader>
+            <div className="grid gap-4 py-4">
+              <div className="grid grid-cols-4 items-center gap-4">
+                <Label htmlFor="nombreFaena" className="text-right">Nombre</Label>
+                <Input id="nombreFaena" name="nombreFaena" value={currentObra?.nombreFaena || ""} onChange={handleFormChange} className="col-span-3" />
+              </div>
+              <div className="grid grid-cols-4 items-center gap-4">
+                <Label htmlFor="direccion" className="text-right">Dirección</Label>
+                <Input id="direccion" name="direccion" value={currentObra?.direccion || ""} onChange={handleFormChange} className="col-span-3" />
+              </div>
+              <div className="grid grid-cols-4 items-center gap-4">
+                <Label htmlFor="clienteEmail" className="text-right">Email Cliente</Label>
+                <Input id="clienteEmail" name="clienteEmail" type="email" value={currentObra?.clienteEmail || ""} onChange={handleFormChange} className="col-span-3" />
+              </div>
+              {error && <p className="col-span-4 text-sm font-medium text-destructive">{error}</p>}
+            </div>
+            <DialogFooter>
+              <Button type="submit">Guardar Obra</Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
     </section>
   );
 }
