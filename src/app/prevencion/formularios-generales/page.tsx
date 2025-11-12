@@ -29,6 +29,7 @@ type ObraPrevencion = {
 type IPERRegistro = {
   id: string;
   obraId: string;
+  obraNombre?: string;
   area: string;              
   actividad: string;         
   peligro: string;           
@@ -63,6 +64,7 @@ type GravedadIncidente = "Leve" | "Grave" | "Fatal potencial";
 type RegistroIncidente = {
   id: string;
   obraId: string;
+  obraNombre?: string;
   fecha: string; 
   lugar: string;
   tipoIncidente: TipoIncidente;
@@ -94,6 +96,7 @@ type EstadoAccion = "Pendiente" | "En progreso" | "Cerrada";
 type RegistroPlanAccion = {
   id: string;
   obraId: string;
+  obraNombre?: string;
   origen: OrigenAccion;
   referencia: string; 
   descripcionAccion: string;
@@ -125,6 +128,7 @@ type IPERFormSectionProps = {
 };
 
 function IPERFormSection({ onCrearAccionDesdeIPER }: IPERFormSectionProps) {
+  const [obras, setObras] = useState<ObraPrevencion[]>(OBRAS_IPER);
   const [obraSeleccionadaId, setObraSeleccionadaId] = useState<string>(
     OBRAS_IPER[0]?.id ?? ""
   );
@@ -158,6 +162,23 @@ function IPERFormSection({ onCrearAccionDesdeIPER }: IPERFormSectionProps) {
     plazoImplementacion: "",
   });
 
+  const cargarObras = async () => {
+     try {
+        const q = query(collection(firebaseDb, "obras"), orderBy("nombreFaena"));
+        const querySnapshot = await getDocs(q);
+        const data: ObraPrevencion[] = querySnapshot.docs.map(doc => ({
+            id: doc.id,
+            nombreFaena: doc.data().nombreFaena
+        } as ObraPrevencion));
+        setObras(data);
+        if (data.length > 0 && !obraSeleccionadaId) {
+          setObraSeleccionadaId(data[0].id);
+        }
+    } catch (err) {
+        console.error("Error al cargar obras: ", err);
+    }
+  }
+
   const cargarIperDeObra = async (obraId: string) => {
     if (!obraId) {
         setIperRegistros([]);
@@ -185,7 +206,13 @@ function IPERFormSection({ onCrearAccionDesdeIPER }: IPERFormSectionProps) {
   };
 
   useEffect(() => {
-    cargarIperDeObra(obraSeleccionadaId);
+    cargarObras();
+  }, []);
+
+  useEffect(() => {
+    if (obraSeleccionadaId) {
+      cargarIperDeObra(obraSeleccionadaId);
+    }
   }, [obraSeleccionadaId]);
 
   function calcularNivelRiesgo(
@@ -226,7 +253,7 @@ function IPERFormSection({ onCrearAccionDesdeIPER }: IPERFormSectionProps) {
 
     try {
         const nivelRiesgo = calcularNivelRiesgo(formIPER.probabilidad, formIPER.severidad);
-        const obraSeleccionada = OBRAS_IPER.find(o => o.id === obraSeleccionadaId);
+        const obraSeleccionada = obras.find(o => o.id === obraSeleccionadaId);
         
         await addDoc(collection(firebaseDb, "iperRegistros"), {
             ...formIPER,
@@ -252,7 +279,6 @@ function IPERFormSection({ onCrearAccionDesdeIPER }: IPERFormSectionProps) {
             plazoImplementacion: "",
         });
         
-        // Recargar la lista
         cargarIperDeObra(obraSeleccionadaId);
 
     } catch (error) {
@@ -277,7 +303,7 @@ function IPERFormSection({ onCrearAccionDesdeIPER }: IPERFormSectionProps) {
                 <SelectValue placeholder="Seleccione una obra" />
               </SelectTrigger>
               <SelectContent>
-                {OBRAS_IPER.map((obra) => (
+                {obras.map((obra) => (
                   <SelectItem key={obra.id} value={obra.id}>
                     {obra.nombreFaena}
                   </SelectItem>
@@ -399,6 +425,7 @@ type InvestigacionIncidenteSectionProps = {
 };
 
 function InvestigacionIncidenteSection({ onCrearAccionDesdeIncidente }: InvestigacionIncidenteSectionProps) {
+  const [obras, setObras] = useState<ObraPrevencion[]>(OBRAS_IPER);
   const [obraSeleccionadaId, setObraSeleccionadaId] = useState<string>(
     OBRAS_IPER[0]?.id ?? ""
   );
@@ -430,7 +457,7 @@ function InvestigacionIncidenteSection({ onCrearAccionDesdeIncidente }: Investig
     fecha: new Date().toISOString().slice(0, 10),
     lugar: "",
     tipoIncidente: "Casi accidente",
-    gravedad: "Grave",
+    gravedad: "Leve",
     descripcionHecho: "",
     lesionPersona: "",
     actoInseguro: "",
@@ -444,6 +471,23 @@ function InvestigacionIncidenteSection({ onCrearAccionDesdeIncidente }: Investig
     plazoCierre: "",
     estadoCierre: "Abierto",
   });
+
+  const cargarObras = async () => {
+     try {
+        const q = query(collection(firebaseDb, "obras"), orderBy("nombreFaena"));
+        const querySnapshot = await getDocs(q);
+        const data: ObraPrevencion[] = querySnapshot.docs.map(doc => ({
+            id: doc.id,
+            nombreFaena: doc.data().nombreFaena
+        } as ObraPrevencion));
+        setObras(data);
+        if (data.length > 0 && !obraSeleccionadaId) {
+          setObraSeleccionadaId(data[0].id);
+        }
+    } catch (err) {
+        console.error("Error al cargar obras: ", err);
+    }
+  }
 
   const cargarIncidentes = async (obraId: string) => {
     if (!obraId) {
@@ -472,7 +516,13 @@ function InvestigacionIncidenteSection({ onCrearAccionDesdeIncidente }: Investig
   };
 
   useEffect(() => {
-    cargarIncidentes(obraSeleccionadaId);
+    cargarObras();
+  }, []);
+
+  useEffect(() => {
+    if (obraSeleccionadaId) {
+      cargarIncidentes(obraSeleccionadaId);
+    }
   }, [obraSeleccionadaId]);
   
   const handleInputChange = <K extends keyof typeof formIncidente>(campo: K, valor: (typeof formIncidente)[K]) => {
@@ -496,7 +546,7 @@ function InvestigacionIncidenteSection({ onCrearAccionDesdeIncidente }: Investig
       return;
     }
     
-    const obraSeleccionada = OBRAS_IPER.find(o => o.id === obraSeleccionadaId);
+    const obraSeleccionada = obras.find(o => o.id === obraSeleccionadaId);
 
     try {
         await addDoc(collection(firebaseDb, "investigacionesIncidentes"), {
@@ -547,7 +597,7 @@ function InvestigacionIncidenteSection({ onCrearAccionDesdeIncidente }: Investig
               <SelectValue placeholder="Seleccione una obra" />
             </SelectTrigger>
             <SelectContent>
-              {OBRAS_IPER.map((obra) => (
+              {obras.map((obra) => (
                 <SelectItem key={obra.id} value={obra.id}>
                   {obra.nombreFaena}
                 </SelectItem>
@@ -683,6 +733,7 @@ type PlanAccionSectionProps = {
 };
 
 function PlanAccionSection({ prefill, onPrefillConsumido }: PlanAccionSectionProps) {
+    const [obras, setObras] = useState<ObraPrevencion[]>(OBRAS_IPER);
     const [obraSeleccionadaId, setObraSeleccionadaId] = useState<string>(
         OBRAS_IPER[0]?.id ?? ""
     );
@@ -713,6 +764,23 @@ function PlanAccionSection({ prefill, onPrefillConsumido }: PlanAccionSectionPro
         creadoPor: "",
     });
 
+    const cargarObras = async () => {
+      try {
+          const q = query(collection(firebaseDb, "obras"), orderBy("nombreFaena"));
+          const querySnapshot = await getDocs(q);
+          const data: ObraPrevencion[] = querySnapshot.docs.map(doc => ({
+              id: doc.id,
+              nombreFaena: doc.data().nombreFaena
+          } as ObraPrevencion));
+          setObras(data);
+          if (data.length > 0 && !obraSeleccionadaId) {
+            setObraSeleccionadaId(data[0].id);
+          }
+      } catch (err) {
+          console.error("Error al cargar obras: ", err);
+      }
+    }
+
     const cargarPlanesAccion = async (obraId: string) => {
         if (!obraId) {
           setPlanesAccion([]);
@@ -740,7 +808,13 @@ function PlanAccionSection({ prefill, onPrefillConsumido }: PlanAccionSectionPro
     };
     
     useEffect(() => {
-      cargarPlanesAccion(obraSeleccionadaId);
+      cargarObras();
+    }, []);
+
+    useEffect(() => {
+      if (obraSeleccionadaId) {
+        cargarPlanesAccion(obraSeleccionadaId);
+      }
     }, [obraSeleccionadaId]);
 
     useEffect(() => {
@@ -754,7 +828,6 @@ function PlanAccionSection({ prefill, onPrefillConsumido }: PlanAccionSectionPro
                 prev.descripcionAccion || prefill.descripcionSugerida || "",
             }));
 
-            // Una vez aplicado el prefill, avisa al padre para que lo limpie
             onPrefillConsumido();
         }
     }, [prefill, onPrefillConsumido]);
@@ -776,7 +849,7 @@ function PlanAccionSection({ prefill, onPrefillConsumido }: PlanAccionSectionPro
             return;
         }
 
-        const obraSeleccionada = OBRAS_IPER.find(o => o.id === obraSeleccionadaId);
+        const obraSeleccionada = obras.find(o => o.id === obraSeleccionadaId);
 
         try {
             await addDoc(collection(firebaseDb, "planesAccion"), {
@@ -806,10 +879,6 @@ function PlanAccionSection({ prefill, onPrefillConsumido }: PlanAccionSectionPro
         }
     };
 
-    const planesDeObra = planesAccion.filter(
-        (p) => p.obraId === obraSeleccionadaId
-    );
-
     return (
         <Card className="mt-6">
             <CardHeader>
@@ -825,7 +894,7 @@ function PlanAccionSection({ prefill, onPrefillConsumido }: PlanAccionSectionPro
                     <Select value={obraSeleccionadaId} onValueChange={setObraSeleccionadaId}>
                         <SelectTrigger id="obra-select-plan"><SelectValue placeholder="Seleccione una obra"/></SelectTrigger>
                         <SelectContent>
-                            {OBRAS_IPER.map((obra) => (
+                            {obras.map((obra) => (
                                 <SelectItem key={obra.id} value={obra.id}>
                                     {obra.nombreFaena}
                                 </SelectItem>
@@ -910,13 +979,13 @@ function PlanAccionSection({ prefill, onPrefillConsumido }: PlanAccionSectionPro
                     <div className="space-y-2">
                         <h4 className="text-lg font-semibold border-b pb-2">Acciones Registradas en la Obra</h4>
                         {cargandoPlanes ? <p className="text-sm text-muted-foreground pt-4 text-center">Cargando planes de acción...</p> :
-                        planesDeObra.length === 0 ? (
+                        planesAccion.length === 0 ? (
                             <p className="text-sm text-muted-foreground text-center pt-8">
                                 No hay acciones registradas para esta obra aún.
                             </p>
                         ) : (
                             <div className="space-y-3 max-h-[600px] overflow-y-auto pr-2">
-                                {planesDeObra.map((p) => (
+                                {planesAccion.map((p) => (
                                     <article
                                         key={p.id}
                                         className="rounded-lg border bg-card p-3 shadow-sm text-sm space-y-2"
@@ -944,6 +1013,11 @@ function PlanAccionSection({ prefill, onPrefillConsumido }: PlanAccionSectionPro
                                                 Cierre: {p.observacionesCierre}
                                             </p>
                                         )}
+                                         <Button asChild variant="outline" size="sm" className="mt-2">
+                                            <Link href={`/prevencion/formularios-generales/plan-accion/${p.id}/imprimir`}>
+                                            Ver / Imprimir Plan
+                                            </Link>
+                                        </Button>
                                     </article>
                                 ))}
                             </div>
