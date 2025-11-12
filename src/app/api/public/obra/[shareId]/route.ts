@@ -1,57 +1,93 @@
 // src/app/api/public/obra/[shareId]/route.ts
 import { NextResponse } from 'next/server';
-import { getAdminApp, getAdminFirestore } from '@/lib/firebaseAdmin';
+import { getAdminFirestore } from '@/lib/firebaseAdmin';
 import { Timestamp } from 'firebase-admin/firestore';
 
-// Tipos de datos para las colecciones de Firestore
+// --- Tipos de datos ---
+
 type Actividad = {
   id: string;
   nombreActividad: string;
-  precioContrato: number;
-  // Estos campos pueden no estar, así que son opcionales
-  fechaInicio?: string;
-  fechaFin?: string;
+  precioContrato?: number; // Es opcional
+  // Otros campos que no necesitamos para este endpoint
 };
 
 type AvanceDiario = {
   id: string;
-  fecha: string; // "YYYY-MM-DD"
+  fecha: string; // ISO string
   porcentajeAvance: number;
   comentario?: string;
+  fotos?: string[];
   visibleParaCliente: boolean;
-  fotos?: string[]; // Array de URLs públicas o de Storage
-  actividadId?: string;
 };
 
-// Inicializa Firebase Admin
-getAdminApp();
-const db = getAdminFirestore();
+type ObraData = {
+  nombreFaena: string;
+  direccion: string;
+  mandanteRazonSocial: string;
+  clienteEmail: string;
+  clientePanel?: {
+    enabled?: boolean;
+    shareId?: string;
+  };
+};
+
+type PublicObraData = {
+  obra: {
+    nombreFaena: string;
+    direccion: string;
+    mandanteRazonSocial: string;
+    clienteEmail: string;
+  };
+  indicadores: {
+    avanceAcumulado: number;
+    ultimaActualizacionISO: string | null;
+    actividades: {
+      programadas: number;
+      completadas: number;
+    };
+  };
+  ultimosAvances: {
+    fechaISO: string;
+    porcentaje: number;
+    comentario: string;
+    imagenes: string[];
+  }[];
+};
+
+// --- Endpoint GET ---
 
 export async function GET(
   request: Request,
   { params }: { params: { shareId: string } }
 ) {
   const { shareId } = params;
-
   if (!shareId) {
     return NextResponse.json({ error: 'shareId es requerido' }, { status: 400 });
   }
 
   try {
-    // 1. Encontrar la obra por su shareId
+    const db = getAdminFirestore();
+
+    // 1. Buscar la obra por shareId
     const obrasRef = db.collection('obras');
     const q = obrasRef.where('clientePanel.shareId', '==', shareId).limit(1);
     const obraSnap = await q.get();
 
     if (obraSnap.empty) {
-      return NextResponse.json({ error: 'Panel no encontrado' }, { status: 404 });
+      return NextResponse.json({ error: 'Panel no encontrado o deshabilitado' }, { status: 404 });
     }
 
     const obraDoc = obraSnap.docs[0];
-    const obraData = obraDoc.data();
     const obraId = obraDoc.id;
+    const obraData = obraDoc.data() as ObraData;
 
-    // 2. Obtener actividades y avances
+    // Validar que el panel esté habilitado
+    if (!obraData.clientePanel || obraData.clientePanel.enabled !== true) {
+        return NextResponse.json({ error: 'Este panel de cliente no está habilitado.' }, { status: 403 });
+    }
+
+    // 2. Cargar sub-colecciones
     const actividadesRef = db.collection('obras').doc(obraId).collection('actividades');
     const avancesRef = db.collection('obras').doc(obraId).collection('avancesDiarios');
 
@@ -61,79 +97,91 @@ export async function GET(
     ]);
 
     const actividades: Actividad[] = actividadesSnap.docs.map(doc => ({ id: doc.id, ...doc.data() } as Actividad));
-    const avancesVisibles: AvanceDiario[] = avancesSnap.docs.map(doc => ({ id: doc.id, ...doc.data() } as AvanceDiario));
-    
-    // --- 3. Calcular Indicadores ---
-
-    // Avance por actividad
-    const avancePorActividad = new Map<string, number>();
-    for (const avance of avancesVisibles) {
-        if (avance.actividadId && !avancePorActividad.has(avance.actividadId)) {
-            avancePorActividad.set(avance.actividadId, avance.porcentajeAvance);
+    const avancesVisibles: AvanceDiario[] = avancesSnap.docs.map(doc => {
+        const data = doc.data();
+        let fecha = data.fecha;
+        // Convertir Timestamp a ISO string si es necesario
+        if (fecha instanceof Timestamp) {
+            fecha = fecha.toDate().toISOString().split('T')[0];
         }
-    }
+        return { id: doc.id, ...data, fecha } as AvanceDiario;
+    });
+
+    // 3. Calcular Indicadores
     
-    // Avance acumulado ponderado
+    // Avance ponderado
+    const actividadesConPrecio = actividades.filter(a => typeof a.precioContrato === 'number' && a.precioContrato > 0);
     let avanceAcumulado = 0;
-    const totalPrecio = actividades.reduce((sum, act) => sum + (act.precioContrato || 0), 0);
-    
-    if (totalPrecio > 0) {
-      const sumaPonderada = actividades.reduce((sum, act) => {
-        const progreso = avancePorActividad.get(act.id) || 0;
-        return sum + (act.precioContrato || 0) * (progreso / 100);
-      }, 0);
-      avanceAcumulado = (sumaPonderada / totalPrecio) * 100;
+
+    if (actividadesConPrecio.length > 0) {
+      const avancesPorActividad = new Map<string, number>();
+       // Ordenar para obtener el último avance de cada actividad
+      const avancesOrdenados = [...avancesVisibles].sort((a,b) => a.fecha < b.fecha ? 1 : -1);
+      for (const avance of avancesOrdenados) {
+        if (avance.id && !avancesPorActividad.has(avance.id)) {
+            avancesPorActividad.set(avance.id, avance.porcentajeAvance);
+        }
+      }
+
+      let totalPonderado = 0;
+      let totalPrecios = 0;
+      actividadesConPrecio.forEach(act => {
+        const avanceActividad = avancesPorActividad.get(act.id) ?? 0;
+        totalPonderado += (act.precioContrato! * (avanceActividad / 100));
+        totalPrecios += act.precioContrato!;
+      });
+      avanceAcumulado = totalPrecios > 0 ? (totalPonderado / totalPrecios) * 100 : 0;
     } else if (avancesVisibles.length > 0) {
-      // Fallback: promedio simple si no hay precios
-      const sumaPorcentajes = avancesVisibles.reduce((sum, av) => sum + (av.porcentajeAvance || 0), 0);
-      avanceAcumulado = sumaPorcentajes / avancesVisibles.length;
+        // Fallback: si no hay precios, usar el porcentaje del último avance general
+        avanceAcumulado = avancesVisibles[0]?.porcentajeAvance ?? 0;
     }
     
     // Última actualización
     const ultimaActualizacionISO = avancesVisibles.length > 0 ? avancesVisibles[0].fecha : null;
-    
-    // Conteo de actividades (simplificado, ya que no tenemos 'estado' en el modelo actual)
-    // Asumimos que una actividad con 100% de avance está "completada"
-    const completadas = actividades.filter(act => (avancePorActividad.get(act.id) || 0) >= 100).length;
-    
-    // Últimos avances para el feed
-    const ultimosAvances = avancesVisibles.slice(0, 5).map(av => ({
-        fechaISO: av.fecha,
-        porcentaje: av.porcentajeAvance,
-        comentario: av.comentario || '',
-        imagenes: av.fotos || [],
-    }));
 
-    // 4. Construir la respuesta final
-    const responsePayload = {
+    // Conteo de actividades (simplificado)
+    const actividadesProgramadas = actividades.length;
+    // Asumimos que una actividad con 100% de avance en su último reporte está "completada"
+    const actividadesCompletadas = actividades.filter(act => {
+        const ultimoAvance = avancesVisibles.find(av => av.id === act.id);
+        return ultimoAvance && ultimoAvance.porcentajeAvance >= 100;
+    }).length;
+
+    // 4. Preparar datos de respuesta
+    const respuesta: PublicObraData = {
       obra: {
-        nombreFaena: obraData.nombreFaena || 'Sin nombre',
-        direccion: obraData.direccion || 'No especificada',
-        mandanteRazonSocial: obraData.mandanteRazonSocial || 'No especificado',
-        clienteEmail: obraData.clienteEmail || 'No especificado',
+        nombreFaena: obraData.nombreFaena,
+        direccion: obraData.direccion,
+        mandanteRazonSocial: obraData.mandanteRazonSocial,
+        clienteEmail: obraData.clienteEmail,
       },
       indicadores: {
-        avanceAcumulado: isNaN(avanceAcumulado) ? 0 : avanceAcumulado,
-        ultimaActualizacionISO: ultimaActualizacionISO,
+        avanceAcumulado: parseFloat(avanceAcumulado.toFixed(1)),
+        ultimaActualizacionISO,
         actividades: {
-          programadas: actividades.length,
-          completadas: completadas,
+          programadas: actividadesProgramadas,
+          completadas: actividadesCompletadas,
         },
       },
-      ultimosAvances: ultimosAvances,
+      ultimosAvances: avancesVisibles.slice(0, 5).map(av => ({
+        fechaISO: av.fecha,
+        porcentaje: av.porcentajeAvance,
+        comentario: av.comentario ?? '',
+        imagenes: av.fotos ?? [],
+      })),
     };
 
-    return NextResponse.json(responsePayload, {
+    return NextResponse.json(respuesta, {
       headers: {
-        'Cache-Control': 'public, s-maxage=60, stale-while-revalidate=120',
+        'Cache-Control': 'public, s-maxage=60, stale-while-revalidate=30',
       },
     });
 
   } catch (error) {
-    console.error('Error en API /api/public/obra/[shareId]:', error);
-    return NextResponse.json({ error: 'Error interno del servidor' }, { status: 500 });
+    console.error(`[API /public/obra] Error para shareId ${shareId}:`, error);
+    if (error instanceof Error) {
+        return NextResponse.json({ error: 'Error interno del servidor: ' + error.message }, { status: 500 });
+    }
+    return NextResponse.json({ error: 'Error interno del servidor desconocido.' }, { status: 500 });
   }
 }
-
-// Configuración para que Next.js revalide esta ruta cada 60 segundos (ISR)
-export const revalidate = 60;
