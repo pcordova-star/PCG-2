@@ -49,55 +49,64 @@ export async function POST(req: Request) {
     const adminApp = getAdminApp();
     const db = getFirestore(adminApp);
 
-    // Verifica que la obra exista
     const obraRef = db.collection("obras").doc(obraId);
-    const obraSnap = await obraRef.get();
-    if (!obraSnap.exists) {
+    
+    // Usamos una transacción para asegurar la atomicidad de las operaciones
+    const avanceId = await db.runTransaction(async (transaction) => {
+        const obraSnap = await transaction.get(obraRef);
+        if (!obraSnap.exists) {
+            throw new Error("OBRA_NOT_FOUND");
+        }
+
+        // 1. Crear el nuevo documento de avance
+        const avancesRef = obraRef.collection("avancesDiarios");
+        const nuevoAvanceRef = avancesRef.doc(); // Generamos una referencia vacía para obtener el ID
+        
+        const avanceData = {
+          obraId,
+          actividadId: actividadId || null,
+          porcentajeAvance: porcentaje,
+          comentario,
+          fotos,
+          visibleCliente,
+          fecha: FieldValue.serverTimestamp(),
+          creadoPor: {
+            uid: user.uid,
+            displayName: user.name || user.email || "",
+          },
+        };
+        transaction.set(nuevoAvanceRef, avanceData);
+
+        // 2. Actualizar el documento principal de la obra
+        if (porcentaje > 0) {
+            const currentData = obraSnap.data() || {};
+            const avancePrevio = currentData.avanceAcumulado || 0;
+            // Esto es una simplificación. Un cálculo real podría ser más complejo.
+            const totalActividades = currentData.totalActividades || 10; // Fallback a 10 si no está definido
+            const avancePonderadoDelDia = (porcentaje / totalActividades);
+            const nuevoAvanceAcumulado = Math.min(100, avancePrevio + avancePonderadoDelDia);
+
+            transaction.update(obraRef, {
+                ultimaActualizacion: FieldValue.serverTimestamp(),
+                avanceAcumulado: nuevoAvanceAcumulado,
+            });
+        } else {
+             transaction.update(obraRef, {
+                ultimaActualizacion: FieldValue.serverTimestamp(),
+             });
+        }
+        
+        return nuevoAvanceRef.id;
+    });
+
+    return NextResponse.json({ ok: true, id: avanceId }, { status: 201 });
+  } catch (err: any) {
+    console.error("[API avances/quick] Unexpected Error:", err);
+    
+    if (err.message === "OBRA_NOT_FOUND") {
       return NextResponse.json({ ok: false, error: "OBRA_NOT_FOUND" }, { status: 404 });
     }
 
-    // Documento de avance
-    const avanceData = {
-      obraId,
-      actividadId: actividadId || null,
-      porcentajeAvance: porcentaje,
-      comentario,
-      fotos,
-      visibleCliente,
-      fecha: FieldValue.serverTimestamp(),
-      creadoPor: {
-        uid: user.uid,
-        displayName: user.name || user.email || "",
-      },
-    };
-
-    const avancesRef = obraRef.collection("avancesDiarios");
-    const write = await avancesRef.add(avanceData);
-
-    // (Opcional) actualizar agregados de programación aquí si corresponde
-    if (porcentaje > 0) {
-      await db.runTransaction(async (transaction) => {
-          const obraDocTx = await transaction.get(obraRef);
-          if (!obraDocTx.exists) {
-              throw "La obra no existe.";
-          }
-          const currentData = obraDocTx.data() || {};
-          
-          const avancePrevio = currentData.avanceAcumulado || 0;
-          // Esto es una simplificación. Un cálculo real podría ser más complejo.
-          const nuevoAvanceAcumulado = Math.min(100, avancePrevio + (porcentaje / (currentData.totalActividades || 10)));
-          
-          transaction.update(obraRef, {
-              ultimaActualizacion: FieldValue.serverTimestamp(),
-              avanceAcumulado: nuevoAvanceAcumulado,
-          });
-      });
-    }
-
-
-    return NextResponse.json({ ok: true, id: write.id }, { status: 201 });
-  } catch (err: any) {
-    console.error("[API avances/quick] Unexpected Error:", err);
     return NextResponse.json({ ok: false, error: "INTERNAL_ERROR", message: err.message }, { status: 500 });
   }
 }
