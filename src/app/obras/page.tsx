@@ -318,7 +318,7 @@ export default function ObrasPage() {
                 <Input id="clienteEmail" name="clienteEmail" type="email" value={currentObra?.clienteEmail || ""} onChange={handleFormChange} />
               </div>
                <div className="space-y-2">
-                <Label htmlFor="jefeObraNombre">Nombre Jefe de Obra</Label>
+                <Label htmlFor="jefeObraNombre">Administrador de obra</Label>
                 <Input id="jefeObraNombre" name="jefeObraNombre" value={currentObra?.jefeObraNombre || ""} onChange={handleFormChange} />
               </div>
                <div className="space-y-2">
