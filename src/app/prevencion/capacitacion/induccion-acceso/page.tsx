@@ -15,6 +15,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
+import { QrCode } from "lucide-react";
 
 
 // --- Tipos y Datos ---
@@ -317,29 +318,34 @@ export default function InduccionAccesoPage() {
       >
         <Card>
           <CardHeader>
-            <CardTitle>Selección de Obra</CardTitle>
+            <CardTitle>Selección de Obra y Generación de QR</CardTitle>
+            <CardDescription>
+              Seleccione una obra para registrar una inducción o para generar el
+              código QR que da acceso al formulario público.
+            </CardDescription>
           </CardHeader>
           <CardContent className="flex flex-col sm:flex-row gap-4 sm:items-end">
-              <div className="space-y-2 flex-grow">
-                  <Label htmlFor="obra-select">Obra / Faena a visitar</Label>
-                  <Select value={obraId} onValueChange={setObraId}>
-                      <SelectTrigger id="obra-select">
-                          <SelectValue placeholder="Seleccione una obra" />
-                      </SelectTrigger>
-                      <SelectContent>
-                          {obras.map((obra) => (
-                          <SelectItem key={obra.id} value={obra.id}>
-                              {obra.nombreFaena}
-                          </SelectItem>
-                          ))}
-                      </SelectContent>
-                  </Select>
-              </div>
-              <Button asChild variant="outline" disabled={!obraId}>
-                <Link href={`/prevencion/obras/${obraId}/qr-induccion`} target="_blank">
-                    Ver QR de esta obra
-                </Link>
-              </Button>
+            <div className="space-y-2 flex-grow">
+              <Label htmlFor="obra-select">Obra / Faena a visitar</Label>
+              <Select value={obraId} onValueChange={setObraId}>
+                <SelectTrigger id="obra-select">
+                  <SelectValue placeholder="Seleccione una obra" />
+                </SelectTrigger>
+                <SelectContent>
+                  {obras.map((obra) => (
+                    <SelectItem key={obra.id} value={obra.id}>
+                      {obra.nombreFaena}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <Button asChild variant="outline" disabled={!obraId}>
+              <Link href={`/prevencion/obras/${obraId}/qr-induccion`} target="_blank">
+                <QrCode className="mr-2 h-4 w-4" />
+                Generar QR de esta Obra
+              </Link>
+            </Button>
           </CardContent>
         </Card>
         
