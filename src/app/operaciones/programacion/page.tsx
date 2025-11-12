@@ -402,10 +402,10 @@ function ProgramacionPageInner() {
       setError("Debes seleccionar una obra y estar autenticado.");
       return;
     }
-    const { actividadId, fecha, porcentajeAvance, comentario, visibleParaCliente, creadoPor } = formAvance;
-    const creadoPorNombre = creadoPor.trim();
-    if (!fecha || !comentario.trim() || !creadoPorNombre) {
-      setError("La fecha, el comentario y el nombre de quien registra son obligatorios.");
+    const { actividadId, fecha, porcentajeAvance, comentario, visibleParaCliente } = formAvance;
+    
+    if (!fecha || !comentario.trim()) {
+      setError("La fecha y el comentario son obligatorios.");
       return;
     }
     
@@ -430,17 +430,19 @@ function ProgramacionPageInner() {
         })
       );
       
-      // Usar la Cloud Function
       const registrarAvance = httpsCallable(firebaseFunctions, "registrarAvanceRapido");
-      const result: any = await registrarAvance({
+      
+      const payload = {
         obraId: obraSeleccionadaId,
         actividadId: actividadId === "null" ? null : actividadId || null,
-        porcentaje,
+        porcentaje: porcentaje,
         comentario: comentario.trim(),
         fotos: urlsFotos,
         visibleCliente,
-        creadoPorNombre,
-      });
+        creadoPorNombre: user.displayName || user.email || ''
+      };
+
+      const result: any = await registrarAvance(payload);
 
       if (!result?.data?.ok) {
         throw new Error(result?.data?.error || "Error al registrar avance con la función callable.");
@@ -456,7 +458,7 @@ function ProgramacionPageInner() {
         fotos: urlsFotos,
         creadoPor: {
           uid: user.uid,
-          displayName: creadoPorNombre,
+          displayName: user.displayName || user.email || '',
         },
         visibleParaCliente,
       };
