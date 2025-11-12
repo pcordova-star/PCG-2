@@ -78,7 +78,7 @@ type ActividadProgramada = {
   nombreActividad: string;
   fechaInicio: string;
   fechaFin: string;
-  responsable: string;
+  responsable?: string;
   estado: EstadoActividad;
   precioContrato: number;
 };
@@ -148,7 +148,6 @@ function ProgramacionPageInner() {
     nombreActividad: "",
     fechaInicio: "",
     fechaFin: "",
-    responsable: "",
     estado: "Pendiente" as EstadoActividad,
     precioContrato: "",
   });
@@ -279,11 +278,11 @@ function ProgramacionPageInner() {
       setError("Seleccione una obra antes de agregar una actividad.");
       return;
     }
-    const { nombreActividad, fechaInicio, fechaFin, responsable, estado, precioContrato } = formActividad;
+    const { nombreActividad, fechaInicio, fechaFin, estado, precioContrato } = formActividad;
     const precioNum = Number(precioContrato);
 
-    if (!nombreActividad || !fechaInicio || !responsable || !precioContrato) {
-      setError("Nombre, fecha inicio, responsable y precio son obligatorios.");
+    if (!nombreActividad || !fechaInicio || !precioContrato) {
+      setError("Nombre, fecha inicio y precio son obligatorios.");
       return;
     }
     if (isNaN(precioNum) || precioNum <= 0) {
@@ -293,12 +292,12 @@ function ProgramacionPageInner() {
 
     try {
       const colRef = collection(firebaseDb, "obras", obraSeleccionadaId, "actividades");
-      const docData = { obraId: obraSeleccionadaId, nombreActividad, fechaInicio, fechaFin, responsable, estado, precioContrato: precioNum };
+      const docData = { obraId: obraSeleccionadaId, nombreActividad, fechaInicio, fechaFin, estado, precioContrato: precioNum };
       const docRef = await addDoc(colRef, docData);
       
       const nuevaActividad: ActividadProgramada = { ...docData, id: docRef.id };
       setActividades((prev) => [...prev, nuevaActividad]);
-      setFormActividad({ nombreActividad: "", fechaInicio: "", fechaFin: "", responsable: "", estado: "Pendiente", precioContrato: "" });
+      setFormActividad({ nombreActividad: "", fechaInicio: "", fechaFin: "", estado: "Pendiente", precioContrato: "" });
     } catch (err) {
       console.error(err);
       setError("No se pudo crear la actividad.");
@@ -480,10 +479,6 @@ function ProgramacionPageInner() {
                 <Input id="nombreActividad" value={formActividad.nombreActividad} onChange={e => setFormActividad(prev => ({...prev, nombreActividad: e.target.value}))} placeholder="Ej: Instalación de faenas" />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="responsable">Responsable</Label>
-                <Input id="responsable" value={formActividad.responsable} onChange={e => setFormActividad(prev => ({...prev, responsable: e.target.value}))} placeholder="Ej: Ana Gómez" />
-              </div>
-              <div className="space-y-2">
                 <Label htmlFor="fechaInicio">Fecha de inicio</Label>
                 <Input id="fechaInicio" type="date" value={formActividad.fechaInicio} onChange={e => setFormActividad(prev => ({...prev, fechaInicio: e.target.value}))} />
               </div>
@@ -517,19 +512,17 @@ function ProgramacionPageInner() {
                         <TableHead>Precio</TableHead>
                         <TableHead>Inicio</TableHead>
                         <TableHead>Fin</TableHead>
-                        <TableHead>Responsable</TableHead>
                         <TableHead>Estado</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                    {cargandoActividades ? <TableRow><TableCell colSpan={6} className="text-center">Cargando...</TableCell></TableRow> : 
+                    {cargandoActividades ? <TableRow><TableCell colSpan={5} className="text-center">Cargando...</TableCell></TableRow> : 
                     actividades.length > 0 ? (actividades.map((act) => (
                         <TableRow key={act.id}>
                             <TableCell className="font-medium">{act.nombreActividad}</TableCell>
                             <TableCell>{new Intl.NumberFormat('es-CL', { style: 'currency', currency: 'CLP' }).format(act.precioContrato)}</TableCell>
                             <TableCell>{act.fechaInicio}</TableCell>
                             <TableCell>{act.fechaFin}</TableCell>
-                            <TableCell>{act.responsable}</TableCell>
                             <TableCell>
                                 <div className="flex flex-col gap-2 md:flex-row md:items-center">
                                     <EstadoBadge estado={act.estado} />
@@ -541,7 +534,7 @@ function ProgramacionPageInner() {
                             </TableCell>
                         </TableRow>
                     ))) : (
-                        <TableRow><TableCell colSpan={6} className="text-center text-muted-foreground py-8">No hay actividades para esta obra.</TableCell></TableRow>
+                        <TableRow><TableCell colSpan={5} className="text-center text-muted-foreground py-8">No hay actividades para esta obra.</TableCell></TableRow>
                     )}
                     </TableBody>
                 </Table>
