@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect, FormEvent } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -15,6 +15,15 @@ import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { X, FileText, UserCheck, Shield, MessageSquare } from 'lucide-react';
 import { Progress } from '@/components/ui/progress';
 import { Checkbox } from '@/components/ui/checkbox';
+import { firebaseDb } from "@/lib/firebaseClient";
+import {
+  collection,
+  addDoc,
+  Timestamp,
+  getDocs,
+  query,
+  where,
+} from "firebase/firestore";
 
 // --- Tipos ---
 type Obra = {
@@ -35,17 +44,18 @@ type TipoRelacionPersonal = "Empresa" | "Subcontrato";
 type EstadoIngresoPersonal = "Pendiente" | "Autorizado" | "Rechazado";
 type PasoDS44 = "Reglamento" | "Induccion" | "EPP" | "Charla" | null;
 
+// Tipo de datos que se guarda en Firestore
 type IngresoPersonal = {
-  id: string;
+  id?: string;
   obraId: string;
   tipoRelacion: TipoRelacionPersonal;
-  fechaIngreso: string;
-  rut: string;
   nombre: string;
-  cargo: string;
-  empresaId: string;
+  rut: string;
   empresa: string;
-  
+  cargo: string;
+  fechaIngreso: string;
+  observaciones?: string;
+  fechaRegistro: Timestamp;
   // Checklist DS44
   docContrato: boolean;
   docMutualAlDia: boolean;
@@ -53,21 +63,7 @@ type IngresoPersonal = {
   docInduccion: boolean;
   docEPPEntregados: boolean;
   docRegistroListaPersonal: boolean;
-  
-  // Campos de los sub-formularios
-  fechaReglamento?: string;
-  obsReglamento?: string;
-  fechaInduccion?: string;
-  tipoInduccion?: string;
-  obsInduccion?: string;
-  eppEntregados?: string;
-  fechaEntregaEPP?: string;
-  temaCharla?: string;
-  fechaCharla?: string;
-  obsCharla?: string;
-
   estadoIngreso: EstadoIngresoPersonal;
-  observaciones: string;
 };
 
 type RegistroInduccionTrabajador = {
@@ -147,7 +143,7 @@ type DocumentoPrevencionConfigLocal = {
   aprobadoPor?: string;
 };
 
-// --- Datos Simulados ---
+// --- Datos Simulados (para UI, serán reemplazados por Firestore) ---
 const OBRAS_SIMULADAS: Obra[] = [
   { id: 'obra-1', nombreFaena: 'Edificio Los Álamos' },
   { id: 'obra-2', nombreFaena: 'Condominio Cuatro Vientos' },
@@ -155,127 +151,29 @@ const OBRAS_SIMULADAS: Obra[] = [
 ];
 
 const EMPRESAS_SIMULADAS: Empresa[] = [
-  {
-    id: "emp-1",
-    nombre: "Constructora Principal S.A.",
-    rut: "76.123.456-7",
-    tipo: "Mandante",
-  },
-  {
-    id: "emp-2",
-    nombre: "Excavaciones del Sur Ltda.",
-    rut: "77.234.567-8",
-    tipo: "Subcontratista",
-  },
-  {
-    id: "emp-3",
-    nombre: "Montajes Estructurales Andinos SpA",
-    rut: "78.345.678-9",
-    tipo: "Subcontratista",
-  },
-  {
-    id: "emp-4",
-    nombre: "Instalaciones Eléctricas Norte",
-    rut: "79.456.789-0",
-    tipo: "Subcontratista",
-  },
+  { id: "emp-1", nombre: "Constructora Principal S.A.", rut: "76.123.456-7", tipo: "Mandante" },
+  { id: "emp-2", nombre: "Excavaciones del Sur Ltda.", rut: "77.234.567-8", tipo: "Subcontratista" },
+  { id: "emp-3", nombre: "Montajes Estructurales Andinos SpA", rut: "78.345.678-9", tipo: "Subcontratista" },
+  { id: "emp-4", nombre: "Instalaciones Eléctricas Norte", rut: "79.456.789-0", tipo: "Subcontratista" },
 ];
 
-const empresasMandante = EMPRESAS_SIMULADAS.filter(
-  (e) => e.tipo === "Mandante"
-);
-
-const empresasSubcontrato = EMPRESAS_SIMULADAS.filter(
-  (e) => e.tipo === "Subcontratista" || e.tipo === "Contratista"
-);
-
-const INGRESOS_INICIALES: IngresoPersonal[] = [
-  {
-    id: 'per1',
-    obraId: 'obra-1',
-    tipoRelacion: 'Empresa',
-    fechaIngreso: '2025-11-15',
-    rut: '15.123.456-7',
-    nombre: 'Juan Pérez',
-    cargo: 'Jefe de Obra',
-    empresaId: 'emp-1',
-    empresa: 'Constructora Principal S.A.',
-    docContrato: true, docMutualAlDia: true, docExamenMedico: true, docInduccion: false, docEPPEntregados: false, docRegistroListaPersonal: true,
-    estadoIngreso: 'Pendiente',
-    observaciones: 'Listo para iniciar inducción y entrega de EPP.',
-  },
-  {
-    id: 'per2',
-    obraId: 'obra-1',
-    tipoRelacion: 'Subcontrato',
-    fechaIngreso: '2025-11-20',
-    rut: '18.987.654-3',
-    nombre: 'Ana Gómez',
-    cargo: 'Ayudante de Trazado',
-    empresaId: 'emp-2',
-    empresa: 'Excavaciones del Sur Ltda.',
-    docContrato: true, docMutualAlDia: true, docExamenMedico: false, docInduccion: true, docEPPEntregados: true, docRegistroListaPersonal: true,
-    estadoIngreso: 'Pendiente',
-    observaciones: 'Falta examen de altura. No puede trabajar en niveles superiores hasta regularizar.',
-    fechaInduccion: '2025-11-20', tipoInduccion: 'General de Obra',
-    eppEntregados: 'Casco, Lentes, Zapatos de seguridad, Guantes', fechaEntregaEPP: '2025-11-20',
-  },
-];
+const empresasMandante = EMPRESAS_SIMULADAS.filter(e => e.tipo === "Mandante");
+const empresasSubcontrato = EMPRESAS_SIMULADAS.filter(e => e.tipo === "Subcontratista" || e.tipo === "Contratista");
 
 const REGISTROS_INDUCCION_INICIALES: RegistroInduccionTrabajador[] = [];
 const REGISTROS_EPP_INICIALES: RegistroEntregaEPP[] = [];
 const REGISTROS_CHARLAS_INICIALES: RegistroCharlaSeguridad[] = [];
 
 const DOC_CONFIGS_TRABAJADOR: DocumentoPrevencionConfigLocal[] = [
-  {
-    tipoDocumento: "INDUCCION_OBRA",
-    codigo: "PCG-PRV-IND-001",
-    titulo: "Registro de Inducción de Seguridad de la Obra",
-    version: "V1.0",
-    fechaEmision: "2025-01-01",
-    elaboradoPor: "Prevencionista de Obra",
-    revisadoPor: "Jefe de Prevención",
-    aprobadoPor: "Gerente de Operaciones",
-  },
-  {
-    tipoDocumento: "ENTREGA_EPP",
-    codigo: "PCG-PRV-EPP-001",
-    titulo: "Registro de Entrega de Elementos de Protección Personal",
-    version: "V1.0",
-    fechaEmision: "2025-01-01",
-    elaboradoPor: "Prevencionista de Obra",
-    revisadoPor: "Jefe de Bodega",
-    aprobadoPor: "Gerente de Operaciones",
-  },
-  {
-    tipoDocumento: "CHARLA_SEGURIDAD",
-    codigo: "PCG-PRV-CHR-001",
-    titulo: "Registro de Charla de Seguridad al Trabajador",
-    version: "V1.0",
-    fechaEmision: "2025-01-01",
-    elaboradoPor: "Prevencionista de Obra",
-    revisadoPor: "Jefe de Prevención",
-    aprobadoPor: "Gerente de Operaciones",
-  },
+  { tipoDocumento: "INDUCCION_OBRA", codigo: "PCG-PRV-IND-001", titulo: "Registro de Inducción de Seguridad de la Obra", version: "V1.0", fechaEmision: "2025-01-01", elaboradoPor: "Prevencionista de Obra", revisadoPor: "Jefe de Prevención", aprobadoPor: "Gerente de Operaciones" },
+  { tipoDocumento: "ENTREGA_EPP", codigo: "PCG-PRV-EPP-001", titulo: "Registro de Entrega de Elementos de Protección Personal", version: "V1.0", fechaEmision: "2025-01-01", elaboradoPor: "Prevencionista de Obra", revisadoPor: "Jefe de Bodega", aprobadoPor: "Gerente de Operaciones" },
+  { tipoDocumento: "CHARLA_SEGURIDAD", codigo: "PCG-PRV-CHR-001", titulo: "Registro de Charla de Seguridad al Trabajador", version: "V1.0", fechaEmision: "2025-01-01", elaboradoPor: "Prevencionista de Obra", revisadoPor: "Jefe de Prevención", aprobadoPor: "Gerente de Operaciones" },
 ];
 
-function getDocConfigLocal(
-  tipo: TipoDocumentoPrevencionTrabajador
-): DocumentoPrevencionConfigLocal {
-  const found = DOC_CONFIGS_TRABAJADOR.find(
-    (c) => c.tipoDocumento === tipo
-  );
+function getDocConfigLocal(tipo: TipoDocumentoPrevencionTrabajador): DocumentoPrevencionConfigLocal {
+  const found = DOC_CONFIGS_TRABAJADOR.find(c => c.tipoDocumento === tipo);
   if (!found) {
-    return {
-      tipoDocumento: tipo,
-      codigo: "PCG-PRV-XXX-000",
-      titulo: "Documento de Prevención",
-      version: "V1.0",
-      fechaEmision: "2025-01-01",
-      elaboradoPor: "Prevención de Riesgos",
-      revisadoPor: "",
-      aprobadoPor: "",
-    };
+    return { tipoDocumento: tipo, codigo: "PCG-PRV-XXX-000", titulo: "Documento de Prevención", version: "V1.0", fechaEmision: "2025-01-01", elaboradoPor: "Prevención de Riesgos", revisadoPor: "", aprobadoPor: "" };
   }
   return found;
 }
@@ -291,64 +189,23 @@ function EstadoBadge({ estado }: { estado: EstadoIngresoPersonal }) {
 }
 
 function getProgresoDs44(ing: IngresoPersonal) {
-  const pasos = [
-    ing.docContrato,
-    ing.docMutualAlDia,
-    ing.docExamenMedico,
-    ing.docInduccion,
-    ing.docEPPEntregados,
-    ing.docRegistroListaPersonal,
-  ];
+  const pasos = [ ing.docContrato, ing.docMutualAlDia, ing.docExamenMedico, ing.docInduccion, ing.docEPPEntregados, ing.docRegistroListaPersonal ];
   const total = pasos.length;
   const cumplidos = pasos.filter(Boolean).length;
   return { total, cumplidos, porcentaje: total > 0 ? (cumplidos / total) * 100 : 0 };
 }
 
-function getIndicadoresObraTipo(
-  ingresos: IngresoPersonal[],
-  obraId: string,
-  tipoRelacion: TipoRelacionPersonal
-) {
-  const relevantes = ingresos.filter(
-    (i) => i.obraId === obraId && i.tipoRelacion === tipoRelacion
-  );
-
+function getIndicadoresObraTipo(ingresos: IngresoPersonal[], obraId: string, tipoRelacion: TipoRelacionPersonal) {
+  const relevantes = ingresos.filter(i => i.obraId === obraId && i.tipoRelacion === tipoRelacion);
   const total = relevantes.length;
-  const autorizados = relevantes.filter(
-    (i) => i.estadoIngreso === "Autorizado"
-  ).length;
-  const pendientes = relevantes.filter(
-    (i) => i.estadoIngreso === "Pendiente"
-  ).length;
-  const rechazados = relevantes.filter(
-    (i) => i.estadoIngreso === "Rechazado"
-  ).length;
-
-  const pasosPorPersona = relevantes.map((ing) => {
-    const { total, cumplidos } = getProgresoDs44(ing);
-    return { totalPasos: total, cumplidos };
-  });
-
-  const totalPasosGlobal = pasosPorPersona.reduce(
-    (acc, p) => acc + p.totalPasos,
-    0
-  );
-  const cumplidosGlobal = pasosPorPersona.reduce(
-    (acc, p) => acc + p.cumplidos,
-    0
-  );
-  
+  const autorizados = relevantes.filter(i => i.estadoIngreso === "Autorizado").length;
+  const pendientes = relevantes.filter(i => i.estadoIngreso === "Pendiente").length;
+  const rechazados = relevantes.filter(i => i.estadoIngreso === "Rechazado").length;
+  const pasosPorPersona = relevantes.map(ing => getProgresoDs44(ing));
+  const totalPasosGlobal = pasosPorPersona.reduce((acc, p) => acc + p.totalPasos, 0);
+  const cumplidosGlobal = pasosPorPersona.reduce((acc, p) => acc + p.cumplidos, 0);
   const porcentaje = totalPasosGlobal > 0 ? Math.round((cumplidosGlobal * 100) / totalPasosGlobal) : 0;
-
-  return {
-    total,
-    autorizados,
-    pendientes,
-    rechazados,
-    totalPasosGlobal,
-    cumplidosGlobal,
-    porcentaje,
-  };
+  return { total, autorizados, pendientes, rechazados, totalPasosGlobal, cumplidosGlobal, porcentaje };
 }
 
 function getNombreObraById(obraId: string): string {
@@ -356,202 +213,98 @@ function getNombreObraById(obraId: string): string {
   return obra ? obra.nombreFaena : "Obra sin nombre";
 }
 
-type EncabezadoDocumentoProps = {
-  config: DocumentoPrevencionConfigLocal;
-  nombreObra: string;
-};
+type EncabezadoDocumentoProps = { config: DocumentoPrevencionConfigLocal; nombreObra: string; };
 
-function EncabezadoDocumentoPrevencionLocal({
-  config,
-  nombreObra,
-}: EncabezadoDocumentoProps) {
+function EncabezadoDocumentoPrevencionLocal({ config, nombreObra }: EncabezadoDocumentoProps) {
   return (
     <header className="mb-4 rounded-xl border bg-card p-4 shadow-sm text-xs print:shadow-none print:rounded-none">
       <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
         <div>
-          <p className="text-[11px] font-semibold text-muted-foreground">
-            [Nombre de la Empresa Constructora]
-          </p>
-          <h1 className="text-sm font-bold text-card-foreground">
-            {config.titulo}
-          </h1>
-          <p className="text-[11px] text-muted-foreground">
-            Obra: {nombreObra}
-          </p>
+          <p className="text-[11px] font-semibold text-muted-foreground">[Nombre de la Empresa Constructora]</p>
+          <h1 className="text-sm font-bold text-card-foreground">{config.titulo}</h1>
+          <p className="text-[11px] text-muted-foreground">Obra: {nombreObra}</p>
         </div>
         <div className="text-[11px] text-right text-muted-foreground space-y-0.5">
-          <p>
-            <span className="font-semibold">Código:</span> {config.codigo}
-          </p>
-          <p>
-            <span className="font-semibold">Versión:</span> {config.version}
-          </p>
-          <p>
-            <span className="font-semibold">Emisión:</span> {config.fechaEmision}
-          </p>
+          <p><span className="font-semibold">Código:</span> {config.codigo}</p>
+          <p><span className="font-semibold">Versión:</span> {config.version}</p>
+          <p><span className="font-semibold">Emisión:</span> {config.fechaEmision}</p>
         </div>
       </div>
       <div className="mt-3 grid gap-2 md:grid-cols-3">
-        <div>
-          <p className="font-semibold text-[11px] text-muted-foreground">
-            Elaborado por
-          </p>
-          <p className="text-[11px] text-muted-foreground">
-            {config.elaboradoPor}
-          </p>
-        </div>
-        <div>
-          <p className="font-semibold text-[11px] text-muted-foreground">
-            Revisado por
-          </p>
-          <p className="text-[11px] text-muted-foreground">
-            {config.revisadoPor || "-"}
-          </p>
-        </div>
-        <div>
-          <p className="font-semibold text-[11px] text-muted-foreground">
-            Aprobado por
-          </p>
-          <p className="text-[11px] text-muted-foreground">
-            {config.aprobadoPor || "-"}
-          </p>
-        </div>
+        <div><p className="font-semibold text-[11px] text-muted-foreground">Elaborado por</p><p className="text-[11px] text-muted-foreground">{config.elaboradoPor}</p></div>
+        <div><p className="font-semibold text-[11px] text-muted-foreground">Revisado por</p><p className="text-[11px] text-muted-foreground">{config.revisadoPor || "-"}</p></div>
+        <div><p className="font-semibold text-[11px] text-muted-foreground">Aprobado por</p><p className="text-[11px] text-muted-foreground">{config.aprobadoPor || "-"}</p></div>
       </div>
     </header>
   );
 }
 
-
 // --- Componente Principal ---
 export default function IngresoPersonalPage() {
+  // obraId viene de este estado.
   const [obraSeleccionadaId, setObraSeleccionadaId] = useState<string>(OBRAS_SIMULADAS[0]?.id ?? "");
   const [tipoRelacion, setTipoRelacion] = useState<TipoRelacionPersonal>("Empresa");
-  const [ingresos, setIngresos] = useState<IngresoPersonal[]>(INGRESOS_INICIALES);
+  const [ingresos, setIngresos] = useState<IngresoPersonal[]>([]);
   const [trabajadorSeleccionadoId, setTrabajadorSeleccionadoId] = useState<string | null>(null);
   const [pasoActivo, setPasoActivo] = useState<PasoDS44>(null);
-
-  // Estados del formulario de nuevo ingreso
-  const [rut, setRut] = useState('');
-  const [nombre, setNombre] = useState('');
-  const [cargo, setCargo] = useState('');
-  const [empresaIdSeleccionada, setEmpresaIdSeleccionada] = useState<string>("");
+  
+  // Estados para el formulario de nuevo ingreso
+  const [tipoTrabajador, setTipoTrabajador] = useState<TipoRelacionPersonal>("Empresa");
+  const [nombre, setNombre] = useState("");
+  const [rut, setRut] = useState("");
+  const [empresaIdSeleccionada, setEmpresaIdSeleccionada] = useState("");
+  const [cargo, setCargo] = useState("");
   const [fechaIngreso, setFechaIngreso] = useState(new Date().toISOString().split('T')[0]);
-  const [observaciones, setObservaciones] = useState('');
-  const [error, setError] = useState('');
-  
+  const [observaciones, setObservaciones] = useState("");
+  const [docContrato, setDocContrato] = useState(false);
+  const [docInduccion, setDocInduccion] = useState(false);
+  const [docExamenMedico, setDocExamenMedico] = useState(false);
+
+  // Estados para carga y mensajes
+  const [guardando, setGuardando] = useState(false);
+  const [mensaje, setMensaje] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [cargandoIngresos, setCargandoIngresos] = useState(false);
+
   // Estados para subformularios de pasos
-  const [subFormState, setSubFormState] = useState({
-      fecha: new Date().toISOString().split('T')[0],
-      texto1: '',
-      texto2: ''
-  });
-
-  const [registrosInduccion, setRegistrosInduccion] =
-    useState<RegistroInduccionTrabajador[]>(REGISTROS_INDUCCION_INICIALES);
-
-  const [mostrarFormInduccion, setMostrarFormInduccion] =
-    useState<boolean>(false);
-
-  const [formInduccion, setFormInduccion] = useState<{
-    fechaInduccion: string;
-    lugar: string;
-    relator: string;
-    contenidoReglasGenerales: boolean;
-    contenidoPlanEmergencia: boolean;
-    contenidoRiesgosCriticos: boolean;
-    contenidoUsoEPP: boolean;
-    contenidoReporteIncidentes: boolean;
-    evaluacionAplicada: boolean;
-    resultadoEvaluacion: "Aprobado" | "Reforzar contenidos" | "No aplica";
-    observaciones: string;
-    aceptaInduccion: boolean;
-    nombreFirmaTrabajador: string;
-  }>({
-    fechaInduccion: new Date().toISOString().slice(0, 10),
-    lugar: "",
-    relator: "",
-    contenidoReglasGenerales: true,
-    contenidoPlanEmergencia: true,
-    contenidoRiesgosCriticos: true,
-    contenidoUsoEPP: true,
-    contenidoReporteIncidentes: true,
-    evaluacionAplicada: false,
-    resultadoEvaluacion: "No aplica",
-    observaciones: "",
-    aceptaInduccion: false,
-    nombreFirmaTrabajador: "",
-  });
-  
+  const [subFormState, setSubFormState] = useState({ fecha: new Date().toISOString().split('T')[0], texto1: '', texto2: '' });
+  const [registrosInduccion, setRegistrosInduccion] = useState<RegistroInduccionTrabajador[]>(REGISTROS_INDUCCION_INICIALES);
+  const [mostrarFormInduccion, setMostrarFormInduccion] = useState<boolean>(false);
+  const [formInduccion, setFormInduccion] = useState<{ fechaInduccion: string; lugar: string; relator: string; contenidoReglasGenerales: boolean; contenidoPlanEmergencia: boolean; contenidoRiesgosCriticos: boolean; contenidoUsoEPP: boolean; contenidoReporteIncidentes: boolean; evaluacionAplicada: boolean; resultadoEvaluacion: "Aprobado" | "Reforzar contenidos" | "No aplica"; observaciones: string; aceptaInduccion: boolean; nombreFirmaTrabajador: string; }>({ fechaInduccion: new Date().toISOString().slice(0, 10), lugar: "", relator: "", contenidoReglasGenerales: true, contenidoPlanEmergencia: true, contenidoRiesgosCriticos: true, contenidoUsoEPP: true, contenidoReporteIncidentes: true, evaluacionAplicada: false, resultadoEvaluacion: "No aplica", observaciones: "", aceptaInduccion: false, nombreFirmaTrabajador: "" });
   const [errorInduccion, setErrorInduccion] = useState<string | null>(null);
-
-  const [registrosEPP, setRegistrosEPP] =
-    useState<RegistroEntregaEPP[]>(REGISTROS_EPP_INICIALES);
-
+  const [registrosEPP, setRegistrosEPP] = useState<RegistroEntregaEPP[]>(REGISTROS_EPP_INICIALES);
   const [mostrarFormEPP, setMostrarFormEPP] = useState<boolean>(false);
-
-  const [formEPP, setFormEPP] = useState<{
-    fechaEntrega: string;
-    responsableEntrega: string;
-    casco: boolean;
-    zapatosSeguridad: boolean;
-    lentesSeguridad: boolean;
-    guantes: boolean;
-    ropaTrabajo: boolean;
-    arnes: boolean;
-    otrosDescripcion: string;
-    instruidoUsoCuidado: boolean;
-    instruidoConsecuenciasNoUso: boolean;
-    aceptaEPP: boolean;
-    nombreFirmaTrabajador: string;
-    observaciones: string;
-  }>({
-    fechaEntrega: new Date().toISOString().slice(0, 10),
-    responsableEntrega: "",
-    casco: true,
-    zapatosSeguridad: true,
-    lentesSeguridad: true,
-    guantes: false,
-    ropaTrabajo: false,
-    arnes: false,
-    otrosDescripcion: "",
-    instruidoUsoCuidado: true,
-    instruidoConsecuenciasNoUso: true,
-    aceptaEPP: false,
-    nombreFirmaTrabajador: "",
-    observaciones: "",
-  });
+  const [formEPP, setFormEPP] = useState<{ fechaEntrega: string; responsableEntrega: string; casco: boolean; zapatosSeguridad: boolean; lentesSeguridad: boolean; guantes: boolean; ropaTrabajo: boolean; arnes: boolean; otrosDescripcion: string; instruidoUsoCuidado: boolean; instruidoConsecuenciasNoUso: boolean; aceptaEPP: boolean; nombreFirmaTrabajador: string; observaciones: string; }>({ fechaEntrega: new Date().toISOString().slice(0, 10), responsableEntrega: "", casco: true, zapatosSeguridad: true, lentesSeguridad: true, guantes: false, ropaTrabajo: false, arnes: false, otrosDescripcion: "", instruidoUsoCuidado: true, instruidoConsecuenciasNoUso: true, aceptaEPP: false, nombreFirmaTrabajador: "", observaciones: "" });
   const [errorEPP, setErrorEPP] = useState<string | null>(null);
-
-  const [registrosCharlas, setRegistrosCharlas] =
-    useState<RegistroCharlaSeguridad[]>(REGISTROS_CHARLAS_INICIALES);
-
+  const [registrosCharlas, setRegistrosCharlas] = useState<RegistroCharlaSeguridad[]>(REGISTROS_CHARLAS_INICIALES);
   const [mostrarFormCharla, setMostrarFormCharla] = useState<boolean>(false);
-
-  const [formCharla, setFormCharla] = useState<{
-    fechaCharla: string;
-    tipoCharla: TipoCharla;
-    tema: string;
-    relator: string;
-    riesgoPrincipal: string;
-    medidasReforzadas: string;
-    asistencia: "Asiste" | "No asiste" | "Llega tarde";
-    observaciones: string;
-    aceptaCharla: boolean;
-    nombreFirmaTrabajador: string;
-  }>({
-    fechaCharla: new Date().toISOString().slice(0, 10),
-    tipoCharla: "Charla diaria",
-    tema: "",
-    relator: "",
-    riesgoPrincipal: "",
-    medidasReforzadas: "",
-    asistencia: "Asiste",
-    observaciones: "",
-    aceptaCharla: false,
-    nombreFirmaTrabajador: "",
-  });
-
+  const [formCharla, setFormCharla] = useState<{ fechaCharla: string; tipoCharla: TipoCharla; tema: string; relator: string; riesgoPrincipal: string; medidasReforzadas: string; asistencia: "Asiste" | "No asiste" | "Llega tarde"; observaciones: string; aceptaCharla: boolean; nombreFirmaTrabajador: string; }>({ fechaCharla: new Date().toISOString().slice(0, 10), tipoCharla: "Charla diaria", tema: "", relator: "", riesgoPrincipal: "", medidasReforzadas: "", asistencia: "Asiste", observaciones: "", aceptaCharla: false, nombreFirmaTrabajador: "" });
   const [errorCharla, setErrorCharla] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!obraSeleccionadaId) return;
+
+    const fetchIngresos = async () => {
+      setCargandoIngresos(true);
+      try {
+        const ingresosRef = collection(firebaseDb, "ingresosPersonal");
+        const q = query(ingresosRef, where("obraId", "==", obraSeleccionadaId));
+        const snap = await getDocs(q);
+        const data: IngresoPersonal[] = snap.docs.map((doc) => ({
+          id: doc.id,
+          ...(doc.data() as Omit<IngresoPersonal, "id">),
+        }));
+        setIngresos(data);
+      } catch (err) {
+        console.error("Error cargando ingresos de personal", err);
+        setError("No se pudieron cargar los registros de personal.");
+      } finally {
+        setCargandoIngresos(false);
+      }
+    };
+
+    fetchIngresos();
+  }, [obraSeleccionadaId]);
 
   const ingresosFiltrados = useMemo(() =>
     ingresos.filter((i) => i.obraId === obraSeleccionadaId && i.tipoRelacion === tipoRelacion),
@@ -563,77 +316,68 @@ export default function IngresoPersonalPage() {
     [ingresos, trabajadorSeleccionadoId]
   );
   
-  const registrosInduccionTrabajador = trabajadorSeleccionado
-    ? registrosInduccion
-        .filter((r) => r.trabajadorId === trabajadorSeleccionado.id)
-        .sort((a, b) => (a.fechaInduccion < b.fechaInduccion ? 1 : -1))
-    : [];
-
+  const registrosInduccionTrabajador = trabajadorSeleccionado ? registrosInduccion.filter((r) => r.trabajadorId === trabajadorSeleccionado.id).sort((a, b) => (a.fechaInduccion < b.fechaInduccion ? 1 : -1)) : [];
   const ultimoRegistroInduccion = registrosInduccionTrabajador[0] ?? null;
-  
-  const registrosEPPTrabajador = trabajadorSeleccionado
-  ? registrosEPP
-      .filter((r) => r.trabajadorId === trabajadorSeleccionado.id)
-      .sort((a, b) => (a.fechaEntrega < b.fechaEntrega ? 1 : -1))
-  : [];
-
+  const registrosEPPTrabajador = trabajadorSeleccionado ? registrosEPP.filter((r) => r.trabajadorId === trabajadorSeleccionado.id).sort((a, b) => (a.fechaEntrega < b.fechaEntrega ? 1 : -1)) : [];
   const ultimoRegistroEPP = registrosEPPTrabajador[0] ?? null;
-
-  const registrosCharlasTrabajador = trabajadorSeleccionado
-    ? registrosCharlas
-        .filter((r) => r.trabajadorId === trabajadorSeleccionado.id)
-        .sort((a, b) => (a.fechaCharla < b.fechaCharla ? 1 : -1))
-    : [];
-
+  const registrosCharlasTrabajador = trabajadorSeleccionado ? registrosCharlas.filter((r) => r.trabajadorId === trabajadorSeleccionado.id).sort((a, b) => (a.fechaCharla < b.fechaCharla ? 1 : -1)) : [];
   const ultimaCharla = registrosCharlasTrabajador[0] ?? null;
 
-  const progresoSeleccionado = useMemo(() => 
-    trabajadorSeleccionado ? getProgresoDs44(trabajadorSeleccionado) : null,
-    [trabajadorSeleccionado]
-  );
-  
-  const indicadoresActuales = useMemo(() => 
-    getIndicadoresObraTipo(ingresos, obraSeleccionadaId, tipoRelacion),
-    [ingresos, obraSeleccionadaId, tipoRelacion]
-  );
+  const progresoSeleccionado = useMemo(() => trabajadorSeleccionado ? getProgresoDs44(trabajadorSeleccionado) : null, [trabajadorSeleccionado]);
+  const indicadoresActuales = useMemo(() => getIndicadoresObraTipo(ingresos, obraSeleccionadaId, tipoRelacion), [ingresos, obraSeleccionadaId, tipoRelacion]);
 
   const resetForm = () => {
     setRut(''); setNombre(''); setCargo(''); setEmpresaIdSeleccionada('');
     setFechaIngreso(new Date().toISOString().split('T')[0]);
-    setObservaciones(''); setError('');
+    setObservaciones(''); setDocContrato(false); setDocInduccion(false); setDocExamenMedico(false);
+    setError(null); setMensaje(null);
   };
   
-  const handleNuevoIngresoSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!rut || !nombre || !cargo || !empresaIdSeleccionada) {
-      setError('RUT, Nombre, Cargo y Empresa son obligatorios.');
-      return;
-    }
+  const handleSubmit = async (event: FormEvent) => {
+    event.preventDefault();
+    setGuardando(true);
+    setMensaje(null);
+    setError(null);
 
     const empresaSeleccionada = EMPRESAS_SIMULADAS.find(emp => emp.id === empresaIdSeleccionada);
-    if (!empresaSeleccionada) {
-      setError('La empresa seleccionada no es válida.');
-      return;
+
+    try {
+      if (!obraSeleccionadaId) throw new Error("No se encontró el ID de la obra (obraId).");
+      if (!nombre || !rut || !tipoRelacion || !empresaSeleccionada) throw new Error("Faltan campos obligatorios (nombre, RUT, tipo o empresa).");
+
+      const ingresosRef = collection(firebaseDb, "ingresosPersonal");
+      const newDoc = {
+        obraId: obraSeleccionadaId,
+        tipoRelacion,
+        nombre,
+        rut,
+        empresa: empresaSeleccionada.nombre,
+        cargo,
+        fechaIngreso,
+        observaciones: observaciones || null,
+        fechaRegistro: Timestamp.now(),
+        docContrato,
+        docInduccion,
+        docExamenMedico,
+        docEPPEntregados: false,
+        docRegistroListaPersonal: false,
+        estadoIngreso: "Pendiente" as EstadoIngresoPersonal
+      };
+
+      const docRef = await addDoc(ingresosRef, newDoc);
+
+      setIngresos(prev => [{ id: docRef.id, ...newDoc }, ...prev]);
+      setMensaje("Ingreso registrado correctamente.");
+      resetForm();
+
+    } catch (err) {
+      console.error(err);
+      setError(err instanceof Error ? err.message : "Error al registrar el ingreso de personal.");
+    } finally {
+      setGuardando(false);
     }
-
-    setError('');
-
-    const nuevoIngreso: IngresoPersonal = {
-      id: `per-${Date.now()}`,
-      obraId: obraSeleccionadaId,
-      tipoRelacion,
-      fechaIngreso,
-      rut, nombre, cargo, 
-      empresaId: empresaSeleccionada.id,
-      empresa: empresaSeleccionada.nombre,
-      docContrato: false, docMutualAlDia: false, docExamenMedico: false, docInduccion: false, docEPPEntregados: false, docRegistroListaPersonal: false,
-      estadoIngreso: 'Pendiente',
-      observaciones,
-    };
-    
-    setIngresos((prev) => [nuevoIngreso, ...prev]);
-    resetForm();
   };
+
 
   const handlePasoSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -649,25 +393,15 @@ export default function IngresoPersonalPage() {
           updatedIngreso.docContrato = true;
           updatedIngreso.docMutualAlDia = true; 
           updatedIngreso.docExamenMedico = true;
-          updatedIngreso.fechaReglamento = subFormState.fecha;
-          updatedIngreso.obsReglamento = subFormState.texto1;
           break;
         case 'Induccion':
           updatedIngreso.docInduccion = true;
-          updatedIngreso.fechaInduccion = subFormState.fecha;
-          updatedIngreso.tipoInduccion = subFormState.texto1;
-          updatedIngreso.obsInduccion = subFormState.texto2;
           break;
         case 'EPP':
           updatedIngreso.docEPPEntregados = true;
-          updatedIngreso.fechaEntregaEPP = subFormState.fecha;
-          updatedIngreso.eppEntregados = subFormState.texto1;
           break;
         case 'Charla':
           updatedIngreso.docRegistroListaPersonal = true; 
-          updatedIngreso.fechaCharla = subFormState.fecha;
-          updatedIngreso.temaCharla = subFormState.texto1;
-          updatedIngreso.obsCharla = subFormState.texto2;
           break;
       }
       
@@ -822,7 +556,7 @@ export default function IngresoPersonalPage() {
       <Card>
         <CardHeader><CardTitle>1. Crear Ficha de Nuevo Trabajador</CardTitle></CardHeader>
         <CardContent>
-          <form onSubmit={handleNuevoIngresoSubmit} className="space-y-4">
+          <form onSubmit={handleSubmit} className="space-y-4">
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
               <div className="space-y-2"><Label htmlFor="rut">RUT*</Label><Input id="rut" value={rut} onChange={e => setRut(e.target.value)} /></div>
               <div className="space-y-2"><Label htmlFor="nombre">Nombre*</Label><Input id="nombre" value={nombre} onChange={e => setNombre(e.target.value)} /></div>
@@ -840,13 +574,20 @@ export default function IngresoPersonalPage() {
                     </SelectContent>
                 </Select>
               </div>
+               <div className="space-y-2"><Label htmlFor="fechaIngreso">Fecha de Ingreso</Label><Input id="fechaIngreso" type="date" value={fechaIngreso} onChange={e => setFechaIngreso(e.target.value)} /></div>
             </div>
             <div className="space-y-2">
               <Label htmlFor="observaciones-nuevo">Observaciones iniciales</Label>
               <Textarea id="observaciones-nuevo" value={observaciones} onChange={e => setObservaciones(e.target.value)} placeholder="Ej: Ingresa para faenas de terminaciones." />
             </div>
+             <div className="flex flex-wrap gap-x-4 gap-y-2">
+                <Label className="flex items-center gap-2 font-normal text-sm"><Checkbox checked={docContrato} onCheckedChange={c => setDocContrato(!!c)} /><span>Tiene contrato</span></Label>
+                <Label className="flex items-center gap-2 font-normal text-sm"><Checkbox checked={docInduccion} onCheckedChange={c => setDocInduccion(!!c)} /><span>Inducción realizada</span></Label>
+                <Label className="flex items-center gap-2 font-normal text-sm"><Checkbox checked={docExamenMedico} onCheckedChange={c => setDocExamenMedico(!!c)} /><span>Apto médico vigente</span></Label>
+            </div>
             {error && <p className="text-sm font-medium text-destructive">{error}</p>}
-            <Button type="submit">Crear Ficha de Trabajador</Button>
+            {mensaje && <p className="text-sm font-medium text-green-600">{mensaje}</p>}
+            <Button type="submit" disabled={guardando}>{guardando ? "Registrando..." : "Crear Ficha de Trabajador"}</Button>
           </form>
         </CardContent>
       </Card>
@@ -858,6 +599,9 @@ export default function IngresoPersonalPage() {
         </CardHeader>
         <CardContent className="p-0">
           <div className="overflow-x-auto">
+             {cargandoIngresos ? (
+              <p className="text-sm text-muted-foreground text-center py-8">Cargando registros...</p>
+            ) : (
             <Table>
               <TableHeader>
                 <TableRow>
@@ -900,6 +644,7 @@ export default function IngresoPersonalPage() {
                 )}
               </TableBody>
             </Table>
+            )}
           </div>
         </CardContent>
       </Card>
