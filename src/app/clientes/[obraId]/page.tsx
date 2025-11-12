@@ -18,6 +18,7 @@ type AvanceDiario = {
   porcentajeAvance: number; // 0-100
   comentario: string;
   fotoUrl?: string;
+  fotos?: string[];
   visibleParaCliente: boolean;
   creadoPor: string;
 };
@@ -96,7 +97,7 @@ export default async function ClienteObraPage({
   );
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-8 max-w-5xl mx-auto">
       {/* Encabezado de la obra */}
       <header className="space-y-2">
         <h1 className="text-3xl font-bold font-headline tracking-tight">
