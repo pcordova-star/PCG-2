@@ -69,8 +69,8 @@ export const registrarAvanceRapido = onCall({ region: "southamerica-west1", cors
       if (porcentaje > 0) {
         const currentData = obraSnap.data() || {};
         const avancePrevio = Number(currentData.avanceAcumulado || 0);
-        const totalActividades = Number(currentData.totalActividades || 10); // Fallback a 10 si no existe
-        const avancePonderadoDelDia = porcentaje / totalActividades;
+        const totalActividades = Number(currentData.totalActividades);
+        const avancePonderadoDelDia = totalActividades > 0 ? porcentaje / totalActividades : 0;
         const nuevoAvanceAcumulado = Math.min(100, avancePrevio + avancePonderadoDelDia);
 
         tx.update(obraRef, {
