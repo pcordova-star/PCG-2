@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, use } from "react";
 import Link from 'next/link';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -8,11 +8,13 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { guardarInduccionAccesoFaena, InduccionAccesoFaena } from "@/lib/induccionAccesoFaena";
-import { getDocs, collection, query, where } from "firebase/firestore";
+import { guardarInduccionAccesoFaena, InduccionAccesoFaena } from "@/lib/prevencionEventos";
+import { getDocs, collection, query, where, orderBy } from "firebase/firestore";
 import { firebaseDb } from "@/lib/firebaseClient";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Badge } from "@/components/ui/badge";
+import { cn } from "@/lib/utils";
 
 
 // --- Tipos y Datos ---
@@ -141,7 +143,7 @@ export default function InduccionAccesoPage() {
   const [respuestaPregunta1, setRespuestaPregunta1] =
     useState<"SI" | "NO">("SI");
   const [respuestaPregunta2, setRespuestaPregunta2] =
-    useState<"SI" | "NO">("SI");
+    useState<"SI" | "NO">("NO");
   const [respuestaPregunta3, setRespuestaPregunta3] =
     useState<"SI" | "NO">("SI");
   
@@ -163,7 +165,7 @@ export default function InduccionAccesoPage() {
         nombreFaena: doc.data().nombreFaena ?? "",
       }));
       setObras(data);
-      if (data.length > 0) {
+      if (data.length > 0 && !obraId) {
         setObraId(data[0].id);
       }
     } catch (error) {
@@ -179,12 +181,16 @@ export default function InduccionAccesoPage() {
     }
     setCargandoInducciones(true);
     try {
-      const q = query(collection(firebaseDb, "induccionesAccesoFaena"), where("obraId", "==", idObra));
+      const q = query(collection(firebaseDb, "induccionesAccesoFaena"), where("obraId", "==", idObra), orderBy("createdAt", "desc"));
       const snapshot = await getDocs(q);
-      const data: InduccionAccesoFaena[] = snapshot.docs.map(doc => ({
-        id: doc.id,
-        ...(doc.data() as any),
-      }));
+      const data: InduccionAccesoFaena[] = snapshot.docs.map(doc => {
+          const d = doc.data();
+          return {
+            id: doc.id,
+            ...(d as any),
+            createdAt: d.createdAt?.toDate ? d.createdAt.toDate().toISOString() : new Date().toISOString(),
+          }
+      });
       setInducciones(data);
     } catch (error) {
       console.error("Error fetching inducciones: ", error);
@@ -218,7 +224,7 @@ export default function InduccionAccesoPage() {
     setFechaIngreso(new Date().toISOString().slice(0, 10));
     setHoraIngreso(new Date().toLocaleTimeString('es-CL', { hour: '2-digit', minute: '2-digit' }));
     setRespuestaPregunta1("SI");
-    setRespuestaPregunta2("SI");
+    setRespuestaPregunta2("NO");
     setRespuestaPregunta3("SI");
     setAceptaReglamento(false);
     setAceptaEpp(false);
@@ -229,6 +235,7 @@ export default function InduccionAccesoPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setErrorForm(null);
+    setHoraIngreso(new Date().toLocaleTimeString('es-CL', { hour: '2-digit', minute: '2-digit' }));
 
     if (!obraId) {
       setErrorForm("Debes seleccionar una obra.");
@@ -292,7 +299,7 @@ export default function InduccionAccesoPage() {
   const obraSeleccionada = obras.find(o => o.id === obraId);
 
   return (
-    <section className="space-y-6 max-w-3xl mx-auto">
+    <section className="space-y-6 max-w-4xl mx-auto">
       <header className="space-y-2">
         <h1 className="text-3xl font-bold font-headline tracking-tight">
           Inducción de acceso a faena – Visitas
@@ -312,8 +319,8 @@ export default function InduccionAccesoPage() {
           <CardHeader>
             <CardTitle>Selección de Obra</CardTitle>
           </CardHeader>
-          <CardContent>
-              <div className="space-y-2">
+          <CardContent className="flex flex-col sm:flex-row gap-4 sm:items-end">
+              <div className="space-y-2 flex-grow">
                   <Label htmlFor="obra-select">Obra / Faena a visitar</Label>
                   <Select value={obraId} onValueChange={setObraId}>
                       <SelectTrigger id="obra-select">
@@ -328,6 +335,11 @@ export default function InduccionAccesoPage() {
                       </SelectContent>
                   </Select>
               </div>
+              <Button asChild variant="outline" disabled={!obraId}>
+                <Link href={`/prevencion/obras/${obraId}/qr-induccion`} target="_blank">
+                    Ver QR de esta obra
+                </Link>
+              </Button>
           </CardContent>
         </Card>
         
@@ -477,6 +489,7 @@ export default function InduccionAccesoPage() {
                   <TableHead>Nombre</TableHead>
                   <TableHead>RUT</TableHead>
                   <TableHead>Empresa</TableHead>
+                  <TableHead>Origen</TableHead>
                   <TableHead>Acciones</TableHead>
                 </TableRow>
               </TableHeader>
@@ -487,6 +500,11 @@ export default function InduccionAccesoPage() {
                     <TableCell>{induccion.nombreCompleto}</TableCell>
                     <TableCell>{induccion.rut}</TableCell>
                     <TableCell>{induccion.empresa}</TableCell>
+                    <TableCell>
+                      <Badge variant="outline" className={cn(induccion.origenRegistro === 'qr' ? 'text-blue-600 border-blue-200 bg-blue-50' : '')}>
+                          {induccion.origenRegistro ?? 'panel'}
+                      </Badge>
+                    </TableCell>
                     <TableCell>
                       <Button asChild variant="outline" size="sm">
                         <Link href={`/prevencion/induccion-acceso-faena/${induccion.id}/imprimir`}>
