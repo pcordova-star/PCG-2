@@ -251,19 +251,11 @@ export function QuickAvanceSheet({ open, onOpenChange }: QuickAvanceSheetProps) 
                     fotos: uploadedUrls,
                     visibleCliente: !!visibleCliente,
                 }),
-                redirect: 'manual',
             });
 
-            const ct = response.headers.get('content-type') || '';
-            if (!ct.includes('application/json')) {
-                const text = await response.text();
-                throw new Error(`Respuesta no JSON (${response.status}). Posible redirección o 404. Preview: ${text.slice(0,120)}…`);
-            }
-
-            const data = await response.json();
-            if (!response.ok || !data?.ok) {
-                const msg = data?.details || data?.error || 'Error en el servidor';
-                throw new Error(msg);
+            if (!response.ok) {
+                const errorData = await response.json().catch(() => ({ error: "Error desconocido en el servidor" }));
+                throw new Error(errorData.error || `Error del servidor: ${response.status}`);
             }
         }
 
@@ -360,7 +352,7 @@ export function QuickAvanceSheet({ open, onOpenChange }: QuickAvanceSheetProps) 
             </div>
             
             <div className="flex items-center space-x-2">
-                <Checkbox id="visible-cliente" checked={visibleCliente} onCheckedChange={c => setVisibleCliente(c === true)} />
+                <Checkbox id="visible-cliente" checked={visibleCliente} onCheckedChange={(c) => setVisibleCliente(c === true)} />
                 <Label htmlFor="visible-cliente">Visible para el cliente</Label>
             </div>
         </div>
