@@ -42,6 +42,14 @@ export const registrarAvanceRapido = onCall({ region: "southamerica-west1", cors
       if (!obraSnap.exists) {
         throw new HttpsError("not-found", `La obra con ID ${obraId} no fue encontrada.`);
       }
+      
+      const obraData = obraSnap.data() || {};
+      const miembros = obraData.miembros || [];
+      const tienePermiso = miembros.some((m: any) => m.uid === uid) || obraData.creadoPorUid === uid;
+
+      if (!tienePermiso) {
+        throw new HttpsError("permission-denied", "No tienes permiso para registrar avances en esta obra.");
+      }
 
       const avancesRef = obraRef.collection("avancesDiarios");
       const nuevoAvanceRef = avancesRef.doc();
