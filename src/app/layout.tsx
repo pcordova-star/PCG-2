@@ -39,6 +39,9 @@ export default function RootLayout({
               <Link href="/prevencion" className="text-sm font-medium transition-colors hover:text-primary-foreground/80">
                 Prevención
               </Link>
+              <Link href="/capacitacion" className="text-sm font-medium transition-colors hover:text-primary-foreground/80">
+                Capacitación
+              </Link>
             </nav>
           </div>
         </header>
