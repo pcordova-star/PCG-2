@@ -1,4 +1,5 @@
 
+
 "use client";
 
 import { useEffect, useState, Suspense } from 'react';
@@ -169,7 +170,7 @@ function EstadoDePagoPageInner() {
           </thead>
           <tbody>
             {estadoDePago.actividades.map((item, idx) => (
-              <tr key={item.actividadId}>
+              <tr key={`edp-item-${item.actividadId}-${idx}`}>
                 <td className="border border-gray-200 px-2 py-1">{idx + 1}</td>
                 <td className="border border-gray-200 px-2 py-1">{item.nombre}</td>
                 <td className="border border-gray-200 px-2 py-1 text-right">
