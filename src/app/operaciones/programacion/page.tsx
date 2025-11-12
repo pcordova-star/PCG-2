@@ -25,6 +25,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
@@ -57,7 +58,7 @@ import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 import Link from "next/link";
-import { FilePlus2, FileText, Trash2 } from 'lucide-react';
+import { FilePlus2, FileText, Trash2, Edit, PlusCircle } from 'lucide-react';
 
 type Obra = {
   id: string;
@@ -78,7 +79,6 @@ type ActividadProgramada = {
   nombreActividad: string;
   fechaInicio: string;
   fechaFin: string;
-  responsable?: string;
   estado: EstadoActividad;
   precioContrato: number;
 };
@@ -144,13 +144,8 @@ function ProgramacionPageInner() {
   
   const [error, setError] = useState<string | null>(null);
 
-  const [formActividad, setFormActividad] = useState({
-    nombreActividad: "",
-    fechaInicio: "",
-    fechaFin: "",
-    estado: "Pendiente" as EstadoActividad,
-    precioContrato: "",
-  });
+  const [dialogOpen, setDialogOpen] = useState(false);
+  const [currentActividad, setCurrentActividad] = useState<Partial<ActividadProgramada> | null>(null);
 
   const [formAvance, setFormAvance] = useState({
     actividadId: "",
@@ -259,6 +254,12 @@ function ProgramacionPageInner() {
     
     cargarDatosDeObra();
   }, [obraSeleccionadaId, user]);
+
+  const handleOpenDialog = (actividad: Partial<ActividadProgramada> | null = null) => {
+    setCurrentActividad(actividad || { nombreActividad: "", fechaInicio: "", fechaFin: "", estado: "Pendiente", precioContrato: 0 });
+    setDialogOpen(true);
+    setError(null);
+  };
   
   const handleEstadoChange = async (id: string, nuevoEstado: EstadoActividad) => {
     if (!obraSeleccionadaId) return;
@@ -278,7 +279,12 @@ function ProgramacionPageInner() {
       setError("Seleccione una obra antes de agregar una actividad.");
       return;
     }
-    const { nombreActividad, fechaInicio, fechaFin, estado, precioContrato } = formActividad;
+    if (!currentActividad) {
+        setError("No hay datos de actividad para guardar.");
+        return;
+    }
+
+    const { nombreActividad, fechaInicio, fechaFin, estado, precioContrato } = currentActividad;
     const precioNum = Number(precioContrato);
 
     if (!nombreActividad || !fechaInicio || !precioContrato) {
@@ -291,16 +297,39 @@ function ProgramacionPageInner() {
     }
 
     try {
-      const colRef = collection(firebaseDb, "obras", obraSeleccionadaId, "actividades");
       const docData = { obraId: obraSeleccionadaId, nombreActividad, fechaInicio, fechaFin, estado, precioContrato: precioNum };
-      const docRef = await addDoc(colRef, docData);
       
-      const nuevaActividad: ActividadProgramada = { ...docData, id: docRef.id };
-      setActividades((prev) => [...prev, nuevaActividad]);
-      setFormActividad({ nombreActividad: "", fechaInicio: "", fechaFin: "", estado: "Pendiente", precioContrato: "" });
+      if (currentActividad.id) {
+        // Actualizar
+        const docRef = doc(firebaseDb, "obras", obraSeleccionadaId, "actividades", currentActividad.id);
+        await updateDoc(docRef, docData);
+        setActividades(prev => prev.map(act => act.id === currentActividad.id ? { ...act, ...docData } : act));
+      } else {
+        // Crear
+        const colRef = collection(firebaseDb, "obras", obraSeleccionadaId, "actividades");
+        const docRef = await addDoc(colRef, docData);
+        const nuevaActividad: ActividadProgramada = { ...docData, id: docRef.id };
+        setActividades((prev) => [...prev, nuevaActividad]);
+      }
+      
+      setDialogOpen(false);
+      setCurrentActividad(null);
+      setError(null);
     } catch (err) {
       console.error(err);
-      setError("No se pudo crear la actividad.");
+      setError("No se pudo guardar la actividad.");
+    }
+  }
+
+  const handleDeleteActividad = async (actividadId: string) => {
+    if (!obraSeleccionadaId) return;
+    try {
+        const docRef = doc(firebaseDb, "obras", obraSeleccionadaId, "actividades", actividadId);
+        await deleteDoc(docRef);
+        setActividades(prev => prev.filter(act => act.id !== actividadId));
+    } catch(err) {
+        console.error(err);
+        setError("No se pudo eliminar la actividad.");
     }
   }
 
@@ -468,40 +497,15 @@ function ProgramacionPageInner() {
       </Card>
 
       <Card>
-        <CardHeader>
-          <CardTitle>Agregar Nueva Actividad</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <form onSubmit={handleActividadSubmit} className="space-y-6">
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              <div className="space-y-2 lg:col-span-2">
-                <Label htmlFor="nombreActividad">Nombre de la actividad</Label>
-                <Input id="nombreActividad" value={formActividad.nombreActividad} onChange={e => setFormActividad(prev => ({...prev, nombreActividad: e.target.value}))} placeholder="Ej: Instalación de faenas" />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="fechaInicio">Fecha de inicio</Label>
-                <Input id="fechaInicio" type="date" value={formActividad.fechaInicio} onChange={e => setFormActividad(prev => ({...prev, fechaInicio: e.target.value}))} />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="fechaFin">Fecha de término</Label>
-                <Input id="fechaFin" type="date" value={formActividad.fechaFin} onChange={e => setFormActividad(prev => ({...prev, fechaFin: e.target.value}))} />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="precioContrato">Precio Contrato ($)</Label>
-                <Input id="precioContrato" type="number" value={formActividad.precioContrato} onChange={e => setFormActividad(prev => ({...prev, precioContrato: e.target.value}))} placeholder="Ej: 1000000"/>
-              </div>
+        <CardHeader className="flex flex-row items-center justify-between">
+            <div>
+                <CardTitle>Actividades Programadas</CardTitle>
+                <CardDescription>{cargandoActividades ? "Cargando..." : `Mostrando ${actividades.length} actividades.`}</CardDescription>
             </div>
-            <Button type="submit" className="w-full sm:w-auto bg-accent text-accent-foreground hover:bg-accent/90">
-              Agregar Actividad
+            <Button onClick={() => handleOpenDialog()}>
+                <PlusCircle className="mr-2 h-4 w-4" />
+                Nueva Actividad
             </Button>
-          </form>
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardHeader>
-            <CardTitle>Actividades Programadas</CardTitle>
-            <CardDescription>{cargandoActividades ? "Cargando..." : `Mostrando ${actividades.length} actividades.`}</CardDescription>
         </CardHeader>
         <CardContent className="p-0">
             <div className="overflow-x-auto">
@@ -513,10 +517,11 @@ function ProgramacionPageInner() {
                         <TableHead>Inicio</TableHead>
                         <TableHead>Fin</TableHead>
                         <TableHead>Estado</TableHead>
+                        <TableHead className="text-right">Acciones</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                    {cargandoActividades ? <TableRow><TableCell colSpan={5} className="text-center">Cargando...</TableCell></TableRow> : 
+                    {cargandoActividades ? <TableRow><TableCell colSpan={6} className="text-center">Cargando...</TableCell></TableRow> : 
                     actividades.length > 0 ? (actividades.map((act) => (
                         <TableRow key={act.id}>
                             <TableCell className="font-medium">{act.nombreActividad}</TableCell>
@@ -532,15 +537,78 @@ function ProgramacionPageInner() {
                                     </Select>
                                 </div>
                             </TableCell>
+                            <TableCell className="text-right">
+                                <div className="flex justify-end gap-2">
+                                  <Button variant="ghost" size="icon" onClick={() => handleOpenDialog(act)}>
+                                    <Edit className="h-4 w-4" />
+                                    <span className="sr-only">Editar</span>
+                                  </Button>
+                                  <AlertDialog>
+                                    <AlertDialogTrigger asChild>
+                                      <Button variant="ghost" size="icon" className="text-destructive hover:text-destructive">
+                                        <Trash2 className="h-4 w-4" />
+                                        <span className="sr-only">Eliminar</span>
+                                      </Button>
+                                    </AlertDialogTrigger>
+                                    <AlertDialogContent>
+                                      <AlertDialogHeader>
+                                        <AlertDialogTitle>¿Estás seguro de que deseas eliminar esta actividad?</AlertDialogTitle>
+                                        <AlertDialogDescription>
+                                          Esta acción no se puede deshacer. Se eliminará permanentemente la actividad "{act.nombreActividad}".
+                                        </AlertDialogDescription>
+                                      </AlertDialogHeader>
+                                      <AlertDialogFooter>
+                                        <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                                        <AlertDialogAction onClick={() => handleDeleteActividad(act.id)} className="bg-destructive hover:bg-destructive/90">Eliminar</AlertDialogAction>
+                                      </AlertDialogFooter>
+                                    </AlertDialogContent>
+                                  </AlertDialog>
+                                </div>
+                            </TableCell>
                         </TableRow>
                     ))) : (
-                        <TableRow><TableCell colSpan={5} className="text-center text-muted-foreground py-8">No hay actividades para esta obra.</TableCell></TableRow>
+                        <TableRow><TableCell colSpan={6} className="text-center text-muted-foreground py-8">No hay actividades para esta obra.</TableCell></TableRow>
                     )}
                     </TableBody>
                 </Table>
             </div>
         </CardContent>
       </Card>
+      
+      <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+        <DialogContent className="sm:max-w-[425px]">
+          <form onSubmit={handleActividadSubmit}>
+            <DialogHeader>
+              <DialogTitle>{currentActividad?.id ? "Editar Actividad" : "Crear Nueva Actividad"}</DialogTitle>
+              <DialogDescription>
+                {currentActividad?.id ? "Modifica los detalles y haz clic en Guardar." : "Completa los detalles para registrar una nueva actividad."}
+              </DialogDescription>
+            </DialogHeader>
+            <div className="grid gap-4 py-4">
+              <div className="grid grid-cols-4 items-center gap-4">
+                <Label htmlFor="nombreActividad" className="text-right">Nombre</Label>
+                <Input id="nombreActividad" name="nombreActividad" value={currentActividad?.nombreActividad || ""} onChange={(e) => setCurrentActividad(prev => prev ? {...prev, nombreActividad: e.target.value} : null)} className="col-span-3" />
+              </div>
+              <div className="grid grid-cols-4 items-center gap-4">
+                <Label htmlFor="fechaInicio" className="text-right">Inicio</Label>
+                <Input id="fechaInicio" name="fechaInicio" type="date" value={currentActividad?.fechaInicio || ""} onChange={(e) => setCurrentActividad(prev => prev ? {...prev, fechaInicio: e.target.value} : null)} className="col-span-3" />
+              </div>
+              <div className="grid grid-cols-4 items-center gap-4">
+                <Label htmlFor="fechaFin" className="text-right">Fin</Label>
+                <Input id="fechaFin" name="fechaFin" type="date" value={currentActividad?.fechaFin || ""} onChange={(e) => setCurrentActividad(prev => prev ? {...prev, fechaFin: e.target.value} : null)} className="col-span-3" />
+              </div>
+              <div className="grid grid-cols-4 items-center gap-4">
+                <Label htmlFor="precioContrato" className="text-right">Precio</Label>
+                <Input id="precioContrato" name="precioContrato" type="number" value={currentActividad?.precioContrato || ""} onChange={(e) => setCurrentActividad(prev => prev ? {...prev, precioContrato: Number(e.target.value)} : null)} className="col-span-3" />
+              </div>
+              {error && <p className="col-span-4 text-sm font-medium text-destructive">{error}</p>}
+            </div>
+            <DialogFooter>
+              <Button type="submit">Guardar Actividad</Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
       
       <section className="space-y-4 mt-8">
         <header className="space-y-1">
