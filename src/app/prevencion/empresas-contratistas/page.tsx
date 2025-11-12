@@ -11,7 +11,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Separator } from '@/components/ui/separator';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { firebaseDb } from "@/lib/firebaseClient";
-import { collection, addDoc, Timestamp, getDocs, orderBy, query, doc, updateDoc, deleteDoc, serverTimestamp } from "firebase/firestore";
+import { collection, addDoc, Timestamp, getDocs, orderBy, query, where, doc, updateDoc, deleteDoc, serverTimestamp, onSnapshot } from "firebase/firestore";
 
 type ObraPrevencion = {
   id: string;
