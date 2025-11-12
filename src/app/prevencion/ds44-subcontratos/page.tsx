@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -12,6 +12,17 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Separator } from '@/components/ui/separator';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
+import { firebaseDb } from "@/lib/firebaseClient";
+import {
+  collection,
+  addDoc,
+  query,
+  orderBy,
+  onSnapshot,
+  serverTimestamp,
+  getDocs,
+} from "firebase/firestore";
+
 
 // --- Tipos ---
 type Obra = {
@@ -39,38 +50,11 @@ type IngresoEmpresa = {
   docMatrizRiesgos: boolean;
   estadoIngreso: EstadoIngreso;
   observaciones: string;
+  createdAt?: Date | null;
 };
 
+
 const ESTADOS_INGRESO: EstadoIngreso[] = ["Pendiente", "Aprobado", "Rechazado"];
-
-// --- Datos Simulados ---
-const OBRAS_SIMULADAS: Obra[] = [
-  { id: '1', nombreFaena: 'Edificio Central' },
-  { id: '2', nombreFaena: 'Condominio El Roble' },
-  { id: '3', nombreFaena: 'Remodelación Oficinas Corp' },
-];
-
-const INGRESOS_INICIALES: IngresoEmpresa[] = [
-  {
-    id: 'ing1',
-    obraId: '1',
-    fechaIngreso: '2025-11-10',
-    razonSocial: 'Movimientos de Tierra del Sur Ltda.',
-    rutEmpresa: '77.890.123-K',
-    representante: 'Pedro Pascal',
-    mutualidad: 'Mutual CChC',
-    tipoTrabajo: 'Excavaciones',
-    cantidadTrabajadores: 10,
-    docContratoOC: true,
-    docMutualAlDia: true,
-    docListadoPersonal: true,
-    docInduccionRealizada: false,
-    docReglamentoFirmado: true,
-    docMatrizRiesgos: false,
-    estadoIngreso: 'Pendiente',
-    observaciones: 'Falta ODI y Matriz de Riesgos para aprobar ingreso.',
-  },
-];
 
 // --- Componentes Auxiliares ---
 function EstadoBadge({ estado }: { estado: EstadoIngreso }) {
@@ -84,8 +68,9 @@ function EstadoBadge({ estado }: { estado: EstadoIngreso }) {
 
 // --- Componente Principal ---
 export default function IngresoEmpresaSubcontratistaPage() {
-  const [obraSeleccionadaId, setObraSeleccionadaId] = useState<string>(OBRAS_SIMULADAS[0]?.id ?? "");
-  const [ingresos, setIngresos] = useState<IngresoEmpresa[]>(INGRESOS_INICIALES);
+  const [obras, setObras] = useState<Obra[]>([]);
+  const [obraSeleccionadaId, setObraSeleccionadaId] = useState<string>("");
+  const [ingresos, setIngresos] = useState<IngresoEmpresa[]>([]);
 
   // Estados del formulario
   const [razonSocial, setRazonSocial] = useState('');
@@ -105,13 +90,82 @@ export default function IngresoEmpresaSubcontratistaPage() {
   const [docReglamentoFirmado, setDocReglamentoFirmado] = useState(false);
   const [docMatrizRiesgos, setDocMatrizRiesgos] = useState(false);
   
-  const [error, setError] = useState('');
-
-  const ingresosFiltrados = useMemo(() => 
-    ingresos.filter((i) => i.obraId === obraSeleccionadaId),
-    [ingresos, obraSeleccionadaId]
-  );
+  const [guardando, setGuardando] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [mensajeOk, setMensajeOk] = useState<string | null>(null);
   
+  // Cargar Obras desde Firestore
+  useEffect(() => {
+    async function cargarObras() {
+      try {
+        const colRef = collection(firebaseDb, "obras");
+        const snapshot = await getDocs(colRef);
+        const data: Obra[] = snapshot.docs.map((doc) => ({
+          id: doc.id,
+          nombreFaena: doc.data().nombreFaena ?? "",
+        }));
+        setObras(data);
+        if (data.length > 0 && !obraSeleccionadaId) {
+          setObraSeleccionadaId(data[0].id);
+        }
+      } catch (err) {
+        console.error(err);
+        setError("No se pudieron cargar las obras.");
+      }
+    }
+    cargarObras();
+  }, [obraSeleccionadaId]);
+  
+  // Cargar ingresos en tiempo real
+  useEffect(() => {
+    if (!obraSeleccionadaId) {
+      setIngresos([]);
+      return;
+    }
+
+    const q = query(
+      collection(firebaseDb, "obras", obraSeleccionadaId, "empresasSubcontratistasDs44"),
+      orderBy("createdAt", "desc")
+    );
+
+    const unsubscribe = onSnapshot(
+      q,
+      (snapshot) => {
+        const data: IngresoEmpresa[] = snapshot.docs.map((doc) => {
+          const d = doc.data() as any;
+          return {
+            id: doc.id,
+            obraId: d.obraId,
+            rutEmpresa: d.rutEmpresa ?? "",
+            razonSocial: d.razonSocial ?? "",
+            representante: d.representante ?? "",
+            mutualidad: d.mutualidad ?? "",
+            tipoTrabajo: d.tipoTrabajo ?? "",
+            cantidadTrabajadores: d.cantidadTrabajadores ?? 0,
+            fechaIngreso: d.fechaIngreso ?? "",
+            docContratoOC: !!d.docContratoOC,
+            docMutualAlDia: !!d.docMutualAlDia,
+            docListadoPersonal: !!d.docListadoPersonal,
+            docInduccionRealizada: !!d.docInduccionRealizada,
+            docReglamentoFirmado: !!d.docReglamentoFirmado,
+            docMatrizRiesgos: !!d.docMatrizRiesgos,
+            estadoIngreso: d.estadoIngreso ?? 'Pendiente',
+            observaciones: d.observaciones ?? "",
+            createdAt: d.createdAt?.toDate ? d.createdAt.toDate() : null,
+          };
+        });
+        setIngresos(data);
+      },
+      (error) => {
+        console.error(error);
+        setError("Error al cargar las empresas subcontratistas.");
+      }
+    );
+
+    return () => unsubscribe();
+  }, [obraSeleccionadaId]);
+
+
   const resetForm = () => {
     setRazonSocial('');
     setRutEmpresa('');
@@ -131,36 +185,53 @@ export default function IngresoEmpresaSubcontratistaPage() {
     setError('');
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!obraSeleccionadaId || !razonSocial || !rutEmpresa || !mutualidad || !tipoTrabajo || !fechaIngreso || !estadoIngreso) {
-      setError('Faltan datos clave de la empresa. Por favor, complete todos los campos requeridos.');
+    setError(null);
+    setMensajeOk(null);
+
+    if (!obraSeleccionadaId) {
+      setError("Debes seleccionar una obra antes de registrar una empresa subcontratista.");
       return;
     }
-    setError('');
+    
+    if (!razonSocial || !rutEmpresa) {
+        setError("Razón Social y RUT de la empresa son obligatorios.");
+        return;
+    }
 
-    const nuevoIngreso: IngresoEmpresa = {
-      id: `ing-${Date.now()}`,
-      obraId: obraSeleccionadaId,
-      fechaIngreso,
-      razonSocial,
-      rutEmpresa,
-      representante,
-      mutualidad,
-      tipoTrabajo,
-      cantidadTrabajadores: Number(cantidadTrabajadores) || 0,
-      docContratoOC,
-      docMutualAlDia,
-      docListadoPersonal,
-      docInduccionRealizada,
-      docReglamentoFirmado,
-      docMatrizRiesgos,
-      estadoIngreso,
-      observaciones,
-    };
-
-    setIngresos((prev) => [nuevoIngreso, ...prev]);
-    resetForm();
+    try {
+        setGuardando(true);
+        await addDoc(
+            collection(firebaseDb, "obras", obraSeleccionadaId, "empresasSubcontratistasDs44"),
+            {
+              obraId: obraSeleccionadaId,
+              rutEmpresa,
+              razonSocial,
+              representante,
+              mutualidad,
+              tipoTrabajo,
+              cantidadTrabajadores: Number(cantidadTrabajadores) || 0,
+              fechaIngreso,
+              docContratoOC,
+              docMutualAlDia,
+              docListadoPersonal,
+              docInduccionRealizada,
+              docReglamentoFirmado,
+              docMatrizRiesgos,
+              estadoIngreso,
+              observaciones: observaciones || "",
+              createdAt: serverTimestamp(),
+            }
+        );
+        setMensajeOk("Empresa subcontratista registrada correctamente.");
+        resetForm();
+    } catch (err) {
+        console.error(err);
+        setError("Error al registrar la empresa subcontratista. Intenta nuevamente.");
+    } finally {
+        setGuardando(false);
+    }
   };
   
   const countDocsOk = (ingreso: IngresoEmpresa) => {
@@ -179,7 +250,7 @@ export default function IngresoEmpresaSubcontratistaPage() {
       <div>
         <h1 className="text-4xl font-bold font-headline tracking-tight">Ingreso empresa subcontratista – DS44</h1>
         <p className="mt-2 text-lg text-muted-foreground">
-          Este formulario guía al prevencionista en los requisitos de ingreso a obra según DS44. Los datos son simulados.
+          Este formulario guía al prevencionista en los requisitos de ingreso a obra según DS44. Los datos se guardan en Firestore.
         </p>
       </div>
 
@@ -191,7 +262,7 @@ export default function IngresoEmpresaSubcontratistaPage() {
             <Select value={obraSeleccionadaId} onValueChange={setObraSeleccionadaId}>
               <SelectTrigger id="obra-select"><SelectValue placeholder="Seleccione una obra" /></SelectTrigger>
               <SelectContent>
-                {OBRAS_SIMULADAS.map((obra) => (
+                {obras.map((obra) => (
                   <SelectItem key={obra.id} value={obra.id}>{obra.nombreFaena}</SelectItem>
                 ))}
               </SelectContent>
@@ -254,10 +325,13 @@ export default function IngresoEmpresaSubcontratistaPage() {
                 </div>
               </div>
             </div>
-
-            {error && <p className="text-sm font-medium text-destructive mt-4">{error}</p>}
             
-            <Button type="submit" className="w-full sm:w-auto bg-accent text-accent-foreground hover:bg-accent/90">Registrar Ingreso de Empresa</Button>
+            {error && <p className="text-sm font-medium text-destructive mt-4">{error}</p>}
+            {mensajeOk && <p className="text-sm font-medium text-green-600 mt-4">{mensajeOk}</p>}
+
+            <Button type="submit" disabled={guardando} className="w-full sm:w-auto bg-accent text-accent-foreground hover:bg-accent/90">
+                {guardando ? "Registrando..." : "Registrar Ingreso de Empresa"}
+            </Button>
           </CardContent>
         </Card>
       </form>
@@ -265,7 +339,7 @@ export default function IngresoEmpresaSubcontratistaPage() {
       <Card>
         <CardHeader>
           <CardTitle>Historial de Ingresos Registrados</CardTitle>
-          <CardDescription>Empresas evaluadas para la obra "{OBRAS_SIMULADAS.find(o => o.id === obraSeleccionadaId)?.nombreFaena}".</CardDescription>
+          <CardDescription>Empresas evaluadas para la obra "{obras.find(o => o.id === obraSeleccionadaId)?.nombreFaena}".</CardDescription>
         </CardHeader>
         <CardContent className="p-0">
           <div className="overflow-x-auto">
@@ -282,8 +356,8 @@ export default function IngresoEmpresaSubcontratistaPage() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {ingresosFiltrados.length > 0 ? (
-                  ingresosFiltrados.sort((a,b) => new Date(b.fechaIngreso).getTime() - new Date(a.fechaIngreso).getTime()).map(ingreso => (
+                {ingresos.length > 0 ? (
+                  ingresos.map(ingreso => (
                     <TableRow key={ingreso.id}>
                       <TableCell className="whitespace-nowrap">{ingreso.fechaIngreso}</TableCell>
                       <TableCell>
