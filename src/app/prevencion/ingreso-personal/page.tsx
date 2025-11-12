@@ -31,6 +31,7 @@ import {
 type Obra = {
   id: string;
   nombreFaena: string;
+  mandanteRazonSocial: string;
 };
 
 // Se importa desde el otro módulo para consistencia
@@ -267,7 +268,12 @@ export default function IngresoPersonalPage() {
       try {
         const q = query(collection(firebaseDb, "obras"), orderBy("nombreFaena", "asc"));
         const querySnapshot = await getDocs(q);
-        const obrasData = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Obra));
+        const obrasData = querySnapshot.docs.map(doc => ({ 
+            id: doc.id, 
+            nombreFaena: doc.data().nombreFaena,
+            mandanteRazonSocial: doc.data().mandanteRazonSocial,
+            ...doc.data() 
+        } as Obra));
         setObras(obrasData);
         if (obrasData.length > 0 && !obraSeleccionadaId) {
           setObraSeleccionadaId(obrasData[0].id);
@@ -353,6 +359,10 @@ export default function IngresoPersonalPage() {
 
   const progresoSeleccionado = useMemo(() => trabajadorSeleccionado ? getProgresoDs44(trabajadorSeleccionado) : null, [trabajadorSeleccionado]);
   const indicadoresActuales = useMemo(() => getIndicadoresObraTipo(ingresos, obraSeleccionadaId, tipoRelacion), [ingresos, obraSeleccionadaId, tipoRelacion]);
+  
+  const selectedObra = obras.find(o => o.id === obraSeleccionadaId);
+  const empresaMandante = selectedObra?.mandanteRazonSocial ?? '';
+
 
   const resetForm = () => {
     setRut(''); setNombre(''); setCargo(''); setEmpresaIdSeleccionada('');
@@ -367,11 +377,21 @@ export default function IngresoPersonalPage() {
     setMensaje(null);
     setError(null);
 
-    const empresaSeleccionada = empresasDisponibles.find(emp => emp.id === empresaIdSeleccionada);
+    let empresaFinal = '';
 
     try {
       if (!obraSeleccionadaId) throw new Error("No se encontró el ID de la obra (obraId).");
-      if (!nombre || !rut || !tipoRelacion || !empresaSeleccionada) throw new Error("Faltan campos obligatorios (nombre, RUT, tipo o empresa).");
+      if (!nombre || !rut || !tipoRelacion) throw new Error("Faltan campos obligatorios (nombre, RUT o tipo).");
+      
+      if (tipoRelacion === 'Empresa') {
+        if (!empresaMandante) throw new Error("No se ha definido la empresa mandante en la configuración de la obra.");
+        empresaFinal = empresaMandante;
+      } else { // Subcontrato
+        const empresaSeleccionada = empresasDisponibles.find(emp => emp.id === empresaIdSeleccionada);
+        if (!empresaSeleccionada) throw new Error("Debe seleccionar una empresa subcontratista.");
+        empresaFinal = empresaSeleccionada.razonSocial;
+      }
+
 
       const ingresosRef = collection(firebaseDb, "ingresosPersonal");
       const newDoc = {
@@ -379,7 +399,7 @@ export default function IngresoPersonalPage() {
         tipoRelacion,
         nombre,
         rut,
-        empresa: empresaSeleccionada.razonSocial,
+        empresa: empresaFinal,
         cargo,
         fechaIngreso,
         observaciones: observaciones || null,
@@ -512,9 +532,6 @@ export default function IngresoPersonalPage() {
       { id: 'EPP', label: 'Entrega de EPP', icon: Shield, docFields: ['docEPPEntregados'] },
       { id: 'Charla', label: 'Inclusión en Listados / Charlas', icon: MessageSquare, docFields: ['docRegistroListaPersonal'] },
   ] as const;
-  
-  const selectedObra = obras.find(o => o.id === obraSeleccionadaId);
-  
 
   return (
     <div className="space-y-8">
@@ -595,18 +612,23 @@ export default function IngresoPersonalPage() {
               <div className="space-y-2"><Label htmlFor="rut">RUT*</Label><Input id="rut" value={rut} onChange={e => setRut(e.target.value)} /></div>
               <div className="space-y-2"><Label htmlFor="nombre">Nombre*</Label><Input id="nombre" value={nombre} onChange={e => setNombre(e.target.value)} /></div>
               <div className="space-y-2"><Label htmlFor="cargo">Cargo*</Label><Input id="cargo" value={cargo} onChange={e => setCargo(e.target.value)} /></div>
+              
               <div className="space-y-2 lg:col-span-2">
                 <Label htmlFor="empresa-select">Empresa*</Label>
-                <Select value={empresaIdSeleccionada} onValueChange={setEmpresaIdSeleccionada}>
-                    <SelectTrigger id="empresa-select">
-                        <SelectValue placeholder={`Seleccionar ${tipoRelacion === 'Empresa' ? 'Empresa Mandante' : 'Subcontrato'}`} />
-                    </SelectTrigger>
-                    <SelectContent>
-                        {empresasDisponibles.map(emp => (
-                            <SelectItem key={emp.id} value={emp.id}>{emp.razonSocial} - {emp.rut}</SelectItem>
-                        ))}
-                    </SelectContent>
-                </Select>
+                {tipoRelacion === 'Empresa' ? (
+                  <Input value={empresaMandante} disabled />
+                ) : (
+                  <Select value={empresaIdSeleccionada} onValueChange={setEmpresaIdSeleccionada}>
+                      <SelectTrigger id="empresa-select">
+                          <SelectValue placeholder="Seleccionar Subcontrato" />
+                      </SelectTrigger>
+                      <SelectContent>
+                          {empresasDisponibles.map(emp => (
+                              <SelectItem key={emp.id} value={emp.id}>{emp.razonSocial} - {emp.rut}</SelectItem>
+                          ))}
+                      </SelectContent>
+                  </Select>
+                )}
               </div>
                <div className="space-y-2"><Label htmlFor="fechaIngreso">Fecha de Ingreso</Label><Input id="fechaIngreso" type="date" value={fechaIngreso} onChange={e => setFechaIngreso(e.target.value)} /></div>
             </div>
