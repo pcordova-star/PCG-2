@@ -53,14 +53,14 @@ export default function Home() {
     {
       title: 'Operaciones',
       description:
-        'Planifique, programe y controle el avance diario de sus faenas. (Módulo en desarrollo)',
+        'Planifique, programe y controle el avance diario de sus faenas.',
       href: '/operaciones',
       icon: Activity,
     },
     {
       title: 'Prevención de Riesgos',
       description:
-        'Administre la seguridad y salud ocupacional. Un módulo especializado para un aspecto crítico de la construcción. (Módulo en desarrollo)',
+        'Administre la seguridad y salud ocupacional. Un módulo especializado para un aspecto crítico de la construcción.',
       href: '/prevencion',
       icon: ShieldCheck,
     },
