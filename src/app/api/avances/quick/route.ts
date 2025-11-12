@@ -65,7 +65,7 @@ export async function POST(req: Request) {
       fecha: FieldValue.serverTimestamp(),
       creadoPor: {
         uid: user.uid,
-        displayName: user.name || user.email || "Usuario sin nombre",
+        displayName: user.name || user.email || "",
       },
     };
 
