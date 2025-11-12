@@ -59,7 +59,7 @@ export async function POST(req: Request) {
     // Documento de avance
     const avanceData = {
       obraId,
-      actividadId,
+      actividadId: actividadId || null,
       porcentajeAvance: porcentaje,
       comentario,
       fotos,
@@ -75,25 +75,29 @@ export async function POST(req: Request) {
     const write = await avancesRef.add(avanceData);
 
     // (Opcional) actualizar agregados de programación aquí si corresponde
-    await db.runTransaction(async (transaction) => {
-        const obraDocTx = await transaction.get(obraRef);
-        if (!obraDocTx.exists) {
-            throw "La obra no existe.";
-        }
-        const currentData = obraDocTx.data() || {};
-        
-        const avancePrevio = currentData.avanceAcumulado || 0;
-        const nuevoAvanceAcumulado = Math.min(100, avancePrevio + porcentaje);
+    if (porcentaje > 0) {
+      await db.runTransaction(async (transaction) => {
+          const obraDocTx = await transaction.get(obraRef);
+          if (!obraDocTx.exists) {
+              throw "La obra no existe.";
+          }
+          const currentData = obraDocTx.data() || {};
+          
+          const avancePrevio = currentData.avanceAcumulado || 0;
+          // Esto es una simplificación. Un cálculo real podría ser más complejo.
+          const nuevoAvanceAcumulado = Math.min(100, avancePrevio + (porcentaje / (currentData.totalActividades || 10)));
+          
+          transaction.update(obraRef, {
+              ultimaActualizacion: FieldValue.serverTimestamp(),
+              avanceAcumulado: nuevoAvanceAcumulado,
+          });
+      });
+    }
 
-        transaction.update(obraRef, {
-            ultimaActualizacion: FieldValue.serverTimestamp(),
-            avanceAcumulado: nuevoAvanceAcumulado,
-        });
-    });
 
     return NextResponse.json({ ok: true, id: write.id }, { status: 201 });
   } catch (err: any) {
     console.error("[API avances/quick] Unexpected Error:", err);
-    return NextResponse.json({ ok: false, error: "INTERNAL_ERROR" }, { status: 500 });
+    return NextResponse.json({ ok: false, error: "INTERNAL_ERROR", message: err.message }, { status: 500 });
   }
 }
