@@ -17,9 +17,7 @@ type Obra = {
     nombreFaena: string;
     direccion: string;
     mandante: string;
-    contacto: {
-        email: string;
-    };
+    clienteEmail: string;
     [key: string]: any; 
 };
 
@@ -57,29 +55,26 @@ function formatCL(iso?: string | null) {
 
 export default function ClienteObraPage() {
     const params = useParams();
-    const shareId = params.obraId as string;
+    const obraId = params.obraId as string;
     const [data, setData] = useState<PublicObraData | null>(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
 
     useEffect(() => {
-        if (!shareId) {
-            setError("No se proporcionó un ID para compartir.");
+        if (!obraId) {
+            setError("No se proporcionó un ID de obra.");
             setLoading(false);
             return;
         }
 
-        async function getPublicObraByShareId(id: string): Promise<PublicObraData | null> {
+        async function getObraData(id: string): Promise<PublicObraData | null> {
             try {
-                const obrasRef = collection(firebaseDb, 'obras');
-                const q = query(obrasRef, where('clientePanel.shareId', '==', id), where('clientePanel.enabled', '==', true), limit(1));
-                const snap = await getDocs(q);
+                const obraRef = doc(firebaseDb, 'obras', id);
+                const obraDoc = await getDoc(obraRef);
         
-                if (snap.empty) return null;
+                if (!obraDoc.exists()) return null;
         
-                const obraDoc = snap.docs[0];
                 const obraData = obraDoc.data() as Obra;
-                const obraId = obraDoc.id;
         
                 const actsSnap = await getDocs(collection(firebaseDb, "obras", obraId, "actividades"));
                 let programadas = actsSnap.size;
@@ -113,7 +108,7 @@ export default function ClienteObraPage() {
                     nombre: obraData.nombreFaena || 'Obra sin nombre',
                     direccion: obraData.direccion || '',
                     mandante: obraData.mandante || '',
-                    contacto: obraData.contacto || { email: '' },
+                    contacto: { email: obraData.clienteEmail || '' },
                     avanceAcumulado,
                     ultimaActualizacion,
                     actividades: { programadas, completadas },
@@ -121,21 +116,21 @@ export default function ClienteObraPage() {
                 };
 
             } catch (err) {
-                console.error("Error fetching public obra data:", err);
+                console.error("Error fetching obra data:", err);
                 return null;
             }
         }
 
-        getPublicObraByShareId(shareId).then(result => {
+        getObraData(obraId).then(result => {
             if (result) {
                 setData(result);
             } else {
-                setError("No se pudo encontrar la obra con el enlace proporcionado.");
+                setError("No se pudo encontrar la obra con el ID proporcionado.");
             }
             setLoading(false);
         });
 
-    }, [shareId]);
+    }, [obraId]);
 
   if (loading) {
       return <div className="text-center p-8">Cargando datos de la obra...</div>

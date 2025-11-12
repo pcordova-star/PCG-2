@@ -255,7 +255,7 @@ export default function ObrasPage() {
                       <TableCell>{obra.prevencionistaNombre}</TableCell>
                       <TableCell>
                         <Button variant="outline" size="sm" asChild>
-                          <Link href={`/clientes/${obra.id}`} target="_blank">
+                          <Link href={`/clientes/${obra.id}`}>
                             <LinkIcon className="mr-2 h-3 w-3" />
                             Ver Panel
                           </Link>
