@@ -370,8 +370,8 @@ export default function EmpresasContratistasPage() {
   );
 
   return (
-    <section className="space-y-4">
-      <header className="space-y-1">
+    <section className="space-y-4 print:p-0">
+      <header className="space-y-1 print:hidden">
         <h2 className="text-2xl font-semibold text-foreground">
           Empresas contratistas / subcontratistas – DS44
         </h2>
@@ -421,9 +421,9 @@ export default function EmpresasContratistasPage() {
         </Button>
       </div>
 
-      {successMessage && <p className="text-sm font-medium text-green-600">{successMessage}</p>}
+      {successMessage && <p className="text-sm font-medium text-green-600 print:hidden">{successMessage}</p>}
 
-      <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+      <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3 print:block">
         {/* Columna izquierda: listado de empresas */}
         <div className="space-y-2 lg:col-span-1 print:hidden">
           <h3 className="text-sm font-semibold text-card-foreground">
@@ -490,15 +490,15 @@ export default function EmpresasContratistasPage() {
               className="space-y-6 rounded-xl border bg-card p-4 shadow-sm text-xs print:rounded-none print:shadow-none print:border-0 print:p-0"
               onSubmit={handleSubmit}
             >
-              <div className="flex justify-between items-center">
+              <div className="flex justify-between items-center print:hidden">
                  <h3 className="text-sm font-semibold text-card-foreground">
                     {empresaSeleccionadaId ? "Ficha de Empresa" : "Formulario de Ingreso y Evaluación de Empresa"}
                 </h3>
-                 {empresaSeleccionadaId && <Button type="button" onClick={() => window.print()} variant="outline" size="sm" className="print:hidden">Imprimir / Guardar PDF</Button>}
+                 {empresaSeleccionadaId && <Button type="button" onClick={() => window.print()} variant="outline" size="sm">Imprimir / Guardar PDF</Button>}
               </div>
 
               {errorForm && (
-                <p className="text-[11px] text-destructive">{errorForm}</p>
+                <p className="text-[11px] text-destructive print:hidden">{errorForm}</p>
               )}
                 
               {obraSeleccionadaInfo && <EncabezadoDocumentoEmpresa config={getEmpresaDocConfig("EVAL_EMPRESA_CONTRATISTA")} nombreObra={obraSeleccionadaInfo.nombreFaena} />}
@@ -597,7 +597,7 @@ export default function EmpresasContratistasPage() {
               </div>
             </form>
           ) : (
-            <div className="flex items-center justify-center h-full rounded-lg border-2 border-dashed border-muted-foreground/30 bg-muted/20 text-center p-8">
+            <div className="flex items-center justify-center h-full rounded-lg border-2 border-dashed border-muted-foreground/30 bg-muted/20 text-center p-8 print:hidden">
               <p className="text-sm text-muted-foreground">
                 Selecciona una empresa del listado de la izquierda o haz clic en
                 "Ingresar nueva empresa" para registrar una nueva.
