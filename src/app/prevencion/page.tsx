@@ -1,7 +1,7 @@
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
-import { Users, FileText, Building, ClipboardPlus } from 'lucide-react';
+import { Users, FileText, Building, ClipboardPlus, BookUser } from 'lucide-react';
 
 export default function PrevencionPage() {
   const modules = [
@@ -39,6 +39,13 @@ export default function PrevencionPage() {
       href: "/prevencion/formularios-generales",
       icon: ClipboardPlus,
       linkText: "Ir a Formularios"
+    },
+    {
+      title: "Capacitación e inducciones",
+      description: "Módulo para gestionar inducciones de acceso a faena para visitas y capacitaciones internas. En este MVP partimos por la inducción de acceso mediante QR.",
+      href: "/prevencion/capacitacion",
+      icon: BookUser,
+      linkText: "Ir a Capacitación"
     }
   ];
 

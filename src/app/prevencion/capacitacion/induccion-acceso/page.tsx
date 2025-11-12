@@ -8,7 +8,6 @@ import { Label } from "@/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
-import { cn } from "@/lib/utils";
 
 // --- Tipos y Datos ---
 type ObraCapacitacion = {
@@ -156,7 +155,7 @@ export default function InduccionAccesoPage() {
   const [respuesta2, setRespuesta2] = useState<string>("");
   const [respuesta3, setRespuesta3] = useState<string>("");
 
-  function todasRespuestasCorrectas(): boolean {
+  function respuestasCorrectas(): boolean {
     return respuesta1 === "SI" && respuesta2 === "NO" && respuesta3 === "SI";
   }
 
@@ -180,7 +179,7 @@ export default function InduccionAccesoPage() {
       return;
     }
 
-    if (!todasRespuestasCorrectas()) {
+    if (!respuestasCorrectas()) {
       setErrorForm("Debes responder correctamente todas las preguntas de comprensión para continuar.");
       return;
     }
@@ -220,9 +219,7 @@ export default function InduccionAccesoPage() {
     setRespuesta3("");
     setFirmaDataUrl(null);
     
-    // Idealmente, el canvas de la firma debería limpiarse también.
-    // Esto se puede hacer llamando una función del componente SignaturePad a través de una ref.
-    // Por simplicidad en este MVP, lo omitimos, pero se recomienda implementarlo.
+    // Idealmente, el canvas de la firma debería limpiarse también, pero por simplicidad se omite.
   }
 
   const obraSeleccionada = OBRAS_CAPACITACION.find(
