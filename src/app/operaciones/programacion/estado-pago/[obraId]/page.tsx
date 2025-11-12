@@ -39,11 +39,12 @@ type Obra = {
 };
 
 export default function EstadoDePagoPage() {
-  // ⬅️ importante: en Client Components usamos useParams, NO params async
   const { obraId } = useParams<{ obraId: string }>();
 
   const [obra, setObra] = useState<Obra | null>(null);
   const [items, setItems] = useState<ItemEstadoPago[]>([]);
+  const [subtotal, setSubtotal] = useState(0);
+  const [iva, setIva] = useState(0);
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -68,10 +69,10 @@ export default function EstadoDePagoPage() {
 
         const obraData = obraSnap.data() as any;
         setObra({
-          nombre: obraData.nombre ?? 'Obra sin nombre',
-          cliente: obraData.cliente ?? '',
+          nombre: obraData.nombreFaena ?? 'Obra sin nombre',
+          cliente: obraData.clienteEmail ?? '',
           direccion: obraData.direccion ?? '',
-          codigo: obraData.codigo ?? obraId,
+          codigo: obraId,
         });
 
         // 2) Actividades de la obra
@@ -82,7 +83,7 @@ export default function EstadoDePagoPage() {
           const data = d.data() as any;
           return {
             id: d.id,
-            nombre: data.nombre ?? 'Actividad sin nombre',
+            nombre: data.nombreActividad ?? 'Actividad sin nombre',
             unidad: data.unidad,
             cantidadContrato: data.cantidadContrato,
             precioContrato: Number(data.precioContrato ?? 0),
@@ -132,13 +133,19 @@ export default function EstadoDePagoPage() {
           };
         });
 
-        const totalCalculado = itemsCalculados.reduce(
+        const subtotalCalculado = itemsCalculados.reduce(
           (sum, item) => sum + item.montoProyectado,
           0,
         );
+        
+        const ivaCalculado = subtotalCalculado * 0.19;
+        const totalCalculado = subtotalCalculado + ivaCalculado;
 
         setItems(itemsCalculados);
+        setSubtotal(subtotalCalculado);
+        setIva(ivaCalculado);
         setTotal(totalCalculado);
+
       } catch (err) {
         console.error(err);
         setError('Ocurrió un error al cargar el estado de pago.');
@@ -154,6 +161,14 @@ export default function EstadoDePagoPage() {
     if (typeof window !== 'undefined') {
       window.print();
     }
+  };
+  
+  const formatCurrency = (value: number) => {
+    return value.toLocaleString('es-CL', {
+      style: 'currency',
+      currency: 'CLP',
+      maximumFractionDigits: 0,
+    });
   };
 
   if (loading) {
@@ -222,21 +237,13 @@ export default function EstadoDePagoPage() {
                   {item.cantidadContrato ?? '-'}
                 </td>
                 <td className="border border-gray-200 px-2 py-1 text-right">
-                  {item.precioContrato.toLocaleString('es-CL', {
-                    style: 'currency',
-                    currency: 'CLP',
-                    maximumFractionDigits: 0,
-                  })}
+                  {formatCurrency(item.precioContrato)}
                 </td>
                 <td className="border border-gray-200 px-2 py-1 text-right">
                   {item.porcentajeAvance.toFixed(1)} %
                 </td>
                 <td className="border border-gray-200 px-2 py-1 text-right">
-                  {item.montoProyectado.toLocaleString('es-CL', {
-                    style: 'currency',
-                    currency: 'CLP',
-                    maximumFractionDigits: 0,
-                  })}
+                  {formatCurrency(item.montoProyectado)}
                 </td>
               </tr>
             ))}
@@ -245,16 +252,24 @@ export default function EstadoDePagoPage() {
       </section>
 
       {/* Totales y firmas */}
-      <section className="mt-4">
-        <div className="text-right font-semibold text-lg">
-          Total a cobrar:{' '}
-          {total.toLocaleString('es-CL', {
-            style: 'currency',
-            currency: 'CLP',
-            maximumFractionDigits: 0,
-          })}
+      <section className="mt-4 flex justify-end">
+        <div className="w-full max-w-sm space-y-2 text-sm">
+            <div className="flex justify-between">
+                <span>Subtotal Neto:</span>
+                <span>{formatCurrency(subtotal)}</span>
+            </div>
+            <div className="flex justify-between">
+                <span>IVA (19%):</span>
+                <span>{formatCurrency(iva)}</span>
+            </div>
+             <div className="flex justify-between border-t pt-2 font-bold text-base">
+                <span>Total a Pagar:</span>
+                <span>{formatCurrency(total)}</span>
+            </div>
         </div>
-
+      </section>
+      
+      <section className="mt-4">
         <div className="grid grid-cols-2 gap-16 mt-12 print:mt-24">
           <div className="text-center">
             <div className="border-t border-gray-400 pt-2">
@@ -271,3 +286,5 @@ export default function EstadoDePagoPage() {
     </div>
   );
 }
+
+    
