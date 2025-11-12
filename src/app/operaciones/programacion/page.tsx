@@ -593,7 +593,7 @@ function ProgramacionPageInner() {
                     actividades.length > 0 ? (actividades.map((act) => (
                         <TableRow key={act.id}>
                             <TableCell className="font-medium">{act.nombreActividad}</TableCell>
-                            <TableCell>{new Intl.NumberFormat('es-CL', { style: 'currency', currency: 'CLP' }).format(act.precioContrato)}</TableCell>
+                            <TableCell>${act.precioContrato.toLocaleString('es-CL')}</TableCell>
                             <TableCell>{act.fechaInicio}</TableCell>
                             <TableCell>{act.fechaFin}</TableCell>
                             <TableCell>
@@ -854,4 +854,5 @@ export default function ProgramacionPage() {
     </Suspense>
   );
 }
+
 
