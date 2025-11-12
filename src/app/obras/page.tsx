@@ -17,6 +17,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { collection, addDoc, getDocs, Timestamp } from "firebase/firestore";
 import { firebaseDb } from "../../lib/firebaseClient";
+import { useAuth } from "@/context/AuthContext";
+import { useRouter } from "next/navigation";
 
 type Obra = {
   id: string;
@@ -31,6 +33,8 @@ type Obra = {
 };
 
 export default function ObrasPage() {
+  const { user, loading: authLoading } = useAuth();
+  const router = useRouter();
   const [obras, setObras] = useState<Obra[]>([]);
   const [cargando, setCargando] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -43,7 +47,14 @@ export default function ObrasPage() {
   const [creando, setCreando] = useState(false);
 
   useEffect(() => {
+    if (!authLoading && !user) {
+      router.push("/login");
+    }
+  }, [authLoading, user, router]);
+
+  useEffect(() => {
     async function cargarObras() {
+      if (!user) return; // No cargar si no hay usuario
       try {
         setCargando(true);
         setError(null);
@@ -76,7 +87,7 @@ export default function ObrasPage() {
     }
 
     cargarObras();
-  }, []);
+  }, [user]);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -132,6 +143,9 @@ export default function ObrasPage() {
     }
   }
 
+  if (authLoading || !user) {
+    return <p className="text-sm text-muted-foreground">Cargando sesión...</p>;
+  }
 
   return (
     <section className="space-y-6">
