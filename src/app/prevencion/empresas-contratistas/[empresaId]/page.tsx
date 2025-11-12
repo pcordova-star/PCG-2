@@ -1,7 +1,7 @@
 // Esta página muestra la ficha detallada de una empresa contratista.
 // Es una Server Component que carga los datos iniciales.
 
-import { doc, getDoc } from 'firebase/firestore';
+import { doc, getDoc, Timestamp } from 'firebase/firestore';
 import { firebaseDb } from '@/lib/firebaseClient';
 import FichaContent from './FichaContent';
 import { EmpresaContratista } from '../page';
@@ -12,9 +12,16 @@ type Obra = {
     nombreFaena: string;
     mandanteRazonSocial: string;
     direccion: string;
+    creadoEn?: string; // Change to string for serialization
 };
 
-async function getEmpresaData(empresaId: string): Promise<{ empresa: EmpresaContratista, obra: Obra } | null> {
+// We need to adjust the type here to expect a string for fechaCreacion
+type SerializableEmpresaContratista = Omit<EmpresaContratista, 'fechaCreacion'> & {
+    fechaCreacion: string;
+};
+
+
+async function getEmpresaData(empresaId: string): Promise<{ empresa: SerializableEmpresaContratista, obra: Obra } | null> {
     if (!empresaId) return null;
 
     try {
@@ -26,7 +33,16 @@ async function getEmpresaData(empresaId: string): Promise<{ empresa: EmpresaCont
             return null;
         }
 
-        const empresaData = { id: empresaSnap.id, ...empresaSnap.data() } as EmpresaContratista;
+        const empresaRawData = empresaSnap.data();
+        // Serialize Firestore Timestamp to string
+        const empresaData: SerializableEmpresaContratista = {
+            id: empresaSnap.id,
+            ...empresaRawData,
+            fechaCreacion: empresaRawData.fechaCreacion instanceof Timestamp
+                ? empresaRawData.fechaCreacion.toDate().toISOString()
+                : new Date().toISOString(),
+        } as SerializableEmpresaContratista;
+
 
         // Cargar datos de la obra asociada
         const obraRef = doc(firebaseDb, 'obras', empresaData.obraId);
@@ -36,7 +52,15 @@ async function getEmpresaData(empresaId: string): Promise<{ empresa: EmpresaCont
             throw new Error(`La obra con ID ${empresaData.obraId} no fue encontrada.`);
         }
 
-        const obraData = { id: obraSnap.id, ...obraSnap.data() } as Obra;
+        const obraRawData = obraSnap.data();
+        const obraData: Obra = {
+            id: obraSnap.id,
+            ...obraRawData,
+             creadoEn: obraRawData.creadoEn instanceof Timestamp
+                ? obraRawData.creadoEn.toDate().toISOString()
+                : undefined,
+        } as Obra;
+
 
         return { empresa: empresaData, obra: obraData };
 

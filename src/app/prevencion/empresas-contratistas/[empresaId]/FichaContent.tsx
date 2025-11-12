@@ -13,8 +13,13 @@ type Obra = {
     direccion: string;
 };
 
+// We use a slightly different type here to accept the serialized date string
+type SerializableEmpresaContratista = Omit<EmpresaContratista, 'fechaCreacion'> & {
+    fechaCreacion: string;
+};
+
 type FichaContentProps = {
-    empresa: EmpresaContratista;
+    empresa: SerializableEmpresaContratista;
     obra: Obra;
 };
 
