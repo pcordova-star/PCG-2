@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -58,8 +58,125 @@ const IPER_INICIAL: IPERRegistro[] = [
   },
 ];
 
+// --- Tipos y Datos para Investigación de Incidentes ---
+type TipoIncidente =
+  | "Accidente con tiempo perdido"
+  | "Accidente sin tiempo perdido"
+  | "Casi accidente"
+  | "Daño a la propiedad";
+
+type GravedadIncidente = "Leve" | "Grave" | "Fatal potencial";
+
+type RegistroIncidente = {
+  id: string;
+  obraId: string;
+  fecha: string; 
+  lugar: string;
+  tipoIncidente: TipoIncidente;
+  gravedad: GravedadIncidente;
+  descripcionHecho: string;
+  lesionPersona: string;
+  actoInseguro: string;
+  condicionInsegura: string;
+  causasInmediatas: string;
+  causasBasicas: string;
+  analisisIshikawa: string;
+  analisis5Porques: string;
+  medidasCorrectivas: string;
+  responsableSeguimiento: string;
+  plazoCierre: string;
+  estadoCierre: "Abierto" | "En seguimiento" | "Cerrado";
+};
+
+const INCIDENTES_INICIALES: RegistroIncidente[] = [
+  {
+    id: "inc-1",
+    obraId: "obra-1",
+    fecha: "2025-11-05",
+    lugar: "Zona de bodega",
+    tipoIncidente: "Casi accidente",
+    gravedad: "Grave",
+    descripcionHecho:
+      "Trabajador casi es golpeado por carga suspendida al pasar bajo pluma.",
+    lesionPersona: "No hubo lesión, solo casi accidente.",
+    actoInseguro: "Transitar bajo carga suspendida.",
+    condicionInsegura: "Señalización deficiente del área de izaje.",
+    causasInmediatas:
+      "Trabajador no respetó área restringida y señalización no era clara.",
+    causasBasicas:
+      "Falta de reforzamiento en charla diaria y demarcación insuficiente.",
+    analisisIshikawa:
+      "Personas: hábito de atajo; Método: procedimiento poco difundido; Entorno: área mal demarcada.",
+    analisis5Porques:
+      "1) ¿Por qué casi es golpeado? Porque pasó bajo la carga. 2) ¿Por qué pasó bajo la carga? Porque no percibió el área como restringida. 3) ¿Por qué no la percibió? Señalización deficiente y hábito de atajo. (resumen).",
+    medidasCorrectivas:
+      "Reforzar charla sobre trabajo con grúas, mejorar demarcación y colocar cadenas en accesos.",
+    responsableSeguimiento: "Prevencionista de obra",
+    plazoCierre: "2025-11-15",
+    estadoCierre: "En seguimiento",
+  },
+];
+
+// --- Tipos y Datos para Plan de Acción ---
+type OrigenAccion =
+  | "IPER"
+  | "INCIDENTE"
+  | "OBSERVACION"
+  | "OTRO";
+
+type EstadoAccion = "Pendiente" | "En progreso" | "Cerrada";
+
+type RegistroPlanAccion = {
+  id: string;
+  obraId: string;
+  origen: OrigenAccion;
+  referencia: string; 
+  descripcionAccion: string;
+  responsable: string;
+  plazo: string;
+  estado: EstadoAccion;
+  avance: string;
+  observacionesCierre: string;
+  fechaCreacion: string;
+  creadoPor: string;
+};
+
+const PLANES_ACCION_INICIALES: RegistroPlanAccion[] = [
+  {
+    id: "accion-1",
+    obraId: "obra-1",
+    origen: "INCIDENTE",
+    referencia: "inc-1",
+    descripcionAccion:
+      "Mejorar demarcación y señalización del área de izaje en bodega.",
+    responsable: "Jefe de Obra",
+    plazo: "2025-11-15",
+    estado: "En progreso",
+    avance: "Demarcación ejecutada; pendiente instalar cadenas en accesos.",
+    observacionesCierre: "",
+    fechaCreacion: "2025-11-06",
+    creadoPor: "Prevencionista de obra",
+  },
+];
+
+// Tipo para el "prefill"
+type PlanAccionPrefill = {
+  obraId: string;
+  origen: OrigenAccion;
+  referencia: string;
+  descripcionSugerida?: string;
+} | null;
+
 // --- Componente IPER ---
-function IPERFormSection() {
+type IPERFormSectionProps = {
+  onCrearAccionDesdeIPER: (payload: {
+    obraId: string;
+    iperId: string;
+    descripcion?: string;
+  }) => void;
+};
+
+function IPERFormSection({ onCrearAccionDesdeIPER }: IPERFormSectionProps) {
   const [obraSeleccionadaId, setObraSeleccionadaId] = useState<string>(
     OBRAS_IPER[0]?.id ?? ""
   );
@@ -235,12 +352,12 @@ function IPERFormSection() {
             ) : (
               <div className="max-h-[600px] overflow-y-auto space-y-3 pr-2">
                 {registrosDeObra.map((r) => (
-                  <article key={r.id} className="rounded-lg border bg-card p-4 shadow-sm space-y-2">
+                  <article key={r.id} className="rounded-lg border bg-card p-4 shadow-sm space-y-2 text-sm">
                     <p className="font-semibold text-primary">{r.area} – {r.actividad}</p>
-                    <p className="text-sm"><strong className="text-muted-foreground">Peligro:</strong> {r.peligro}</p>
-                    <p className="text-sm"><strong className="text-muted-foreground">Riesgo:</strong> {r.descripcionRiesgo}</p>
-                    <p className="text-sm"><strong className="text-muted-foreground">Consecuencias:</strong> {r.consecuencias}</p>
-                    <div className="text-sm p-2 rounded-md bg-muted flex items-center justify-between">
+                    <p><strong className="text-muted-foreground">Peligro:</strong> {r.peligro}</p>
+                    <p><strong className="text-muted-foreground">Riesgo:</strong> {r.descripcionRiesgo}</p>
+                    <p><strong className="text-muted-foreground">Consecuencias:</strong> {r.consecuencias}</p>
+                    <div className="p-2 rounded-md bg-muted flex items-center justify-between">
                       <span>Nivel de Riesgo: <strong className="text-foreground">{r.nivelRiesgo}</strong></span>
                       <span className="text-xs">(Prob: {r.probabilidad} / Sev: {r.severidad})</span>
                     </div>
@@ -250,6 +367,21 @@ function IPERFormSection() {
                         <span><strong className="text-muted-foreground">Responsable:</strong> {r.responsableImplementacion || "No asignado"}</span>
                         <span><strong className="text-muted-foreground">Plazo:</strong> {r.plazoImplementacion || "Sin plazo"}</span>
                     </div>
+                    <Button
+                      type="button"
+                      onClick={() =>
+                        onCrearAccionDesdeIPER({
+                          obraId: r.obraId,
+                          iperId: r.id,
+                          descripcion: `Acción sobre riesgo: ${r.peligro} – ${r.actividad}`,
+                        })
+                      }
+                      variant="outline"
+                      size="sm"
+                      className="mt-2"
+                    >
+                      Crear acción desde este riesgo
+                    </Button>
                   </article>
                 ))}
               </div>
@@ -261,67 +393,16 @@ function IPERFormSection() {
   );
 }
 
-// --- Tipos y Datos para Investigación de Incidentes ---
-type TipoIncidente =
-  | "Accidente con tiempo perdido"
-  | "Accidente sin tiempo perdido"
-  | "Casi accidente"
-  | "Daño a la propiedad";
-
-type GravedadIncidente = "Leve" | "Grave" | "Fatal potencial";
-
-type RegistroIncidente = {
-  id: string;
-  obraId: string;
-  fecha: string; 
-  lugar: string;
-  tipoIncidente: TipoIncidente;
-  gravedad: GravedadIncidente;
-  descripcionHecho: string;
-  lesionPersona: string;
-  actoInseguro: string;
-  condicionInsegura: string;
-  causasInmediatas: string;
-  causasBasicas: string;
-  analisisIshikawa: string;
-  analisis5Porques: string;
-  medidasCorrectivas: string;
-  responsableSeguimiento: string;
-  plazoCierre: string;
-  estadoCierre: "Abierto" | "En seguimiento" | "Cerrado";
+// --- Componente Investigación de Incidentes ---
+type InvestigacionIncidenteSectionProps = {
+  onCrearAccionDesdeIncidente: (payload: {
+    obraId: string;
+    incidenteId: string;
+    descripcion?: string;
+  }) => void;
 };
 
-const INCIDENTES_INICIALES: RegistroIncidente[] = [
-  {
-    id: "inc-1",
-    obraId: "obra-1",
-    fecha: "2025-11-05",
-    lugar: "Zona de bodega",
-    tipoIncidente: "Casi accidente",
-    gravedad: "Grave",
-    descripcionHecho:
-      "Trabajador casi es golpeado por carga suspendida al pasar bajo pluma.",
-    lesionPersona: "No hubo lesión, solo casi accidente.",
-    actoInseguro: "Transitar bajo carga suspendida.",
-    condicionInsegura: "Señalización deficiente del área de izaje.",
-    causasInmediatas:
-      "Trabajador no respetó área restringida y señalización no era clara.",
-    causasBasicas:
-      "Falta de reforzamiento en charla diaria y demarcación insuficiente.",
-    analisisIshikawa:
-      "Personas: hábito de atajo; Método: procedimiento poco difundido; Entorno: área mal demarcada.",
-    analisis5Porques:
-      "1) ¿Por qué casi es golpeado? Porque pasó bajo la carga. 2) ¿Por qué pasó bajo la carga? Porque no percibió el área como restringida. 3) ¿Por qué no la percibió? Señalización deficiente y hábito de atajo. (resumen).",
-    medidasCorrectivas:
-      "Reforzar charla sobre trabajo con grúas, mejorar demarcación y colocar cadenas en accesos.",
-    responsableSeguimiento: "Prevencionista de obra",
-    plazoCierre: "2025-11-15",
-    estadoCierre: "En seguimiento",
-  },
-];
-
-// --- Componente Investigación de Incidentes ---
-function InvestigacionIncidenteSection() {
+function InvestigacionIncidenteSection({ onCrearAccionDesdeIncidente }: InvestigacionIncidenteSectionProps) {
   const [obraSeleccionadaId, setObraSeleccionadaId] = useState<string>(
     OBRAS_IPER[0]?.id ?? ""
   );
@@ -533,6 +614,21 @@ function InvestigacionIncidenteSection() {
                     <span><strong className="text-muted-foreground">Responsable:</strong> {inc.responsableSeguimiento || "No asignado"}</span>
                     <span><strong className="text-muted-foreground">Plazo:</strong> {inc.plazoCierre || "Sin plazo"}</span>
                   </div>
+                  <Button
+                    type="button"
+                    onClick={() =>
+                      onCrearAccionDesdeIncidente({
+                        obraId: inc.obraId,
+                        incidenteId: inc.id,
+                        descripcion: `Acción por incidente: ${inc.descripcionHecho}`,
+                      })
+                    }
+                    variant="outline"
+                    size="sm"
+                    className="mt-2"
+                  >
+                    Crear acción desde este incidente
+                  </Button>
                 </article>
               ))}
             </div>
@@ -544,50 +640,13 @@ function InvestigacionIncidenteSection() {
   );
 }
 
-// --- Tipos y Datos para Plan de Acción ---
-type OrigenAccion =
-  | "IPER"
-  | "INCIDENTE"
-  | "OBSERVACION"
-  | "OTRO";
-
-type EstadoAccion = "Pendiente" | "En progreso" | "Cerrada";
-
-type RegistroPlanAccion = {
-  id: string;
-  obraId: string;
-  origen: OrigenAccion;
-  referencia: string; 
-  descripcionAccion: string;
-  responsable: string;
-  plazo: string;
-  estado: EstadoAccion;
-  avance: string;
-  observacionesCierre: string;
-  fechaCreacion: string;
-  creadoPor: string;
+// --- Componente Plan de Acción ---
+type PlanAccionSectionProps = {
+  prefill: PlanAccionPrefill;
+  onPrefillConsumido: () => void;
 };
 
-const PLANES_ACCION_INICIALES: RegistroPlanAccion[] = [
-  {
-    id: "accion-1",
-    obraId: "obra-1",
-    origen: "INCIDENTE",
-    referencia: "inc-1",
-    descripcionAccion:
-      "Mejorar demarcación y señalización del área de izaje en bodega.",
-    responsable: "Jefe de Obra",
-    plazo: "2025-11-15",
-    estado: "En progreso",
-    avance: "Demarcación ejecutada; pendiente instalar cadenas en accesos.",
-    observacionesCierre: "",
-    fechaCreacion: "2025-11-06",
-    creadoPor: "Prevencionista de obra",
-  },
-];
-
-// --- Componente Plan de Acción ---
-function PlanAccionSection() {
+function PlanAccionSection({ prefill, onPrefillConsumido }: PlanAccionSectionProps) {
     const [obraSeleccionadaId, setObraSeleccionadaId] = useState<string>(
         OBRAS_IPER[0]?.id ?? ""
     );
@@ -619,6 +678,22 @@ function PlanAccionSection() {
         observacionesCierre: "",
         creadoPor: "",
     });
+
+    useEffect(() => {
+        if (prefill && prefill.obraId) {
+            setObraSeleccionadaId(prefill.obraId);
+            setFormAccion((prev) => ({
+            ...prev,
+            origen: prefill.origen,
+            referencia: prefill.referencia,
+            descripcionAccion:
+                prev.descripcionAccion || prefill.descripcionSugerida || "",
+            }));
+
+            // Una vez aplicado el prefill, avisa al padre para que lo limpie
+            onPrefillConsumido();
+        }
+    }, [prefill, onPrefillConsumido]);
 
     const planesDeObra = planesAccion.filter(
         (p) => p.obraId === obraSeleccionadaId
@@ -807,12 +882,40 @@ function PlanAccionSection() {
     );
 }
 
-
 // --- Componente Principal ---
 type FormularioGeneralActivo = "IPER" | "INCIDENTE" | "PLAN_ACCION" | null;
 
 export default function FormulariosGeneralesPrevencionPage() {
   const [activeForm, setActiveForm] = useState<FormularioGeneralActivo>("IPER");
+  const [planAccionPrefill, setPlanAccionPrefill] = useState<PlanAccionPrefill>(null);
+
+    function handleCrearAccionDesdeIPER(payload: {
+        obraId: string;
+        iperId: string;
+        descripcion?: string;
+    }) {
+        setPlanAccionPrefill({
+            obraId: payload.obraId,
+            origen: "IPER",
+            referencia: payload.iperId,
+            descripcionSugerida: payload.descripcion,
+        });
+        setActiveForm("PLAN_ACCION");
+    }
+
+    function handleCrearAccionDesdeIncidente(payload: {
+        obraId: string;
+        incidenteId: string;
+        descripcion?: string;
+    }) {
+        setPlanAccionPrefill({
+            obraId: payload.obraId,
+            origen: "INCIDENTE",
+            referencia: payload.incidenteId,
+            descripcionSugerida: payload.descripcion,
+        });
+        setActiveForm("PLAN_ACCION");
+    }
 
   return (
     <section className="space-y-6">
@@ -886,12 +989,10 @@ export default function FormulariosGeneralesPrevencionPage() {
         </Card>
       </div>
 
-      {activeForm === 'IPER' && <IPERFormSection />}
-      {activeForm === 'INCIDENTE' && <InvestigacionIncidenteSection />}
-      {activeForm === 'PLAN_ACCION' && <PlanAccionSection />}
+      {activeForm === 'IPER' && <IPERFormSection onCrearAccionDesdeIPER={handleCrearAccionDesdeIPER} />}
+      {activeForm === 'INCIDENTE' && <InvestigacionIncidenteSection onCrearAccionDesdeIncidente={handleCrearAccionDesdeIncidente} />}
+      {activeForm === 'PLAN_ACCION' && <PlanAccionSection prefill={planAccionPrefill} onPrefillConsumido={() => setPlanAccionPrefill(null)} />}
 
     </section>
   );
 }
-
-    
