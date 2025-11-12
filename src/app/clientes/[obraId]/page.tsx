@@ -40,10 +40,10 @@ function getDiasDesde(fechaIso: string | null): number | null {
 export default async function ClienteObraPage({
   params,
 }: {
-  params: Promise<{ obraId: string }>;
+  params: { obraId: string };
 }) {
   // Se espera la resolución de los parámetros de la ruta
-  const { obraId } = await params;
+  const { obraId } = params;
 
   // 1. Obtener los datos de la obra desde Firestore
   const obraRef = doc(firebaseDb, "obras", obraId);
@@ -254,5 +254,3 @@ export default async function ClienteObraPage({
     </div>
   );
 }
-
-    
