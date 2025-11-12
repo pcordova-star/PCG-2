@@ -129,6 +129,14 @@ export default function ProgramacionPage() {
   });
   const [archivoFoto, setArchivoFoto] = useState<File | null>(null);
 
+  const resumenActividades = useMemo(() => {
+    const total = actividades.length;
+    const pendientes = actividades.filter(a => a.estado === "Pendiente").length;
+    const enCurso = actividades.filter(a => a.estado === "En curso").length;
+    const completadas = actividades.filter(a => a.estado === "Completada").length;
+    return { total, pendientes, enCurso, completadas };
+  }, [actividades]);
+
   // Auth Protection
   useEffect(() => {
     if (!loadingAuth && !user) {
@@ -343,13 +351,6 @@ export default function ProgramacionPage() {
   
   const clientPath = obraSeleccionadaId ? `/clientes/${obraSeleccionadaId}` : "";
   
-  const resumenActividades = useMemo(() => {
-    const total = actividades.length;
-    const pendientes = actividades.filter(a => a.estado === "Pendiente").length;
-    const enCurso = actividades.filter(a => a.estado === "En curso").length;
-    const completadas = actividades.filter(a => a.estado === "Completada").length;
-    return { total, pendientes, enCurso, completadas };
-  }, [actividades]);
 
   return (
     <div className="space-y-8">
