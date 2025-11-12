@@ -12,6 +12,8 @@ import {
   where,
 } from 'firebase/firestore';
 import { firebaseDb } from '@/lib/firebaseClient';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 
 type Actividad = {
   id: string;
@@ -24,8 +26,6 @@ type Actividad = {
 type ItemEstadoPago = {
   actividadId: string;
   nombre: string;
-  unidad?: string;
-  cantidadContrato?: number;
   precioContrato: number;
   porcentajeAvance: number;
   montoProyectado: number;
@@ -48,6 +48,8 @@ export default function EstadoDePagoPage() {
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [fechaDeCorte, setFechaDeCorte] = useState(new Date().toISOString().slice(0, 10));
+
 
   useEffect(() => {
     if (!obraId) return;
@@ -84,15 +86,14 @@ export default function EstadoDePagoPage() {
           return {
             id: d.id,
             nombre: data.nombreActividad ?? 'Actividad sin nombre',
-            unidad: data.unidad,
-            cantidadContrato: data.cantidadContrato,
             precioContrato: Number(data.precioContrato ?? 0),
           };
         });
 
-        // 3) Avances diarios de la obra
+        // 3) Avances diarios de la obra, filtrados por fecha de corte
         const avancesRef = collection(obraRef, 'avancesDiarios');
-        const avancesSnap = await getDocs(avancesRef);
+        const q = query(avancesRef, where("fecha", "<=", fechaDeCorte));
+        const avancesSnap = await getDocs(q);
 
         const avancesPorActividad = new Map<
           string,
@@ -105,11 +106,10 @@ export default function EstadoDePagoPage() {
           if (!actividadId) return;
 
           const porcentaje = Number(data.porcentajeAvance ?? 0);
-          const fecha = data.fecha?.toDate
-            ? data.fecha.toDate()
-            : new Date(data.fecha ?? Date.now());
+          
+          const fechaString = data.fecha as string;
+          const fecha = new Date(`${fechaString}T00:00:00`);
 
-          // Tomamos el avance más reciente por actividad
           const actual = avancesPorActividad.get(actividadId);
           if (!actual || fecha > actual.fecha) {
             avancesPorActividad.set(actividadId, { porcentajeAvance: porcentaje, fecha });
@@ -125,8 +125,6 @@ export default function EstadoDePagoPage() {
           return {
             actividadId: act.id,
             nombre: act.nombre,
-            unidad: act.unidad,
-            cantidadContrato: act.cantidadContrato,
             precioContrato: act.precioContrato,
             porcentajeAvance: porcentaje,
             montoProyectado,
@@ -155,7 +153,7 @@ export default function EstadoDePagoPage() {
     }
 
     cargarEstadoDePago();
-  }, [obraId]);
+  }, [obraId, fechaDeCorte]);
 
   const handlePrint = () => {
     if (typeof window !== 'undefined') {
@@ -199,10 +197,19 @@ export default function EstadoDePagoPage() {
         {obra.direccion && (
           <p className="text-sm text-gray-600">Dirección: {obra.direccion}</p>
         )}
-        <p className="text-sm text-gray-600 mt-2">
-          Fecha de corte: {new Date().toLocaleDateString()}
+        <div className="text-sm text-gray-600 mt-2 flex items-center gap-2 print:hidden">
+            <Label htmlFor="fecha-corte">Fecha de corte:</Label>
+            <Input 
+                id="fecha-corte"
+                type="date" 
+                value={fechaDeCorte} 
+                onChange={(e) => setFechaDeCorte(e.target.value)}
+                className="w-auto"
+            />
+        </div>
+        <p className="text-sm text-gray-600 mt-2 hidden print:block">
+            Fecha de corte: {new Date(fechaDeCorte + 'T00:00:00').toLocaleDateString('es-CL')}
         </p>
-
         <button
           onClick={handlePrint}
           className="mt-4 px-4 py-2 rounded-md bg-blue-600 text-white text-sm hover:bg-blue-700 print:hidden"
@@ -278,3 +285,4 @@ export default function EstadoDePagoPage() {
     </div>
   );
 }
+
