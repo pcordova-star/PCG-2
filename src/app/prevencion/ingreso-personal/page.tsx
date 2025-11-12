@@ -23,6 +23,7 @@ import {
   getDocs,
   query,
   where,
+  orderBy,
 } from "firebase/firestore";
 
 // --- Tipos ---
@@ -144,12 +145,6 @@ type DocumentoPrevencionConfigLocal = {
 };
 
 // --- Datos Simulados (para UI, serán reemplazados por Firestore) ---
-const OBRAS_SIMULADAS: Obra[] = [
-  { id: 'obra-1', nombreFaena: 'Edificio Los Álamos' },
-  { id: 'obra-2', nombreFaena: 'Condominio Cuatro Vientos' },
-  { id: 'obra-3', nombreFaena: 'Mejoramiento Vial Ruta 5' },
-];
-
 const EMPRESAS_SIMULADAS: Empresa[] = [
   { id: "emp-1", nombre: "Constructora Principal S.A.", rut: "76.123.456-7", tipo: "Mandante" },
   { id: "emp-2", nombre: "Excavaciones del Sur Ltda.", rut: "77.234.567-8", tipo: "Subcontratista" },
@@ -202,15 +197,10 @@ function getIndicadoresObraTipo(ingresos: IngresoPersonal[], obraId: string, tip
   const pendientes = relevantes.filter(i => i.estadoIngreso === "Pendiente").length;
   const rechazados = relevantes.filter(i => i.estadoIngreso === "Rechazado").length;
   const pasosPorPersona = relevantes.map(ing => getProgresoDs44(ing));
-  const totalPasosGlobal = pasosPorPersona.reduce((acc, p) => acc + p.totalPasos, 0);
+  const totalPasosGlobal = pasosPorPersona.reduce((acc, p) => acc + p.total, 0);
   const cumplidosGlobal = pasosPorPersona.reduce((acc, p) => acc + p.cumplidos, 0);
   const porcentaje = totalPasosGlobal > 0 ? Math.round((cumplidosGlobal * 100) / totalPasosGlobal) : 0;
   return { total, autorizados, pendientes, rechazados, totalPasosGlobal, cumplidosGlobal, porcentaje };
-}
-
-function getNombreObraById(obraId: string): string {
-  const obra = OBRAS_SIMULADAS.find(o => o.id === obraId);
-  return obra ? obra.nombreFaena : "Obra sin nombre";
 }
 
 type EncabezadoDocumentoProps = { config: DocumentoPrevencionConfigLocal; nombreObra: string; };
@@ -241,8 +231,9 @@ function EncabezadoDocumentoPrevencionLocal({ config, nombreObra }: EncabezadoDo
 
 // --- Componente Principal ---
 export default function IngresoPersonalPage() {
-  // obraId viene de este estado.
-  const [obraSeleccionadaId, setObraSeleccionadaId] = useState<string>(OBRAS_SIMULADAS[0]?.id ?? "");
+  const [obras, setObras] = useState<Obra[]>([]);
+  const [loadingObras, setLoadingObras] = useState(true);
+  const [obraSeleccionadaId, setObraSeleccionadaId] = useState<string>("");
   const [tipoRelacion, setTipoRelacion] = useState<TipoRelacionPersonal>("Empresa");
   const [ingresos, setIngresos] = useState<IngresoPersonal[]>([]);
   const [trabajadorSeleccionadoId, setTrabajadorSeleccionadoId] = useState<string | null>(null);
@@ -280,6 +271,27 @@ export default function IngresoPersonalPage() {
   const [mostrarFormCharla, setMostrarFormCharla] = useState<boolean>(false);
   const [formCharla, setFormCharla] = useState<{ fechaCharla: string; tipoCharla: TipoCharla; tema: string; relator: string; riesgoPrincipal: string; medidasReforzadas: string; asistencia: "Asiste" | "No asiste" | "Llega tarde"; observaciones: string; aceptaCharla: boolean; nombreFirmaTrabajador: string; }>({ fechaCharla: new Date().toISOString().slice(0, 10), tipoCharla: "Charla diaria", tema: "", relator: "", riesgoPrincipal: "", medidasReforzadas: "", asistencia: "Asiste", observaciones: "", aceptaCharla: false, nombreFirmaTrabajador: "" });
   const [errorCharla, setErrorCharla] = useState<string | null>(null);
+
+  useEffect(() => {
+    const fetchObras = async () => {
+      setLoadingObras(true);
+      try {
+        const q = query(collection(firebaseDb, "obras"), orderBy("nombreFaena", "asc"));
+        const querySnapshot = await getDocs(q);
+        const obrasData = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Obra));
+        setObras(obrasData);
+        if (obrasData.length > 0 && !obraSeleccionadaId) {
+          setObraSeleccionadaId(obrasData[0].id);
+        }
+      } catch (err) {
+        console.error("Error loading obras: ", err);
+        setError("No se pudieron cargar las obras disponibles.");
+      } finally {
+        setLoadingObras(false);
+      }
+    };
+    fetchObras();
+  }, []);
 
   useEffect(() => {
     if (!obraSeleccionadaId) return;
@@ -485,7 +497,7 @@ export default function IngresoPersonalPage() {
       { id: 'Charla', label: 'Inclusión en Listados / Charlas', icon: MessageSquare, docFields: ['docRegistroListaPersonal'] },
   ] as const;
   
-  const selectedObra = OBRAS_SIMULADAS.find(o => o.id === obraSeleccionadaId);
+  const selectedObra = obras.find(o => o.id === obraSeleccionadaId);
   const empresasDisponibles = tipoRelacion === 'Empresa' ? empresasMandante : empresasSubcontrato;
 
   return (
@@ -503,8 +515,14 @@ export default function IngresoPersonalPage() {
           <div className="space-y-2">
             <Label htmlFor="obra-select">Seleccione una obra</Label>
             <Select value={obraSeleccionadaId} onValueChange={(val) => { setObraSeleccionadaId(val); setTrabajadorSeleccionadoId(null); }}>
-              <SelectTrigger id="obra-select"><SelectValue placeholder="Seleccione una obra" /></SelectTrigger>
-              <SelectContent>{OBRAS_SIMULADAS.map((obra) => <SelectItem key={obra.id} value={obra.id}>{obra.nombreFaena}</SelectItem>)}</SelectContent>
+              <SelectTrigger id="obra-select">
+                <SelectValue placeholder={loadingObras ? "Cargando obras..." : "Seleccione una obra"} />
+              </SelectTrigger>
+              <SelectContent>
+                {loadingObras ? <SelectItem value="loading" disabled>Cargando...</SelectItem> : 
+                  obras.map((obra) => <SelectItem key={obra.id} value={obra.id}>{obra.nombreFaena}</SelectItem>)
+                }
+              </SelectContent>
             </Select>
           </div>
           <div className="space-y-2">
@@ -668,7 +686,7 @@ export default function IngresoPersonalPage() {
         <div id="printable-trabajador" className="space-y-4 bg-card print:bg-white print:shadow-none print:border-0 rounded-xl print:rounded-none p-4 print:p-0">
           <EncabezadoDocumentoPrevencionLocal
             config={getDocConfigLocal("INDUCCION_OBRA")}
-            nombreObra={getNombreObraById(trabajadorSeleccionado.obraId)}
+            nombreObra={obras.find(o => o.id === trabajadorSeleccionado.obraId)?.nombreFaena ?? ''}
           />
             {progresoSeleccionado && (
                  <Card className="border-accent shadow-lg">
