@@ -44,6 +44,7 @@ import {
 import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
+import Link from "next/link";
 
 type Obra = {
   id: string;
@@ -66,11 +67,13 @@ type ActividadProgramada = {
   fechaFin: string;
   responsable: string;
   estado: EstadoActividad;
+  precioContrato: number;
 };
 
 type AvanceDiario = {
   id: string;
   obraId: string;
+  actividadId: string;
   fecha: string; // "YYYY-MM-DD"
   porcentajeAvance: number; // avance acumulado a esa fecha (0-100)
   comentario: string;
@@ -120,9 +123,11 @@ function ProgramacionPageInner() {
     fechaFin: "",
     responsable: "",
     estado: "Pendiente" as EstadoActividad,
+    precioContrato: "",
   });
 
   const [formAvance, setFormAvance] = useState({
+    actividadId: "",
     fecha: new Date().toISOString().slice(0, 10),
     porcentajeAvance: "",
     comentario: "",
@@ -139,30 +144,24 @@ function ProgramacionPageInner() {
     return { total, pendientes, enCurso, completadas };
   }, [actividades]);
 
-  // Auth Protection
   useEffect(() => {
     if (!loadingAuth && !user) {
       router.replace("/login");
     }
   }, [loadingAuth, user, router]);
 
-  // Cargar Obras
   useEffect(() => {
     if (!user) return;
-
     async function cargarObras() {
       try {
         setError(null);
         const colRef = collection(firebaseDb, "obras");
         const snapshot = await getDocs(colRef);
-
         const data: Obra[] = snapshot.docs.map((doc) => ({
           id: doc.id,
           nombreFaena: doc.data().nombreFaena ?? "",
         }));
-
         setObras(data);
-
         const obraIdFromQuery = searchParams.get("obraId");
         if (obraIdFromQuery && data.some((o) => o.id === obraIdFromQuery)) {
           setObraSeleccionadaId(obraIdFromQuery);
@@ -177,28 +176,21 @@ function ProgramacionPageInner() {
     cargarObras();
   }, [user, searchParams]);
 
-  // Cargar Actividades y Avances de la obra seleccionada
   useEffect(() => {
-    if (!obraSeleccionadaId || !user) return;
-
-    async function cargarActividades() {
+    if (!obraSeleccionadaId || !user) {
+      setActividades([]);
+      setAvances([]);
+      return;
+    };
+    async function cargarDatosDeObra() {
+      setError(null);
+      // Cargar Actividades
       try {
         setCargandoActividades(true);
-        const actColRef = collection(firebaseDb, "actividadesProgramadas");
-        const qAct = query(actColRef, where("obraId", "==", obraSeleccionadaId));
+        const actColRef = collection(firebaseDb, "obras", obraSeleccionadaId, "actividades");
+        const qAct = query(actColRef, orderBy("fechaInicio", "asc"));
         const snapshotAct = await getDocs(qAct);
-        const dataAct: ActividadProgramada[] = snapshotAct.docs.map((doc) => {
-          const d = doc.data();
-          return {
-            id: doc.id,
-            obraId: d.obraId,
-            nombreActividad: d.nombreActividad ?? "",
-            fechaInicio: d.fechaInicio ?? "",
-            fechaFin: d.fechaFin ?? "",
-            responsable: d.responsable ?? "",
-            estado: (d.estado ?? "Pendiente") as EstadoActividad,
-          };
-        });
+        const dataAct: ActividadProgramada[] = snapshotAct.docs.map((d) => ({ ...d.data(), id: d.id } as ActividadProgramada));
         setActividades(dataAct);
       } catch (err) {
         console.error("Error cargando actividades:", err);
@@ -206,18 +198,13 @@ function ProgramacionPageInner() {
       } finally {
         setCargandoActividades(false);
       }
-    }
-
-    async function cargarAvances() {
+      // Cargar Avances
       try {
         setCargandoAvances(true);
-        const avColRef = collection(firebaseDb, "avancesDiarios");
-        const qAv = query(avColRef, where("obraId", "==", obraSeleccionadaId), orderBy("fecha", "desc"));
+        const avColRef = collection(firebaseDb, "obras", obraSeleccionadaId, "avancesDiarios");
+        const qAv = query(avColRef, orderBy("fecha", "desc"));
         const snapshotAv = await getDocs(qAv);
-        const dataAv: AvanceDiario[] = snapshotAv.docs.map((doc) => ({
-          ...(doc.data() as any),
-          id: doc.id,
-        }));
+        const dataAv: AvanceDiario[] = snapshotAv.docs.map((d) => ({ ...d.data(), id: d.id } as AvanceDiario));
         setAvances(dataAv);
       } catch (err) {
         console.error("Error cargando avances:", err);
@@ -226,20 +213,15 @@ function ProgramacionPageInner() {
         setCargandoAvances(false);
       }
     }
-
-    cargarActividades();
-    cargarAvances();
+    cargarDatosDeObra();
   }, [obraSeleccionadaId, user]);
   
   const handleEstadoChange = async (id: string, nuevoEstado: EstadoActividad) => {
+    if (!obraSeleccionadaId) return;
     try {
-        const docRef = doc(firebaseDb, "actividadesProgramadas", id);
+        const docRef = doc(firebaseDb, "obras", obraSeleccionadaId, "actividades", id);
         await updateDoc(docRef, { estado: nuevoEstado });
-        setActividades((prev) =>
-          prev.map((act) =>
-            act.id === id ? { ...act, estado: nuevoEstado } : act
-          )
-        );
+        setActividades((prev) => prev.map((act) => act.id === id ? { ...act, estado: nuevoEstado } : act));
     } catch(err) {
         console.error(err);
         setError("No se pudo actualizar el estado de la actividad.");
@@ -252,17 +234,26 @@ function ProgramacionPageInner() {
       setError("Seleccione una obra antes de agregar una actividad.");
       return;
     }
-    const { nombreActividad, fechaInicio, fechaFin, responsable, estado } = formActividad;
-    if (!nombreActividad || !fechaInicio || !fechaFin || !responsable) {
-      setError("Todos los campos para la actividad son obligatorios.");
+    const { nombreActividad, fechaInicio, fechaFin, responsable, estado, precioContrato } = formActividad;
+    const precioNum = Number(precioContrato);
+
+    if (!nombreActividad || !fechaInicio || !responsable || !precioContrato) {
+      setError("Nombre, fecha inicio, responsable y precio son obligatorios.");
       return;
     }
+    if (isNaN(precioNum) || precioNum <= 0) {
+      setError("El precio del contrato debe ser un número mayor que cero.");
+      return;
+    }
+
     try {
-      const colRef = collection(firebaseDb, "actividadesProgramadas");
-      const docRef = await addDoc(colRef, { obraId: obraSeleccionadaId, ...formActividad });
-      const nuevaActividad: ActividadProgramada = { id: docRef.id, obraId: obraSeleccionadaId, ...formActividad };
-      setActividades((prev) => [nuevaActividad, ...prev]);
-      setFormActividad({ nombreActividad: "", fechaInicio: "", fechaFin: "", responsable: "", estado: "Pendiente" });
+      const colRef = collection(firebaseDb, "obras", obraSeleccionadaId, "actividades");
+      const docData = { obraId: obraSeleccionadaId, nombreActividad, fechaInicio, fechaFin, responsable, estado, precioContrato: precioNum };
+      const docRef = await addDoc(colRef, docData);
+      
+      const nuevaActividad: ActividadProgramada = { ...docData, id: docRef.id };
+      setActividades((prev) => [...prev, nuevaActividad]);
+      setFormActividad({ nombreActividad: "", fechaInicio: "", fechaFin: "", responsable: "", estado: "Pendiente", precioContrato: "" });
     } catch (err) {
       console.error(err);
       setError("No se pudo crear la actividad.");
@@ -271,22 +262,15 @@ function ProgramacionPageInner() {
 
   const handleAvanceSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!obraSeleccionadaId) {
-      setError("Debes seleccionar una obra para registrar avance.");
+    if (!obraSeleccionadaId || !user) {
+      setError("Debes seleccionar una obra y estar autenticado.");
       return;
     }
-    if (!user) {
-      setError("Debes estar autenticado para registrar avance.");
+    const { actividadId, fecha, porcentajeAvance, comentario, creadoPor, visibleParaCliente } = formAvance;
+    if (!actividadId || !fecha || !porcentajeAvance || !creadoPor) {
+      setError("Actividad, fecha, porcentaje y 'registrado por' son obligatorios.");
       return;
     }
-
-    const { fecha, porcentajeAvance, comentario, creadoPor, visibleParaCliente } = formAvance;
-
-    if (!fecha || !porcentajeAvance || !creadoPor) {
-      setError("La fecha, el porcentaje de avance y 'registrado por' son obligatorios.");
-      return;
-    }
-
     const porcentaje = Number(porcentajeAvance);
     if (isNaN(porcentaje) || porcentaje < 0 || porcentaje > 100) {
       setError("El porcentaje de avance debe ser un número entre 0 y 100.");
@@ -296,94 +280,65 @@ function ProgramacionPageInner() {
     try {
       setError(null);
       let fotoUrl: string | undefined = undefined;
-
       if (archivoFoto) {
         const nombreArchivo = `${Date.now()}-${archivoFoto.name}`;
         const storageRef = ref(firebaseStorage, `avances/${obraSeleccionadaId}/${nombreArchivo}`);
         await uploadBytes(storageRef, archivoFoto);
         fotoUrl = await getDownloadURL(storageRef);
       }
-
-      const colRef = collection(firebaseDb, "avancesDiarios");
-      const docData = {
-        obraId: obraSeleccionadaId,
-        fecha,
-        porcentajeAvance: porcentaje,
-        comentario: comentario.trim(),
-        fotoUrl,
-        creadoPor: creadoPor.trim(),
-        visibleParaCliente,
-        creadoEn: new Date().toISOString(),
-        creadoPorUid: user.uid,
-      };
+      
+      const colRef = collection(firebaseDb, "obras", obraSeleccionadaId, "avancesDiarios");
+      const docData = { obraId: obraSeleccionadaId, actividadId, fecha, porcentajeAvance: porcentaje, comentario: comentario.trim(), fotoUrl, creadoPor: creadoPor.trim(), visibleParaCliente, creadoEn: new Date().toISOString(), creadoPorUid: user.uid };
       const docRef = await addDoc(colRef, docData);
-
-      const nuevoAvance: AvanceDiario = {
-        id: docRef.id,
-        obraId: obraSeleccionadaId,
-        fecha,
-        porcentajeAvance: porcentaje,
-        comentario: comentario.trim(),
-        fotoUrl,
-        visibleParaCliente,
-        creadoPor: creadoPor.trim(),
-      };
+      const nuevoAvance: AvanceDiario = { ...docData, id: docRef.id };
 
       setAvances((prev) => [nuevoAvance, ...prev].sort((a,b) => a.fecha < b.fecha ? 1 : -1));
-      setFormAvance({ fecha: new Date().toISOString().slice(0, 10), porcentajeAvance: "", comentario: "", creadoPor: "", visibleParaCliente: true });
+      setFormAvance({ actividadId: "", fecha: new Date().toISOString().slice(0, 10), porcentajeAvance: "", comentario: "", creadoPor: "", visibleParaCliente: true });
       setArchivoFoto(null);
-      // Reset file input
       const fileInput = document.getElementById('foto-avance-input') as HTMLInputElement;
       if (fileInput) fileInput.value = "";
-
-
     } catch (err) {
       console.error(err);
       setError("No se pudo registrar el avance. Intenta nuevamente.");
-      alert("Error: No se pudo registrar el avance. Revisa la consola para más detalles.");
     }
   }
   
-  const clientPath = obraSeleccionadaId ? `/clientes/${obraSeleccionadaId}` : "";
-  
-  if (loadingAuth) {
-    return <p className="text-sm text-muted-foreground">Cargando sesión...</p>;
-  }
-  if (!user) {
-    return (
-      <p className="text-sm text-muted-foreground">Redirigiendo a login...</p>
-    );
-  }
+  if (loadingAuth) return <p className="text-sm text-muted-foreground">Cargando sesión...</p>;
+  if (!user) return <p className="text-sm text-muted-foreground">Redirigiendo a login...</p>;
 
   return (
     <div className="space-y-8">
-      <div>
-        <h1 className="text-4xl font-bold font-headline tracking-tight">Programación de Obras - PCG 2.0</h1>
+      <header>
+        <h1 className="text-4xl font-bold font-headline tracking-tight">Programación de Obras v2.0</h1>
         <p className="mt-2 text-lg text-muted-foreground">
-          Seleccione una obra para ver y gestionar sus actividades programadas.
-          Los datos se leen y escriben en Firestore.
+          Gestione actividades con precios y registre avances para generar estados de pago.
         </p>
-      </div>
+      </header>
 
       {error && <p className="text-sm font-medium text-destructive">{error}</p>}
 
       <Card>
-        <CardHeader>
-          <CardTitle>Selector de Obra</CardTitle>
-          <CardDescription>Filtre las actividades por obra.</CardDescription>
+        <CardHeader className="flex flex-row items-center justify-between">
+            <div>
+              <CardTitle>Selector de Obra</CardTitle>
+              <CardDescription>Filtre las actividades y avances por obra.</CardDescription>
+            </div>
+            {obraSeleccionadaId && (
+              <Button asChild>
+                <Link href={`/operaciones/programacion/estado-pago/${obraSeleccionadaId}`}>
+                  Generar Estado de Pago (PDF)
+                </Link>
+              </Button>
+            )}
         </CardHeader>
         <CardContent>
           <div className="max-w-xs space-y-2">
             <Label htmlFor="obra-select">Seleccione una obra</Label>
             <Select value={obraSeleccionadaId} onValueChange={setObraSeleccionadaId}>
-              <SelectTrigger id="obra-select">
-                <SelectValue placeholder="Seleccione una obra" />
-              </SelectTrigger>
+              <SelectTrigger id="obra-select"><SelectValue placeholder="Seleccione una obra" /></SelectTrigger>
               <SelectContent>
                 {obras.map((obra) => (
-                  <SelectItem key={obra.id} value={obra.id}>
-                    {obra.nombreFaena}
-                  </SelectItem>
+                  <SelectItem key={obra.id} value={obra.id}>{obra.nombreFaena}</SelectItem>
                 ))}
               </SelectContent>
             </Select>
@@ -391,32 +346,6 @@ function ProgramacionPageInner() {
         </CardContent>
       </Card>
       
-      <section className="mt-4">
-        <div className="rounded-xl border bg-card p-4 shadow-sm text-sm flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
-            <div>
-            <p className="text-xs font-semibold text-card-foreground">
-                Link del panel del cliente para esta obra
-            </p>
-            <p className="text-[11px] text-muted-foreground">
-                Este es el enlace que, en producción, podrás compartir con el mandante
-                para que vea el avance diario de su obra.
-            </p>
-            </div>
-
-            {obraSeleccionadaId ? (
-            <div className="flex flex-col items-start gap-1 md:items-end">
-                <code className="rounded-lg border bg-muted/50 px-3 py-1 text-xs font-mono text-foreground">
-                {clientPath}
-                </code>
-            </div>
-            ) : (
-            <p className="text-xs text-muted-foreground">
-                Selecciona una obra para ver el link del cliente.
-            </p>
-            )}
-        </div>
-      </section>
-
       <Card>
         <CardHeader>
             <CardTitle>Resumen de Actividades</CardTitle>
@@ -458,19 +387,8 @@ function ProgramacionPageInner() {
                 <Input id="fechaFin" type="date" value={formActividad.fechaFin} onChange={e => setFormActividad(prev => ({...prev, fechaFin: e.target.value}))} />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="estado-select">Estado inicial</Label>
-                 <Select value={formActividad.estado} onValueChange={(v) => setFormActividad(prev => ({...prev, estado: v as EstadoActividad}))}>
-                  <SelectTrigger id="estado-select">
-                    <SelectValue placeholder="Seleccione un estado" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {ESTADOS_ACTIVIDAD.map((e) => (
-                      <SelectItem key={e} value={e}>
-                        {e}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <Label htmlFor="precioContrato">Precio Contrato ($)</Label>
+                <Input id="precioContrato" type="number" value={formActividad.precioContrato} onChange={e => setFormActividad(prev => ({...prev, precioContrato: e.target.value}))} placeholder="Ej: 1000000"/>
               </div>
             </div>
             <Button type="submit" className="w-full sm:w-auto bg-accent text-accent-foreground hover:bg-accent/90">
@@ -483,58 +401,42 @@ function ProgramacionPageInner() {
       <Card>
         <CardHeader>
             <CardTitle>Actividades Programadas</CardTitle>
-            <CardDescription>
-                {cargandoActividades ? "Cargando actividades..." : `Mostrando ${actividades.length} actividades.`}
-            </CardDescription>
+            <CardDescription>{cargandoActividades ? "Cargando..." : `Mostrando ${actividades.length} actividades.`}</CardDescription>
         </CardHeader>
         <CardContent className="p-0">
             <div className="overflow-x-auto">
                 <Table>
                     <TableHeader>
-                    <TableRow>
+                      <TableRow>
                         <TableHead>Actividad</TableHead>
+                        <TableHead>Precio</TableHead>
                         <TableHead>Inicio</TableHead>
                         <TableHead>Fin</TableHead>
                         <TableHead>Responsable</TableHead>
                         <TableHead>Estado</TableHead>
-                    </TableRow>
+                      </TableRow>
                     </TableHeader>
                     <TableBody>
-                    {cargandoActividades ? (
-                        <TableRow><TableCell colSpan={5} className="text-center">Cargando...</TableCell></TableRow>
-                    ) : actividades.length > 0 ? (
-                        actividades.map((actividad) => (
-                        <TableRow key={actividad.id}>
-                            <TableCell className="font-medium">{actividad.nombreActividad}</TableCell>
-                            <TableCell>{actividad.fechaInicio}</TableCell>
-                            <TableCell>{actividad.fechaFin}</TableCell>
-                            <TableCell>{actividad.responsable}</TableCell>
+                    {cargandoActividades ? <TableRow><TableCell colSpan={6} className="text-center">Cargando...</TableCell></TableRow> : 
+                    actividades.length > 0 ? (actividades.map((act) => (
+                        <TableRow key={act.id}>
+                            <TableCell className="font-medium">{act.nombreActividad}</TableCell>
+                            <TableCell>{new Intl.NumberFormat('es-CL', { style: 'currency', currency: 'CLP' }).format(act.precioContrato)}</TableCell>
+                            <TableCell>{act.fechaInicio}</TableCell>
+                            <TableCell>{act.fechaFin}</TableCell>
+                            <TableCell>{act.responsable}</TableCell>
                             <TableCell>
                                 <div className="flex flex-col gap-2 md:flex-row md:items-center">
-                                    <EstadoBadge estado={actividad.estado} />
-                                    <Select 
-                                        value={actividad.estado}
-                                        onValueChange={(value) => handleEstadoChange(actividad.id, value as EstadoActividad)}
-                                    >
-                                        <SelectTrigger className="text-xs h-8 w-full md:w-[120px]">
-                                            <SelectValue />
-                                        </SelectTrigger>
-                                        <SelectContent>
-                                            {ESTADOS_ACTIVIDAD.map(e => (
-                                                <SelectItem key={e} value={e} className="text-xs">{e}</SelectItem>
-                                            ))}
-                                        </SelectContent>
+                                    <EstadoBadge estado={act.estado} />
+                                    <Select value={act.estado} onValueChange={(v) => handleEstadoChange(act.id, v as EstadoActividad)}>
+                                        <SelectTrigger className="text-xs h-8 w-full md:w-[120px]"><SelectValue /></SelectTrigger>
+                                        <SelectContent>{ESTADOS_ACTIVIDAD.map(e => <SelectItem key={e} value={e} className="text-xs">{e}</SelectItem>)}</SelectContent>
                                     </Select>
                                 </div>
                             </TableCell>
                         </TableRow>
-                        ))
-                    ) : (
-                        <TableRow>
-                        <TableCell colSpan={5} className="text-center text-muted-foreground py-8">
-                            No hay actividades programadas para esta obra.
-                        </TableCell>
-                        </TableRow>
+                    ))) : (
+                        <TableRow><TableCell colSpan={6} className="text-center text-muted-foreground py-8">No hay actividades para esta obra.</TableCell></TableRow>
                     )}
                     </TableBody>
                 </Table>
@@ -544,79 +446,48 @@ function ProgramacionPageInner() {
       
       <section className="space-y-4 mt-8">
         <header className="space-y-1">
-          <h3 className="text-xl font-semibold">Avance diario de la obra</h3>
-          <p className="text-sm text-muted-foreground">
-            Registra el avance del día, sube una foto y deja un comentario. Esta
-            información se podrá mostrar en el futuro dashboard del cliente.
-          </p>
+          <h3 className="text-xl font-semibold">Avance diario por actividad</h3>
+          <p className="text-sm text-muted-foreground">Registra el avance para una actividad específica. Esta información alimentará el Estado de Pago.</p>
         </header>
-
         <div className="grid gap-6 md:grid-cols-2">
           <Card>
-            <CardHeader>
-              <CardTitle>Registrar avance del día</CardTitle>
-            </CardHeader>
+            <CardHeader><CardTitle>Registrar avance del día</CardTitle></CardHeader>
             <CardContent>
-              <form
-                onSubmit={handleAvanceSubmit}
-                className="space-y-4"
-              >
-                <div className="grid gap-3 md:grid-cols-2">
-                  <div className="space-y-1">
-                    <Label htmlFor="avance-fecha" className="text-xs font-medium">Fecha del avance</Label>
-                    <Input id="avance-fecha" type="date" value={formAvance.fecha} onChange={(e) => setFormAvance(prev => ({...prev, fecha: e.target.value}))} />
-                  </div>
-                  <div className="space-y-1">
-                    <Label htmlFor="avance-porcentaje" className="text-xs font-medium">Avance acumulado (%)</Label>
-                    <Input id="avance-porcentaje" type="number" min={0} max={100} value={formAvance.porcentajeAvance} onChange={(e) => setFormAvance(prev => ({...prev, porcentajeAvance: e.target.value}))} />
-                  </div>
-                </div>
-                <div className="space-y-1">
-                  <Label htmlFor="avance-comentario" className="text-xs font-medium">Comentario del día</Label>
-                  <textarea id="avance-comentario" value={formAvance.comentario} onChange={(e) => setFormAvance(prev => ({...prev, comentario: e.target.value}))} rows={3} className="w-full rounded-lg border bg-background px-3 py-2 text-sm" placeholder="Describe brevemente qué se avanzó hoy en la obra..." />
-                </div>
-                <div className="space-y-1">
-                  <Label htmlFor="foto-avance-input" className="text-xs font-medium">Foto (opcional)</Label>
-                  <Input id="foto-avance-input" type="file" accept="image/*" onChange={(e) => setArchivoFoto(e.target.files ? e.target.files[0] : null)} />
-                  <p className="text-[11px] text-muted-foreground">La foto se subirá a Firebase Storage.</p>
-                </div>
+              <form onSubmit={handleAvanceSubmit} className="space-y-4">
                  <div className="space-y-1">
-                    <Label htmlFor="avance-creadoPor" className="text-xs font-medium">Registrado por</Label>
-                    <Input id="avance-creadoPor" type="text" value={formAvance.creadoPor} onChange={(e) => setFormAvance(prev => ({...prev, creadoPor: e.target.value}))} placeholder="Ej: Jefe de Obra" />
+                    <Label htmlFor="avance-actividad" className="text-xs font-medium">Actividad*</Label>
+                    <Select value={formAvance.actividadId} onValueChange={(v) => setFormAvance(prev => ({...prev, actividadId: v}))}>
+                        <SelectTrigger id="avance-actividad"><SelectValue placeholder="Seleccione una actividad" /></SelectTrigger>
+                        <SelectContent>{actividades.map(a => <SelectItem key={a.id} value={a.id}>{a.nombreActividad}</SelectItem>)}</SelectContent>
+                    </Select>
                 </div>
-                <div className="flex items-center gap-2">
-                    <Checkbox id="visibleCliente" checked={formAvance.visibleParaCliente} onCheckedChange={(checked) => setFormAvance(prev => ({...prev, visibleParaCliente: !!checked}))} />
-                    <Label htmlFor="visibleCliente" className="text-xs text-muted-foreground">Mostrar este avance en el dashboard del cliente</Label>
+                <div className="grid gap-3 md:grid-cols-2">
+                  <div className="space-y-1"><Label htmlFor="avance-fecha" className="text-xs font-medium">Fecha*</Label><Input id="avance-fecha" type="date" value={formAvance.fecha} onChange={(e) => setFormAvance(prev => ({...prev, fecha: e.target.value}))} /></div>
+                  <div className="space-y-1"><Label htmlFor="avance-porcentaje" className="text-xs font-medium">Avance Acumulado (%)*</Label><Input id="avance-porcentaje" type="number" min={0} max={100} value={formAvance.porcentajeAvance} onChange={(e) => setFormAvance(prev => ({...prev, porcentajeAvance: e.target.value}))} /></div>
                 </div>
+                <div className="space-y-1"><Label htmlFor="avance-comentario" className="text-xs font-medium">Comentario</Label><textarea id="avance-comentario" value={formAvance.comentario} onChange={(e) => setFormAvance(prev => ({...prev, comentario: e.target.value}))} rows={3} className="w-full rounded-lg border bg-background px-3 py-2 text-sm" /></div>
+                <div className="space-y-1"><Label htmlFor="foto-avance-input" className="text-xs font-medium">Foto (opcional)</Label><Input id="foto-avance-input" type="file" accept="image/*" onChange={(e) => setArchivoFoto(e.target.files ? e.target.files[0] : null)} /></div>
+                 <div className="space-y-1"><Label htmlFor="avance-creadoPor" className="text-xs font-medium">Registrado por*</Label><Input id="avance-creadoPor" type="text" value={formAvance.creadoPor} onChange={(e) => setFormAvance(prev => ({...prev, creadoPor: e.target.value}))} placeholder="Ej: Jefe de Obra" /></div>
+                <div className="flex items-center gap-2"><Checkbox id="visibleCliente" checked={formAvance.visibleParaCliente} onCheckedChange={(checked) => setFormAvance(prev => ({...prev, visibleParaCliente: !!checked}))} /><Label htmlFor="visibleCliente" className="text-xs text-muted-foreground">Visible para el cliente</Label></div>
                 <Button type="submit">Registrar avance</Button>
               </form>
             </CardContent>
           </Card>
-
-          {/* Historial de avances */}
           <div className="space-y-3">
-            <h4 className="text-sm font-semibold text-card-foreground">
-              Historial de avances de esta obra
-            </h4>
-            {cargandoAvances ? (
-                <p className="text-sm text-muted-foreground">Cargando avances...</p>
-            ) : avances.length === 0 ? (
-              <p className="text-sm text-muted-foreground">
-                Aún no hay avances registrados para esta obra.
-              </p>
-            ) : (
-              <div className="space-y-3 max-h-[500px] overflow-y-auto pr-2">
-                {avances.map((av) => (
+            <h4 className="text-sm font-semibold text-card-foreground">Historial de avances de esta obra</h4>
+            {cargandoAvances ? <p className="text-sm text-muted-foreground">Cargando avances...</p> : 
+            avances.length === 0 ? <p className="text-sm text-muted-foreground">Aún no hay avances registrados para esta obra.</p> : (
+              <div className="space-y-3 max-h-[600px] overflow-y-auto pr-2">
+                {avances.map((av) => {
+                  const actividadAsociada = actividades.find(a => a.id === av.actividadId);
+                  return (
                   <Card key={av.id} className="overflow-hidden">
-                    {av.fotoUrl && (
-                      <div className="border-b bg-muted/30">
-                        <img src={av.fotoUrl} alt={`Avance ${av.fecha}`} className="h-48 w-full object-cover"/>
-                      </div>
-                    )}
+                    {av.fotoUrl && <img src={av.fotoUrl} alt={`Avance ${av.fecha}`} className="h-48 w-full object-cover"/>}
                     <CardContent className="p-4 space-y-2">
                         <div className="flex items-start justify-between gap-2">
                             <div>
                                 <p className="font-semibold text-primary">{av.fecha} · {av.porcentajeAvance}% avance</p>
+                                <p className="text-xs font-medium text-foreground mt-1">{actividadAsociada?.nombreActividad ?? "Actividad no encontrada"}</p>
                                 <p className="text-xs text-muted-foreground mt-1">Registrado por: {av.creadoPor}</p>
                             </div>
                             <Badge variant="outline" className={cn(av.visibleParaCliente ? "border-emerald-200 bg-emerald-50 text-emerald-700" : "border-slate-200 bg-slate-100 text-slate-600")}>
@@ -626,13 +497,12 @@ function ProgramacionPageInner() {
                         <p className="text-card-foreground/90 text-sm whitespace-pre-line pt-1">{av.comentario}</p>
                     </CardContent>
                   </Card>
-                ))}
+                )})}
               </div>
             )}
           </div>
         </div>
       </section>
-
     </div>
   );
 }
