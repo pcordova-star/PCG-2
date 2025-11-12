@@ -337,8 +337,11 @@ export default function ProgramacionPage() {
     } catch (err) {
       console.error(err);
       setError("No se pudo registrar el avance. Intenta nuevamente.");
+      alert("Error: No se pudo registrar el avance. Revisa la consola para más detalles.");
     }
   }
+  
+  const clientPath = obraSeleccionadaId ? `/clientes/${obraSeleccionadaId}` : "";
   
   if (loadingAuth) {
     return <p className="text-sm text-muted-foreground">Cargando sesión...</p>;
@@ -348,9 +351,6 @@ export default function ProgramacionPage() {
       <p className="text-sm text-muted-foreground">Redirigiendo a login...</p>
     );
   }
-  
-  const clientPath = obraSeleccionadaId ? `/clientes/${obraSeleccionadaId}` : "";
-  
 
   return (
     <div className="space-y-8">
