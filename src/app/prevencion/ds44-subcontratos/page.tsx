@@ -21,6 +21,7 @@ import {
   onSnapshot,
   serverTimestamp,
   getDocs,
+  where,
 } from "firebase/firestore";
 
 
@@ -71,6 +72,7 @@ export default function IngresoEmpresaSubcontratistaPage() {
   const [obras, setObras] = useState<Obra[]>([]);
   const [obraSeleccionadaId, setObraSeleccionadaId] = useState<string>("");
   const [ingresos, setIngresos] = useState<IngresoEmpresa[]>([]);
+  const [loadingObras, setLoadingObras] = useState(true);
 
   // Estados del formulario
   const [razonSocial, setRazonSocial] = useState('');
@@ -97,6 +99,7 @@ export default function IngresoEmpresaSubcontratistaPage() {
   // Cargar Obras desde Firestore
   useEffect(() => {
     async function cargarObras() {
+      setLoadingObras(true);
       try {
         const colRef = collection(firebaseDb, "obras");
         const snapshot = await getDocs(colRef);
@@ -111,10 +114,12 @@ export default function IngresoEmpresaSubcontratistaPage() {
       } catch (err) {
         console.error(err);
         setError("No se pudieron cargar las obras.");
+      } finally {
+        setLoadingObras(false);
       }
     }
     cargarObras();
-  }, [obraSeleccionadaId]);
+  }, []);
   
   // Cargar ingresos en tiempo real
   useEffect(() => {
@@ -260,11 +265,17 @@ export default function IngresoEmpresaSubcontratistaPage() {
           <div className="max-w-xs space-y-2">
             <Label htmlFor="obra-select">Seleccione una obra</Label>
             <Select value={obraSeleccionadaId} onValueChange={setObraSeleccionadaId}>
-              <SelectTrigger id="obra-select"><SelectValue placeholder="Seleccione una obra" /></SelectTrigger>
+              <SelectTrigger id="obra-select">
+                <SelectValue placeholder={loadingObras ? "Cargando obras..." : "Seleccione una obra"} />
+              </SelectTrigger>
               <SelectContent>
-                {obras.map((obra) => (
-                  <SelectItem key={obra.id} value={obra.id}>{obra.nombreFaena}</SelectItem>
-                ))}
+                {loadingObras ? (
+                  <SelectItem value="loading" disabled>Cargando...</SelectItem>
+                ) : (
+                  obras.map((obra) => (
+                    <SelectItem key={obra.id} value={obra.id}>{obra.nombreFaena}</SelectItem>
+                  ))
+                )}
               </SelectContent>
             </Select>
           </div>
