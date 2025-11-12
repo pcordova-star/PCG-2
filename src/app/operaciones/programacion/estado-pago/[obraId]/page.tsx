@@ -1,8 +1,9 @@
+
 "use client";
 
-import { useEffect, useState, useMemo, Suspense } from "react";
+import { useEffect, useState, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
-import { doc, getDoc, getDocs, collection, query, where, orderBy } from "firebase/firestore";
+import { doc, getDoc } from "firebase/firestore";
 import { firebaseDb } from "@/lib/firebaseClient";
 import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow, TableFooter } from "@/components/ui/table";
