@@ -218,8 +218,6 @@ export default function EstadoDePagoPage() {
             <tr>
               <th className="border border-gray-200 px-2 py-1 text-left">Ítem</th>
               <th className="border border-gray-200 px-2 py-1 text-left">Descripción</th>
-              <th className="border border-gray-200 px-2 py-1 text-center">Unidad</th>
-              <th className="border border-gray-200 px-2 py-1 text-right">Cantidad</th>
               <th className="border border-gray-200 px-2 py-1 text-right">Precio contrato</th>
               <th className="border border-gray-200 px-2 py-1 text-right">% Avance</th>
               <th className="border border-gray-200 px-2 py-1 text-right">Monto a cobrar</th>
@@ -230,12 +228,6 @@ export default function EstadoDePagoPage() {
               <tr key={item.actividadId}>
                 <td className="border border-gray-200 px-2 py-1">{idx + 1}</td>
                 <td className="border border-gray-200 px-2 py-1">{item.nombre}</td>
-                <td className="border border-gray-200 px-2 py-1 text-center">
-                  {item.unidad ?? '-'}
-                </td>
-                <td className="border border-gray-200 px-2 py-1 text-right">
-                  {item.cantidadContrato ?? '-'}
-                </td>
                 <td className="border border-gray-200 px-2 py-1 text-right">
                   {formatCurrency(item.precioContrato)}
                 </td>
@@ -286,5 +278,3 @@ export default function EstadoDePagoPage() {
     </div>
   );
 }
-
-    
