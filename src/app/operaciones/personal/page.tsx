@@ -84,7 +84,7 @@ export default function PersonalPage() {
       }
     }
     cargarObras();
-  }, [obraSeleccionadaId]);
+  }, []);
 
   // Cargar personal en tiempo real
   useEffect(() => {
