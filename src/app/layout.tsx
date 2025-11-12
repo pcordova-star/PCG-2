@@ -92,7 +92,7 @@ export default function RootLayout({
 
   return (
     <html lang="es">
-      <body className={cn('font-body antialiased bg-gray-50')}>
+      <body className={cn('font-body antialiased bg-muted/40')}>
         <AuthProvider>
           <div className="grid min-h-screen w-full md:grid-cols-[auto_1fr]">
             {/* Desktop Sidebar */}
