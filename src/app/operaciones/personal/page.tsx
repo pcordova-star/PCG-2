@@ -24,6 +24,8 @@ import {
   Timestamp,
   getDocs
 } from 'firebase/firestore';
+import { Checkbox } from '@/components/ui/checkbox';
+import { Badge } from '@/components/ui/badge';
 
 // --- Tipos ---
 type Obra = {
@@ -328,7 +330,7 @@ export default function PersonalPage() {
                 <div className="space-y-2"><Label htmlFor="empresa">Empresa*</Label><Input id="empresa" name="empresa" value={currentPersonal?.empresa || ''} onChange={handleFormChange} /></div>
                 <div className="space-y-2"><Label htmlFor="fechaIngreso">Fecha de Ingreso*</Label><Input id="fechaIngreso" name="fechaIngreso" type="date" value={currentPersonal?.fechaIngreso || ''} onChange={handleFormChange} /></div>
                 <div className="flex items-center space-x-2 pt-6">
-                    <Checkbox id="autorizado" checked={currentPersonal?.autorizado} onCheckedChange={handleCheckboxChange} />
+                    <Checkbox id="autorizado" checked={currentPersonal?.autorizado} onCheckedChange={(checked) => handleCheckboxChange(Boolean(checked))} />
                     <Label htmlFor="autorizado" className="font-medium">Autorizado para ingresar a la obra</Label>
                 </div>
               </div>
