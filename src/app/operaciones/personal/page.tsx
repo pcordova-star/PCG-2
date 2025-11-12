@@ -1,17 +1,29 @@
 "use client";
 
-import React, { useMemo, useState } from 'react';
+import React, { useState, useEffect, FormEvent } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { cn } from '@/lib/utils';
-import { Badge } from '@/components/ui/badge';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
-import { Trash2 } from 'lucide-react';
-import { Separator } from '@/components/ui/separator';
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Trash2, Edit, PlusCircle } from 'lucide-react';
+import { firebaseDb } from '@/lib/firebaseClient';
+import {
+  collection,
+  query,
+  onSnapshot,
+  orderBy,
+  addDoc,
+  updateDoc,
+  deleteDoc,
+  doc,
+  serverTimestamp,
+  Timestamp,
+  getDocs
+} from 'firebase/firestore';
 
 // --- Tipos ---
 type Obra = {
@@ -19,238 +31,178 @@ type Obra = {
   nombreFaena: string;
 };
 
-type Trabajador = {
-  id: string;
-  nombre: string;
-  oficio: string;
-  rut: string;
-  empresa: string;
-};
-
-type EstadoAsignacion = "Activo" | "Suspendido" | "Finalizado";
-
-const ESTADOS_ASIGNACION: EstadoAsignacion[] = ["Activo", "Suspendido", "Finalizado"];
-
-type Asignacion = {
+export interface PersonalObra {
   id: string;
   obraId: string;
-  trabajadorId: string;
-  rol: string;
-  estado: EstadoAsignacion;
-};
-
-// --- Datos Simulados ---
-const OBRAS_SIMULADAS: Obra[] = [
-  { id: '1', nombreFaena: 'Edificio Central' },
-  { id: '2', nombreFaena: 'Condominio El Roble' },
-  { id: '3', nombreFaena: 'Remodelación Oficinas Corp' },
-];
-
-const TRABAJADORES_SIMULADOS: Trabajador[] = [
-    { id: 't1', nombre: 'Juan Pérez', oficio: 'Maestro Carpintero', rut: '15.123.456-7', empresa: 'Constructora Principal' },
-    { id: 't2', nombre: 'Ana Gómez', oficio: 'Jornal', rut: '18.987.654-3', empresa: 'Constructora Principal' },
-    { id: 't3', nombre: 'Carlos Soto', oficio: 'Operador de Grúa', rut: '12.345.678-9', empresa: 'Subcontrato Maquinaria Pesada SPA' },
-    { id: 't4', nombre: 'Luisa Marín', oficio: 'Prevencionista de Riesgos', rut: '17.555.444-K', empresa: 'Consultores en Seguridad Ltda.' },
-    { id: 't5', nombre: 'Pedro Rojas', oficio: 'Electricista', rut: '16.888.777-2', empresa: 'Instalaciones Eléctricas SEG' },
-    { id: 't6', nombre: 'Sofía Lara', oficio: 'Jefe de Obra', rut: '14.222.333-1', empresa: 'Constructora Principal' },
-];
-
-const ASIGNACIONES_INICIALES: Asignacion[] = [
-  { id: 'as1', obraId: '1', trabajadorId: 't1', rol: 'Jefe de cuadrilla carpintería', estado: 'Activo' },
-  { id: 'as2', obraId: '1', trabajadorId: 't2', rol: 'Apoyo general', estado: 'Activo' },
-  { id: 'as3', obraId: '2', trabajadorId: 't3', rol: 'Operador principal', estado: 'Activo' },
-  { id: 'as4', obraId: '2', trabajadorId: 't4', rol: 'Supervisión de seguridad semanal', estado: 'Suspendido' },
-];
-
-// --- Componente de Badge ---
-function EstadoBadge({ estado }: { estado: EstadoAsignacion }) {
-  const className = {
-    "Activo": "bg-green-100 text-green-800 border-green-200",
-    "Suspendido": "bg-yellow-100 text-yellow-800 border-yellow-200",
-    "Finalizado": "bg-gray-100 text-gray-800 border-gray-200",
-  }[estado];
-  
-  return <Badge variant="outline" className={cn("font-semibold whitespace-nowrap", className)}>{estado}</Badge>;
+  rut: string;
+  nombre: string;
+  cargo: string;
+  empresa: string;
+  fechaIngreso: string;
+  autorizado: boolean;
+  observaciones?: string;
+  creadoEn: Timestamp;
+  actualizadoEn?: Timestamp;
 }
 
 // --- Componente Principal ---
 export default function PersonalPage() {
-  const [trabajadores, setTrabajadores] = useState<Trabajador[]>(TRABAJADORES_SIMULADOS);
-  const [asignaciones, setAsignaciones] = useState<Asignacion[]>(ASIGNACIONES_INICIALES);
-  const [obraSeleccionadaId, setObraSeleccionadaId] = useState<string>(OBRAS_SIMULADAS[0]?.id ?? "");
-
-  // Form state para nuevo trabajador
-  const [nuevoTrabajadorNombre, setNuevoTrabajadorNombre] = useState('');
-  const [nuevoTrabajadorOficio, setNuevoTrabajadorOficio] = useState('');
-  const [nuevoTrabajadorRut, setNuevoTrabajadorRut] = useState('');
-  const [nuevoTrabajadorEmpresa, setNuevoTrabajadorEmpresa] = useState('');
-  const [errorNuevoTrabajador, setErrorNuevoTrabajador] = useState('');
-
-
-  // Form state para asignación
-  const [trabajadorIdAsignar, setTrabajadorIdAsignar] = useState('');
-  const [rol, setRol] = useState('');
-  const [estado, setEstado] = useState<EstadoAsignacion>('Activo');
-  const [errorAsignacion, setErrorAsignacion] = useState('');
-
-  const getTrabajador = (id: string) => trabajadores.find((t) => t.id === id);
-
-  const asignacionesFiltradas = useMemo(() => 
-    asignaciones.filter((a) => a.obraId === obraSeleccionadaId),
-    [asignaciones, obraSeleccionadaId]
-  );
+  const [obras, setObras] = useState<Obra[]>([]);
+  const [obraSeleccionadaId, setObraSeleccionadaId] = useState<string>("");
+  const [personal, setPersonal] = useState<PersonalObra[]>([]);
   
-  const resumenAsignaciones = useMemo(() => {
-    const total = asignacionesFiltradas.length;
-    const activos = asignacionesFiltradas.filter(a => a.estado === "Activo").length;
-    const suspendidos = asignacionesFiltradas.filter(a => a.estado === "Suspendido").length;
-    const finalizados = asignacionesFiltradas.filter(a => a.estado === "Finalizado").length;
-    return { total, activos, suspendidos, finalizados };
-  }, [asignacionesFiltradas]);
-  
-  const handleNuevoTrabajadorSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!nuevoTrabajadorNombre || !nuevoTrabajadorOficio || !nuevoTrabajadorRut || !nuevoTrabajadorEmpresa) {
-      setErrorNuevoTrabajador('Todos los campos son obligatorios.');
+  const [loadingObras, setLoadingObras] = useState(true);
+  const [loadingPersonal, setLoadingPersonal] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  const [dialogOpen, setDialogOpen] = useState(false);
+  const [currentPersonal, setCurrentPersonal] = useState<Partial<PersonalObra> | null>(null);
+
+  // Cargar Obras desde Firestore
+  useEffect(() => {
+    async function cargarObras() {
+      setLoadingObras(true);
+      try {
+        const colRef = collection(firebaseDb, "obras");
+        const q = query(colRef, orderBy("nombreFaena"));
+        const snapshot = await getDocs(q);
+        const data: Obra[] = snapshot.docs.map((doc) => ({
+          id: doc.id,
+          nombreFaena: doc.data().nombreFaena ?? "",
+        }));
+        setObras(data);
+        if (data.length > 0 && !obraSeleccionadaId) {
+          setObraSeleccionadaId(data[0].id);
+        }
+      } catch (err) {
+        console.error(err);
+        setError("No se pudieron cargar las obras disponibles.");
+      } finally {
+        setLoadingObras(false);
+      }
+    }
+    cargarObras();
+  }, [obraSeleccionadaId]);
+
+  // Cargar personal en tiempo real
+  useEffect(() => {
+    if (!obraSeleccionadaId) {
+      setPersonal([]);
+      setLoadingPersonal(false);
       return;
     }
-    setErrorNuevoTrabajador('');
 
-    const nuevoTrabajador: Trabajador = {
-      id: `t-${Date.now()}`,
-      nombre: nuevoTrabajadorNombre,
-      oficio: nuevoTrabajadorOficio,
-      rut: nuevoTrabajadorRut,
-      empresa: nuevoTrabajadorEmpresa,
-    };
-    
-    setTrabajadores(prev => [...prev, nuevoTrabajador]);
-    setNuevoTrabajadorNombre('');
-    setNuevoTrabajadorOficio('');
-    setNuevoTrabajadorRut('');
-    setNuevoTrabajadorEmpresa('');
-  };
+    setLoadingPersonal(true);
+    const personalColRef = collection(firebaseDb, "obras", obraSeleccionadaId, "personal");
+    const q = query(personalColRef, orderBy("creadoEn", "desc"));
 
-  const handleAsignacionSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!trabajadorIdAsignar || !rol) {
-      setErrorAsignacion('Debe seleccionar un trabajador y definir un rol.');
-      return;
-    }
-    
-    const yaExiste = asignaciones.some(a => 
-      a.obraId === obraSeleccionadaId && 
-      a.trabajadorId === trabajadorIdAsignar && 
-      a.estado !== "Finalizado"
+    const unsubscribe = onSnapshot(
+      q,
+      (snapshot) => {
+        const data: PersonalObra[] = snapshot.docs.map((doc) => ({
+          id: doc.id,
+          ...(doc.data() as Omit<PersonalObra, 'id'>),
+        }));
+        setPersonal(data);
+        setLoadingPersonal(false);
+      },
+      (err) => {
+        console.error(err);
+        setError("Error al cargar el personal de la obra.");
+        setLoadingPersonal(false);
+      }
     );
-    if (yaExiste) {
-      setErrorAsignacion('Este trabajador ya está asignado a esta obra con un estado vigente.');
+
+    return () => unsubscribe();
+  }, [obraSeleccionadaId]);
+
+  const handleOpenDialog = (p: Partial<PersonalObra> | null = null) => {
+    setCurrentPersonal(p || { 
+        nombre: "",
+        rut: "", 
+        cargo: "",
+        empresa: "", 
+        fechaIngreso: new Date().toISOString().slice(0, 10),
+        autorizado: false,
+        observaciones: ""
+    });
+    setDialogOpen(true);
+    setError(null);
+  };
+
+  const handleFormChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+    if (currentPersonal) {
+      setCurrentPersonal({ ...currentPersonal, [e.target.name]: e.target.value });
+    }
+  };
+
+  const handleCheckboxChange = (checked: boolean) => {
+    if (currentPersonal) {
+      setCurrentPersonal({ ...currentPersonal, autorizado: checked });
+    }
+  };
+
+  const handleSubmit = async (e: FormEvent) => {
+    e.preventDefault();
+    setError(null);
+
+    if (!currentPersonal || !currentPersonal.nombre || !currentPersonal.rut || !currentPersonal.cargo || !currentPersonal.empresa || !currentPersonal.fechaIngreso) {
+      setError("Todos los campos marcados con * son obligatorios.");
       return;
     }
+    if (!obraSeleccionadaId) {
+        setError("Debe seleccionar una obra.");
+        return;
+    }
 
-    setErrorAsignacion('');
-    
-    const nuevaAsignacion: Asignacion = {
-      id: `asg-${Date.now()}`,
-      obraId: obraSeleccionadaId,
-      trabajadorId: trabajadorIdAsignar,
-      rol,
-      estado
-    };
-    
-    setAsignaciones(prev => [...prev, nuevaAsignacion]);
-    
-    setTrabajadorIdAsignar('');
-    setRol('');
-    setEstado('Activo');
+    try {
+      if (currentPersonal.id) {
+        // Actualizar personal existente
+        const docRef = doc(firebaseDb, "obras", obraSeleccionadaId, "personal", currentPersonal.id);
+        await updateDoc(docRef, {
+          ...currentPersonal,
+          actualizadoEn: serverTimestamp(),
+        });
+      } else {
+        // Crear nuevo personal
+        const colRef = collection(firebaseDb, "obras", obraSeleccionadaId, "personal");
+        await addDoc(colRef, {
+          ...currentPersonal,
+          obraId: obraSeleccionadaId,
+          creadoEn: serverTimestamp(),
+          actualizadoEn: serverTimestamp(),
+        });
+      }
+      setDialogOpen(false);
+      setCurrentPersonal(null);
+    } catch (err) {
+      console.error(err);
+      setError("No se pudo guardar el registro del personal. Intente nuevamente.");
+    }
   };
 
-  const handleEliminarAsignacion = (id: string) => {
-    setAsignaciones((prev) => prev.filter((a) => a.id !== id));
+  const handleDelete = async (personalId: string) => {
+    try {
+      const docRef = doc(firebaseDb, "obras", obraSeleccionadaId, "personal", personalId);
+      await deleteDoc(docRef);
+    } catch (err) {
+      console.error(err);
+      setError("No se pudo eliminar el registro. Intente nuevamente.");
+    }
   };
-  
-  const handleEstadoAsignacionChange = (id: string, nuevoEstado: EstadoAsignacion) => {
-    setAsignaciones((prev) =>
-      prev.map((a) =>
-        a.id === id ? { ...a, estado: nuevoEstado } : a
-      )
-    );
-  };
+
+  if (loadingObras) {
+      return <p className="text-muted-foreground">Cargando obras...</p>
+  }
   
   return (
     <div className="space-y-8">
       <div>
-        <h1 className="text-4xl font-bold font-headline tracking-tight">Personal de Obra - PCG 2.0</h1>
+        <h1 className="text-4xl font-bold font-headline tracking-tight">Personal de Obra – PCG 2.0</h1>
         <p className="mt-2 text-lg text-muted-foreground">
-          Gestione el plantel de trabajadores y asígnelos a una obra. Los datos son simulados y se reinician al recargar.
+          Gestione el plantel de trabajadores y su estado para cada obra. Los datos se guardan en tiempo real en Firestore.
         </p>
       </div>
-
-      <Card>
-        <CardHeader>
-          <CardTitle>Gestión de Trabajadores</CardTitle>
-          <CardDescription>Cree y visualice el plantel general de trabajadores disponibles para asignar.</CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-6">
-          <form onSubmit={handleNuevoTrabajadorSubmit} className="space-y-4 p-4 border rounded-lg bg-muted/20">
-            <h3 className="font-semibold">Agregar Nuevo Trabajador</h3>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="nuevo-nombre">Nombre Completo</Label>
-                <Input id="nuevo-nombre" value={nuevoTrabajadorNombre} onChange={e => setNuevoTrabajadorNombre(e.target.value)} placeholder="Ej: Miguel Torres" />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="nuevo-rut">RUT</Label>
-                <Input id="nuevo-rut" value={nuevoTrabajadorRut} onChange={e => setNuevoTrabajadorRut(e.target.value)} placeholder="Ej: 11.222.333-4" />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="nuevo-oficio">Oficio</Label>
-                <Input id="nuevo-oficio" value={nuevoTrabajadorOficio} onChange={e => setNuevoTrabajadorOficio(e.target.value)} placeholder="Ej: Ayudante" />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="nuevo-empresa">Empresa</Label>
-                <Input id="nuevo-empresa" value={nuevoTrabajadorEmpresa} onChange={e => setNuevoTrabajadorEmpresa(e.target.value)} placeholder="Ej: Constructora Principal" />
-              </div>
-            </div>
-             {errorNuevoTrabajador && <p className="text-sm font-medium text-destructive mt-2">{errorNuevoTrabajador}</p>}
-            <Button type="submit">Agregar Trabajador</Button>
-          </form>
-
-          <div className="space-y-2">
-            <h3 className="font-semibold">Plantel de Trabajadores</h3>
-            <div className="border rounded-md max-h-60 overflow-y-auto">
-              <Table>
-                <TableHeader className="sticky top-0 bg-muted/50">
-                  <TableRow>
-                    <TableHead>Nombre</TableHead>
-                    <TableHead>RUT</TableHead>
-                    <TableHead>Oficio</TableHead>
-                    <TableHead>Empresa</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {trabajadores.length > 0 ? trabajadores.map(t => (
-                    <TableRow key={t.id}>
-                      <TableCell className="font-medium">{t.nombre}</TableCell>
-                      <TableCell>{t.rut}</TableCell>
-                      <TableCell>{t.oficio}</TableCell>
-                      <TableCell>{t.empresa}</TableCell>
-                    </TableRow>
-                  )) : (
-                    <TableRow>
-                      <TableCell colSpan={4} className="text-center text-muted-foreground">No hay trabajadores registrados.</TableCell>
-                    </TableRow>
-                  )}
-                </TableBody>
-              </Table>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-      
-      <Separator />
-
-      <h2 className="text-2xl font-bold font-headline tracking-tight pt-4">Asignación de Personal a Obras</h2>
 
       <Card>
         <CardHeader>
@@ -265,7 +217,7 @@ export default function PersonalPage() {
                 <SelectValue placeholder="Seleccione una obra" />
               </SelectTrigger>
               <SelectContent>
-                {OBRAS_SIMULADAS.map((obra) => (
+                {obras.map((obra) => (
                   <SelectItem key={obra.id} value={obra.id}>
                     {obra.nombreFaena}
                   </SelectItem>
@@ -275,166 +227,124 @@ export default function PersonalPage() {
           </div>
         </CardContent>
       </Card>
-      
+
       <Card>
-        <CardHeader>
-          <CardTitle>Resumen de Asignaciones en Obra</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="text-sm text-muted-foreground flex flex-wrap gap-x-4 gap-y-2">
-            <span className="font-medium text-foreground">Total: {resumenAsignaciones.total}</span>
-            <span className="hidden sm:inline">·</span>
-            <span>Activos: {resumenAsignaciones.activos}</span>
-            <span className="hidden sm:inline">·</span>
-            <span>Suspendidos: {resumenAsignaciones.suspendidos}</span>
-            <span className="hidden sm:inline">·</span>
-            <span>Finalizados: {resumenAsignaciones.finalizados}</span>
-          </div>
-        </CardContent>
-      </Card>
-      
-      <Card>
-        <CardHeader>
-          <CardTitle>Asignar Nuevo Trabajador a Obra</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <form onSubmit={handleAsignacionSubmit} className="space-y-6">
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              <div className="space-y-2">
-                <Label htmlFor="trabajador-select">Trabajador</Label>
-                 <Select value={trabajadorIdAsignar} onValueChange={setTrabajadorIdAsignar}>
-                  <SelectTrigger id="trabajador-select">
-                    <SelectValue placeholder="Seleccione un trabajador" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {trabajadores.map((t) => (
-                      <SelectItem key={t.id} value={t.id}>
-                        {t.nombre} — {t.oficio} — {t.empresa}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="rol">Rol en la obra</Label>
-                <Input id="rol" value={rol} onChange={e => setRol(e.target.value)} placeholder="Ej: Jefe de cuadrilla" />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="estado-asignacion-select">Estado inicial</Label>
-                 <Select value={estado} onValueChange={(v) => setEstado(v as EstadoAsignacion)}>
-                  <SelectTrigger id="estado-asignacion-select">
-                    <SelectValue placeholder="Seleccione estado" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {ESTADOS_ASIGNACION.map((e) => (
-                      <SelectItem key={e} value={e}>
-                        {e}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
-             {errorAsignacion && <p className="text-sm font-medium text-destructive mt-4">{errorAsignacion}</p>}
-            <Button type="submit" className="w-full sm:w-auto bg-accent text-accent-foreground hover:bg-accent/90">
-              Asignar a la obra
-            </Button>
-          </form>
-        </CardContent>
-      </Card>
-      
-      <Card>
-        <CardHeader>
+        <CardHeader className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+          <div className="space-y-1.5">
             <CardTitle>Personal Asignado en Obra</CardTitle>
-            <CardDescription>Lista de trabajadores asignados a "{OBRAS_SIMULADAS.find(o => o.id === obraSeleccionadaId)?.nombreFaena}".</CardDescription>
+            <CardDescription>
+              {loadingPersonal ? "Cargando personal..." : `Mostrando ${personal.length} personas en la obra.`}
+            </CardDescription>
+          </div>
+          <Button onClick={() => handleOpenDialog()}>
+            <PlusCircle className="mr-2 h-4 w-4" />
+            Agregar Personal
+          </Button>
         </CardHeader>
         <CardContent className="p-0">
           <div className="overflow-x-auto">
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Trabajador</TableHead>
-                  <TableHead>Rol en Obra</TableHead>
-                  <TableHead>Estado</TableHead>
+                  <TableHead>Nombre</TableHead>
+                  <TableHead>RUT</TableHead>
+                  <TableHead>Cargo</TableHead>
+                  <TableHead>Empresa</TableHead>
+                  <TableHead>Fecha Ingreso</TableHead>
+                  <TableHead>Autorizado</TableHead>
                   <TableHead className="text-right">Acciones</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {asignacionesFiltradas.length > 0 ? (
-                  asignacionesFiltradas.map((asignacion) => {
-                    const trabajador = getTrabajador(asignacion.trabajadorId);
-                    if (!trabajador) return null;
-                    
-                    return (
-                      <TableRow key={asignacion.id}>
-                        <TableCell className="font-medium">
-                          <div>{trabajador.nombre} ({trabajador.oficio})</div>
-                          <div className="text-xs text-muted-foreground">{trabajador.rut} — {trabajador.empresa}</div>
-                        </TableCell>
-                        <TableCell>{asignacion.rol}</TableCell>
-                        <TableCell>
-                          <div className="flex flex-col gap-2 md:flex-row md:items-center">
-                            <EstadoBadge estado={asignacion.estado} />
-                            <Select 
-                                value={asignacion.estado}
-                                onValueChange={(value) => handleEstadoAsignacionChange(asignacion.id, value as EstadoAsignacion)}
-                            >
-                                <SelectTrigger className="text-xs h-8 w-full md:w-[120px]">
-                                    <SelectValue />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    {ESTADOS_ASIGNACION.map(e => (
-                                        <SelectItem key={e} value={e} className="text-xs">{e}</SelectItem>
-                                    ))}
-                                </SelectContent>
-                            </Select>
-                           </div>
-                        </TableCell>
-                        <TableCell className="text-right">
-                          <AlertDialog>
+                {loadingPersonal ? (
+                  <TableRow><TableCell colSpan={7} className="text-center h-24">Cargando...</TableCell></TableRow>
+                ) : personal.length > 0 ? (
+                  personal.map((p) => (
+                    <TableRow key={p.id}>
+                      <TableCell className="font-medium">{p.nombre}</TableCell>
+                      <TableCell>{p.rut}</TableCell>
+                      <TableCell>{p.cargo}</TableCell>
+                      <TableCell>{p.empresa}</TableCell>
+                      <TableCell>{p.fechaIngreso}</TableCell>
+                      <TableCell>
+                        <Badge variant={p.autorizado ? 'default' : 'destructive'}>{p.autorizado ? 'Sí' : 'No'}</Badge>
+                      </TableCell>
+                      <TableCell className="text-right">
+                        <div className="flex justify-end gap-2">
+                          <Button variant="ghost" size="icon" onClick={() => handleOpenDialog(p)}>
+                            <Edit className="h-4 w-4" />
+                            <span className="sr-only">Editar</span>
+                          </Button>
+                           <AlertDialog>
                             <AlertDialogTrigger asChild>
-                                <Button variant="ghost" size="icon" className="text-destructive hover:text-destructive hover:bg-destructive/10">
-                                    <Trash2 className="h-4 w-4" />
-                                    <span className="sr-only">Eliminar</span>
-                                </Button>
+                              <Button variant="ghost" size="icon" className="text-destructive hover:text-destructive">
+                                <Trash2 className="h-4 w-4" />
+                                <span className="sr-only">Eliminar</span>
+                              </Button>
                             </AlertDialogTrigger>
                             <AlertDialogContent>
-                                <AlertDialogHeader>
-                                <AlertDialogTitle>¿Desea eliminar esta asignación?</AlertDialogTitle>
+                              <AlertDialogHeader>
+                                <AlertDialogTitle>¿Desea eliminar este registro?</AlertDialogTitle>
                                 <AlertDialogDescription>
-                                    La asignación de "{trabajador.nombre}" será eliminada. Esta acción no se puede deshacer.
+                                  Se eliminará permanentemente a "{p.nombre}" de la obra. Esta acción no se puede deshacer.
                                 </AlertDialogDescription>
-                                </AlertDialogHeader>
-                                <AlertDialogFooter>
+                              </AlertDialogHeader>
+                              <AlertDialogFooter>
                                 <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                                <AlertDialogAction
-                                    onClick={() => handleEliminarAsignacion(asignacion.id)}
-                                    className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                                >
-                                    Eliminar
+                                <AlertDialogAction onClick={() => handleDelete(p.id)} className="bg-destructive hover:bg-destructive/90">
+                                  Eliminar
                                 </AlertDialogAction>
-                                </AlertDialogFooter>
+                              </AlertDialogFooter>
                             </AlertDialogContent>
                           </AlertDialog>
-                        </TableCell>
-                      </TableRow>
-                    )
-                  })
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  ))
                 ) : (
-                  <TableRow>
-                    <TableCell colSpan={4} className="text-center text-muted-foreground py-8">
-                      No hay personal asignado a esta obra.
-                    </TableCell>
-                  </TableRow>
+                  <TableRow><TableCell colSpan={7} className="h-24 text-center">No hay personal registrado para esta obra.</TableCell></TableRow>
                 )}
               </TableBody>
             </Table>
           </div>
+          {error && <p className="p-4 text-sm font-medium text-destructive">{error}</p>}
         </CardContent>
       </Card>
+      
+      <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+        <DialogContent className="sm:max-w-lg">
+          <form onSubmit={handleSubmit}>
+            <DialogHeader>
+              <DialogTitle>{currentPersonal?.id ? 'Editar Personal' : 'Agregar Nuevo Personal'}</DialogTitle>
+              <DialogDescription>
+                Complete la información del trabajador para esta obra.
+              </DialogDescription>
+            </DialogHeader>
+            <div className="grid gap-4 py-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-2"><Label htmlFor="nombre">Nombre*</Label><Input id="nombre" name="nombre" value={currentPersonal?.nombre || ''} onChange={handleFormChange} /></div>
+                <div className="space-y-2"><Label htmlFor="rut">RUT*</Label><Input id="rut" name="rut" value={currentPersonal?.rut || ''} onChange={handleFormChange} /></div>
+                <div className="space-y-2"><Label htmlFor="cargo">Cargo*</Label><Input id="cargo" name="cargo" value={currentPersonal?.cargo || ''} onChange={handleFormChange} /></div>
+                <div className="space-y-2"><Label htmlFor="empresa">Empresa*</Label><Input id="empresa" name="empresa" value={currentPersonal?.empresa || ''} onChange={handleFormChange} /></div>
+                <div className="space-y-2"><Label htmlFor="fechaIngreso">Fecha de Ingreso*</Label><Input id="fechaIngreso" name="fechaIngreso" type="date" value={currentPersonal?.fechaIngreso || ''} onChange={handleFormChange} /></div>
+                <div className="flex items-center space-x-2 pt-6">
+                    <Checkbox id="autorizado" checked={currentPersonal?.autorizado} onCheckedChange={handleCheckboxChange} />
+                    <Label htmlFor="autorizado" className="font-medium">Autorizado para ingresar a la obra</Label>
+                </div>
+              </div>
+              <div className="space-y-2">
+                  <Label htmlFor="observaciones">Observaciones</Label>
+                  <textarea id="observaciones" name="observaciones" value={currentPersonal?.observaciones || ''} onChange={handleFormChange} className="w-full min-h-[80px] rounded-md border border-input bg-background px-3 py-2 text-sm" />
+              </div>
+              {error && <p className="text-sm font-medium text-destructive">{error}</p>}
+            </div>
+            <DialogFooter>
+              <Button type="button" variant="ghost" onClick={() => setDialogOpen(false)}>Cancelar</Button>
+              <Button type="submit">Guardar Registro</Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
-    
-
-    
