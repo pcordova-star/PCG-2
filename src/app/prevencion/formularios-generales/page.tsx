@@ -103,25 +103,8 @@ type RegistroPlanAccion = {
   observacionesCierre: string;
   fechaCreacion: string;
   creadoPor: string;
+  createdAt?: any;
 };
-
-const PLANES_ACCION_INICIALES: RegistroPlanAccion[] = [
-  {
-    id: "accion-1",
-    obraId: "obra-1",
-    origen: "INCIDENTE",
-    referencia: "inc-1",
-    descripcionAccion:
-      "Mejorar demarcación y señalización del área de izaje en bodega.",
-    responsable: "Jefe de Obra",
-    plazo: "2025-11-15",
-    estado: "En progreso",
-    avance: "Demarcación ejecutada; pendiente instalar cadenas en accesos.",
-    observacionesCierre: "",
-    fechaCreacion: "2025-11-06",
-    creadoPor: "Prevencionista de obra",
-  },
-];
 
 // Tipo para el "prefill"
 type PlanAccionPrefill = {
@@ -697,10 +680,8 @@ function PlanAccionSection({ prefill, onPrefillConsumido }: PlanAccionSectionPro
         OBRAS_IPER[0]?.id ?? ""
     );
 
-    const [planesAccion, setPlanesAccion] = useState<RegistroPlanAccion[]>(
-        PLANES_ACCION_INICIALES
-    );
-
+    const [planesAccion, setPlanesAccion] = useState<RegistroPlanAccion[]>([]);
+    const [cargandoPlanes, setCargandoPlanes] = useState(false);
     const [errorForm, setErrorForm] = useState<string | null>(null);
 
     const [formAccion, setFormAccion] = useState<{
@@ -725,6 +706,36 @@ function PlanAccionSection({ prefill, onPrefillConsumido }: PlanAccionSectionPro
         creadoPor: "",
     });
 
+    const cargarPlanesAccion = async (obraId: string) => {
+        if (!obraId) {
+          setPlanesAccion([]);
+          return;
+        }
+        setCargandoPlanes(true);
+        try {
+          const q = query(
+            collection(firebaseDb, "planesAccion"),
+            where("obraId", "==", obraId),
+            orderBy("createdAt", "desc")
+          );
+          const querySnapshot = await getDocs(q);
+          const data: RegistroPlanAccion[] = querySnapshot.docs.map((doc) => ({
+            id: doc.id,
+            ...(doc.data() as any),
+          }));
+          setPlanesAccion(data);
+        } catch (err) {
+          console.error("Error cargando planes de acción:", err);
+          setErrorForm("No se pudieron cargar los planes de acción.");
+        } finally {
+          setCargandoPlanes(false);
+        }
+    };
+    
+    useEffect(() => {
+      cargarPlanesAccion(obraSeleccionadaId);
+    }, [obraSeleccionadaId]);
+
     useEffect(() => {
         if (prefill && prefill.obraId) {
             setObraSeleccionadaId(prefill.obraId);
@@ -741,6 +752,53 @@ function PlanAccionSection({ prefill, onPrefillConsumido }: PlanAccionSectionPro
         }
     }, [prefill, onPrefillConsumido]);
 
+    const handleSubmit = async (e: React.FormEvent) => {
+        e.preventDefault();
+        setErrorForm(null);
+
+        if (!obraSeleccionadaId) {
+            setErrorForm("Debes seleccionar una obra.");
+            return;
+        }
+        if (!formAccion.descripcionAccion.trim()) {
+            setErrorForm("Debes describir la acción a implementar.");
+            return;
+        }
+        if (!formAccion.responsable.trim()) {
+            setErrorForm("Debes asignar un responsable.");
+            return;
+        }
+
+        const obraSeleccionada = OBRAS_IPER.find(o => o.id === obraSeleccionadaId);
+
+        try {
+            await addDoc(collection(firebaseDb, "planesAccion"), {
+                ...formAccion,
+                obraId: obraSeleccionadaId,
+                obraNombre: obraSeleccionada?.nombreFaena ?? "N/A",
+                fechaCreacion: new Date().toISOString().slice(0, 10),
+                createdAt: serverTimestamp(),
+                updatedAt: serverTimestamp(),
+            });
+
+            setFormAccion((prev) => ({
+                ...prev,
+                referencia: "",
+                descripcionAccion: "",
+                responsable: "",
+                plazo: "",
+                avance: "",
+                observacionesCierre: "",
+                creadoPor: "",
+            }));
+
+            cargarPlanesAccion(obraSeleccionadaId);
+        } catch(error) {
+            console.error("Error al guardar el plan de acción:", error);
+            setErrorForm("No se pudo guardar el plan de acción. Intente de nuevo.");
+        }
+    };
+
     const planesDeObra = planesAccion.filter(
         (p) => p.obraId === obraSeleccionadaId
     );
@@ -751,7 +809,7 @@ function PlanAccionSection({ prefill, onPrefillConsumido }: PlanAccionSectionPro
                 <CardTitle>Plan de acción y seguimiento</CardTitle>
                 <CardDescription>
                     Define y gestiona acciones correctivas y preventivas asociadas a IPER,
-                    incidentes u otras observaciones. Datos simulados en este MVP.
+                    incidentes u otras observaciones. Datos conectados a Firestore.
                 </CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">
@@ -772,46 +830,7 @@ function PlanAccionSection({ prefill, onPrefillConsumido }: PlanAccionSectionPro
                 <div className="grid gap-8 md:grid-cols-2">
                     <form
                         className="space-y-4"
-                        onSubmit={(e) => {
-                            e.preventDefault();
-                            setErrorForm(null);
-
-                            if (!obraSeleccionadaId) {
-                                setErrorForm("Debes seleccionar una obra.");
-                                return;
-                            }
-                            if (!formAccion.descripcionAccion.trim()) {
-                                setErrorForm("Debes describir la acción a implementar.");
-                                return;
-                            }
-                            if (!formAccion.responsable.trim()) {
-                                setErrorForm("Debes asignar un responsable.");
-                                return;
-                            }
-
-                            const nuevoRegistro: RegistroPlanAccion = {
-                                id:
-                                    typeof crypto !== "undefined" && crypto.randomUUID
-                                        ? crypto.randomUUID()
-                                        : Date.now().toString(),
-                                obraId: obraSeleccionadaId,
-                                fechaCreacion: new Date().toISOString().slice(0, 10),
-                                ...formAccion,
-                            };
-
-                            setPlanesAccion((prev) => [nuevoRegistro, ...prev]);
-
-                            setFormAccion((prev) => ({
-                                ...prev,
-                                referencia: "",
-                                descripcionAccion: "",
-                                responsable: "",
-                                plazo: "",
-                                avance: "",
-                                observacionesCierre: "",
-                                creadoPor: "",
-                            }));
-                        }}
+                        onSubmit={handleSubmit}
                     >
                         <h3 className="text-lg font-semibold border-b pb-2">Registrar Nueva Acción</h3>
                         {errorForm && <p className="text-sm font-medium text-destructive">{errorForm}</p>}
@@ -883,7 +902,8 @@ function PlanAccionSection({ prefill, onPrefillConsumido }: PlanAccionSectionPro
                     
                     <div className="space-y-2">
                         <h4 className="text-lg font-semibold border-b pb-2">Acciones Registradas en la Obra</h4>
-                        {planesDeObra.length === 0 ? (
+                        {cargandoPlanes ? <p className="text-sm text-muted-foreground pt-4 text-center">Cargando planes de acción...</p> :
+                        planesDeObra.length === 0 ? (
                             <p className="text-sm text-muted-foreground text-center pt-8">
                                 No hay acciones registradas para esta obra aún.
                             </p>
