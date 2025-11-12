@@ -59,7 +59,7 @@ export async function POST(req: Request) {
       fecha: FieldValue.serverTimestamp(),
       creadoPor: {
         uid,
-        displayName: decodedToken.name || decodedToken.email,
+        displayName: decodedToken.name || decodedToken.email || "",
       },
     };
     const avanceDocRef = await avancesRef.add(nuevoAvance);
