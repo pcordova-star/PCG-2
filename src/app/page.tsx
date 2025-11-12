@@ -16,6 +16,8 @@ import {
   AlertTriangle,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import QuickActionAvance from './(app)/dashboard/components/QuickActionAvance';
+
 
 export default function Home() {
   const summaryCards = [
@@ -76,6 +78,9 @@ export default function Home() {
           Aquí tienes un resumen de la actividad reciente en tus obras.
         </p>
       </header>
+      
+      {/* Quick Action */}
+      <QuickActionAvance />
 
       {/* Summary Cards */}
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
