@@ -109,6 +109,9 @@ type EstadoDePago = {
   obraId: string;
 };
 
+const MAX_FOTOS = 5;
+const MAX_TAMANO_MB = 5;
+
 function ProgramacionPageInner() {
   const { user, loading: loadingAuth } = useAuth();
   const router = useRouter();
@@ -413,6 +416,7 @@ function ProgramacionPageInner() {
         comentario: comentario.trim(),
         fotos: urlsFotos,
         visibleCliente: !!visibleCliente,
+        creadoPorNombre: user.displayName || user.email,
       };
 
       const response = await fetch('/api/avances/quick', {
@@ -967,6 +971,16 @@ function ProgramacionPageInner() {
 
     </div>
   );
+}
+
+const EstadoBadge = ({ estado }: { estado: EstadoActividad }) => {
+    const variants: Record<EstadoActividad, string> = {
+        "Terminada": "bg-green-100 text-green-800 border-green-200",
+        "En curso": "bg-blue-100 text-blue-800 border-blue-200",
+        "Pendiente": "bg-gray-100 text-gray-800 border-gray-200",
+        "Atrasada": "bg-red-100 text-red-800 border-red-200",
+    }
+    return <Badge variant="outline" className={cn("font-semibold", variants[estado])}>{estado}</Badge>
 }
 
 export default function ProgramacionPage() {
