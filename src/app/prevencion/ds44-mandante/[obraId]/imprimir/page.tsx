@@ -9,6 +9,7 @@ import { Separator } from '@/components/ui/separator';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Checkbox } from '@/components/ui/checkbox';
 import Link from 'next/link';
+import { Label } from '@/components/ui/label';
 
 // Tipos de datos (deben coincidir con la página principal)
 type Obra = {
