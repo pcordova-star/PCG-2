@@ -1,3 +1,4 @@
+
 "use client";
 
 import React, { useState, useMemo, useEffect, FormEvent } from 'react';
@@ -387,8 +388,9 @@ export default function IngresoPersonalPage() {
         if (!empresaMandante) throw new Error("No se ha definido la empresa mandante en la configuración de la obra.");
         empresaFinal = empresaMandante;
       } else { // Subcontrato
+        if (!empresaIdSeleccionada) throw new Error("Debe seleccionar una empresa subcontratista.");
         const empresaSeleccionada = empresasDisponibles.find(emp => emp.id === empresaIdSeleccionada);
-        if (!empresaSeleccionada) throw new Error("Debe seleccionar una empresa subcontratista.");
+        if (!empresaSeleccionada) throw new Error("La empresa subcontratista seleccionada no es válida.");
         empresaFinal = empresaSeleccionada.razonSocial;
       }
 
@@ -405,8 +407,9 @@ export default function IngresoPersonalPage() {
         observaciones: observaciones || null,
         fechaRegistro: Timestamp.now(),
         docContrato,
-        docInduccion,
+        docMutualAlDia: false, // Inicialmente falso, se actualiza en el paso.
         docExamenMedico,
+        docInduccion,
         docEPPEntregados: false,
         docRegistroListaPersonal: false,
         estadoIngreso: "Pendiente" as EstadoIngresoPersonal
@@ -1924,3 +1927,5 @@ export default function IngresoPersonalPage() {
     </div>
   );
 }
+
+    
