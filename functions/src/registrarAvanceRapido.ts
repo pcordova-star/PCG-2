@@ -10,6 +10,7 @@ const AvanceSchema = z.object({
   comentario: z.string().optional().default(""),
   fotos: z.array(z.string().url()).max(5).optional().default([]),
   visibleCliente: z.boolean().optional().default(true),
+  creadoPorNombre: z.string().optional(),
 });
 
 // Utilidad simple para sanear HTML
@@ -23,7 +24,7 @@ export const registrarAvanceRapido = onCall({ region: "southamerica-west1", cors
   }
 
   const { uid, token } = request.auth;
-  const displayName = token.name || token.email || "";
+  const displayName = request.data.creadoPorNombre || token.name || token.email || "";
 
   const parsed = AvanceSchema.safeParse(request.data);
   if (!parsed.success) {

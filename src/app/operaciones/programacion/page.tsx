@@ -18,8 +18,9 @@ import {
   deleteDoc,
   Timestamp,
 } from "firebase/firestore";
-import { firebaseDb, firebaseStorage } from "../../../lib/firebaseClient";
+import { firebaseDb, firebaseStorage, firebaseFunctions } from "../../../lib/firebaseClient";
 import { ref, uploadBytes, getDownloadURL, deleteObject } from "firebase/storage";
+import { httpsCallable } from "firebase/functions";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -62,6 +63,7 @@ import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 import Link from "next/link";
 import { FilePlus2, FileText, Trash2, Edit, PlusCircle, X } from 'lucide-react';
+import { useToast } from "@/hooks/use-toast";
 
 type Obra = {
   id: string;
@@ -129,6 +131,7 @@ function ProgramacionPageInner() {
   const { user, loading: loadingAuth } = useAuth();
   const router = useRouter();
   const searchParams = useSearchParams();
+  const { toast } = useToast();
 
   const [obras, setObras] = useState<Obra[]>([]);
   const [obraSeleccionadaId, setObraSeleccionadaId] = useState<string>("");
@@ -399,10 +402,10 @@ function ProgramacionPageInner() {
       setError("Debes seleccionar una obra y estar autenticado.");
       return;
     }
-    const { actividadId, fecha, porcentajeAvance, comentario, visibleParaCliente } = formAvance;
-    const creadoPorNombre = formAvance.creadoPor.trim();
-    if (!fecha || !comentario.trim()) {
-      setError("La fecha y el comentario son obligatorios.");
+    const { actividadId, fecha, porcentajeAvance, comentario, visibleParaCliente, creadoPor } = formAvance;
+    const creadoPorNombre = creadoPor.trim();
+    if (!fecha || !comentario.trim() || !creadoPorNombre) {
+      setError("La fecha, el comentario y el nombre de quien registra son obligatorios.");
       return;
     }
     
@@ -414,7 +417,6 @@ function ProgramacionPageInner() {
         return;
       }
     }
-
 
     setUploading(true);
     setError(null);
@@ -428,26 +430,43 @@ function ProgramacionPageInner() {
         })
       );
       
-      const colRef = collection(firebaseDb, "obras", obraSeleccionadaId, "avancesDiarios");
-      const docData = { 
+      // Usar la Cloud Function
+      const registrarAvance = httpsCallable(firebaseFunctions, "registrarAvanceRapido");
+      const result: any = await registrarAvance({
+        obraId: obraSeleccionadaId,
+        actividadId: actividadId === "null" ? null : actividadId || null,
+        porcentaje,
+        comentario: comentario.trim(),
+        fotos: urlsFotos,
+        visibleCliente,
+        creadoPorNombre,
+      });
+
+      if (!result?.data?.ok) {
+        throw new Error(result?.data?.error || "Error al registrar avance con la función callable.");
+      }
+      
+      const nuevoAvance: AvanceDiario = { 
+        id: result.data.id,
         obraId: obraSeleccionadaId,
         actividadId: actividadId === "null" ? null : actividadId || null, 
         fecha, 
         porcentajeAvance: porcentaje, 
         comentario: comentario.trim(), 
         fotos: urlsFotos,
-        fotoUrl: urlsFotos[0] ?? null, 
         creadoPor: {
           uid: user.uid,
-          displayName: creadoPorNombre || user.displayName || user.email || ''
+          displayName: creadoPorNombre,
         },
-        visibleParaCliente, 
-        creadoEn: new Date().toISOString(), 
+        visibleParaCliente,
       };
-      const docRef = await addDoc(colRef, docData);
-      const nuevoAvance: AvanceDiario = { ...docData, id: docRef.id };
 
       setAvances((prev) => [nuevoAvance, ...prev].sort((a,b) => a.fecha < b.fecha ? 1 : -1));
+      
+      toast({
+        title: "Avance registrado con éxito",
+        description: `El avance para la obra ha sido guardado. ${visibleParaCliente ? 'Se notificará al cliente.' : ''}`,
+      });
       
       setFormAvance({ actividadId: "null", fecha: new Date().toISOString().slice(0, 10), porcentajeAvance: "", comentario: "", creadoPor: "", visibleParaCliente: true });
       setArchivos([]);
@@ -456,9 +475,14 @@ function ProgramacionPageInner() {
       const fileInput = document.getElementById('foto-avance-input') as HTMLInputElement;
       if (fileInput) fileInput.value = "";
 
-    } catch (err) {
+    } catch (err: any) {
       console.error(err);
-      setError("No se pudo registrar el avance. Intenta nuevamente.");
+      setError("No se pudo registrar el avance. " + err.message);
+      toast({
+        variant: "destructive",
+        title: "Error al registrar avance",
+        description: err.message || "Ocurrió un problema. Inténtalo de nuevo.",
+      });
     } finally {
       setUploading(false);
     }
@@ -815,7 +839,7 @@ function ProgramacionPageInner() {
                     <CardContent className="p-4 space-y-2">
                         <div className="flex items-start justify-between gap-2">
                             <div>
-                                <p className="font-semibold text-primary">{av.fecha}{av.porcentajeAvance ? ` · ${av.porcentajeAvance}% avance` : ''}</p>
+                                <p className="font-semibold text-primary">{new Date(av.fecha + 'T00:00:00').toLocaleDateString('es-CL')}{av.porcentajeAvance ? ` · ${av.porcentajeAvance}% avance` : ''}</p>
                                 {actividadAsociada ? (
                                     <p className="text-xs font-medium text-foreground mt-1">{actividadAsociada.nombreActividad}</p>
                                 ) : (
@@ -838,7 +862,7 @@ function ProgramacionPageInner() {
                                         <AlertDialogHeader>
                                             <AlertDialogTitle>¿Desea eliminar este registro de avance?</AlertDialogTitle>
                                             <AlertDialogDescription>
-                                                Esta acción es irreversible. Se eliminará el registro del día {av.fecha} y todas sus fotos asociadas.
+                                                Esta acción es irreversible. Se eliminará el registro del día {new Date(av.fecha + 'T00:00:00').toLocaleDateString('es-CL')} y todas sus fotos asociadas.
                                             </AlertDialogDescription>
                                         </AlertDialogHeader>
                                         <AlertDialogFooter>
