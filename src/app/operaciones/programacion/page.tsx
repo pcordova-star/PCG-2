@@ -1,4 +1,5 @@
 
+
 "use client";
 
 import React, { useEffect, useState, FormEvent, useMemo, Suspense } from "react";
@@ -89,7 +90,10 @@ type AvanceDiario = {
   fotoUrl?: string; 
   fotos?: string[];  
   visibleParaCliente: boolean;
-  creadoPor: string;
+  creadoPor: {
+    uid: string;
+    displayName: string;
+  };
 };
 
 type EstadoDePago = {
@@ -395,7 +399,8 @@ function ProgramacionPageInner() {
       setError("Debes seleccionar una obra y estar autenticado.");
       return;
     }
-    const { actividadId, fecha, porcentajeAvance, comentario, creadoPor, visibleParaCliente } = formAvance;
+    const { actividadId, fecha, porcentajeAvance, comentario, visibleParaCliente } = formAvance;
+    const creadoPorNombre = formAvance.creadoPor.trim();
     if (!fecha || !comentario.trim()) {
       setError("La fecha y el comentario son obligatorios.");
       return;
@@ -432,10 +437,12 @@ function ProgramacionPageInner() {
         comentario: comentario.trim(), 
         fotos: urlsFotos,
         fotoUrl: urlsFotos[0] ?? null, 
-        creadoPor: creadoPor.trim(), 
+        creadoPor: {
+          uid: user.uid,
+          displayName: creadoPorNombre || user.displayName || user.email || ''
+        },
         visibleParaCliente, 
         creadoEn: new Date().toISOString(), 
-        creadoPorUid: user.uid 
       };
       const docRef = await addDoc(colRef, docData);
       const nuevoAvance: AvanceDiario = { ...docData, id: docRef.id };
@@ -814,7 +821,7 @@ function ProgramacionPageInner() {
                                 ) : (
                                     <p className="text-xs italic text-muted-foreground mt-1">Avance General</p>
                                 )}
-                                <p className="text-xs text-muted-foreground mt-1">Registrado por: {av.creadoPor}</p>
+                                <p className="text-xs text-muted-foreground mt-1">Registrado por: {av.creadoPor?.displayName || av.creadoPor?.uid || 'N/A'}</p>
                             </div>
                             <div className="flex items-center gap-2">
                                 <Badge variant="outline" className={cn(av.visibleParaCliente ? "border-emerald-200 bg-emerald-50 text-emerald-700" : "border-slate-200 bg-slate-100 text-slate-600")}>
