@@ -17,6 +17,7 @@ import {
   serverTimestamp,
 } from "firebase/firestore";
 import { firebaseDb } from "@/lib/firebaseClient";
+import Link from 'next/link';
 
 
 // --- Tipos y Datos para IPER ---
@@ -356,21 +357,27 @@ function IPERFormSection({ onCrearAccionDesdeIPER }: IPERFormSectionProps) {
                         <span><strong className="text-muted-foreground">Responsable:</strong> {r.responsableImplementacion || "No asignado"}</span>
                         <span><strong className="text-muted-foreground">Plazo:</strong> {r.plazoImplementacion || "Sin plazo"}</span>
                     </div>
-                    <Button
-                      type="button"
-                      onClick={() =>
-                        onCrearAccionDesdeIPER({
-                          obraId: r.obraId,
-                          iperId: r.id,
-                          descripcion: `Acción sobre riesgo: ${r.peligro} – ${r.actividad}`,
-                        })
-                      }
-                      variant="outline"
-                      size="sm"
-                      className="mt-2"
-                    >
-                      Crear acción desde este riesgo
-                    </Button>
+                    <div className="flex gap-2 mt-2">
+                      <Button
+                        type="button"
+                        onClick={() =>
+                          onCrearAccionDesdeIPER({
+                            obraId: r.obraId,
+                            iperId: r.id,
+                            descripcion: `Acción sobre riesgo: ${r.peligro} – ${r.actividad}`,
+                          })
+                        }
+                        variant="outline"
+                        size="sm"
+                      >
+                        Crear acción desde este riesgo
+                      </Button>
+                      <Button asChild variant="outline" size="sm">
+                        <Link href={`/prevencion/formularios-generales/iper/${r.id}/imprimir`}>
+                          Ver Ficha
+                        </Link>
+                      </Button>
+                    </div>
                   </article>
                 ))}
               </div>
