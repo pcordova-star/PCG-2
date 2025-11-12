@@ -1,3 +1,4 @@
+
 "use client";
 
 import React, { useEffect, useState, FormEvent, useMemo, Suspense } from "react";
@@ -58,7 +59,7 @@ import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 import Link from "next/link";
-import { FilePlus2, FileText, Trash2, Edit, PlusCircle } from 'lucide-react';
+import { FilePlus2, FileText, Trash2, Edit, PlusCircle, X } from 'lucide-react';
 
 type Obra = {
   id: string;
@@ -90,7 +91,8 @@ type AvanceDiario = {
   fecha: string; // "YYYY-MM-DD"
   porcentajeAvance: number; // avance acumulado a esa fecha (0-100)
   comentario: string;
-  fotoUrl?: string;
+  fotoUrl?: string; // Para compatibilidad con registros antiguos
+  fotos?: string[];   // Nuevo campo para múltiples fotos
   visibleParaCliente: boolean;
   creadoPor: string;
 };
@@ -125,6 +127,9 @@ function EstadoBadge({ estado }: { estado: EstadoActividad }) {
   );
 }
 
+const MAX_FOTOS = 5;
+const MAX_TAMANO_MB = 5;
+
 function ProgramacionPageInner() {
   const { user, loading: loadingAuth } = useAuth();
   const router = useRouter();
@@ -147,6 +152,7 @@ function ProgramacionPageInner() {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [currentActividad, setCurrentActividad] = useState<Partial<ActividadProgramada> | null>(null);
 
+  // Estados para el formulario de avance
   const [formAvance, setFormAvance] = useState({
     actividadId: "",
     fecha: new Date().toISOString().slice(0, 10),
@@ -155,7 +161,10 @@ function ProgramacionPageInner() {
     creadoPor: "",
     visibleParaCliente: true,
   });
-  const [archivoFoto, setArchivoFoto] = useState<File | null>(null);
+  const [archivos, setArchivos] = useState<File[]>([]);
+  const [previews, setPreviews] = useState<string[]>([]);
+  const [uploading, setUploading] = useState(false);
+
 
   const resumenActividades = useMemo(() => {
     const total = actividades.length;
@@ -333,6 +342,43 @@ function ProgramacionPageInner() {
     }
   }
 
+  // ---- Lógica para el formulario de avance ----
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (!e.target.files) return;
+
+    const nuevosArchivos = Array.from(e.target.files);
+    const archivosAProcesar = [...archivos, ...nuevosArchivos];
+
+    if (archivosAProcesar.length > MAX_FOTOS) {
+      setError(`No puedes subir más de ${MAX_FOTOS} fotos por avance.`);
+      return;
+    }
+
+    const archivosValidos = archivosAProcesar.filter(file => {
+      const esValido = file.size <= MAX_TAMANO_MB * 1024 * 1024;
+      if (!esValido) {
+        setError(`El archivo "${file.name}" supera el tamaño máximo de ${MAX_TAMANO_MB} MB.`);
+      }
+      return esValido;
+    });
+
+    setArchivos(archivosValidos);
+
+    const nuevasPreviews = archivosValidos.map(file => URL.createObjectURL(file));
+    // Limpiar previews antiguas para evitar fugas de memoria
+    previews.forEach(url => URL.revokeObjectURL(url));
+    setPreviews(nuevasPreviews);
+  };
+  
+  const handleRemoveFile = (index: number) => {
+    const nuevosArchivos = archivos.filter((_, i) => i !== index);
+    setArchivos(nuevosArchivos);
+    
+    const nuevasPreviews = nuevosArchivos.map(file => URL.createObjectURL(file));
+    previews.forEach(url => URL.revokeObjectURL(url));
+    setPreviews(nuevasPreviews);
+  };
+
   const handleAvanceSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!obraSeleccionadaId || !user) {
@@ -350,29 +396,51 @@ function ProgramacionPageInner() {
       return;
     }
 
+    setUploading(true);
+    setError(null);
     try {
-      setError(null);
-      let fotoUrl: string | undefined = undefined;
-      if (archivoFoto) {
-        const nombreArchivo = `${Date.now()}-${archivoFoto.name}`;
-        const storageRef = ref(firebaseStorage, `avances/${obraSeleccionadaId}/${nombreArchivo}`);
-        await uploadBytes(storageRef, archivoFoto);
-        fotoUrl = await getDownloadURL(storageRef);
-      }
+      // Subir fotos a Storage y obtener URLs
+      const urlsFotos: string[] = await Promise.all(
+        archivos.map(async (file, index) => {
+          const nombreArchivo = `${Date.now()}-${index}-${file.name}`;
+          const storageRef = ref(firebaseStorage, `avances/${obraSeleccionadaId}/${nombreArchivo}`);
+          await uploadBytes(storageRef, file);
+          return await getDownloadURL(storageRef);
+        })
+      );
       
       const colRef = collection(firebaseDb, "obras", obraSeleccionadaId, "avancesDiarios");
-      const docData = { obraId: obraSeleccionadaId, actividadId, fecha, porcentajeAvance: porcentaje, comentario: comentario.trim(), fotoUrl, creadoPor: creadoPor.trim(), visibleParaCliente, creadoEn: new Date().toISOString(), creadoPorUid: user.uid };
+      const docData = { 
+        obraId: obraSeleccionadaId, 
+        actividadId, 
+        fecha, 
+        porcentajeAvance: porcentaje, 
+        comentario: comentario.trim(), 
+        fotos: urlsFotos,
+        fotoUrl: urlsFotos[0] ?? null, // Para compatibilidad
+        creadoPor: creadoPor.trim(), 
+        visibleParaCliente, 
+        creadoEn: new Date().toISOString(), 
+        creadoPorUid: user.uid 
+      };
       const docRef = await addDoc(colRef, docData);
       const nuevoAvance: AvanceDiario = { ...docData, id: docRef.id };
 
       setAvances((prev) => [nuevoAvance, ...prev].sort((a,b) => a.fecha < b.fecha ? 1 : -1));
+      
+      // Resetear formulario
       setFormAvance({ actividadId: "", fecha: new Date().toISOString().slice(0, 10), porcentajeAvance: "", comentario: "", creadoPor: "", visibleParaCliente: true });
-      setArchivoFoto(null);
+      setArchivos([]);
+      previews.forEach(url => URL.revokeObjectURL(url));
+      setPreviews([]);
       const fileInput = document.getElementById('foto-avance-input') as HTMLInputElement;
       if (fileInput) fileInput.value = "";
+
     } catch (err) {
       console.error(err);
       setError("No se pudo registrar el avance. Intenta nuevamente.");
+    } finally {
+      setUploading(false);
     }
   }
 
@@ -632,10 +700,33 @@ function ProgramacionPageInner() {
                   <div className="space-y-1"><Label htmlFor="avance-porcentaje" className="text-xs font-medium">Avance Acumulado (%)*</Label><Input id="avance-porcentaje" type="number" min={0} max={100} value={formAvance.porcentajeAvance} onChange={(e) => setFormAvance(prev => ({...prev, porcentajeAvance: e.target.value}))} /></div>
                 </div>
                 <div className="space-y-1"><Label htmlFor="avance-comentario" className="text-xs font-medium">Comentario</Label><textarea id="avance-comentario" value={formAvance.comentario} onChange={(e) => setFormAvance(prev => ({...prev, comentario: e.target.value}))} rows={3} className="w-full rounded-lg border bg-background px-3 py-2 text-sm" /></div>
-                <div className="space-y-1"><Label htmlFor="foto-avance-input" className="text-xs font-medium">Foto (opcional)</Label><Input id="foto-avance-input" type="file" accept="image/*" onChange={(e) => setArchivoFoto(e.target.files ? e.target.files[0] : null)} /></div>
+                <div className="space-y-1">
+                    <Label htmlFor="foto-avance-input" className="text-xs font-medium">Fotos (máx. {MAX_FOTOS}, hasta {MAX_TAMANO_MB}MB c/u)</Label>
+                    <Input id="foto-avance-input" type="file" accept="image/*" multiple onChange={handleFileChange} />
+                </div>
+                 {previews.length > 0 && (
+                    <div className="grid grid-cols-3 gap-2">
+                        {previews.map((preview, index) => (
+                            <div key={index} className="relative group">
+                                <img src={preview} alt={`Vista previa ${index}`} className="w-full h-24 object-cover rounded-md" />
+                                <Button
+                                    type="button"
+                                    variant="destructive"
+                                    size="icon"
+                                    className="absolute top-1 right-1 h-6 w-6 opacity-50 group-hover:opacity-100"
+                                    onClick={() => handleRemoveFile(index)}
+                                >
+                                    <X className="h-4 w-4" />
+                                </Button>
+                            </div>
+                        ))}
+                    </div>
+                 )}
                  <div className="space-y-1"><Label htmlFor="avance-creadoPor" className="text-xs font-medium">Registrado por*</Label><Input id="avance-creadoPor" type="text" value={formAvance.creadoPor} onChange={(e) => setFormAvance(prev => ({...prev, creadoPor: e.target.value}))} placeholder="Ej: Jefe de Obra" /></div>
                 <div className="flex items-center gap-2"><Checkbox id="visibleCliente" checked={formAvance.visibleParaCliente} onCheckedChange={(checked) => setFormAvance(prev => ({...prev, visibleParaCliente: !!checked}))} /><Label htmlFor="visibleCliente" className="text-xs text-muted-foreground">Visible para el cliente</Label></div>
-                <Button type="submit">Registrar avance</Button>
+                <Button type="submit" disabled={uploading}>
+                  {uploading ? "Guardando avance y subiendo fotos..." : "Registrar avance"}
+                </Button>
               </form>
             </CardContent>
           </Card>
@@ -646,9 +737,16 @@ function ProgramacionPageInner() {
               <div className="space-y-3 max-h-[600px] overflow-y-auto pr-2">
                 {avances.map((av) => {
                   const actividadAsociada = actividades.find(a => a.id === av.actividadId);
+                  const imagenes = av.fotos && av.fotos.length > 0 ? av.fotos : (av.fotoUrl ? [av.fotoUrl] : []);
                   return (
                   <Card key={av.id} className="overflow-hidden">
-                    {av.fotoUrl && <img src={av.fotoUrl} alt={`Avance ${av.fecha}`} className="h-48 w-full object-cover"/>}
+                    {imagenes.length > 0 && (
+                      <div className={cn("grid gap-1 p-2 bg-muted/20", imagenes.length > 1 ? "grid-cols-3" : "grid-cols-1")}>
+                          {imagenes.map((imgUrl, idx) => (
+                              <img key={idx} src={imgUrl} alt={`Avance ${av.fecha} - ${idx + 1}`} className="h-48 w-full object-cover rounded-md"/>
+                          ))}
+                      </div>
+                    )}
                     <CardContent className="p-4 space-y-2">
                         <div className="flex items-start justify-between gap-2">
                             <div>
@@ -756,3 +854,4 @@ export default function ProgramacionPage() {
     </Suspense>
   );
 }
+
