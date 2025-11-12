@@ -404,15 +404,20 @@ function ProgramacionPageInner() {
       return;
     }
     const { actividadId, fecha, porcentajeAvance, comentario, creadoPor, visibleParaCliente } = formAvance;
-    if (!fecha || !porcentajeAvance || !comentario.trim() || !creadoPor) {
-      setError("Fecha, porcentaje, comentario y 'registrado por' son obligatorios.");
+    if (!fecha || !comentario.trim()) {
+      setError("La fecha y el comentario son obligatorios.");
       return;
     }
-    const porcentaje = Number(porcentajeAvance);
-    if (isNaN(porcentaje) || porcentaje < 0 || porcentaje > 100) {
-      setError("El porcentaje de avance debe ser un número entre 0 y 100.");
-      return;
+    
+    let porcentaje = 0;
+    if (porcentajeAvance) {
+      porcentaje = Number(porcentajeAvance);
+      if (isNaN(porcentaje) || porcentaje < 0 || porcentaje > 100) {
+        setError("El porcentaje de avance debe ser un número entre 0 y 100.");
+        return;
+      }
     }
+
 
     setUploading(true);
     setError(null);
@@ -430,7 +435,7 @@ function ProgramacionPageInner() {
       const colRef = collection(firebaseDb, "obras", obraSeleccionadaId, "avancesDiarios");
       const docData = { 
         obraId: obraSeleccionadaId,
-        actividadId: actividadId || null, // Guardar null si no se selecciona
+        actividadId: actividadId === "null" ? null : actividadId || null, // Guardar null si no se selecciona
         fecha, 
         porcentajeAvance: porcentaje, 
         comentario: comentario.trim(), 
@@ -704,8 +709,8 @@ function ProgramacionPageInner() {
       
       <section className="space-y-4 mt-8">
         <header className="space-y-1">
-          <h3 className="text-xl font-semibold">Avance diario por actividad</h3>
-          <p className="text-sm text-muted-foreground">Registra el avance para una actividad específica. Esta información alimentará el Estado de Pago.</p>
+          <h3 className="text-xl font-semibold">Avance diario</h3>
+          <p className="text-sm text-muted-foreground">Registra el avance de la obra. Esta información alimentará el Estado de Pago.</p>
         </header>
         <div className="grid gap-6 md:grid-cols-2">
           <Card>
@@ -719,7 +724,7 @@ function ProgramacionPageInner() {
                             <SelectValue placeholder="Seleccionar actividad (o dejar en blanco para avance general)" />
                         </SelectTrigger>
                         <SelectContent>
-                            <SelectItem value="">Avance General de Obra</SelectItem>
+                            <SelectItem value="null">Avance General de Obra</SelectItem>
                             {actividades.map(act => (
                                 <SelectItem key={act.id} value={act.id}>
                                     {act.nombreActividad}
@@ -730,7 +735,7 @@ function ProgramacionPageInner() {
                 </div>
                 <div className="grid gap-3 md:grid-cols-2">
                   <div className="space-y-1"><Label htmlFor="avance-fecha" className="text-xs font-medium">Fecha*</Label><Input id="avance-fecha" type="date" value={formAvance.fecha} onChange={(e) => setFormAvance(prev => ({...prev, fecha: e.target.value}))} /></div>
-                  <div className="space-y-1"><Label htmlFor="avance-porcentaje" className="text-xs font-medium">Avance Acumulado (%)*</Label><Input id="avance-porcentaje" type="number" min={0} max={100} value={formAvance.porcentajeAvance} onChange={(e) => setFormAvance(prev => ({...prev, porcentajeAvance: e.target.value}))} /></div>
+                  <div className="space-y-1"><Label htmlFor="avance-porcentaje" className="text-xs font-medium">Avance Acumulado (%)</Label><Input id="avance-porcentaje" type="number" min={0} max={100} value={formAvance.porcentajeAvance} onChange={(e) => setFormAvance(prev => ({...prev, porcentajeAvance: e.target.value}))} /></div>
                 </div>
                 <div className="space-y-1"><Label htmlFor="avance-comentario" className="text-xs font-medium">Comentario*</Label><textarea id="avance-comentario" value={formAvance.comentario} onChange={(e) => setFormAvance(prev => ({...prev, comentario: e.target.value}))} rows={3} className="w-full rounded-lg border bg-background px-3 py-2 text-sm" /></div>
                 <div className="space-y-1">
@@ -783,7 +788,7 @@ function ProgramacionPageInner() {
                     <CardContent className="p-4 space-y-2">
                         <div className="flex items-start justify-between gap-2">
                             <div>
-                                <p className="font-semibold text-primary">{av.fecha} · {av.porcentajeAvance}% avance</p>
+                                <p className="font-semibold text-primary">{av.fecha}{av.porcentajeAvance ? ` · ${av.porcentajeAvance}% avance` : ''}</p>
                                 {actividadAsociada ? (
                                     <p className="text-xs font-medium text-foreground mt-1">{actividadAsociada.nombreActividad}</p>
                                 ) : (
