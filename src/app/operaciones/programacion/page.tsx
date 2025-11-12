@@ -12,6 +12,7 @@ import {
   where,
   updateDoc,
   doc,
+  orderBy,
 } from "firebase/firestore";
 import { firebaseDb, firebaseStorage } from "../../../lib/firebaseClient";
 import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
@@ -75,6 +76,7 @@ type AvanceDiario = {
   comentario: string;
   fotoUrl?: string;
   visibleParaCliente: boolean;
+  creadoPor: string;
 };
 
 function EstadoBadge({ estado }: { estado: EstadoActividad }) {
@@ -210,13 +212,13 @@ export default function ProgramacionPage() {
       try {
         setCargandoAvances(true);
         const avColRef = collection(firebaseDb, "avancesDiarios");
-        const qAv = query(avColRef, where("obraId", "==", obraSeleccionadaId));
+        const qAv = query(avColRef, where("obraId", "==", obraSeleccionadaId), orderBy("fecha", "desc"));
         const snapshotAv = await getDocs(qAv);
         const dataAv: AvanceDiario[] = snapshotAv.docs.map((doc) => ({
           ...(doc.data() as any),
           id: doc.id,
         }));
-        setAvances(dataAv.sort((a, b) => (a.fecha < b.fecha ? 1 : -1)));
+        setAvances(dataAv);
       } catch (err) {
         console.error("Error cargando avances:", err);
         setError((prev) => (prev ? prev + " " : "") + "No se pudieron cargar los avances diarios.");
@@ -267,7 +269,7 @@ export default function ProgramacionPage() {
     }
   }
 
-  async function handleAvanceSubmit(e: FormEvent) {
+  const handleAvanceSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!obraSeleccionadaId) {
       setError("Debes seleccionar una obra para registrar avance.");
@@ -324,6 +326,7 @@ export default function ProgramacionPage() {
         comentario: comentario.trim(),
         fotoUrl,
         visibleParaCliente,
+        creadoPor: creadoPor.trim(),
       };
 
       setAvances((prev) => [nuevoAvance, ...prev].sort((a,b) => a.fecha < b.fecha ? 1 : -1));
@@ -611,9 +614,10 @@ export default function ProgramacionPage() {
                       </div>
                     )}
                     <CardContent className="p-4 space-y-2">
-                        <div className="flex items-center justify-between gap-2">
+                        <div className="flex items-start justify-between gap-2">
                             <div>
                                 <p className="font-semibold text-primary">{av.fecha} · {av.porcentajeAvance}% avance</p>
+                                <p className="text-xs text-muted-foreground mt-1">Registrado por: {av.creadoPor}</p>
                             </div>
                             <Badge variant="outline" className={cn(av.visibleParaCliente ? "border-emerald-200 bg-emerald-50 text-emerald-700" : "border-slate-200 bg-slate-100 text-slate-600")}>
                                 {av.visibleParaCliente ? "Visible cliente" : "Interno"}
