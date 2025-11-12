@@ -1,11 +1,9 @@
+
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { firebaseDb } from "@/lib/firebaseClient";
+import { collection, doc, getDoc, getDocs, query, where, orderBy } from "firebase/firestore";
 
-interface ClienteObraPageProps {
-  params: {
-    obraId: string;
-  };
-}
-
+// Tipos de datos que vienen de Firestore
 type Obra = {
   id: string;
   nombreFaena: string;
@@ -24,88 +22,13 @@ type AvanceDiario = {
   creadoPor: string;
 };
 
-const OBRAS_SIMULADAS: Obra[] = [
-  {
-    id: "obra-1",
-    nombreFaena: "Edificio Los Álamos",
-    direccion: "Av. Principal 123, Santiago",
-    clienteEmail: "cliente.losalamos@ejemplo.cl",
-  },
-  {
-    id: "obra-2",
-    nombreFaena: "Condominio Cuatro Vientos",
-    direccion: "Camino del Viento 456, Santiago",
-    clienteEmail: "cliente.cuatrovientos@ejemplo.cl",
-  },
-  {
-    id: "obra-3",
-    nombreFaena: "Mejoramiento Vial Ruta 5",
-    direccion: "Ruta 5 Sur, Tramo Km 100–120",
-    clienteEmail: "cliente.ruta5@ejemplo.cl",
-  },
-];
-
-const AVANCES_SIMULADOS: AvanceDiario[] = [
-  {
-    id: "av-1",
-    obraId: "obra-1",
-    fecha: "2025-11-10",
-    porcentajeAvance: 15,
-    comentario: "Inicio de excavaciones y replanteo general.",
-    fotoUrl: "https://via.placeholder.com/800x400?text=Obra+Dia+1",
-    visibleParaCliente: true,
-    creadoPor: "Jefe de Obra",
-  },
-  {
-    id: "av-2",
-    obraId: "obra-1",
-    fecha: "2025-11-12",
-    porcentajeAvance: 25,
-    comentario: "Excavación de fundaciones y retiro de material.",
-    fotoUrl: "https://via.placeholder.com/800x400?text=Obra+Dia+2",
-    visibleParaCliente: true,
-    creadoPor: "Administrador de Obra",
-  },
-  {
-    id: "av-3",
-    obraId: "obra-1",
-    fecha: "2025-11-14",
-    porcentajeAvance: 28,
-    comentario: "Montaje de moldajes en primeras fundaciones.",
-    fotoUrl: "https://via.placeholder.com/800x400?text=Obra+Dia+3",
-    visibleParaCliente: false,
-    creadoPor: "Jefe de Terreno",
-  },
-    {
-    id: "av-5",
-    obraId: "obra-1",
-    fecha: "2025-11-15",
-    porcentajeAvance: 35,
-    comentario: "Hormigonado de fundaciones sector A.",
-    fotoUrl: "https://via.placeholder.com/800x400?text=Obra+Dia+4",
-    visibleParaCliente: true,
-    creadoPor: "Jefe de Terreno",
-  },
-  {
-    id: "av-4",
-    obraId: "obra-2",
-    fecha: "2025-11-11",
-    porcentajeAvance: 8,
-    comentario: "Instalación de faena y cierre perimetral.",
-    fotoUrl: "https://via.placeholder.com/800x400?text=Condominio+Dia+1",
-    visibleParaCliente: true,
-    creadoPor: "Jefe de Obra",
-  },
-];
-
+// Función auxiliar para calcular los días desde una fecha
 function getDiasDesde(fechaIso: string | null): number | null {
   if (!fechaIso) return null;
   const hoy = new Date();
-  // Aseguramos que la fecha se interprete como UTC para evitar problemas de timezone
   const [year, month, day] = fechaIso.split('-').map(Number);
   const f = new Date(Date.UTC(year, month - 1, day));
   
-  // Reseteamos la hora de "hoy" para comparar solo días
   hoy.setUTCHours(0, 0, 0, 0);
 
   const diffMs = hoy.getTime() - f.getTime();
@@ -113,13 +36,20 @@ function getDiasDesde(fechaIso: string | null): number | null {
   return diffDias < 0 ? 0 : diffDias;
 }
 
+// El componente ahora es async para poder usar `await`
+export default async function ClienteObraPage({
+  params,
+}: {
+  params: Promise<{ obraId: string }>;
+}) {
+  // Se espera la resolución de los parámetros de la ruta
+  const { obraId } = await params;
 
-export default function ClienteObraPage({ params }: ClienteObraPageProps) {
-  const { obraId } = params;
+  // 1. Obtener los datos de la obra desde Firestore
+  const obraRef = doc(firebaseDb, "obras", obraId);
+  const obraSnap = await getDoc(obraRef);
 
-  const obra = OBRAS_SIMULADAS.find((o) => o.id === obraId);
-
-  if (!obra) {
+  if (!obraSnap.exists()) {
     return (
       <section className="space-y-4">
         <Card>
@@ -129,7 +59,7 @@ export default function ClienteObraPage({ params }: ClienteObraPageProps) {
           <CardContent>
             <p className="text-muted-foreground">
               La obra que estás intentando visualizar no existe o ya no está
-              disponible en el panel del cliente.
+              disponible en el panel del cliente. El ID buscado fue: {obraId}
             </p>
           </CardContent>
         </Card>
@@ -137,18 +67,30 @@ export default function ClienteObraPage({ params }: ClienteObraPageProps) {
     );
   }
 
-  const avancesObra = AVANCES_SIMULADOS
-    .filter(
-      (a) => a.obraId === obra.id && a.visibleParaCliente === true
-    )
-    .sort((a, b) => (a.fecha < b.fecha ? 1 : -1)); // más recientes primero
+  const obra = { id: obraSnap.id, ...obraSnap.data() } as Obra;
+
+  // 2. Obtener los avances de la obra desde Firestore
+  const avancesColRef = collection(firebaseDb, "avancesDiarios");
+  const q = query(
+    avancesColRef,
+    where("obraId", "==", obraId),
+    where("visibleParaCliente", "==", true),
+    orderBy("fecha", "desc")
+  );
+  const avancesSnap = await getDocs(q);
+
+  const avancesObra = avancesSnap.docs.map(doc => ({
+      id: doc.id,
+      ...doc.data()
+  })) as AvanceDiario[];
+
 
   const ultimoAvance = avancesObra[0];
-
   const porcentajeActual = ultimoAvance?.porcentajeAvance ?? 0;
   const ultimaFecha = ultimoAvance?.fecha ?? null;
   const diasDesdeUltima = getDiasDesde(ultimaFecha);
 
+  // Ordenar para el gráfico de barras (ascendente)
   const avancesAsc = [...avancesObra].sort((a, b) =>
     a.fecha < b.fecha ? -1 : 1
   );
@@ -312,3 +254,5 @@ export default function ClienteObraPage({ params }: ClienteObraPageProps) {
     </div>
   );
 }
+
+    
