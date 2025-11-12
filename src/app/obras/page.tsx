@@ -1,42 +1,25 @@
+// src/app/obras/page.tsx
 "use client";
 
-import { useEffect, useState } from "react";
-import Link from "next/link";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
+import { useEffect, useState, FormEvent } from "react";
+import { useRouter } from "next/navigation";
+import { useAuth } from "../../context/AuthContext";
 import { collection, addDoc, getDocs, Timestamp } from "firebase/firestore";
 import { firebaseDb } from "../../lib/firebaseClient";
-import { useAuth } from "@/context/AuthContext";
-import { useRouter } from "next/navigation";
 
 type Obra = {
   id: string;
   nombreFaena: string;
   direccion: string;
   clienteEmail: string;
-  // Estos campos pueden o no venir de Firestore, los mantenemos por compatibilidad de UI
-  modulosActivos?: {
-    operaciones: boolean;
-    prevencion: boolean;
-  };
 };
 
 export default function ObrasPage() {
-  const { user, loading: authLoading } = useAuth();
+  const { user, loading } = useAuth();
   const router = useRouter();
+
   const [obras, setObras] = useState<Obra[]>([]);
-  const [cargando, setCargando] = useState(true);
+  const [cargandoObras, setCargandoObras] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   const [form, setForm] = useState({
@@ -44,36 +27,33 @@ export default function ObrasPage() {
     direccion: "",
     clienteEmail: "",
   });
-  const [creando, setCreando] = useState(false);
 
+  // 1) Si no hay usuario, redirigir a /login
   useEffect(() => {
-    if (!authLoading && !user) {
-      router.push("/login");
+    if (!loading && !user) {
+      router.replace("/login");
     }
-  }, [authLoading, user, router]);
+  }, [loading, user, router]);
 
+  // 2) Cargar obras desde Firestore solo si hay usuario
   useEffect(() => {
+    if (!user) return; // si no hay usuario, no intento leer nada
+
     async function cargarObras() {
-      if (!user) return; // No cargar si no hay usuario
       try {
-        setCargando(true);
+        setCargandoObras(true);
         setError(null);
 
         const colRef = collection(firebaseDb, "obras");
         const snapshot = await getDocs(colRef);
 
         const data: Obra[] = snapshot.docs.map((doc) => {
-          const d = doc.data();
+          const d = doc.data() as any;
           return {
             id: doc.id,
             nombreFaena: d.nombreFaena ?? "",
             direccion: d.direccion ?? "",
             clienteEmail: d.clienteEmail ?? "",
-            // Simulamos modulos activos por ahora para mantener la UI
-            modulosActivos: {
-              operaciones: Math.random() > 0.5,
-              prevencion: Math.random() > 0.5,
-            }
           };
         });
 
@@ -82,14 +62,34 @@ export default function ObrasPage() {
         console.error(err);
         setError("No se pudieron cargar las obras desde el servidor.");
       } finally {
-        setCargando(false);
+        setCargandoObras(false);
       }
     }
 
     cargarObras();
   }, [user]);
 
-  async function handleSubmit(e: React.FormEvent) {
+  // Mientras AuthContext todavía está resolviendo el usuario
+  if (loading) {
+    return (
+      <p className="text-sm text-muted-foreground">
+        Cargando sesión...
+      </p>
+    );
+  }
+
+  // Si ya sabemos que NO hay usuario, mostramos algo mínimo
+  // (igual el useEffect de arriba hará router.replace("/login"))
+  if (!user) {
+    return (
+      <p className="text-sm text-muted-foreground">
+        Redirigiendo a login...
+      </p>
+    );
+  }
+
+  // 3) Crear nueva obra en Firestore
+  async function handleSubmit(e: FormEvent) {
     e.preventDefault();
     setError(null);
 
@@ -106,7 +106,6 @@ export default function ObrasPage() {
       return;
     }
 
-    setCreando(true);
     try {
       const colRef = collection(firebaseDb, "obras");
       const docRef = await addDoc(colRef, {
@@ -121,11 +120,6 @@ export default function ObrasPage() {
         nombreFaena: nombreFaena.trim(),
         direccion: direccion.trim(),
         clienteEmail: clienteEmail.trim(),
-        // Simulamos modulos activos para la nueva obra
-         modulosActivos: {
-            operaciones: true,
-            prevencion: true,
-        }
       };
 
       setObras((prev) => [nuevaObra, ...prev]);
@@ -138,157 +132,125 @@ export default function ObrasPage() {
     } catch (err) {
       console.error(err);
       setError("No se pudo crear la obra. Intenta nuevamente.");
-    } finally {
-      setCreando(false);
     }
-  }
-
-  if (authLoading || !user) {
-    return <p className="text-sm text-muted-foreground">Cargando sesión...</p>;
   }
 
   return (
     <section className="space-y-6">
-      <header className="space-y-2">
-        <h1 className="text-3xl font-bold tracking-tight">Cartera de Obras</h1>
-        <p className="text-lg text-muted-foreground">
-          Vista general de las obras en PCG 2.0. Desde aquí puedes ver los
-          datos básicos, módulos activos y el link del panel del cliente.
+      <header className="space-y-1">
+        <h2 className="text-2xl font-semibold text-card-foreground">
+          Gestión de Obras - PCG 2.0
+        </h2>
+        <p className="text-sm text-muted-foreground">
+          Módulo base común de faenas. Aquí se crean las obras a las que luego
+          se asocian Operaciones y Prevención de Riesgos.
         </p>
       </header>
-      
-      <Card>
-        <CardHeader>
-          <CardTitle>Crear Nueva Obra</CardTitle>
-          <CardDescription>
-            Agregue una nueva obra a la cartera. Se registrará en Firestore.
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <form onSubmit={handleSubmit} className="space-y-4">
-            {error && <p className="text-sm font-medium text-destructive">{error}</p>}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="nombreFaena">Nombre de la Obra/Faena</Label>
-                <Input id="nombreFaena" value={form.nombreFaena} onChange={e => setForm({...form, nombreFaena: e.target.value})} />
-              </div>
-               <div className="space-y-2">
-                <Label htmlFor="direccion">Dirección</Label>
-                <Input id="direccion" value={form.direccion} onChange={e => setForm({...form, direccion: e.target.value})} />
-              </div>
-               <div className="space-y-2">
-                <Label htmlFor="clienteEmail">Email del Cliente</Label>
-                <Input id="clienteEmail" type="email" value={form.clienteEmail} onChange={e => setForm({...form, clienteEmail: e.target.value})} />
-              </div>
-            </div>
-            <Button type="submit" disabled={creando}>
-              {creando ? "Creando obra..." : "Crear Obra"}
-            </Button>
-          </form>
-        </CardContent>
-      </Card>
 
-      <div className="overflow-x-auto rounded-xl border bg-card text-card-foreground shadow-sm">
-        {cargando && <p className="p-4 text-sm text-muted-foreground">Cargando obras desde Firestore...</p>}
-        
-        {!cargando && obras.length === 0 && (
-          <p className="p-8 text-center text-sm text-muted-foreground">
-            {error ? error : "No hay obras registradas en Firestore. ¡Crea la primera!"}
+      {/* Mensajes de error y estado */}
+      {error && <p className="text-sm text-destructive">{error}</p>}
+      {cargandoObras && (
+        <p className="text-sm text-muted-foreground">Cargando obras...</p>
+      )}
+
+      {/* Formulario creación obra */}
+      <form
+        onSubmit={handleSubmit}
+        className="space-y-3 rounded-xl border bg-card p-4 shadow-sm text-sm"
+      >
+        <h3 className="text-base font-semibold text-card-foreground">
+          Crear nueva obra/faena
+        </h3>
+
+        <div className="grid gap-3 md:grid-cols-3">
+          <div className="space-y-1">
+            <label className="text-xs text-muted-foreground">
+              Nombre de la faena
+            </label>
+            <input
+              type="text"
+              className="w-full rounded-lg border bg-input px-2 py-1.5 text-sm"
+              value={form.nombreFaena}
+              onChange={(e) =>
+                setForm((prev) => ({ ...prev, nombreFaena: e.target.value }))
+              }
+            />
+          </div>
+
+          <div className="space-y-1 md:col-span-1">
+            <label className="text-xs text-muted-foreground">Dirección</label>
+            <input
+              type="text"
+              className="w-full rounded-lg border bg-input px-2 py-1.5 text-sm"
+              value={form.direccion}
+              onChange={(e) =>
+                setForm((prev) => ({ ...prev, direccion: e.target.value }))
+              }
+            />
+          </div>
+
+          <div className="space-y-1">
+            <label className="text-xs text-muted-foreground">
+              Email del cliente (login cliente futuro)
+            </label>
+            <input
+              type="email"
+              className="w-full rounded-lg border bg-input px-2 py-1.5 text-sm"
+              value={form.clienteEmail}
+              onChange={(e) =>
+                setForm((prev) => ({ ...prev, clienteEmail: e.target.value }))
+              }
+            />
+          </div>
+        </div>
+
+        <div className="flex justify-end">
+          <button
+            type="submit"
+            className="inline-flex items-center justify-center rounded-lg border border-primary px-4 py-2 text-xs font-medium hover:bg-primary hover:text-primary-foreground transition"
+          >
+            Crear obra
+          </button>
+        </div>
+      </form>
+
+      {/* Listado de obras */}
+      <div className="rounded-xl border bg-card p-4 shadow-sm">
+        <h3 className="text-base font-semibold text-card-foreground mb-3">
+          Obras registradas
+        </h3>
+
+        {obras.length === 0 ? (
+          <p className="text-sm text-muted-foreground">
+            No hay obras registradas aún.
           </p>
-        )}
-
-        {!cargando && obras.length > 0 && (
-            <Table>
-            <TableHeader>
-                <TableRow>
-                <TableHead>Obra / Faena</TableHead>
-                <TableHead>Dirección</TableHead>
-                <TableHead>Cliente</TableHead>
-                <TableHead>Módulos Activos</TableHead>
-                <TableHead>Panel Cliente</TableHead>
-                <TableHead>Acciones</TableHead>
-                </TableRow>
-            </TableHeader>
-            <TableBody>
-                {obras.map((obra) => {
-                const clientPath = `/clientes/${obra.id}`;
-                return (
-                    <TableRow key={obra.id}>
-                    <TableCell className="align-top">
-                        <div className="font-semibold text-primary">
-                        {obra.nombreFaena}
-                        </div>
-                        <div className="text-xs text-muted-foreground">
-                        ID: {obra.id}
-                        </div>
-                    </TableCell>
-                    <TableCell className="align-top">
-                        <p className="text-sm">{obra.direccion}</p>
-                    </TableCell>
-                    <TableCell className="align-top">
-                        <p className="text-sm font-mono">{obra.clienteEmail}</p>
-                    </TableCell>
-                    <TableCell className="align-top">
-                        <div className="flex flex-col gap-1.5">
-                        <Badge
-                            variant={
-                            obra.modulosActivos?.operaciones
-                                ? "default"
-                                : "secondary"
-                            }
-                            className={
-                            obra.modulosActivos?.operaciones
-                                ? "border-green-200 bg-green-100 text-green-800"
-                                : ""
-                            }
-                        >
-                            Operaciones
-                        </Badge>
-                        <Badge
-                            variant={
-                            obra.modulosActivos?.prevencion
-                                ? "default"
-                                : "secondary"
-                            }
-                            className={
-                            obra.modulosActivos?.prevencion
-                                ? "border-amber-200 bg-amber-100 text-amber-800"
-                                : ""
-                            }
-                        >
-                            Prevención
-                        </Badge>
-                        </div>
-                    </TableCell>
-                    <TableCell className="align-top">
-                        <div className="flex flex-col gap-1">
-                        <code className="rounded-lg border bg-muted/50 px-2 py-1 text-xs font-mono">
-                            {clientPath}
-                        </code>
-                        <Button asChild variant="outline" size="sm" className="mt-1">
-                            <Link href={clientPath}>Ver como cliente</Link>
-                        </Button>
-                        </div>
-                    </TableCell>
-                    <TableCell className="align-top">
-                        <div className="flex flex-col gap-2">
-                        <Button asChild variant="outline" size="sm">
-                            <Link href={`/operaciones/programacion?obraId=${obra.id}`}>
-                            Ir a Operaciones
-                            </Link>
-                        </Button>
-                        <Button asChild variant="outline" size="sm">
-                            <Link href={`/prevencion/ds44-subcontratos?obraId=${obra.id}`}>
-                            Ir a Prevención
-                            </Link>
-                        </Button>
-                        </div>
-                    </TableCell>
-                    </TableRow>
-                );
-                })}
-            </TableBody>
-            </Table>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="min-w-full text-sm">
+              <thead className="bg-muted">
+                <tr>
+                  <th className="px-3 py-2 text-left font-semibold text-muted-foreground">
+                    Nombre faena
+                  </th>
+                  <th className="px-3 py-2 text-left font-semibold text-muted-foreground">
+                    Dirección
+                  </th>
+                  <th className="px-3 py-2 text-left font-semibold text-muted-foreground">
+                    Email cliente
+                  </th>
+                </tr>
+              </thead>
+              <tbody>
+                {obras.map((obra) => (
+                  <tr key={obra.id} className="border-t">
+                    <td className="px-3 py-2">{obra.nombreFaena}</td>
+                    <td className="px-3 py-2">{obra.direccion}</td>
+                    <td className="px-3 py-2">{obra.clienteEmail}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         )}
       </div>
     </section>
