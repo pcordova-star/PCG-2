@@ -10,6 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { guardarInduccionAccesoFaena, InduccionAccesoFaena } from "@/lib/induccionAccesoFaena";
 import { getDocs, collection } from "firebase/firestore";
 import { firebaseDb } from "@/lib/firebaseClient";
+import { Checkbox } from "@/components/ui/checkbox";
 
 
 // --- Tipos y Datos ---
@@ -208,12 +209,12 @@ export default function InduccionAccesoPage() {
       setErrorForm("Debes responder correctamente todas las preguntas de comprensión para continuar.");
       return;
     }
-    if (!firmaDataUrl) {
-      setErrorForm("Debes firmar para confirmar que entendiste la inducción.");
+    if (!aceptaReglamento || !aceptaEpp || !aceptaTratamientoDatos) {
+      setErrorForm("Debes aceptar todas las declaraciones para continuar.");
       return;
     }
-    if(!aceptaReglamento || !aceptaEpp || !aceptaTratamientoDatos) {
-      setErrorForm("Debes aceptar todas las declaraciones para continuar.");
+    if (!firmaDataUrl) {
+      setErrorForm("Debes firmar para confirmar que entendiste la inducción.");
       return;
     }
 
@@ -374,8 +375,34 @@ export default function InduccionAccesoPage() {
         </Card>
         
         <Card>
+            <CardHeader>
+                <CardTitle>D. Declaraciones y Compromisos</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+                <div className="flex items-start space-x-3">
+                    <Checkbox id="aceptaReglamento" checked={aceptaReglamento} onCheckedChange={(checked) => setAceptaReglamento(!!checked)} />
+                    <Label htmlFor="aceptaReglamento" className="text-sm font-normal text-muted-foreground">
+                        Declaro haber recibido, leído y comprendido el Reglamento Especial para Empresas Contratistas y Subcontratistas.
+                    </Label>
+                </div>
+                <div className="flex items-start space-x-3">
+                    <Checkbox id="aceptaEpp" checked={aceptaEpp} onCheckedChange={(checked) => setAceptaEpp(!!checked)} />
+                    <Label htmlFor="aceptaEpp" className="text-sm font-normal text-muted-foreground">
+                        Me comprometo a utilizar en todo momento los Elementos de Protección Personal (EPP) requeridos para el área a la que ingreso.
+                    </Label>
+                </div>
+                <div className="flex items-start space-x-3">
+                    <Checkbox id="aceptaTratamientoDatos" checked={aceptaTratamientoDatos} onCheckedChange={(checked) => setAceptaTratamientoDatos(!!checked)} />
+                    <Label htmlFor="aceptaTratamientoDatos" className="text-sm font-normal text-muted-foreground">
+                        Acepto el tratamiento de mis datos personales para fines de registro y seguridad de la obra.
+                    </Label>
+                </div>
+            </CardContent>
+        </Card>
+        
+        <Card>
              <CardHeader>
-                <CardTitle>D. Firma de Aceptación</CardTitle>
+                <CardTitle>E. Firma de Aceptación</CardTitle>
                 <CardDescription>
                     Firme con su dedo (si está en un dispositivo táctil) o con el
                     mouse, confirmando que ha leído y entendido las instrucciones de
