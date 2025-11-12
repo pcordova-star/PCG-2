@@ -4,7 +4,7 @@
 import { useEffect, useState, FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "../../context/AuthContext";
-import { collection, addDoc, getDocs, doc, updateDoc, deleteDoc, query, orderBy, serverTimestamp, Timestamp } from "firebase/firestore";
+import { collection, addDoc, getDocs, doc, updateDoc, deleteDoc, query, orderBy, serverTimestamp, Timestamp, writeBatch } from "firebase/firestore";
 import { firebaseDb } from "../../lib/firebaseClient";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -22,6 +22,25 @@ type Obra = {
   clienteEmail: string;
   creadoEn: Timestamp | Date;
 };
+
+// Nueva función para borrar subcolecciones
+async function deleteSubcollection(db: any, collectionPath: string) {
+    const collectionRef = collection(db, collectionPath);
+    const q = query(collectionRef);
+    const snapshot = await getDocs(q);
+    
+    if (snapshot.empty) {
+        return;
+    }
+    
+    const batch = writeBatch(db);
+    snapshot.docs.forEach(doc => {
+        batch.delete(doc.ref);
+    });
+    
+    await batch.commit();
+}
+
 
 export default function ObrasPage() {
   const { user, loading } = useAuth();
@@ -129,12 +148,28 @@ export default function ObrasPage() {
 
   const handleDelete = async (obraId: string) => {
     try {
+      // Borrar subcolecciones en paralelo
+      const subcollections = [
+        "actividades",
+        "avancesDiarios",
+        "estadosDePago",
+        "empresasSubcontratistasDs44",
+        "ds44MandanteObra",
+      ];
+
+      await Promise.all(
+        subcollections.map(sub => deleteSubcollection(firebaseDb, `obras/${obraId}/${sub}`))
+      );
+
+      // Borrar el documento principal de la obra
       const docRef = doc(firebaseDb, "obras", obraId);
       await deleteDoc(docRef);
+
+      // Actualizar el estado de la UI
       setObras(obras.filter(o => o.id !== obraId));
     } catch (err) {
       console.error(err);
-      setError("No se pudo eliminar la obra. Intenta nuevamente.");
+      setError("No se pudo eliminar la obra y sus datos asociados. Intenta nuevamente.");
     }
   };
 
@@ -215,7 +250,7 @@ export default function ObrasPage() {
                               <AlertDialogHeader>
                                 <AlertDialogTitle>¿Estás seguro de que deseas eliminar esta obra?</AlertDialogTitle>
                                 <AlertDialogDescription>
-                                  Esta acción no se puede deshacer. Se eliminará permanentemente la obra "{obra.nombreFaena}" y todos sus datos asociados.
+                                  Esta acción no se puede deshacer. Se eliminará permanentemente la obra "{obra.nombreFaena}" y todos sus datos asociados (actividades, avances, etc.).
                                 </AlertDialogDescription>
                               </AlertDialogHeader>
                               <AlertDialogFooter>
