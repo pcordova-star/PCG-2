@@ -4,7 +4,7 @@
 import { useEffect, useState, FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "../../context/AuthContext";
-import { collection, addDoc, getDocs, Timestamp } from "firebase/firestore";
+import { collection, addDoc, getDocs } from "firebase/firestore";
 import { firebaseDb } from "../../lib/firebaseClient";
 
 type Obra = {
@@ -72,7 +72,7 @@ export default function ObrasPage() {
   // Mientras AuthContext todavía está resolviendo el usuario
   if (loading) {
     return (
-      <p className="text-sm text-muted-foreground">
+      <p className="text-sm text-slate-600">
         Cargando sesión...
       </p>
     );
@@ -82,7 +82,7 @@ export default function ObrasPage() {
   // (igual el useEffect de arriba hará router.replace("/login"))
   if (!user) {
     return (
-      <p className="text-sm text-muted-foreground">
+      <p className="text-sm text-slate-600">
         Redirigiendo a login...
       </p>
     );
@@ -112,7 +112,7 @@ export default function ObrasPage() {
         nombreFaena: nombreFaena.trim(),
         direccion: direccion.trim(),
         clienteEmail: clienteEmail.trim(),
-        creadoEn: Timestamp.now(),
+        creadoEn: new Date().toISOString(),
       });
 
       const nuevaObra: Obra = {
@@ -138,38 +138,38 @@ export default function ObrasPage() {
   return (
     <section className="space-y-6">
       <header className="space-y-1">
-        <h2 className="text-2xl font-semibold text-card-foreground">
+        <h2 className="text-2xl font-semibold text-slate-900">
           Gestión de Obras - PCG 2.0
         </h2>
-        <p className="text-sm text-muted-foreground">
+        <p className="text-sm text-slate-600">
           Módulo base común de faenas. Aquí se crean las obras a las que luego
           se asocian Operaciones y Prevención de Riesgos.
         </p>
       </header>
 
       {/* Mensajes de error y estado */}
-      {error && <p className="text-sm text-destructive">{error}</p>}
+      {error && <p className="text-sm text-red-600">{error}</p>}
       {cargandoObras && (
-        <p className="text-sm text-muted-foreground">Cargando obras...</p>
+        <p className="text-sm text-slate-500">Cargando obras...</p>
       )}
 
       {/* Formulario creación obra */}
       <form
         onSubmit={handleSubmit}
-        className="space-y-3 rounded-xl border bg-card p-4 shadow-sm text-sm"
+        className="space-y-3 rounded-xl border bg-white p-4 shadow-sm text-sm"
       >
-        <h3 className="text-base font-semibold text-card-foreground">
+        <h3 className="text-base font-semibold text-slate-900">
           Crear nueva obra/faena
         </h3>
 
         <div className="grid gap-3 md:grid-cols-3">
           <div className="space-y-1">
-            <label className="text-xs text-muted-foreground">
+            <label className="text-xs text-slate-700">
               Nombre de la faena
             </label>
             <input
               type="text"
-              className="w-full rounded-lg border bg-input px-2 py-1.5 text-sm"
+              className="w-full rounded-lg border px-2 py-1.5 text-sm"
               value={form.nombreFaena}
               onChange={(e) =>
                 setForm((prev) => ({ ...prev, nombreFaena: e.target.value }))
@@ -178,10 +178,10 @@ export default function ObrasPage() {
           </div>
 
           <div className="space-y-1 md:col-span-1">
-            <label className="text-xs text-muted-foreground">Dirección</label>
+            <label className="text-xs text-slate-700">Dirección</label>
             <input
               type="text"
-              className="w-full rounded-lg border bg-input px-2 py-1.5 text-sm"
+              className="w-full rounded-lg border px-2 py-1.5 text-sm"
               value={form.direccion}
               onChange={(e) =>
                 setForm((prev) => ({ ...prev, direccion: e.target.value }))
@@ -190,12 +190,12 @@ export default function ObrasPage() {
           </div>
 
           <div className="space-y-1">
-            <label className="text-xs text-muted-foreground">
+            <label className="text-xs text-slate-700">
               Email del cliente (login cliente futuro)
             </label>
             <input
               type="email"
-              className="w-full rounded-lg border bg-input px-2 py-1.5 text-sm"
+              className="w-full rounded-lg border px-2 py-1.5 text-sm"
               value={form.clienteEmail}
               onChange={(e) =>
                 setForm((prev) => ({ ...prev, clienteEmail: e.target.value }))
@@ -207,7 +207,7 @@ export default function ObrasPage() {
         <div className="flex justify-end">
           <button
             type="submit"
-            className="inline-flex items-center justify-center rounded-lg border border-primary px-4 py-2 text-xs font-medium hover:bg-primary hover:text-primary-foreground transition"
+            className="inline-flex items-center justify-center rounded-lg border border-slate-900 px-4 py-2 text-xs font-medium hover:bg-slate-900 hover:text-white transition"
           >
             Crear obra
           </button>
@@ -215,27 +215,27 @@ export default function ObrasPage() {
       </form>
 
       {/* Listado de obras */}
-      <div className="rounded-xl border bg-card p-4 shadow-sm">
-        <h3 className="text-base font-semibold text-card-foreground mb-3">
+      <div className="rounded-xl border bg-white p-4 shadow-sm">
+        <h3 className="text-base font-semibold text-slate-900 mb-3">
           Obras registradas
         </h3>
 
         {obras.length === 0 ? (
-          <p className="text-sm text-muted-foreground">
+          <p className="text-sm text-slate-500">
             No hay obras registradas aún.
           </p>
         ) : (
           <div className="overflow-x-auto">
             <table className="min-w-full text-sm">
-              <thead className="bg-muted">
+              <thead className="bg-slate-100">
                 <tr>
-                  <th className="px-3 py-2 text-left font-semibold text-muted-foreground">
+                  <th className="px-3 py-2 text-left font-semibold text-slate-700">
                     Nombre faena
                   </th>
-                  <th className="px-3 py-2 text-left font-semibold text-muted-foreground">
+                  <th className="px-3 py-2 text-left font-semibold text-slate-700">
                     Dirección
                   </th>
-                  <th className="px-3 py-2 text-left font-semibold text-muted-foreground">
+                  <th className="px-3 py-2 text-left font-semibold text-slate-700">
                     Email cliente
                   </th>
                 </tr>

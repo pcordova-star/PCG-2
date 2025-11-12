@@ -1,18 +1,59 @@
 "use client";
 
-import React, { useMemo, useState } from 'react';
-import { useSearchParams } from 'next/navigation';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Label } from '@/components/ui/label';
-import { Badge } from '@/components/ui/badge';
-import { cn } from '@/lib/utils';
-import { Input } from '@/components/ui/input';
-import { Button } from '@/components/ui/button';
-import { Trash2 } from 'lucide-react';
-import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
+import React, { useEffect, useState, FormEvent, useMemo } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
+import { useAuth } from "../../../context/AuthContext";
 
+import {
+  collection,
+  addDoc,
+  getDocs,
+  query,
+  where,
+  doc,
+  updateDoc,
+} from "firebase/firestore";
+import { firebaseDb } from "../../../lib/firebaseClient";
+import { Button } from "@/components/ui/button";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import { cn } from "@/lib/utils";
+import { Badge } from "@/components/ui/badge";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
+import { Trash2 } from "lucide-react";
+import { Checkbox } from "@/components/ui/checkbox";
 
 type Obra = {
   id: string;
@@ -21,8 +62,11 @@ type Obra = {
 
 type EstadoActividad = "Pendiente" | "En curso" | "Completada";
 
-const ESTADOS_ACTIVIDAD: EstadoActividad[] = ["Pendiente", "En curso", "Completada"];
-
+const ESTADOS_ACTIVIDAD: EstadoActividad[] = [
+  "Pendiente",
+  "En curso",
+  "Completada",
+];
 
 type ActividadProgramada = {
   id: string;
@@ -34,182 +78,240 @@ type ActividadProgramada = {
   estado: EstadoActividad;
 };
 
-const OBRAS_SIMULADAS: Obra[] = [
-  { id: '1', nombreFaena: 'Edificio Central' },
-  { id: '2', nombreFaena: 'Condominio El Roble' },
-  { id: '3', nombreFaena: 'Remodelación Oficinas Corp' },
-];
-
-const ACTIVIDADES_SIMULADAS: ActividadProgramada[] = [
-  { id: 'a1', obraId: '1', nombreActividad: 'Fundaciones', fechaInicio: '2025-11-01', fechaFin: '2025-11-15', responsable: 'Juan Pérez', estado: 'Completada' },
-  { id: 'a2', obraId: '1', nombreActividad: 'Obra gruesa primer piso', fechaInicio: '2025-11-16', fechaFin: '2025-12-10', responsable: 'Juan Pérez', estado: 'En curso' },
-  { id: 'a3', obraId: '1', nombreActividad: 'Instalaciones eléctricas', fechaInicio: '2025-12-11', fechaFin: '2025-12-20', responsable: 'Ana Gómez', estado: 'Pendiente' },
-  { id: 'a4', obraId: '2', nombreActividad: 'Cierre perimetral', fechaInicio: '2025-10-20', fechaFin: '2025-10-30', responsable: 'Carlos Soto', estado: 'Completada' },
-  { id: 'a5', obraId: '2', nombreActividad: 'Movimiento de tierras', fechaInicio: '2025-11-01', fechaFin: '2025-11-10', responsable: 'Carlos Soto', estado: 'En curso' },
-  { id: 'a6', obraId: '3', nombreActividad: 'Demoliciones', fechaInicio: '2025-12-01', fechaFin: '2025-12-05', responsable: 'Luis Marín', estado: 'Pendiente' },
-];
-
 type AvanceDiario = {
   id: string;
   obraId: string;
-  fecha: string;             // "YYYY-MM-DD"
-  porcentajeAvance: number;  // avance acumulado a esa fecha (0-100)
+  fecha: string; // "YYYY-MM-DD"
+  porcentajeAvance: number; // avance acumulado a esa fecha (0-100)
   comentario: string;
-  fotoUrl?: string;          // por ahora solo URL de la foto (simulado)
+  fotoUrl?: string; // por ahora solo URL de la foto (simulado)
   visibleParaCliente: boolean;
-  creadoPor: string;         // nombre o rol de quien registra
+  creadoPor: string; // nombre o rol de quien registra
 };
-
-const AVANCES_INICIALES: AvanceDiario[] = [
-  {
-    id: "av-1",
-    obraId: "1",
-    fecha: "2025-11-10",
-    porcentajeAvance: 15,
-    comentario: "Inicio de excavaciones y replanteo general.",
-    fotoUrl: "https://via.placeholder.com/300x180?text=Obra+Dia+1",
-    visibleParaCliente: true,
-    creadoPor: "Jefe de Obra",
-  },
-  {
-    id: "av-2",
-    obraId: "1",
-    fecha: "2025-11-12",
-    porcentajeAvance: 25,
-    comentario: "Avance en excavación de fundaciones y retiro de material.",
-    fotoUrl: "https://via.placeholder.com/300x180?text=Obra+Dia+2",
-    visibleParaCliente: true,
-    creadoPor: "Administrador de Obra",
-  },
-  {
-    id: "av-3",
-    obraId: "2",
-    fecha: "2025-11-11",
-    porcentajeAvance: 8,
-    comentario: "Instalación de faena y cierre perimetral.",
-    fotoUrl: "https://via.placeholder.com/300x180?text=Obra+Condominio",
-    visibleParaCliente: false,
-    creadoPor: "Jefe de Terreno",
-  },
-];
-
 
 function EstadoBadge({ estado }: { estado: EstadoActividad }) {
   const variant: "default" | "secondary" | "outline" = {
-    "Completada": "default",
+    Completada: "default",
     "En curso": "secondary",
-    "Pendiente": "outline",
+    Pendiente: "outline",
   }[estado];
-  
+
   const className = {
-    "Completada": "bg-green-100 text-green-800 border-green-200",
+    Completada: "bg-green-100 text-green-800 border-green-200",
     "En curso": "bg-blue-100 text-blue-800 border-blue-200",
-    "Pendiente": "bg-yellow-100 text-yellow-800 border-yellow-200",
+    Pendiente: "bg-yellow-100 text-yellow-800 border-yellow-200",
   }[estado];
-  
-  return <Badge variant={variant} className={cn("font-semibold whitespace-nowrap", className)}>{estado}</Badge>;
+
+  return (
+    <Badge variant={variant} className={cn("font-semibold whitespace-nowrap", className)}>
+      {estado}
+    </Badge>
+  );
 }
 
 export default function ProgramacionPage() {
+  const { user, loading: loadingAuth } = useAuth();
+  const router = useRouter();
   const searchParams = useSearchParams();
-  const obraIdFromUrl = searchParams.get("obraId");
 
-  const obraIdInicial = (() => {
-    if (obraIdFromUrl) {
-      const existe = OBRAS_SIMULADAS.some((o) => o.id === obraIdFromUrl);
-      if (existe) return obraIdFromUrl;
+  const [obras, setObras] = useState<Obra[]>([]);
+  const [obraSeleccionadaId, setObraSeleccionadaId] = useState<string>("");
+
+  const [actividades, setActividades] = useState<ActividadProgramada[]>([]);
+  const [avances, setAvances] = useState<AvanceDiario[]>([]);
+
+  const [cargandoActividades, setCargandoActividades] = useState(true);
+  const [cargandoAvances, setCargandoAvances] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  const [formActividad, setFormActividad] = useState({
+    nombreActividad: "",
+    fechaInicio: "",
+    fechaFin: "",
+    responsable: "",
+    estado: "Pendiente" as EstadoActividad,
+  });
+
+  const [formAvance, setFormAvance] = useState({
+    fecha: new Date().toISOString().slice(0, 10),
+    porcentajeAvance: 0,
+    comentario: "",
+    fotoUrl: "",
+    visibleParaCliente: true,
+    creadoPor: "",
+  });
+
+  // Auth Protection
+  useEffect(() => {
+    if (!loadingAuth && !user) {
+      router.replace("/login");
     }
-    return OBRAS_SIMULADAS[0]?.id ?? "";
-  })();
+  }, [loadingAuth, user, router]);
 
-  const [obraSeleccionadaId, setObraSeleccionadaId] = useState<string>(obraIdInicial);
-  const [actividades, setActividades] = useState<ActividadProgramada[]>(ACTIVIDADES_SIMULADAS);
+  // Cargar Obras
+  useEffect(() => {
+    if (!user) return;
 
-  // Form state
-  const [nombreActividad, setNombreActividad] = useState('');
-  const [fechaInicio, setFechaInicio] = useState('');
-  const [fechaFin, setFechaFin] = useState('');
-  const [responsable, setResponsable] = useState('');
-  const [estado, setEstado] = useState<EstadoActividad>('Pendiente');
-  const [error, setError] = useState('');
+    async function cargarObras() {
+      try {
+        setError(null);
+        const colRef = collection(firebaseDb, "obras");
+        const snapshot = await getDocs(colRef);
 
-  const [avances, setAvances] = useState<AvanceDiario[]>(AVANCES_INICIALES);
-  const [fechaAvance, setFechaAvance] = useState<string>(
-    new Date().toISOString().slice(0, 10)
-  );
-  const [porcentajeAvance, setPorcentajeAvance] = useState<number>(0);
-  const [comentarioAvance, setComentarioAvance] = useState<string>("");
-  const [fotoUrl, setFotoUrl] = useState<string>("");
-  const [visibleParaCliente, setVisibleParaCliente] = useState<boolean>(true);
-  const [creadoPor, setCreadoPor] = useState<string>("");
-  const [errorAvance, setErrorAvance] = useState<string | null>(null);
+        const data: Obra[] = snapshot.docs.map((doc) => ({
+          id: doc.id,
+          nombreFaena: doc.data().nombreFaena ?? "",
+        }));
 
-  const clientPath = obraSeleccionadaId
-  ? `/clientes/${obraSeleccionadaId}`
-  : "";
+        setObras(data);
 
+        const obraIdFromQuery = searchParams.get("obraId");
+        if (obraIdFromQuery && data.some((o) => o.id === obraIdFromQuery)) {
+          setObraSeleccionadaId(obraIdFromQuery);
+        } else if (data.length > 0) {
+          setObraSeleccionadaId(data[0].id);
+        }
+      } catch (err) {
+        console.error(err);
+        setError("No se pudieron cargar las obras.");
+      }
+    }
+    cargarObras();
+  }, [user, searchParams]);
 
-  const actividadesFiltradas = actividades.filter(
-    (act) => act.obraId === obraSeleccionadaId
-  );
+  // Cargar Actividades y Avances de la obra seleccionada
+  useEffect(() => {
+    if (!obraSeleccionadaId || !user) return;
+
+    async function cargarDatosDeObra() {
+      // Cargar Actividades
+      try {
+        setCargandoActividades(true);
+        setError(null);
+        const actColRef = collection(firebaseDb, "actividadesProgramadas");
+        const qAct = query(actColRef, where("obraId", "==", obraSeleccionadaId));
+        const snapshotAct = await getDocs(qAct);
+        const dataAct: ActividadProgramada[] = snapshotAct.docs.map((doc) => {
+          const d = doc.data();
+          return {
+            id: doc.id,
+            obraId: d.obraId,
+            nombreActividad: d.nombreActividad ?? "",
+            fechaInicio: d.fechaInicio ?? "",
+            fechaFin: d.fechaFin ?? "",
+            responsable: d.responsable ?? "",
+            estado: (d.estado ?? "Pendiente") as EstadoActividad,
+          };
+        });
+        setActividades(dataAct);
+      } catch (err) {
+        console.error("Error cargando actividades:", err);
+        setError("No se pudieron cargar las actividades de la obra.");
+      } finally {
+        setCargandoActividades(false);
+      }
+
+      // Cargar Avances
+      try {
+        setCargandoAvances(true);
+        setError(null);
+        const avColRef = collection(firebaseDb, "avancesDiarios");
+        const qAv = query(avColRef, where("obraId", "==", obraSeleccionadaId));
+        const snapshotAv = await getDocs(qAv);
+        const dataAv: AvanceDiario[] = snapshotAv.docs.map((doc) => ({
+          ...(doc.data() as any),
+          id: doc.id,
+        }));
+        setAvances(dataAv.sort((a, b) => (a.fecha < b.fecha ? 1 : -1)));
+      } catch (err) {
+        console.error("Error cargando avances:", err);
+        setError((prev) => prev + " No se pudieron cargar los avances diarios.");
+      } finally {
+        setCargandoAvances(false);
+      }
+    }
+    cargarDatosDeObra();
+  }, [obraSeleccionadaId, user]);
+  
+  const handleEstadoChange = async (id: string, nuevoEstado: EstadoActividad) => {
+    try {
+        const docRef = doc(firebaseDb, "actividadesProgramadas", id);
+        await updateDoc(docRef, { estado: nuevoEstado });
+        setActividades((prev) =>
+          prev.map((act) =>
+            act.id === id ? { ...act, estado: nuevoEstado } : act
+          )
+        );
+    } catch(err) {
+        console.error(err);
+        setError("No se pudo actualizar el estado de la actividad.");
+    }
+  };
+
+  if (loadingAuth) {
+    return <p className="text-sm text-muted-foreground">Cargando sesión...</p>;
+  }
+  if (!user) {
+    return (
+      <p className="text-sm text-muted-foreground">Redirigiendo a login...</p>
+    );
+  }
+  
+  const clientPath = obraSeleccionadaId ? `/clientes/${obraSeleccionadaId}` : "";
   
   const resumenActividades = useMemo(() => {
-    const total = actividadesFiltradas.length;
-    const pendientes = actividadesFiltradas.filter(a => a.estado === "Pendiente").length;
-    const enCurso = actividadesFiltradas.filter(a => a.estado === "En curso").length;
-    const completadas = actividadesFiltradas.filter(a => a.estado === "Completada").length;
+    const total = actividades.length;
+    const pendientes = actividades.filter(a => a.estado === "Pendiente").length;
+    const enCurso = actividades.filter(a => a.estado === "En curso").length;
+    const completadas = actividades.filter(a => a.estado === "Completada").length;
     return { total, pendientes, enCurso, completadas };
-  }, [actividadesFiltradas]);
-  
-    const avancesFiltrados = avances
-    .filter((a) => a.obraId === obraSeleccionadaId)
-    .sort((a, b) => (a.fecha < b.fecha ? 1 : -1)); // más recientes primero
+  }, [actividades]);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  async function handleActividadSubmit(e: FormEvent) {
     e.preventDefault();
+    if (!obraSeleccionadaId) {
+      setError("Seleccione una obra antes de agregar una actividad.");
+      return;
+    }
+    const { nombreActividad, fechaInicio, fechaFin, responsable, estado } = formActividad;
     if (!nombreActividad || !fechaInicio || !fechaFin || !responsable) {
-      setError('Todos los campos del formulario son obligatorios.');
+      setError("Todos los campos para la actividad son obligatorios.");
       return;
     }
+    try {
+      const colRef = collection(firebaseDb, "actividadesProgramadas");
+      const docRef = await addDoc(colRef, { obraId: obraSeleccionadaId, ...formActividad });
+      const nuevaActividad: ActividadProgramada = { id: docRef.id, obraId: obraSeleccionadaId, ...formActividad };
+      setActividades((prev) => [nuevaActividad, ...prev]);
+      setFormActividad({ nombreActividad: "", fechaInicio: "", fechaFin: "", responsable: "", estado: "Pendiente" });
+    } catch (err) {
+      console.error(err);
+      setError("No se pudo crear la actividad.");
+    }
+  }
 
-    if (new Date(fechaFin) < new Date(fechaInicio)) {
-      setError('La fecha de fin no puede ser anterior a la fecha de inicio.');
+  async function handleAvanceSubmit(e: FormEvent) {
+    e.preventDefault();
+    if (!obraSeleccionadaId) {
+      setError("Seleccione una obra antes de registrar un avance.");
       return;
     }
-
-    setError('');
-    
-    const nuevaActividad: ActividadProgramada = {
-      id: Date.now().toString(),
-      obraId: obraSeleccionadaId,
-      nombreActividad,
-      fechaInicio,
-      fechaFin,
-      responsable,
-      estado
-    };
-    
-    setActividades(prev => [...prev, nuevaActividad]);
-    
-    // Reset form
-    setNombreActividad('');
-    setFechaInicio('');
-    setFechaFin('');
-    setResponsable('');
-    setEstado('Pendiente');
-  };
-
-  const handleEstadoChange = (id: string, nuevoEstado: EstadoActividad) => {
-    setActividades((prev) =>
-      prev.map((act) =>
-        act.id === id ? { ...act, estado: nuevoEstado } : act
-      )
-    );
-  };
-
-  const handleEliminar = (id: string) => {
-    setActividades((prev) => prev.filter((act) => act.id !== id));
-  };
+    const { comentario, creadoPor, porcentajeAvance } = formAvance;
+    if (!comentario || !creadoPor || porcentajeAvance < 0 || porcentajeAvance > 100) {
+      setError("Comentario, Creado Por y un Porcentaje válido son obligatorios.");
+      return;
+    }
+    try {
+      const colRef = collection(firebaseDb, "avancesDiarios");
+      const docRef = await addDoc(colRef, { obraId: obraSeleccionadaId, ...formAvance });
+      const nuevoAvance: AvanceDiario = { id: docRef.id, obraId: obraSeleccionadaId, ...formAvance };
+      setAvances((prev) => [nuevoAvance, ...prev].sort((a,b) => a.fecha < b.fecha ? 1 : -1));
+      setFormAvance(prev => ({ ...prev, porcentajeAvance: 0, comentario: "", fotoUrl: "", creadoPor: "" }));
+    } catch(err) {
+      console.error(err);
+      setError("No se pudo registrar el avance.");
+    }
+  }
 
 
   return (
@@ -218,8 +320,11 @@ export default function ProgramacionPage() {
         <h1 className="text-4xl font-bold font-headline tracking-tight">Programación de Obras - PCG 2.0</h1>
         <p className="mt-2 text-lg text-muted-foreground">
           Seleccione una obra para ver y gestionar sus actividades programadas.
+          Los datos se leen y escriben en Firestore.
         </p>
       </div>
+
+      {error && <p className="text-sm font-medium text-destructive">{error}</p>}
 
       <Card>
         <CardHeader>
@@ -234,7 +339,7 @@ export default function ProgramacionPage() {
                 <SelectValue placeholder="Seleccione una obra" />
               </SelectTrigger>
               <SelectContent>
-                {OBRAS_SIMULADAS.map((obra) => (
+                {obras.map((obra) => (
                   <SelectItem key={obra.id} value={obra.id}>
                     {obra.nombreFaena}
                   </SelectItem>
@@ -262,10 +367,6 @@ export default function ProgramacionPage() {
                 <code className="rounded-lg border bg-muted/50 px-3 py-1 text-xs font-mono text-foreground">
                 {clientPath}
                 </code>
-                <p className="text-[11px] text-muted-foreground">
-                (En este MVP es solo una URL simulada; más adelante se vinculará al
-                cliente por su email.)
-                </p>
             </div>
             ) : (
             <p className="text-xs text-muted-foreground">
@@ -297,27 +398,27 @@ export default function ProgramacionPage() {
           <CardTitle>Agregar Nueva Actividad</CardTitle>
         </CardHeader>
         <CardContent>
-          <form onSubmit={handleSubmit} className="space-y-6">
+          <form onSubmit={handleActividadSubmit} className="space-y-6">
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               <div className="space-y-2 lg:col-span-2">
                 <Label htmlFor="nombreActividad">Nombre de la actividad</Label>
-                <Input id="nombreActividad" value={nombreActividad} onChange={e => setNombreActividad(e.target.value)} placeholder="Ej: Instalación de faenas" />
+                <Input id="nombreActividad" value={formActividad.nombreActividad} onChange={e => setFormActividad(prev => ({...prev, nombreActividad: e.target.value}))} placeholder="Ej: Instalación de faenas" />
               </div>
               <div className="space-y-2">
                 <Label htmlFor="responsable">Responsable</Label>
-                <Input id="responsable" value={responsable} onChange={e => setResponsable(e.target.value)} placeholder="Ej: Ana Gómez" />
+                <Input id="responsable" value={formActividad.responsable} onChange={e => setFormActividad(prev => ({...prev, responsable: e.target.value}))} placeholder="Ej: Ana Gómez" />
               </div>
               <div className="space-y-2">
                 <Label htmlFor="fechaInicio">Fecha de inicio</Label>
-                <Input id="fechaInicio" type="date" value={fechaInicio} onChange={e => setFechaInicio(e.target.value)} />
+                <Input id="fechaInicio" type="date" value={formActividad.fechaInicio} onChange={e => setFormActividad(prev => ({...prev, fechaInicio: e.target.value}))} />
               </div>
               <div className="space-y-2">
                 <Label htmlFor="fechaFin">Fecha de término</Label>
-                <Input id="fechaFin" type="date" value={fechaFin} onChange={e => setFechaFin(e.target.value)} />
+                <Input id="fechaFin" type="date" value={formActividad.fechaFin} onChange={e => setFormActividad(prev => ({...prev, fechaFin: e.target.value}))} />
               </div>
               <div className="space-y-2">
                 <Label htmlFor="estado-select">Estado inicial</Label>
-                 <Select value={estado} onValueChange={(v) => setEstado(v as EstadoActividad)}>
+                 <Select value={formActividad.estado} onValueChange={(v) => setFormActividad(prev => ({...prev, estado: v as EstadoActividad}))}>
                   <SelectTrigger id="estado-select">
                     <SelectValue placeholder="Seleccione un estado" />
                   </SelectTrigger>
@@ -331,7 +432,6 @@ export default function ProgramacionPage() {
                 </Select>
               </div>
             </div>
-             {error && <p className="text-sm font-medium text-destructive">{error}</p>}
             <Button type="submit" className="w-full sm:w-auto bg-accent text-accent-foreground hover:bg-accent/90">
               Agregar Actividad
             </Button>
@@ -342,6 +442,9 @@ export default function ProgramacionPage() {
       <Card>
         <CardHeader>
             <CardTitle>Actividades Programadas</CardTitle>
+            <CardDescription>
+                {cargandoActividades ? "Cargando actividades..." : `Mostrando ${actividades.length} actividades.`}
+            </CardDescription>
         </CardHeader>
         <CardContent className="p-0">
             <div className="overflow-x-auto">
@@ -353,12 +456,13 @@ export default function ProgramacionPage() {
                         <TableHead>Fin</TableHead>
                         <TableHead>Responsable</TableHead>
                         <TableHead>Estado</TableHead>
-                        <TableHead className="text-right">Acciones</TableHead>
                     </TableRow>
                     </TableHeader>
                     <TableBody>
-                    {actividadesFiltradas.length > 0 ? (
-                        actividadesFiltradas.map((actividad) => (
+                    {cargandoActividades ? (
+                        <TableRow><TableCell colSpan={5} className="text-center">Cargando...</TableCell></TableRow>
+                    ) : actividades.length > 0 ? (
+                        actividades.map((actividad) => (
                         <TableRow key={actividad.id}>
                             <TableCell className="font-medium">{actividad.nombreActividad}</TableCell>
                             <TableCell>{actividad.fechaInicio}</TableCell>
@@ -382,38 +486,11 @@ export default function ProgramacionPage() {
                                     </Select>
                                 </div>
                             </TableCell>
-                            <TableCell className="text-right">
-                               <AlertDialog>
-                                <AlertDialogTrigger asChild>
-                                    <Button variant="ghost" size="icon" className="text-destructive hover:text-destructive hover:bg-destructive/10">
-                                        <Trash2 className="h-4 w-4" />
-                                        <span className="sr-only">Eliminar</span>
-                                    </Button>
-                                </AlertDialogTrigger>
-                                <AlertDialogContent>
-                                    <AlertDialogHeader>
-                                    <AlertDialogTitle>¿Está seguro que desea eliminar esta actividad?</AlertDialogTitle>
-                                    <AlertDialogDescription>
-                                        Esta acción no se puede deshacer. La actividad "{actividad.nombreActividad}" se eliminará permanentemente.
-                                    </AlertDialogDescription>
-                                    </AlertDialogHeader>
-                                    <AlertDialogFooter>
-                                    <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                                    <AlertDialogAction
-                                        onClick={() => handleEliminar(actividad.id)}
-                                        className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                                    >
-                                        Eliminar
-                                    </AlertDialogAction>
-                                    </AlertDialogFooter>
-                                </AlertDialogContent>
-                                </AlertDialog>
-                            </TableCell>
                         </TableRow>
                         ))
                     ) : (
                         <TableRow>
-                        <TableCell colSpan={6} className="text-center text-muted-foreground py-8">
+                        <TableCell colSpan={5} className="text-center text-muted-foreground py-8">
                             No hay actividades programadas para esta obra.
                         </TableCell>
                         </TableRow>
@@ -437,59 +514,11 @@ export default function ProgramacionPage() {
           {/* Formulario de nuevo avance */}
           <form
             className="space-y-3 rounded-xl border bg-card p-4 shadow-sm"
-            onSubmit={(e) => {
-              e.preventDefault();
-              setErrorAvance(null);
-
-              if (!obraSeleccionadaId) {
-                setErrorAvance("Debes seleccionar una obra.");
-                return;
-              }
-              if (!fechaAvance) {
-                setErrorAvance("Debes indicar la fecha del avance.");
-                return;
-              }
-              if (porcentajeAvance < 0 || porcentajeAvance > 100) {
-                setErrorAvance("El porcentaje de avance debe estar entre 0 y 100.");
-                return;
-              }
-              if (!comentarioAvance.trim()) {
-                setErrorAvance("Agrega al menos un comentario breve del avance.");
-                return;
-              }
-              if (!creadoPor.trim()) {
-                setErrorAvance("Indica quién registra este avance (ej. Jefe de Obra).");
-                return;
-              }
-
-              const nuevoAvance: AvanceDiario = {
-                id: crypto.randomUUID ? crypto.randomUUID() : Date.now().toString(),
-                obraId: obraSeleccionadaId,
-                fecha: fechaAvance,
-                porcentajeAvance,
-                comentario: comentarioAvance,
-                fotoUrl: fotoUrl.trim() || undefined,
-                visibleParaCliente,
-                creadoPor,
-              };
-
-              setAvances((prev) => [nuevoAvance, ...prev]);
-
-              // limpiar formulario (salvo la fecha)
-              setPorcentajeAvance(0);
-              setComentarioAvance("");
-              setFotoUrl("");
-              setCreadoPor("");
-              setVisibleParaCliente(true);
-            }}
+            onSubmit={handleAvanceSubmit}
           >
             <h4 className="text-sm font-semibold text-card-foreground">
               Registrar avance del día
             </h4>
-
-            {errorAvance && (
-              <p className="text-xs text-red-600">{errorAvance}</p>
-            )}
 
             <div className="grid gap-3 md:grid-cols-2">
               <div className="space-y-1">
@@ -498,8 +527,8 @@ export default function ProgramacionPage() {
                 </Label>
                 <Input
                   type="date"
-                  value={fechaAvance}
-                  onChange={(e) => setFechaAvance(e.target.value)}
+                  value={formAvance.fecha}
+                  onChange={(e) => setFormAvance(prev => ({...prev, fecha: e.target.value}))}
                   className="w-full"
                 />
               </div>
@@ -512,8 +541,8 @@ export default function ProgramacionPage() {
                   type="number"
                   min={0}
                   max={100}
-                  value={porcentajeAvance}
-                  onChange={(e) => setPorcentajeAvance(Number(e.target.value) || 0)}
+                  value={formAvance.porcentajeAvance}
+                  onChange={(e) => setFormAvance(prev => ({...prev, porcentajeAvance: Number(e.target.value) || 0}))}
                   className="w-full"
                 />
               </div>
@@ -524,8 +553,8 @@ export default function ProgramacionPage() {
                 Comentario del día
               </Label>
               <textarea
-                value={comentarioAvance}
-                onChange={(e) => setComentarioAvance(e.target.value)}
+                value={formAvance.comentario}
+                onChange={(e) => setFormAvance(prev => ({...prev, comentario: e.target.value}))}
                 rows={3}
                 className="w-full rounded-lg border bg-background px-3 py-2 text-sm"
                 placeholder="Describe brevemente qué se avanzó hoy en la obra..."
@@ -538,14 +567,13 @@ export default function ProgramacionPage() {
               </Label>
               <Input
                 type="text"
-                value={fotoUrl}
-                onChange={(e) => setFotoUrl(e.target.value)}
+                value={formAvance.fotoUrl}
+                onChange={(e) => setFormAvance(prev => ({...prev, fotoUrl: e.target.value}))}
                 className="w-full"
                 placeholder="https://..."
               />
               <p className="text-[11px] text-muted-foreground">
-                Más adelante esto se conectará a un almacenamiento real de fotos. Por
-                ahora solo usamos una URL simulada.
+                Más adelante esto se conectará a Firebase Storage.
               </p>
             </div>
 
@@ -555,26 +583,24 @@ export default function ProgramacionPage() {
               </Label>
               <Input
                 type="text"
-                value={creadoPor}
-                onChange={(e) => setCreadoPor(e.target.value)}
+                value={formAvance.creadoPor}
+                onChange={(e) => setFormAvance(prev => ({...prev, creadoPor: e.target.value}))}
                 className="w-full"
                 placeholder="Ej: Jefe de Obra, Administrador de Obra..."
               />
             </div>
 
             <div className="flex items-center gap-2">
-              <input
+              <Checkbox
                 id="visibleCliente"
-                type="checkbox"
-                checked={visibleParaCliente}
-                onChange={(e) => setVisibleParaCliente(e.target.checked)}
-                className="h-4 w-4 rounded border-input"
+                checked={formAvance.visibleParaCliente}
+                onCheckedChange={(checked) => setFormAvance(prev => ({...prev, visibleParaCliente: !!checked}))}
               />
               <Label
                 htmlFor="visibleCliente"
                 className="text-xs text-muted-foreground"
               >
-                Mostrar este avance en el futuro dashboard del cliente
+                Mostrar este avance en el dashboard del cliente
               </Label>
             </div>
 
@@ -591,13 +617,15 @@ export default function ProgramacionPage() {
             <h4 className="text-sm font-semibold text-card-foreground">
               Historial de avances de esta obra
             </h4>
-            {avancesFiltrados.length === 0 ? (
+            {cargandoAvances ? (
+                <p className="text-sm text-muted-foreground">Cargando avances...</p>
+            ) : avances.length === 0 ? (
               <p className="text-sm text-muted-foreground">
                 Aún no hay avances registrados para esta obra.
               </p>
             ) : (
               <div className="space-y-3 max-h-[420px] overflow-y-auto pr-1">
-                {avancesFiltrados.map((av) => (
+                {avances.map((av) => (
                   <article
                     key={av.id}
                     className="rounded-xl border bg-card p-3 shadow-sm text-sm space-y-2"
