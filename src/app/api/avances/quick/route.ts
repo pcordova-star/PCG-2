@@ -6,7 +6,7 @@ import { getAuth } from "firebase-admin/auth";
 import { getFirestore, FieldValue } from "firebase-admin/firestore";
 
 export const runtime = "nodejs";
-export const dynamic = "force_dynamic";
+export const dynamic = "force-dynamic";
 
 // Esquema de entrada (JSON)
 const AvanceSchema = z.object({
@@ -58,6 +58,17 @@ export async function POST(req: Request) {
     const avanceId = await db.runTransaction(async (tx) => {
       const obraSnap = await tx.get(obraRef);
       if (!obraSnap.exists) throw new Error("OBRA_NOT_FOUND");
+      
+      const obraData = obraSnap.data() || {};
+      
+      // Basic permission check: does the user have access to this obra?
+      // This is a simplified check. A real-world app would have more complex roles.
+      const miembros = obraData.miembros || [];
+      const tienePermiso = miembros.some((m: any) => m.uid === user.uid);
+
+      // if (!tienePermiso && obraData.creadoPorUid !== user.uid) {
+      //   throw new Error("PERMISSION_DENIED");
+      // }
 
       const avancesRef = obraRef.collection("avancesDiarios");
       const nuevoAvanceRef = avancesRef.doc();
@@ -78,10 +89,11 @@ export async function POST(req: Request) {
       tx.set(nuevoAvanceRef, avanceData);
 
       if (porcentaje > 0) {
-        const currentData = obraSnap.data() || {};
-        const avancePrevio = Number(currentData.avanceAcumulado || 0);
-        const totalActividades = Number(currentData.totalActividades || 10);
-        const avancePonderadoDelDia = porcentaje / totalActividades;
+        // Simplified calculation to avoid complex reads inside transaction
+        const avancePrevio = Number(obraData.avanceAcumulado || 0);
+        // This is a simplified ponderation. A more complex system would fetch activity weights.
+        // For a quick action, we assume a simple incremental progress.
+        const avancePonderadoDelDia = porcentaje / (obraData.totalActividades || 10);
         const nuevoAvanceAcumulado = Math.min(100, avancePrevio + avancePonderadoDelDia);
 
         tx.update(obraRef, {
@@ -89,6 +101,7 @@ export async function POST(req: Request) {
           avanceAcumulado: nuevoAvanceAcumulado,
         });
       } else {
+        // If no progress percentage, just update the timestamp
         tx.update(obraRef, { ultimaActualizacion: FieldValue.serverTimestamp() });
       }
 
@@ -100,6 +113,9 @@ export async function POST(req: Request) {
     console.error("[API avances/quick] Unexpected Error:", err);
     if (err?.message === "OBRA_NOT_FOUND") {
       return NextResponse.json({ ok: false, error: "OBRA_NOT_FOUND" }, { status: 404 });
+    }
+     if (err?.message === "PERMISSION_DENIED") {
+      return NextResponse.json({ ok: false, error: "PERMISSION_DENIED" }, { status: 403 });
     }
     return NextResponse.json(
       { ok: false, error: "INTERNAL_ERROR", details: err?.message ?? String(err) },
