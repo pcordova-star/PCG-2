@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useState, FormEvent, useMemo } from "react";
+import React, { useEffect, useState, FormEvent, useMemo, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useAuth } from "../../../context/AuthContext";
 
@@ -99,7 +99,7 @@ function EstadoBadge({ estado }: { estado: EstadoActividad }) {
   );
 }
 
-export default function ProgramacionPage() {
+function ProgramacionPageInner() {
   const { user, loading: loadingAuth } = useAuth();
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -634,5 +634,13 @@ export default function ProgramacionPage() {
       </section>
 
     </div>
+  );
+}
+
+export default function ProgramacionPage() {
+  return (
+    <Suspense fallback={<div>Cargando programación...</div>}>
+      <ProgramacionPageInner />
+    </Suspense>
   );
 }
