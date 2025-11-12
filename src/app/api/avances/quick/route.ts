@@ -1,71 +1,78 @@
 import { NextResponse } from "next/server";
+import { z } from "zod";
+import { headers } from "next/headers";
 import { getAdminApp } from "@/lib/firebaseAdmin";
 import { getAuth } from "firebase-admin/auth";
 import { getFirestore, FieldValue } from "firebase-admin/firestore";
 
-export async function POST(req: Request) {
+// Esquema de entrada (JSON). Fotos llegan como URLs ya subidas a Storage.
+const AvanceSchema = z.object({
+  obraId: z.string().min(1),
+  porcentaje: z.number().min(0).max(100),
+  comentario: z.string().optional().default(""),
+  fotos: z.array(z.string().url()).optional().default([]),
+  visibleCliente: z.boolean().optional().default(true),
+});
+
+async function getUserFromAuthHeader() {
   const adminApp = getAdminApp();
   const auth = getAuth(adminApp);
-  const db = getFirestore(adminApp);
-
+  
+  // Espera Authorization: Bearer <ID_TOKEN>
+  const authHeader = headers().get("authorization");
+  if (!authHeader?.startsWith("Bearer ")) return null;
+  const token = authHeader.split(" ")[1];
   try {
-    // 1. Autenticación
-    const token = req.headers.get("Authorization")?.split("Bearer ")[1];
-    if (!token) {
-      return NextResponse.json(
-        { error: "No autorizado: Token no proporcionado" },
-        { status: 401 }
-      );
-    }
-    const decodedToken = await auth.verifyIdToken(token);
-    const uid = decodedToken.uid;
+      const decoded = await auth.verifyIdToken(token);
+      return decoded; // { uid, email, ... }
+  } catch (error) {
+      console.warn("Invalid auth token received:", error);
+      return null;
+  }
+}
 
-    // 2. Validación del Body
-    const body = await req.json();
-    const { obraId, porcentaje, comentario, fotos, visibleCliente } = body;
-
-    if (!obraId || porcentaje === undefined) {
-      return NextResponse.json(
-        { error: "Faltan campos obligatorios: obraId y porcentaje" },
-        { status: 400 }
-      );
+export async function POST(req: Request) {
+  try {
+    const user = await getUserFromAuthHeader();
+    if (!user) {
+      return NextResponse.json({ ok: false, error: "UNAUTHORIZED" }, { status: 401 });
     }
 
-    const numPorcentaje = Number(porcentaje);
-    if (isNaN(numPorcentaje) || numPorcentaje < 0 || numPorcentaje > 100) {
-        return NextResponse.json({ error: "Porcentaje inválido" }, { status: 400 });
+    const json = await req.json().catch(() => null);
+    const parsed = AvanceSchema.safeParse(json);
+    if (!parsed.success) {
+      return NextResponse.json({ ok: false, error: "BAD_REQUEST", details: parsed.error.flatten() }, { status: 400 });
     }
+    const { obraId, porcentaje, comentario, fotos, visibleCliente } = parsed.data;
 
-    // 3. Validación de Permisos (simplificado)
-    // En una app real, verificarías si el UID tiene rol en la obra.
+    const adminApp = getAdminApp();
+    const db = getFirestore(adminApp);
+
+    // Verifica que la obra exista
     const obraRef = db.collection("obras").doc(obraId);
-    const obraDoc = await obraRef.get();
-    if (!obraDoc.exists) {
-      return NextResponse.json({ error: "Obra no encontrada" }, { status: 404 });
+    const obraSnap = await obraRef.get();
+    if (!obraSnap.exists) {
+      return NextResponse.json({ ok: false, error: "OBRA_NOT_FOUND" }, { status: 404 });
     }
-    // const obraData = obraDoc.data();
-    // if (!obraData.miembros || !obraData.miembros[uid]) {
-    //    return NextResponse.json({ error: "No tienes permisos sobre esta obra" }, { status: 403 });
-    // }
 
-    // 4. Crear el nuevo documento de avance
-    const avancesRef = obraRef.collection("avancesDiarios");
-    const nuevoAvance = {
+    // Documento de avance
+    const avanceData = {
       obraId,
-      porcentajeAvance: numPorcentaje,
-      comentario: comentario || "",
-      fotos: fotos || [],
-      visibleCliente: visibleCliente !== false, // default true
+      porcentajeAvance: porcentaje,
+      comentario,
+      fotos,
+      visibleCliente,
       fecha: FieldValue.serverTimestamp(),
       creadoPor: {
-        uid,
-        displayName: decodedToken.name || decodedToken.email || "",
+        uid: user.uid,
+        displayName: user.name || user.email || "Usuario sin nombre",
       },
     };
-    const avanceDocRef = await avancesRef.add(nuevoAvance);
 
-    // 5. Actualizar agregados en la obra principal (en transacción)
-    let resumenActualizado: any = {};
+    const avancesRef = obraRef.collection("avancesDiarios");
+    const write = await avancesRef.add(avanceData);
+
+    // (Opcional) actualizar agregados de programación aquí si corresponde
     await db.runTransaction(async (transaction) => {
         const obraDocTx = await transaction.get(obraRef);
         if (!obraDocTx.exists) {
@@ -73,36 +80,18 @@ export async function POST(req: Request) {
         }
         const currentData = obraDocTx.data() || {};
         
-        // El avance acumulado debería ser más complejo.
-        // Por ahora, solo sumamos el del día, con un cap de 100.
         const avancePrevio = currentData.avanceAcumulado || 0;
-        const nuevoAvanceAcumulado = Math.min(100, avancePrevio + numPorcentaje);
+        const nuevoAvanceAcumulado = Math.min(100, avancePrevio + porcentaje);
 
         transaction.update(obraRef, {
             ultimaActualizacion: FieldValue.serverTimestamp(),
             avanceAcumulado: nuevoAvanceAcumulado,
         });
-
-        resumenActualizado = {
-            avanceAcumulado: nuevoAvanceAcumulado
-        };
     });
 
-
-    return NextResponse.json({
-      ok: true,
-      avanceId: avanceDocRef.id,
-      resumenActualizado,
-    });
-
-  } catch (error: any) {
-    console.error("[API /api/avances/quick] Error:", error);
-    if (error.code === 'auth/id-token-expired') {
-        return NextResponse.json({ error: "Token expirado, por favor inicie sesión de nuevo." }, { status: 401 });
-    }
-    return NextResponse.json(
-      { error: "Error interno del servidor", details: error.message },
-      { status: 500 }
-    );
+    return NextResponse.json({ ok: true, id: write.id }, { status: 201 });
+  } catch (err: any) {
+    console.error("[API avances/quick] Unexpected Error:", err);
+    return NextResponse.json({ ok: false, error: "INTERNAL_ERROR" }, { status: 500 });
   }
 }
