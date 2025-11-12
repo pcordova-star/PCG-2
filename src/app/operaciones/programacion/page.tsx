@@ -19,9 +19,8 @@ import {
   Timestamp,
   serverTimestamp
 } from "firebase/firestore";
-import { firebaseDb, firebaseStorage, firebaseFunctions } from "../../../lib/firebaseClient";
+import { firebaseDb, firebaseStorage } from "../../../lib/firebaseClient";
 import { ref, uploadBytes, getDownloadURL, deleteObject } from "firebase/storage";
-import { httpsCallable } from "firebase/functions";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -109,104 +108,6 @@ type EstadoDePago = {
   total: number;
   obraId: string;
 };
-
-// --- Start Helper Functions ---
-function toNumberSafe(v: any, def = 0) {
-  const n = Number(v);
-  return Number.isFinite(n) ? n : def;
-}
-
-function toStringArray(a: any): string[] {
-  if (!Array.isArray(a)) return [];
-  return a.map((x) => String(x)).filter((s) => s.length > 0);
-}
-
-function deepCleanForFirestore(input: any): any {
-  if (input === undefined) return undefined;
-  if (input === null) return null;
-
-  if (Array.isArray(input)) {
-    const arr = input
-      .map((v) => deepCleanForFirestore(v))
-      .filter((v) => v !== undefined);
-    return arr;
-  }
-
-  const t = typeof input;
-  if (t === "string" || t === "boolean") return input;
-  if (t === "number") return Number.isFinite(input) ? input : undefined;
-
-  if (input instanceof Date) return input;
-  if (typeof input?.toDate === "function" && "seconds" in input && "nanoseconds" in input) return input;
-  if (input?._methodName === "FieldValue.serverTimestamp" || input?._delegate?._methodName === "FieldValue.serverTimestamp") return input;
-
-  if (t === "object") {
-    if (input?.$$typeof || input?._owner) throw new Error("React element en payload");
-    if (input?.nativeEvent || input?.preventDefault || input?.stopPropagation) throw new Error("SyntheticEvent en payload");
-    if (typeof File !== "undefined" && input instanceof File) throw new Error("File en payload; usa URL");
-    if (input?.id && input?.ref && input?.exists !== undefined) throw new Error("Snapshot en payload");
-    if (input?.path && input?.parent && input?.firestore) throw new Error("Ref en payload");
-
-    const out: any = {};
-    for (const [k, v] of Object.entries(input)) {
-      const cleaned = deepCleanForFirestore(v);
-      if (cleaned !== undefined) out[k] = cleaned;
-    }
-    return out;
-  }
-
-  return undefined;
-}
-
-async function submitAvanceProgramacion({
-  db,
-  obraId,
-  actividadSeleccionada,
-  porcentaje,
-  comentario,
-  uploadedUrls,
-  visibleCliente,
-  currentUser,
-}: any) {
-  const payloadRaw = {
-    obraId: String(obraId),
-    actividadId: actividadSeleccionada?.id ?? null,
-    porcentajeAvance: toNumberSafe(porcentaje, 0),
-    comentario: comentario ? String(comentario) : "",
-    fotos: toStringArray(uploadedUrls),
-    visibleCliente: visibleCliente === true,
-    fecha: serverTimestamp(),
-    creadoPor: {
-      uid: String(currentUser?.uid || ""),
-      displayName: String(currentUser?.displayName || currentUser?.email || ""),
-    },
-  };
-
-  const payload = deepCleanForFirestore(payloadRaw);
-  
-  const registrarAvance = httpsCallable(firebaseFunctions, "registrarAvanceRapido");
-  await registrarAvance(payload);
-}
-// --- End Helper Functions ---
-
-
-function EstadoBadge({ estado }: { estado: EstadoActividad }) {
-  const className = {
-    Terminada: "bg-green-100 text-green-800 border-green-200",
-    "En curso": "bg-blue-100 text-blue-800 border-blue-200",
-    Pendiente: "bg-yellow-100 text-yellow-800 border-yellow-200",
-    Atrasada: "bg-red-100 text-red-800 border-red-200"
-  }[estado];
-
-  return (
-    <Badge variant="outline" className={cn("font-semibold whitespace-nowrap", className)}>
-      {estado}
-    </Badge>
-  );
-}
-
-const MAX_FOTOS = 5;
-const MAX_TAMANO_MB = 5;
 
 function ProgramacionPageInner() {
   const { user, loading: loadingAuth } = useAuth();
@@ -482,20 +383,12 @@ function ProgramacionPageInner() {
       setError("Debes seleccionar una obra y estar autenticado.");
       return;
     }
-    const { actividadId, fecha, porcentajeAvance, comentario } = formAvance;
+    const { actividadId, porcentajeAvance, comentario } = formAvance;
     
-    if (!fecha || !comentario.trim()) {
-      setError("La fecha y el comentario son obligatorios.");
+    const porcentaje = Number(porcentajeAvance);
+    if (isNaN(porcentaje) || porcentaje < 0 || porcentaje > 100) {
+      setError("El porcentaje de avance debe ser un número entre 0 y 100.");
       return;
-    }
-    
-    let porcentaje = 0;
-    if (porcentajeAvance) {
-      porcentaje = Number(porcentajeAvance);
-      if (isNaN(porcentaje) || porcentaje < 0 || porcentaje > 100) {
-        setError("El porcentaje de avance debe ser un número entre 0 y 100.");
-        return;
-      }
     }
 
     setUploading(true);
@@ -512,22 +405,41 @@ function ProgramacionPageInner() {
       
       const actividadSeleccionada = actividadId === 'null' ? null : actividades.find(a => a.id === actividadId);
       
-      await submitAvanceProgramacion({
-        db: firebaseDb,
+      const token = await user.getIdToken();
+      const payload = {
         obraId: obraSeleccionadaId,
-        actividadSeleccionada: actividadSeleccionada,
-        porcentaje: porcentaje,
+        actividadId: actividadSeleccionada?.id ?? null,
+        porcentaje,
         comentario: comentario.trim(),
-        uploadedUrls: urlsFotos,
-        visibleCliente: visibleCliente,
-        currentUser: user,
+        fotos: urlsFotos,
+        visibleCliente: !!visibleCliente,
+      };
+
+      const response = await fetch('/api/avances/quick', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify(payload)
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Error en el servidor');
+      }
+
+      toast({
+        title: "Avance registrado con éxito",
+        description: `El avance para la obra ha sido guardado.`,
       });
       
+      // Optimistic UI update
       const nuevoAvance: AvanceDiario = { 
         id: `local-${Date.now()}`,
         obraId: obraSeleccionadaId,
         actividadId: actividadId === "null" ? undefined : actividadId, 
-        fecha, 
+        fecha: new Date().toISOString(), 
         porcentajeAvance: porcentaje, 
         comentario: comentario.trim(), 
         fotos: urlsFotos,
@@ -539,11 +451,6 @@ function ProgramacionPageInner() {
       };
       
       setAvances((prev) => [nuevoAvance, ...prev].sort((a,b) => a.fecha < b.fecha ? 1 : -1));
-      
-      toast({
-        title: "Avance registrado con éxito",
-        description: `El avance para la obra ha sido guardado. ${visibleCliente ? 'Se notificará al cliente.' : ''}`,
-      });
       
       setFormAvance({ actividadId: "null", fecha: new Date().toISOString().slice(0, 10), porcentajeAvance: "", comentario: "" });
       setArchivos([]);
@@ -608,8 +515,8 @@ function ProgramacionPageInner() {
       
       const actividadesConAvance = actividades.map(act => {
         const ultimoAvance = avances
-          .filter(av => av.actividadId === act.id && av.fecha <= fechaCorteEdp) 
-          .sort((a, b) => a.fecha > b.fecha ? -1 : 1)[0];
+          .filter(av => av.actividadId === act.id && new Date(av.fecha) <= new Date(fechaCorteEdp + 'T23:59:59')) 
+          .sort((a, b) => new Date(b.fecha).getTime() - new Date(a.fecha).getTime())[0];
         
         const porcentajeAvance = ultimoAvance?.porcentajeAvance ?? 0;
         const montoProyectado = act.precioContrato * (porcentajeAvance / 100);
@@ -914,7 +821,7 @@ function ProgramacionPageInner() {
                     <CardContent className="p-4 space-y-2">
                         <div className="flex items-start justify-between gap-2">
                             <div>
-                                <p className="font-semibold text-primary">{new Date(av.fecha + 'T00:00:00').toLocaleDateString('es-CL')}{av.porcentajeAvance ? ` · ${av.porcentajeAvance}% avance` : ''}</p>
+                                <p className="font-semibold text-primary">{new Date(av.fecha).toLocaleDateString('es-CL', {timeZone: 'UTC'})}{av.porcentajeAvance ? ` · ${av.porcentajeAvance}% avance` : ''}</p>
                                 {actividadAsociada ? (
                                     <p className="text-xs font-medium text-foreground mt-1">{actividadAsociada.nombreActividad}</p>
                                 ) : (
@@ -937,7 +844,7 @@ function ProgramacionPageInner() {
                                         <AlertDialogHeader>
                                             <AlertDialogTitle>¿Desea eliminar este registro de avance?</AlertDialogTitle>
                                             <AlertDialogDescription>
-                                                Esta acción es irreversible. Se eliminará el registro del día {new Date(av.fecha + 'T00:00:00').toLocaleDateString('es-CL')} y todas sus fotos asociadas.
+                                                Esta acción es irreversible. Se eliminará el registro del día {new Date(av.fecha).toLocaleDateString('es-CL', {timeZone: 'UTC'})} y todas sus fotos asociadas.
                                             </AlertDialogDescription>
                                         </AlertDialogHeader>
                                         <AlertDialogFooter>
