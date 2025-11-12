@@ -100,8 +100,8 @@ export default function ClienteObraPage() {
                 });
                 
                 const ultimoAvance = avancesPublicados[0];
-                const avanceAcumulado = ultimoAvance?.porcentaje ?? obraData.avanceAcumulado ?? 0;
-                const ultimaActualizacion = ultimoAvance?.fecha ?? null;
+                const avanceAcumulado = obraData.avanceAcumulado ?? 0;
+                const ultimaActualizacion = ultimoAvance?.fecha ?? obraData.ultimaActualizacion?.toDate().toISOString() ?? null;
 
                 return {
                     obraId,
