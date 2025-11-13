@@ -3,7 +3,6 @@
 import { useEffect, useState } from 'react';
 import { ref, getDownloadURL } from 'firebase/storage';
 import { firebaseStorage } from '@/lib/firebaseClient';
-import Image from 'next/image';
 import { Skeleton } from '@/components/ui/skeleton';
 
 type ImageFromStorageProps = {
@@ -53,13 +52,10 @@ export default function ImageFromStorage({ storagePath }: ImageFromStorageProps)
 
   return (
     <div className="relative aspect-square w-full h-full overflow-hidden rounded-md">
-      <Image
+      <img
         src={imageUrl}
         alt={`Imagen de avance desde ${storagePath}`}
-        fill
-        sizes="(max-width: 640px) 50vw, (max-width: 768px) 33vw, 25vw"
-        className="object-cover transition-transform hover:scale-105"
-        priority={false} // No es prioritaria para LCP
+        className="w-full h-full object-cover transition-transform hover:scale-105"
       />
     </div>
   );
