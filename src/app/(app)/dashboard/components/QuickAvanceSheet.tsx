@@ -212,65 +212,19 @@ export function QuickAvanceSheet({ open, onOpenChange }: QuickAvanceSheetProps) 
 
         setUploadProgress(null);
 
-        const useCallable = process.env.NEXT_PUBLIC_AVANCE_USA_CALLABLE === "1";
-        let callableFailed = false;
+        const registrarAvance = httpsCallable(firebaseFunctions, "registrarAvanceRapido");
+        const result: any = await registrarAvance({
+            obraId,
+            actividadId: actividadId || null,
+            porcentaje: numPorcentaje,
+            comentario,
+            fotos: uploadedUrls,
+            visibleCliente: !!visibleCliente,
+            creadoPorNombre: user.displayName || user.email,
+        });
 
-        if (useCallable) {
-          try {
-            const registrarAvance = httpsCallable(firebaseFunctions, "registrarAvanceRapido");
-            const result: any = await registrarAvance({
-              obraId,
-              actividadId: actividadId || null,
-              porcentaje: numPorcentaje,
-              comentario,
-              fotos: uploadedUrls,
-              visibleCliente: !!visibleCliente,
-            });
-            if (!result?.data?.ok) {
-              throw new Error(result?.data?.error || "Error al registrar avance con la función callable.");
-            }
-          } catch (error) {
-            console.warn("Callable function 'registrarAvanceRapido' failed, falling back to API route.", error);
-            callableFailed = true;
-          }
-        }
-
-        if (!useCallable || callableFailed) {
-            const token = await user.getIdToken();
-            const response = await fetch('/api/avances/quick', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${token}`
-                },
-                body: JSON.stringify({
-                    obraId,
-                    actividadId: actividadId || null,
-                    porcentaje: numPorcentaje,
-                    comentario,
-                    fotos: uploadedUrls,
-                    visibleCliente: !!visibleCliente,
-                }),
-            });
-
-            if (!response.ok) {
-              // Intenta leer la respuesta como texto para no perder el mensaje de error.
-              const errorText = await response.text();
-              console.error("Error al guardar avance rápido (respuesta del servidor):", errorText);
-              
-              try {
-                // Intenta parsear como JSON, si falla, usa el texto plano.
-                const errorData = JSON.parse(errorText);
-                const mensajeBase = errorData.error ?? "Error del servidor";
-                const detalle = errorData.details ?? errorData.code ?? "";
-                throw new Error(
-                  detalle ? `${mensajeBase}: ${detalle}` : `${mensajeBase} (status ${response.status})`
-                );
-              } catch (parseError) {
-                // Si el parseo falla, el error era texto plano.
-                throw new Error(errorText || `Error del servidor (status ${response.status})`);
-              }
-            }
+        if (!result?.data?.ok) {
+            throw new Error(result?.data?.error || "Error desconocido al registrar avance con la función callable.");
         }
 
         toast({
@@ -282,11 +236,11 @@ export function QuickAvanceSheet({ open, onOpenChange }: QuickAvanceSheetProps) 
         onOpenChange(false);
 
     } catch (error: any) {
-        console.error("Failed to submit avance:", error);
+        console.error("Fallo al enviar el avance:", error);
         toast({
             variant: "destructive",
             title: "Error al registrar avance",
-            description: error.message || "Ocurrió un problema. Inténtalo de nuevo.",
+            description: error.message || "Ocurrió un problema inesperado. Inténtalo de nuevo.",
         });
     } finally {
         setIsSubmitting(false);
