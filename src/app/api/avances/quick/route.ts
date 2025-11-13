@@ -61,14 +61,14 @@ export async function POST(req: Request) {
       
       const obraData = obraSnap.data() || {};
       
-      // Basic permission check: does the user have access to this obra?
-      // This is a simplified check. A real-world app would have more complex roles.
-      // const miembros = obraData.miembros || [];
-      // const tienePermiso = miembros.some((m: any) => m.uid === user.uid) || obraData.creadoPorUid === user.uid;
+      // Permisos: el usuario debe ser el creador de la obra o estar en la lista de miembros.
+      const miembros = obraData.miembros || [];
+      const esCreador = obraData.creadoPorUid === user.uid;
+      const esMiembro = Array.isArray(miembros) && miembros.some((m: any) => m.uid === user.uid);
 
-      // if (!tienePermiso) {
-      //   throw new Error("PERMISSION_DENIED");
-      // }
+      if (!esCreador && !esMiembro) {
+        throw new Error("PERMISSION_DENIED");
+      }
 
       const avancesRef = obraRef.collection("avancesDiarios");
       const nuevoAvanceRef = avancesRef.doc();
