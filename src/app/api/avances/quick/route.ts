@@ -1,3 +1,4 @@
+// src/app/api/avances/quick/route.ts
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { getAdminApp } from "@/lib/firebaseAdmin";
@@ -28,24 +29,42 @@ async function getUserFromAuthHeader(req: Request) {
   try {
     return await auth.verifyIdToken(token);
   } catch (error) {
-    console.warn("Invalid auth token received:", error);
+    console.warn("[avances/quick] Invalid auth token:", error);
     return null;
   }
 }
 
 export async function POST(req: Request) {
+  console.log("[avances/quick] POST recibido");
+
   try {
+    // 1) Autenticación
     const user = await getUserFromAuthHeader(req);
     if (!user) {
+      console.warn("[avances/quick] sin usuario autenticado");
       return NextResponse.json(
         { ok: false, error: "UNAUTHORIZED" },
         { status: 401 }
       );
     }
+    console.log("[avances/quick] user.uid =", user.uid);
 
-    const json = await req.json().catch(() => null);
+    // 2) Parseo del body
+    const json = await req.json().catch((e) => {
+      console.error("[avances/quick] error leyendo JSON:", e);
+      return null;
+    });
+
+    if (!json) {
+      return NextResponse.json(
+        { ok: false, error: "BAD_REQUEST", details: "Body vacío o inválido" },
+        { status: 400 }
+      );
+    }
+
     const parsed = AvanceSchema.safeParse(json);
     if (!parsed.success) {
+      console.warn("[avances/quick] BAD_REQUEST", parsed.error.flatten());
       return NextResponse.json(
         { ok: false, error: "BAD_REQUEST", details: parsed.error.flatten() },
         { status: 400 }
@@ -61,111 +80,121 @@ export async function POST(req: Request) {
       visibleCliente,
     } = parsed.data;
 
+    console.log("[avances/quick] payload validado", {
+      obraId,
+      actividadId,
+      porcentaje,
+      visibleCliente,
+      fotosCount: fotos.length,
+    });
+
+    // 3) Firestore simple (SIN transacción para probar)
     const adminApp = getAdminApp();
     const db = getFirestore(adminApp);
     const obraRef = db.collection("obras").doc(obraId);
 
-    const avanceId = await db.runTransaction(async (tx) => {
-      const obraSnap = await tx.get(obraRef);
-      if (!obraSnap.exists) throw new Error("OBRA_NOT_FOUND");
+    console.log("[avances/quick] leyendo obra", obraId);
+    const obraSnap = await obraRef.get();
 
-      const obraData = obraSnap.data() || {};
-
-      // ----- LÓGICA DE PERMISOS FLEXIBLE -----
-      const currentUid = user.uid;
-
-      const miembrosRaw = obraData.miembros ?? [];
-      let esMiembro = false;
-
-      if (Array.isArray(miembrosRaw)) {
-        esMiembro = miembrosRaw.some((m: any) => {
-          if (!m) return false;
-          if (typeof m === "string") return m === currentUid;
-          if (typeof m === "object") {
-            return m.uid === currentUid || m.id === currentUid;
-          }
-          return false;
-        });
-      }
-
-      const esCreador =
-        obraData.creadoPorUid === currentUid ||
-        obraData.ownerUid === currentUid ||
-        obraData.creadoPor?.uid === currentUid;
-
-      if (!esCreador && !esMiembro) {
-        console.warn("[avances/quick] PERMISSION_DENIED", {
-          obraId,
-          currentUid,
-          creadoPorUid: obraData.creadoPorUid,
-          ownerUid: obraData.ownerUid,
-          creadoPor: obraData.creadoPor,
-          miembrosRaw,
-        });
-        throw new Error("PERMISSION_DENIED");
-      }
-      // ----------------------------------------
-
-      const avancesRef = obraRef.collection("avancesDiarios");
-      const nuevoAvanceRef = avancesRef.doc();
-
-      const avanceData = {
-        obraId,
-        actividadId: actividadId || null,
-        porcentajeAvance: porcentaje,
-        comentario,
-        fotos,
-        visibleCliente,
-        fecha: FieldValue.serverTimestamp(),
-        creadoPor: {
-          uid: currentUid,
-          displayName: (user as any).name || (user as any).email || "",
-        },
-      };
-
-      tx.set(nuevoAvanceRef, avanceData);
-
-      if (porcentaje > 0) {
-        const avancePrevio = Number(obraData.avanceAcumulado || 0);
-        const totalActividades = Number(obraData.totalActividades);
-        const avancePonderadoDelDia =
-          totalActividades > 0 ? porcentaje / totalActividades : 0;
-        const nuevoAvanceAcumulado = Math.min(
-          100,
-          avancePrevio + avancePonderadoDelDia
-        );
-
-        tx.update(obraRef, {
-          ultimaActualizacion: FieldValue.serverTimestamp(),
-          avanceAcumulado: nuevoAvanceAcumulado,
-        });
-      } else {
-        tx.update(obraRef, {
-          ultimaActualizacion: FieldValue.serverTimestamp(),
-        });
-      }
-
-      return nuevoAvanceRef.id;
-    });
-
-    return NextResponse.json({ ok: true, id: avanceId }, { status: 201 });
-  } catch (err: any) {
-    console.error("[API avances/quick] Unexpected Error:", err);
-
-    if (err?.message === "OBRA_NOT_FOUND") {
+    if (!obraSnap.exists) {
+      console.warn("[avances/quick] OBRA_NOT_FOUND", obraId);
       return NextResponse.json(
         { ok: false, error: "OBRA_NOT_FOUND" },
         { status: 404 }
       );
     }
 
-    if (err?.message === "PERMISSION_DENIED") {
+    const obraData = obraSnap.data() || {};
+    const currentUid = user.uid;
+
+    // ----- permisos MUY explícitos -----
+    const miembrosRaw = obraData.miembros ?? [];
+    let esMiembro = false;
+
+    if (Array.isArray(miembrosRaw)) {
+      esMiembro = miembrosRaw.some((m: any) => {
+        if (!m) return false;
+        if (typeof m === "string") return m === currentUid;
+        if (typeof m === "object") {
+          return m.uid === currentUid || m.id === currentUid;
+        }
+        return false;
+      });
+    }
+
+    const esCreador =
+      obraData.creadoPorUid === currentUid ||
+      obraData.ownerUid === currentUid ||
+      obraData.creadoPor?.uid === currentUid;
+
+    if (!esCreador && !esMiembro) {
+      console.warn("[avances/quick] PERMISSION_DENIED", {
+        obraId,
+        currentUid,
+        creadoPorUid: obraData.creadoPorUid,
+        ownerUid: obraData.ownerUid,
+        creadoPor: obraData.creadoPor,
+        miembrosRaw,
+      });
       return NextResponse.json(
         { ok: false, error: "PERMISSION_DENIED" },
         { status: 403 }
       );
     }
+    // ------------------------------------
 
+    console.log("[avances/quick] permisos OK, creando avance");
+
+    const avancesRef = obraRef.collection("avancesDiarios");
+    const nuevoAvanceRef = avancesRef.doc();
+
+    const avanceData = {
+      obraId,
+      actividadId: actividadId || null,
+      porcentajeAvance: porcentaje,
+      comentario,
+      fotos,
+      visibleCliente,
+      fecha: FieldValue.serverTimestamp(),
+      creadoPor: {
+        uid: currentUid,
+        displayName: (user as any).name || (user as any).email || "",
+      },
+    };
+
+    await nuevoAvanceRef.set(avanceData);
+
+    // Actualizar resumen de obra (sin transacción)
+    const avancePrevio = Number(obraData.avanceAcumulado || 0);
+    const totalActividades = Number(obraData.totalActividades || 0);
+    const avancePonderadoDelDia =
+      porcentaje > 0 && totalActividades > 0
+        ? porcentaje / totalActividades
+        : 0;
+    const nuevoAvanceAcumulado = Math.min(
+      100,
+      avancePrevio + avancePonderadoDelDia
+    );
+
+    console.log("[avances/quick] actualizando obra", {
+      avancePrevio,
+      avancePonderadoDelDia,
+      nuevoAvanceAcumulado,
+    });
+
+    await obraRef.update({
+      ultimaActualizacion: FieldValue.serverTimestamp(),
+      avanceAcumulado: nuevoAvanceAcumulado,
+    });
+
+    console.log("[avances/quick] OK, avanceId =", nuevoAvanceRef.id);
+
+    return NextResponse.json(
+      { ok: true, id: nuevoAvanceRef.id },
+      { status: 201 }
+    );
+  } catch (err: any) {
+    console.error("[avances/quick] ERROR NO CONTROLADO", err);
     return NextResponse.json(
       {
         ok: false,
