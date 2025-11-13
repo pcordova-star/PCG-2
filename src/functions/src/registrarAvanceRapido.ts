@@ -74,7 +74,7 @@ export const registrarAvanceRapido = onCall({ region: "southamerica-west1", cors
         // Evitar división por cero o NaN
         const avancePonderadoDelDia = totalActividades > 0 ? porcentaje / totalActividades : 0;
 
-        if (avancePonderadoDelDia > 0) {
+        if (avancePonderadoDelDia > 0 && !isNaN(avancePonderadoDelDia)) {
             const nuevoAvanceAcumulado = Math.min(100, avancePrevio + avancePonderadoDelDia);
             tx.update(obraRef, {
               ultimaActualizacion: FieldValue.serverTimestamp(),
