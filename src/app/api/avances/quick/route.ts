@@ -1,4 +1,3 @@
-// src/app/api/avances/quick/route.ts
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { getAdminApp } from "@/lib/firebaseAdmin";
@@ -38,7 +37,10 @@ export async function POST(req: Request) {
   try {
     const user = await getUserFromAuthHeader(req);
     if (!user) {
-      return NextResponse.json({ ok: false, error: "UNAUTHORIZED" }, { status: 401 });
+      return NextResponse.json(
+        { ok: false, error: "UNAUTHORIZED" },
+        { status: 401 }
+      );
     }
 
     const json = await req.json().catch(() => null);
@@ -50,7 +52,15 @@ export async function POST(req: Request) {
       );
     }
 
-    const { obraId, actividadId, porcentaje, comentario, fotos, visibleCliente } = parsed.data;
+    const {
+      obraId,
+      actividadId,
+      porcentaje,
+      comentario,
+      fotos,
+      visibleCliente,
+    } = parsed.data;
+
     const adminApp = getAdminApp();
     const db = getFirestore(adminApp);
     const obraRef = db.collection("obras").doc(obraId);
@@ -58,17 +68,43 @@ export async function POST(req: Request) {
     const avanceId = await db.runTransaction(async (tx) => {
       const obraSnap = await tx.get(obraRef);
       if (!obraSnap.exists) throw new Error("OBRA_NOT_FOUND");
-      
+
       const obraData = obraSnap.data() || {};
-      
-      // Permisos: el usuario debe ser el creador de la obra o estar en la lista de miembros.
-      const miembros = obraData.miembros || [];
-      const esCreador = obraData.creadoPorUid === user.uid;
-      const esMiembro = Array.isArray(miembros) && miembros.some((m: any) => m.uid === user.uid);
+
+      // ----- LÓGICA DE PERMISOS FLEXIBLE -----
+      const currentUid = user.uid;
+
+      const miembrosRaw = obraData.miembros ?? [];
+      let esMiembro = false;
+
+      if (Array.isArray(miembrosRaw)) {
+        esMiembro = miembrosRaw.some((m: any) => {
+          if (!m) return false;
+          if (typeof m === "string") return m === currentUid;
+          if (typeof m === "object") {
+            return m.uid === currentUid || m.id === currentUid;
+          }
+          return false;
+        });
+      }
+
+      const esCreador =
+        obraData.creadoPorUid === currentUid ||
+        obraData.ownerUid === currentUid ||
+        obraData.creadoPor?.uid === currentUid;
 
       if (!esCreador && !esMiembro) {
+        console.warn("[avances/quick] PERMISSION_DENIED", {
+          obraId,
+          currentUid,
+          creadoPorUid: obraData.creadoPorUid,
+          ownerUid: obraData.ownerUid,
+          creadoPor: obraData.creadoPor,
+          miembrosRaw,
+        });
         throw new Error("PERMISSION_DENIED");
       }
+      // ----------------------------------------
 
       const avancesRef = obraRef.collection("avancesDiarios");
       const nuevoAvanceRef = avancesRef.doc();
@@ -82,24 +118,31 @@ export async function POST(req: Request) {
         visibleCliente,
         fecha: FieldValue.serverTimestamp(),
         creadoPor: {
-          uid: user.uid,
-          displayName: (user as any).name || user.email || "",
+          uid: currentUid,
+          displayName: (user as any).name || (user as any).email || "",
         },
       };
+
       tx.set(nuevoAvanceRef, avanceData);
 
       if (porcentaje > 0) {
         const avancePrevio = Number(obraData.avanceAcumulado || 0);
         const totalActividades = Number(obraData.totalActividades);
-        const avancePonderadoDelDia = totalActividades > 0 ? porcentaje / totalActividades : 0;
-        const nuevoAvanceAcumulado = Math.min(100, avancePrevio + avancePonderadoDelDia);
+        const avancePonderadoDelDia =
+          totalActividades > 0 ? porcentaje / totalActividades : 0;
+        const nuevoAvanceAcumulado = Math.min(
+          100,
+          avancePrevio + avancePonderadoDelDia
+        );
 
         tx.update(obraRef, {
           ultimaActualizacion: FieldValue.serverTimestamp(),
           avanceAcumulado: nuevoAvanceAcumulado,
         });
       } else {
-        tx.update(obraRef, { ultimaActualizacion: FieldValue.serverTimestamp() });
+        tx.update(obraRef, {
+          ultimaActualizacion: FieldValue.serverTimestamp(),
+        });
       }
 
       return nuevoAvanceRef.id;
@@ -108,14 +151,27 @@ export async function POST(req: Request) {
     return NextResponse.json({ ok: true, id: avanceId }, { status: 201 });
   } catch (err: any) {
     console.error("[API avances/quick] Unexpected Error:", err);
+
     if (err?.message === "OBRA_NOT_FOUND") {
-      return NextResponse.json({ ok: false, error: "OBRA_NOT_FOUND" }, { status: 404 });
+      return NextResponse.json(
+        { ok: false, error: "OBRA_NOT_FOUND" },
+        { status: 404 }
+      );
     }
-     if (err?.message === "PERMISSION_DENIED") {
-      return NextResponse.json({ ok: false, error: "PERMISSION_DENIED" }, { status: 403 });
+
+    if (err?.message === "PERMISSION_DENIED") {
+      return NextResponse.json(
+        { ok: false, error: "PERMISSION_DENIED" },
+        { status: 403 }
+      );
     }
+
     return NextResponse.json(
-      { ok: false, error: "INTERNAL_ERROR", details: err?.message ?? String(err) },
+      {
+        ok: false,
+        error: "INTERNAL_ERROR",
+        details: err?.message ?? String(err),
+      },
       { status: 500 }
     );
   }
