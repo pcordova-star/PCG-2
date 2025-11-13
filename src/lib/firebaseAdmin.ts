@@ -1,19 +1,40 @@
 // src/lib/firebaseAdmin.ts
 import 'server-only'
-import { cert, getApps, initializeApp, applicationDefault, App } from 'firebase-admin/app'
+import { App, cert, getApps, initializeApp } from 'firebase-admin/app'
+
+// Variable para almacenar la instancia de la app (singleton)
+let app: App | null = null;
 
 export function getAdminApp(): App {
-  const apps = getApps()
-  if (apps.length) return apps[0]!
+  // Si ya tenemos una instancia, la devolvemos
+  if (app) return app;
+
+  // Si ya hay apps inicializadas por otro medio, usa la primera
+  if (getApps().length > 0) {
+    app = getApps()[0]!;
+    return app;
+  }
   
-  // En Firebase Studio, usamos la variable de entorno SERVICE_ACCOUNT_JSON.
-  // En Cloud Run/App Hosting, `applicationDefault()` funcionará automáticamente.
-  const svc = process.env.FIREBASE_SERVICE_ACCOUNT
-    ? cert(JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT))
-    : applicationDefault()
-    
-  return initializeApp({
-    credential: svc,
-    projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID || process.env.GCLOUD_PROJECT,
-  })
+  // Lee las credenciales desde las variables de entorno
+  const projectId = process.env.FIREBASE_ADMIN_PROJECT_ID;
+  const clientEmail = process.env.FIREBASE_ADMIN_CLIENT_EMAIL;
+  const privateKey = process.env.FIREBASE_ADMIN_PRIVATE_KEY?.replace(/\\n/g, "\n");
+
+  // Valida que todas las variables necesarias estén presentes
+  if (!projectId || !clientEmail || !privateKey) {
+    throw new Error(
+      "Las variables de entorno de Firebase Admin no están configuradas. Asegúrate de definir FIREBASE_ADMIN_PROJECT_ID, FIREBASE_ADMIN_CLIENT_EMAIL y FIREBASE_ADMIN_PRIVATE_KEY."
+    );
+  }
+
+  // Inicializa la app con las credenciales
+  app = initializeApp({
+    credential: cert({
+      projectId,
+      clientEmail,
+      privateKey,
+    }),
+  });
+
+  return app;
 }
