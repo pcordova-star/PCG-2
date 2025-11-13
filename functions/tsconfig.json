@@ -6,7 +6,10 @@
     "outDir": "lib",
     "sourceMap": true,
     "strict": true,
-    "target": "es2017"
+    "target": "es2020",
+    "rootDir": "src",
+    "esModuleInterop": true,
+    "noImplicitAny": false
   },
   "compileOnSave": true,
   "include": [
