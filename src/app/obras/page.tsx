@@ -206,7 +206,7 @@ export default function ObrasPage() {
         <div className="space-y-1">
           <h2 className="text-2xl font-semibold">Gestión de Obras</h2>
           <p className="text-sm text-muted-foreground">
-            Crea, edita y gestiona las obras a las que se asocian los módulos de Operaciones y Prevención.
+            Crea, edita y gestiona las obras a las que se asocian los módulos de Operaciones y Prevención. Selecciona una obra para registrar su avance.
           </p>
         </div>
         <Button onClick={() => handleOpenDialog()}>
@@ -249,7 +249,11 @@ export default function ObrasPage() {
                 ) : (
                   obras.map((obra) => (
                     <TableRow key={obra.id}>
-                      <TableCell className="font-medium">{obra.nombreFaena}</TableCell>
+                      <TableCell className="font-medium">
+                        <Link href={`/obras/${obra.id}/registrar-avance`} className="hover:underline text-primary">
+                          {obra.nombreFaena}
+                        </Link>
+                      </TableCell>
                       <TableCell>{obra.jefeObraNombre}</TableCell>
                       <TableCell>{obra.prevencionistaNombre}</TableCell>
                       <TableCell className="text-right">
