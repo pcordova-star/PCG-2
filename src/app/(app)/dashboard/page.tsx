@@ -15,6 +15,7 @@ import {
   ListChecks,
   AlertTriangle,
   ClipboardPlus,
+  Users,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -65,6 +66,12 @@ export default function DashboardPage() {
         'Administre la seguridad y salud ocupacional. Un módulo especializado para un aspecto crítico de la construcción.',
       href: '/prevencion',
       icon: ShieldCheck,
+    },
+    {
+      title: 'Personal de Obra',
+      description: 'Gestione el plantel de trabajadores y su estado para cada obra.',
+      href: '/operaciones/personal',
+      icon: Users,
     },
   ];
 
