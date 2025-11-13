@@ -254,8 +254,24 @@ export function QuickAvanceSheet({ open, onOpenChange }: QuickAvanceSheetProps) 
             });
 
             if (!response.ok) {
-                const errorData = await response.json().catch(() => ({ error: "Error desconocido en el servidor" }));
-                throw new Error(errorData.error || `Error del servidor: ${response.status}`);
+              const errorData = await response.json().catch(() => ({} as any));
+
+              console.error("Error al guardar avance rápido", {
+                status: response.status,
+                errorData,
+              });
+
+              const mensajeBase = errorData.error ?? "Error del servidor";
+              const detalle =
+                errorData.details ??
+                errorData.code ??
+                "";
+
+              throw new Error(
+                detalle
+                  ? `${mensajeBase}: ${detalle}`
+                  : `${mensajeBase} (status ${response.status})`
+              );
             }
         }
 

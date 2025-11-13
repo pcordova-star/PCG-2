@@ -195,11 +195,25 @@ export async function POST(req: Request) {
     );
   } catch (err: any) {
     console.error("[avances/quick] ERROR NO CONTROLADO", err);
+
+    // Si son nuestros errores conocidos
+    if (err?.message === "OBRA_NOT_FOUND") {
+      return NextResponse.json({ ok: false, error: "OBRA_NOT_FOUND" }, { status: 404 });
+    }
+    if (err?.message === "PERMISSION_DENIED") {
+      return NextResponse.json({ ok: false, error: "PERMISSION_DENIED" }, { status: 403 });
+    }
+
+    // Cualquier otra cosa: log + detalle
+    const code = (err as any)?.code ?? null;
+    const message = err?.message ?? String(err);
+
     return NextResponse.json(
       {
         ok: false,
         error: "INTERNAL_ERROR",
-        details: err?.message ?? String(err),
+        code,
+        details: message,
       },
       { status: 500 }
     );
