@@ -3,12 +3,14 @@
 
 import React, { Suspense, useEffect, useState } from 'react';
 import { notFound, useParams, useRouter } from 'next/navigation';
+import Link from 'next/link';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
-import { Percent, Calendar, CheckCircle } from 'lucide-react';
+import { Percent, Calendar, CheckCircle, ArrowLeft } from 'lucide-react';
 import ImageFromStorage from '@/components/client/ImageFromStorage';
 import PrintButton from '@/components/client/PrintButton';
+import { Button } from '@/components/ui/button';
 import { collection, getDocs, query, where, orderBy, doc, getDoc, limit } from 'firebase/firestore';
 import { firebaseDb } from '@/lib/firebaseClient';
 import { useAuth } from '@/context/AuthContext';
@@ -167,18 +169,27 @@ export default function ClienteObraPage() {
     <div className="max-w-6xl mx-auto space-y-8 print:space-y-4 p-4 md:p-8">
       {/* Encabezado */}
       <header className="space-y-2 border-b pb-4 print:border-b-2 print:border-black">
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
-          <h1 className="text-3xl font-bold tracking-tight text-primary print:text-2xl">
-            Avance de obra: {nombre}
-          </h1>
-          <div className="no-print">
-            <PrintButton label="Imprimir / Guardar PDF" />
-          </div>
+        <div className="flex items-center gap-4">
+            <Button asChild variant="outline" size="icon" className="no-print">
+              <Link href="/cliente">
+                <ArrowLeft className="h-4 w-4" />
+                <span className="sr-only">Volver al listado de obras</span>
+              </Link>
+            </Button>
+            <h1 className="text-3xl font-bold tracking-tight text-primary print:text-2xl">
+              Avance de obra: {nombre}
+            </h1>
         </div>
-        <div className="text-muted-foreground text-sm space-y-1 print:text-xs">
-          <p><strong>Dirección:</strong> {direccion}</p>
-          <p><strong>Mandante:</strong> {mandante}</p>
-          {contacto?.email && <p><strong>Contacto Cliente:</strong> {contacto.email}</p>}
+
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 mt-2">
+            <div className="text-muted-foreground text-sm space-y-1 print:text-xs">
+                <p><strong>Dirección:</strong> {direccion}</p>
+                <p><strong>Mandante:</strong> {mandante}</p>
+                {contacto?.email && <p><strong>Contacto Cliente:</strong> {contacto.email}</p>}
+            </div>
+            <div className="no-print self-end">
+                <PrintButton label="Imprimir / Guardar PDF" />
+            </div>
         </div>
         <Badge variant="secondary" className="mt-2">Panel de seguimiento para el cliente</Badge>
       </header>
