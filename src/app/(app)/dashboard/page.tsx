@@ -14,6 +14,7 @@ import {
   Building2,
   ListChecks,
   AlertTriangle,
+  ClipboardPlus,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -97,6 +98,33 @@ export default function DashboardPage() {
           </Card>
         ))}
       </div>
+
+      {/* Quick Action Card */}
+      <div>
+        <h3 className="text-xl font-semibold mb-4">Acceso Rápido para Terreno</h3>
+        <Card className="group transition-all duration-300 hover:shadow-lg hover:border-primary/30">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-4">
+              <div className="p-3 bg-primary/10 rounded-full">
+                  <ClipboardPlus className="h-6 w-6 text-primary" />
+              </div>
+              <span>¿Estás en terreno?</span>
+            </CardTitle>
+            <CardDescription>
+              Registra el avance diario de tus obras de forma rápida y sencilla desde tu dispositivo móvil. Haz clic aquí y luego selecciona la obra.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+              <Button asChild className="w-full md:w-auto transform transition-transform duration-200 group-hover:scale-105">
+                <Link href="/obras">
+                  <ClipboardPlus className="mr-2 h-4 w-4" />
+                  Registrar Avance en Terreno
+                </Link>
+              </Button>
+          </CardContent>
+        </Card>
+      </div>
+
 
       {/* Module Cards */}
       <div>
