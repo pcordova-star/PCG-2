@@ -206,7 +206,7 @@ export default function ObrasPage() {
         <div className="space-y-1">
           <h2 className="text-2xl font-semibold">Gestión de Obras</h2>
           <p className="text-sm text-muted-foreground">
-            Crea, edita y gestiona las obras a las que se asocian los módulos de Operaciones y Prevención. Selecciona una obra para registrar su avance.
+            Crea, edita y gestiona las obras. Selecciona una obra para registrar su avance directamente.
           </p>
         </div>
         <Button onClick={() => handleOpenDialog()}>
