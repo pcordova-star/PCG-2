@@ -32,11 +32,13 @@ import { cn } from '@/lib/utils';
 
 
 const navItems = [
-  { href: '/', label: 'Plataforma de Control y Gestión', icon: Home },
+  { href: '/dashboard', label: 'Dashboard', icon: Home },
   { href: '/obras', label: 'Obras', icon: HardHat },
   { href: '/operaciones', label: 'Operaciones', icon: Activity },
   { href: '/prevencion', label: 'Prevención', icon: ShieldCheck },
 ];
+
+const publicPaths = ['/', '/login/usuario', '/login/cliente', '/public/induccion'];
 
 export default function RootLayout({
   children,
@@ -47,8 +49,10 @@ export default function RootLayout({
   const [isCollapsed, setIsCollapsed] = useState(false);
   const timerRef = useRef<NodeJS.Timeout | null>(null);
 
+  const isPublicPage = publicPaths.some(path => pathname.startsWith(path)) || pathname.startsWith('/cliente');
+
   const isActive = (href: string) => {
-    if (href === '/') return pathname === '/';
+    if (href === '/dashboard') return pathname === '/dashboard';
     return pathname.startsWith(href);
   };
   
@@ -91,6 +95,18 @@ export default function RootLayout({
 
   const sidebarWidth = isCollapsed ? "w-20" : "w-64";
 
+  if (isPublicPage) {
+    return (
+      <html lang="es">
+        <body className={BODY_CLASSES}>
+          <AuthProvider>
+            {children}
+          </AuthProvider>
+        </body>
+      </html>
+    )
+  }
+
   return (
     <html lang="es">
       <body className={BODY_CLASSES}>
@@ -107,7 +123,7 @@ export default function RootLayout({
             >
               <div className="flex h-16 items-center border-b px-4 lg:px-6 shrink-0">
                   <Link
-                    href="/"
+                    href="/dashboard"
                     className="flex items-center gap-2 font-semibold text-primary"
                   >
                     <HardHat className="h-6 w-6 shrink-0" />
@@ -135,7 +151,7 @@ export default function RootLayout({
               <div className="mt-auto p-4 border-t">
                   <nav className="grid items-start px-2 text-sm font-medium lg:px-4 gap-2">
                      <Link
-                        href="/login"
+                        href="/login/usuario"
                         className={cn(
                           "flex items-center gap-3 rounded-lg px-3 py-2 text-muted-foreground transition-all hover:text-primary hover:bg-muted",
                           isActive("/login") && "bg-muted text-primary",
@@ -180,7 +196,7 @@ export default function RootLayout({
                   <SheetContent side="left" className="flex flex-col">
                     <nav className="grid gap-2 text-lg font-medium">
                       <Link
-                        href="/"
+                        href="/dashboard"
                         className="flex items-center gap-2 text-lg font-semibold text-primary mb-4"
                       >
                         <HardHat className="h-6 w-6" />
@@ -203,7 +219,7 @@ export default function RootLayout({
                      <div className="mt-auto">
                        <nav className="grid gap-2 text-lg font-medium">
                           <Link
-                            href="/login"
+                            href="/login/usuario"
                             className="mx-[-0.65rem] flex items-center gap-4 rounded-xl px-3 py-2 text-muted-foreground hover:text-foreground"
                           >
                             <User className="h-5 w-5" />

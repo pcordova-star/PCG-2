@@ -1,8 +1,8 @@
-// src/app/clientes/[shareId]/page.tsx
+// src/app/cliente/obras/[obraId]/page.tsx
 "use client";
 
 import React, { Suspense, useEffect, useState } from 'react';
-import { notFound, useParams } from 'next/navigation';
+import { notFound, useParams, useRouter } from 'next/navigation';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
@@ -11,6 +11,7 @@ import ImageFromStorage from '@/components/client/ImageFromStorage';
 import PrintButton from '@/components/client/PrintButton';
 import { collection, getDocs, query, where, orderBy, doc, getDoc, limit } from 'firebase/firestore';
 import { firebaseDb } from '@/lib/firebaseClient';
+import { useAuth } from '@/context/AuthContext';
 
 type Obra = {
     id: string;
@@ -55,17 +56,22 @@ function formatCL(iso?: string | null) {
 
 export default function ClienteObraPage() {
     const params = useParams();
+    const router = useRouter();
+    const { user, loading: authLoading } = useAuth();
     const obraId = params.obraId as string;
+    
     const [data, setData] = useState<PublicObraData | null>(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
+    
+    useEffect(() => {
+        if (!authLoading && !user) {
+            router.replace('/login/cliente');
+        }
+    }, [user, authLoading, router]);
 
     useEffect(() => {
-        if (!obraId) {
-            setError("No se proporcionó un ID de obra.");
-            setLoading(false);
-            return;
-        }
+        if (!obraId || !user) return;
 
         async function getObraData(id: string): Promise<PublicObraData | null> {
             try {
@@ -75,14 +81,20 @@ export default function ClienteObraPage() {
                 if (!obraDoc.exists()) return null;
         
                 const obraData = obraDoc.data() as Obra;
-        
+                
+                // Security check: ensure the logged-in user is the client for this project
+                if (obraData.clienteEmail !== user.email) {
+                    setError("No tienes permiso para ver esta obra.");
+                    return null;
+                }
+
                 const actsSnap = await getDocs(collection(firebaseDb, "obras", obraId, "actividades"));
                 let programadas = actsSnap.size;
                 let completadas = actsSnap.docs.filter(d => d.data().estado === 'Completada').length;
 
                 const avSnap = await getDocs(query(
                     collection(firebaseDb, "obras", obraId, "avancesDiarios"),
-                    where("visibleParaCliente", "==", true),
+                    where("visibleCliente", "==", true),
                     orderBy("fecha", "desc"),
                     limit(10)
                 ));
@@ -125,14 +137,14 @@ export default function ClienteObraPage() {
             if (result) {
                 setData(result);
             } else {
-                setError("No se pudo encontrar la obra con el ID proporcionado.");
+                setError(prevError => prevError || "No se pudo encontrar la obra con el ID proporcionado.");
             }
             setLoading(false);
         });
 
-    }, [obraId]);
+    }, [obraId, user]);
 
-  if (loading) {
+  if (loading || authLoading) {
       return <div className="text-center p-8">Cargando datos de la obra...</div>
   }
   
@@ -152,7 +164,7 @@ export default function ClienteObraPage() {
   } = data;
 
   return (
-    <div className="max-w-6xl mx-auto space-y-8 print:space-y-4">
+    <div className="max-w-6xl mx-auto space-y-8 print:space-y-4 p-4 md:p-8">
       {/* Encabezado */}
       <header className="space-y-2 border-b pb-4 print:border-b-2 print:border-black">
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
