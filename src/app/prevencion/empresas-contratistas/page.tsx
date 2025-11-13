@@ -17,7 +17,7 @@ import { firebaseDb } from "@/lib/firebaseClient";
 import { collection, addDoc, Timestamp, getDocs, orderBy, query, where, doc, updateDoc, deleteDoc, serverTimestamp, onSnapshot } from "firebase/firestore";
 import Link from "next/link";
 import { cn } from "@/lib/utils";
-import { FileDown, PlusCircle } from "lucide-react";
+import { FileDown, PlusCircle, Edit, Trash2 } from "lucide-react";
 
 
 // --- Tipos de Datos ---
@@ -278,14 +278,15 @@ export default function EmpresasContratistasPage() {
     }
   };
 
-  const handleDelete = async () => {
-    if (!empresaSeleccionadaId) return;
-
+  const handleDelete = async (idToDelete: string) => {
     try {
-      const docRef = doc(firebaseDb, "empresasContratistas", empresaSeleccionadaId);
+      const docRef = doc(firebaseDb, "empresasContratistas", idToDelete);
       await deleteDoc(docRef);
       setSuccessMessage("Empresa eliminada correctamente.");
-      setEmpresaSeleccionadaId(null);
+      if (empresaSeleccionadaId === idToDelete) {
+        setEmpresaSeleccionadaId(null);
+        setMostrarForm(false);
+      }
     } catch(err) {
       console.error("Error deleting company:", err);
       setErrorForm("No se pudo eliminar la empresa. Inténtelo de nuevo.");
@@ -366,14 +367,14 @@ export default function EmpresasContratistasPage() {
                   <TableHead>Docs OK</TableHead>
                   <TableHead>Evaluador</TableHead>
                   <TableHead>Fecha Evaluación</TableHead>
-                  <TableHead className="text-right">Acción</TableHead>
+                  <TableHead className="text-right">Acciones</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {loading ? <TableRow><TableCell colSpan={6} className="text-center h-24">Cargando...</TableCell></TableRow> 
                 : empresasFiltradas.length === 0 ? <TableRow><TableCell colSpan={6} className="text-center h-24">No hay empresas para los filtros seleccionados.</TableCell></TableRow>
                 : empresasFiltradas.map(emp => (
-                    <TableRow key={emp.id} className={cn("cursor-pointer hover:bg-muted/50", empresaSeleccionadaId === emp.id && 'bg-accent/10')} onClick={() => { setEmpresaSeleccionadaId(emp.id); setMostrarForm(true); }}>
+                    <TableRow key={emp.id}>
                         <TableCell>
                             <div className="font-medium">{emp.razonSocial}</div>
                             <div className="text-xs text-muted-foreground">{emp.rut}</div>
@@ -383,11 +384,41 @@ export default function EmpresasContratistasPage() {
                         <TableCell>{emp.evaluador}</TableCell>
                         <TableCell>{emp.fechaEvaluacion}</TableCell>
                         <TableCell className="text-right">
-                          <Button variant="outline" size="sm" asChild onClick={(e) => e.stopPropagation()}>
-                            <Link href={`/prevencion/empresas-contratistas/${emp.id}`}>
-                              Ver Ficha
-                            </Link>
-                          </Button>
+                          <div className="flex items-center justify-end gap-2">
+                            <Button variant="outline" size="sm" asChild>
+                              <Link href={`/prevencion/empresas-contratistas/${emp.id}`}>
+                                Ver Ficha
+                              </Link>
+                            </Button>
+                            <Button variant="ghost" size="icon" onClick={() => { setEmpresaSeleccionadaId(emp.id); setMostrarForm(true); }}>
+                              <Edit className="h-4 w-4" />
+                              <span className="sr-only">Editar</span>
+                            </Button>
+                            <AlertDialog>
+                              <AlertDialogTrigger asChild>
+                                <Button variant="ghost" size="icon" className="text-destructive hover:text-destructive">
+                                  <Trash2 className="h-4 w-4" />
+                                </Button>
+                              </AlertDialogTrigger>
+                              <AlertDialogContent>
+                                <AlertDialogHeader>
+                                  <AlertDialogTitle>¿Está seguro de que desea eliminar esta empresa?</AlertDialogTitle>
+                                  <AlertDialogDescription>
+                                    Esta acción no se puede deshacer. Se eliminará permanentemente la empresa "{emp.razonSocial}" y todos sus datos asociados.
+                                  </AlertDialogDescription>
+                                </AlertDialogHeader>
+                                <AlertDialogFooter>
+                                  <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                                  <AlertDialogAction
+                                    onClick={() => handleDelete(emp.id)}
+                                    className="bg-destructive hover:bg-destructive/90"
+                                  >
+                                    Eliminar
+                                  </AlertDialogAction>
+                                </AlertDialogFooter>
+                              </AlertDialogContent>
+                            </AlertDialog>
+                          </div>
                         </TableCell>
                     </TableRow>
                 ))}
@@ -490,7 +521,7 @@ export default function EmpresasContratistasPage() {
                           </AlertDialogHeader>
                           <AlertDialogFooter>
                               <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                              <AlertDialogAction onClick={handleDelete} className="bg-destructive hover:bg-destructive/90">Eliminar</AlertDialogAction>
+                              <AlertDialogAction onClick={() => handleDelete(empresaSeleccionadaId)} className="bg-destructive hover:bg-destructive/90">Eliminar</AlertDialogAction>
                           </AlertDialogFooter>
                       </AlertDialogContent>
                   </AlertDialog>
