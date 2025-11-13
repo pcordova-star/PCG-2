@@ -5,7 +5,6 @@
 import React, { useEffect, useState, FormEvent, useMemo, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useAuth } from "../../../context/AuthContext";
-import { getAuth } from "firebase/auth";
 
 import {
   collection,
@@ -21,7 +20,7 @@ import {
   serverTimestamp
 } from "firebase/firestore";
 import { firebaseDb, firebaseStorage } from "../../../lib/firebaseClient";
-import { ref, uploadBytes, getDownloadURL, deleteObject } from "firebase/storage";
+import { ref, uploadBytes, getDownloadURL, deleteObject, uploadBytesResumable } from "firebase/storage";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -112,8 +111,6 @@ type EstadoDePago = {
 
 const MAX_FOTOS = 5;
 const MAX_TAMANO_MB = 5;
-const CLOUD_FUNCTION_URL = "https://southamerica-west1-studio-6495872333-f2751.cloudfunctions.net/registrarAvanceRapido";
-
 
 function ProgramacionPageInner() {
   const { user, loading: loadingAuth } = useAuth();
@@ -385,9 +382,6 @@ function ProgramacionPageInner() {
 
   const handleAvanceSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    const auth = getAuth();
-    const user = auth.currentUser;
-
     if (!obraSeleccionadaId || !user) {
       setError("Debes seleccionar una obra y estar autenticado.");
       toast({ variant: "destructive", title: "Error de autenticación", description: "Debes seleccionar una obra y estar autenticado." });
@@ -410,38 +404,29 @@ function ProgramacionPageInner() {
         archivos.map(async (file, index) => {
           const nombreArchivo = `${Date.now()}-${index}-${file.name}`;
           const storageRef = ref(firebaseStorage, `avances/${obraSeleccionadaId}/${nombreArchivo}`);
-          await uploadBytes(storageRef, file);
-          return await getDownloadURL(storageRef);
+          const uploadTask = uploadBytesResumable(storageRef, file);
+          await uploadTask;
+          return await getDownloadURL(uploadTask.snapshot.ref);
         })
       );
       
-      const token = await user.getIdToken();
+      const colRef = collection(firebaseDb, "obras", obraSeleccionadaId, "avancesDiarios");
       
-      const payload = {
+      const docData = {
         obraId: obraSeleccionadaId,
         actividadId: actividadId === 'null' ? null : actividadId,
-        porcentaje: porcentaje,
+        porcentajeAvance: porcentaje,
         comentario: comentario.trim(),
         fotos: urlsFotos,
-        visibleCliente: !!visibleCliente,
-        creadoPorNombre: user.displayName || user.email || "",
+        visibleParaCliente: !!visibleCliente,
+        creadoPor: {
+          uid: user.uid,
+          displayName: user.displayName || user.email || "Usuario Anónimo"
+        },
+        fecha: serverTimestamp(),
       };
 
-      const response = await fetch(CLOUD_FUNCTION_URL, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
-        body: JSON.stringify(payload)
-      });
-
-      const result = await response.json();
-
-      if (!response.ok || !result.ok) {
-        console.error("Error al registrar avance diario", result);
-        throw new Error(result.details || result.error || "Error al registrar avance");
-      }
+      const docRef = await addDoc(colRef, docData);
 
       toast({
         title: "Avance registrado con éxito",
@@ -450,18 +435,9 @@ function ProgramacionPageInner() {
       
       // Optimistic UI update
       const nuevoAvance: AvanceDiario = { 
-        id: result.id || `local-${Date.now()}`,
-        obraId: obraSeleccionadaId,
-        actividadId: actividadId === "null" ? undefined : actividadId, 
+        id: docRef.id,
+        ...docData,
         fecha: new Date().toISOString(), 
-        porcentajeAvance: porcentaje, 
-        comentario: comentario.trim(), 
-        fotos: urlsFotos,
-        creadoPor: {
-          uid: user.uid,
-          displayName: user.displayName || user.email || '',
-        },
-        visibleParaCliente: !!visibleCliente,
       };
       
       setAvances((prev) => [nuevoAvance, ...prev].sort((a,b) => a.fecha < b.fecha ? 1 : -1));
@@ -953,7 +929,7 @@ function ProgramacionPageInner() {
                                     <AlertDialogHeader>
                                     <AlertDialogTitle>¿Está seguro de que desea eliminar este estado de pago?</AlertDialogTitle>
                                     <AlertDialogDescription>
-                                        Esta acción no se puede deshacer. Se eliminará el registro EDP-{edp.correlativo.toString().padStart(3, '0')} y el correlativo quedará libre.
+                                        Esta acción no se puede deshacer. Se eliminará el registro EDP-{edp.correlativo.toString().padStart(3, '0')}} y el correlativo quedará libre.
                                     </AlertDialogDescription>
                                     </AlertDialogHeader>
                                     <AlertDialogFooter>
