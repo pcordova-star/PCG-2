@@ -5,6 +5,7 @@
 import React, { useEffect, useState, FormEvent, useMemo, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useAuth } from "../../../context/AuthContext";
+import { getAuth } from "firebase/auth";
 
 import {
   collection,
@@ -111,6 +112,8 @@ type EstadoDePago = {
 
 const MAX_FOTOS = 5;
 const MAX_TAMANO_MB = 5;
+const CLOUD_FUNCTION_URL = "https://southamerica-west1-studio-6495872333-f2751.cloudfunctions.net/registrarAvanceRapido";
+
 
 function ProgramacionPageInner() {
   const { user, loading: loadingAuth } = useAuth();
@@ -382,15 +385,21 @@ function ProgramacionPageInner() {
 
   const handleAvanceSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    const auth = getAuth();
+    const user = auth.currentUser;
+
     if (!obraSeleccionadaId || !user) {
       setError("Debes seleccionar una obra y estar autenticado.");
+      toast({ variant: "destructive", title: "Error de autenticación", description: "Debes seleccionar una obra y estar autenticado." });
       return;
     }
-    const { actividadId, porcentajeAvance, comentario } = formAvance;
-    
-    const porcentaje = Number(porcentajeAvance);
+
+    const { actividadId, comentario } = formAvance;
+    const porcentaje = Number(formAvance.porcentajeAvance);
+
     if (isNaN(porcentaje) || porcentaje < 0 || porcentaje > 100) {
       setError("El porcentaje de avance debe ser un número entre 0 y 100.");
+      toast({ variant: "destructive", title: "Dato inválido", description: "El porcentaje de avance debe ser un número entre 0 y 100." });
       return;
     }
 
@@ -406,20 +415,19 @@ function ProgramacionPageInner() {
         })
       );
       
-      const actividadSeleccionada = actividadId === 'null' ? null : actividades.find(a => a.id === actividadId);
-      
       const token = await user.getIdToken();
+      
       const payload = {
         obraId: obraSeleccionadaId,
-        actividadId: actividadSeleccionada?.id ?? null,
-        porcentaje,
+        actividadId: actividadId === 'null' ? null : actividadId,
+        porcentaje: porcentaje,
         comentario: comentario.trim(),
         fotos: urlsFotos,
         visibleCliente: !!visibleCliente,
-        creadoPorNombre: user.displayName || user.email,
+        creadoPorNombre: user.displayName || user.email || "",
       };
 
-      const response = await fetch('/api/avances/quick', {
+      const response = await fetch(CLOUD_FUNCTION_URL, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -428,9 +436,11 @@ function ProgramacionPageInner() {
         body: JSON.stringify(payload)
       });
 
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'Error en el servidor');
+      const result = await response.json();
+
+      if (!response.ok || !result.ok) {
+        console.error("Error al registrar avance diario", result);
+        throw new Error(result.details || result.error || "Error al registrar avance");
       }
 
       toast({
@@ -440,7 +450,7 @@ function ProgramacionPageInner() {
       
       // Optimistic UI update
       const nuevoAvance: AvanceDiario = { 
-        id: `local-${Date.now()}`,
+        id: result.id || `local-${Date.now()}`,
         obraId: obraSeleccionadaId,
         actividadId: actividadId === "null" ? undefined : actividadId, 
         fecha: new Date().toISOString(), 
