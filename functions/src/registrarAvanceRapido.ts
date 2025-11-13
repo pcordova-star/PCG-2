@@ -18,15 +18,9 @@ function escapeHtml(s: string) {
   return s.replace(/[&<>"']/g, (m) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[m]!));
 }
 
-// Configuración de CORS explícita para aceptar peticiones desde App Hosting
+// Configuración de CORS flexible para desarrollo. 'true' acepta cualquier origen.
 const corsOptions = {
-    cors: [
-        "http://localhost:3000",
-        "http://localhost:9002",
-        "https://pcg-2-8bf1b.web.app", // Hosting
-        "https://pcg-2-8bf1b.firebaseapp.com", // Hosting
-        "https://pcg2-0--pcg-2-8bf1b.us-central1.hosted.app" // App Hosting
-    ]
+    cors: true
 };
 
 export const registrarAvanceRapido = onCall({ ...corsOptions, region: "southamerica-west1" }, async (request) => {
