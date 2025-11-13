@@ -206,7 +206,7 @@ export default function ObrasPage() {
         <div className="space-y-1">
           <h2 className="text-2xl font-semibold">Gestión de Obras</h2>
           <p className="text-sm text-muted-foreground">
-            Crea, edita y gestiona las obras. Selecciona una obra para registrar su avance directamente.
+            Crea, edita y gestiona las obras.
           </p>
         </div>
         <Button onClick={() => handleOpenDialog()}>
@@ -250,20 +250,12 @@ export default function ObrasPage() {
                   obras.map((obra) => (
                     <TableRow key={obra.id}>
                       <TableCell className="font-medium">
-                        <Link href={`/obras/${obra.id}/registrar-avance`} className="hover:underline text-primary">
-                          {obra.nombreFaena}
-                        </Link>
+                        {obra.nombreFaena}
                       </TableCell>
                       <TableCell>{obra.jefeObraNombre}</TableCell>
                       <TableCell>{obra.prevencionistaNombre}</TableCell>
                       <TableCell className="text-right">
                         <div className="flex justify-end gap-2">
-                           <Button variant="outline" size="sm" asChild>
-                              <Link href={`/obras/${obra.id}/registrar-avance`}>
-                                <ClipboardPlus className="mr-2 h-3 w-3" />
-                                Registrar Avance
-                              </Link>
-                           </Button>
                            <Button variant="outline" size="sm" asChild>
                             <Link href={`/clientes/${obra.id}`} target="_blank">
                               <LinkIcon className="mr-2 h-3 w-3" />

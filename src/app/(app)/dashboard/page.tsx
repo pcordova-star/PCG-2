@@ -111,12 +111,12 @@ export default function DashboardPage() {
               <span>¿Estás en terreno?</span>
             </CardTitle>
             <CardDescription>
-              Registra el avance diario de tus obras de forma rápida y sencilla desde tu dispositivo móvil. Haz clic aquí y luego selecciona la obra para ir directo al formulario.
+              Registra el avance diario de tus obras de forma rápida y sencilla desde tu dispositivo móvil. Haz clic aquí para ir directo al formulario de registro.
             </CardDescription>
           </CardHeader>
           <CardContent>
               <Button asChild className="w-full md:w-auto transform transition-transform duration-200 group-hover:scale-105">
-                <Link href="/obras">
+                <Link href="/operaciones/avance-en-terreno">
                   <ClipboardPlus className="mr-2 h-4 w-4" />
                   Registrar Avance en Terreno
                 </Link>
