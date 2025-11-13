@@ -64,7 +64,7 @@ import Link from "next/link";
 import { FilePlus2, FileText, Trash2, Edit, PlusCircle } from 'lucide-react';
 import RegistrarAvanceForm from "./components/RegistrarAvanceForm";
 
-type Obra = {
+export type Obra = {
   id: string;
   nombreFaena: string;
 };

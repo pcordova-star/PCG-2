@@ -1,8 +1,8 @@
 "use client";
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/context/AuthContext';
-import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
+import { collection, addDoc, serverTimestamp, getDocs, query, orderBy } from 'firebase/firestore';
 import { firebaseDb, firebaseStorage } from '@/lib/firebaseClient';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { Button } from '@/components/ui/button';
@@ -13,20 +13,25 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Checkbox } from '@/components/ui/checkbox';
 import { X } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
-import { ActividadProgramada } from '../page';
+import { ActividadProgramada, Obra } from '../page';
 
 type RegistrarAvanceFormProps = {
-  obraId: string;
+  obraId?: string;
+  obras?: Obra[]; // Lista de obras para el selector
   actividades: ActividadProgramada[];
   onAvanceRegistrado?: (avance: any) => void;
+  allowObraSelection?: boolean; // Para mostrar el selector de obra
+  onObraChanged?: (obraId: string) => void; // Para notificar cambio de obra
 };
 
 const MAX_FOTOS = 5;
 const MAX_TAMANO_MB = 5;
 
-export default function RegistrarAvanceForm({ obraId, actividades, onAvanceRegistrado }: RegistrarAvanceFormProps) {
+export default function RegistrarAvanceForm({ obraId: initialObraId, obras = [], actividades, onAvanceRegistrado, allowObraSelection = false, onObraChanged }: RegistrarAvanceFormProps) {
   const { user } = useAuth();
   const { toast } = useToast();
+  
+  const [selectedObraId, setSelectedObraId] = useState(initialObraId || (obras.length > 0 ? obras[0].id : ""));
 
   const [formAvance, setFormAvance] = useState({
     actividadId: 'null',
@@ -39,6 +44,13 @@ export default function RegistrarAvanceForm({ obraId, actividades, onAvanceRegis
   const [previews, setPreviews] = useState<string[]>([]);
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    // Si la obra inicial cambia desde las props, actualizamos el estado
+    if (initialObraId) {
+      setSelectedObraId(initialObraId);
+    }
+  }, [initialObraId]);
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (!e.target.files) return;
@@ -77,7 +89,7 @@ export default function RegistrarAvanceForm({ obraId, actividades, onAvanceRegis
 
   const handleAvanceSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!obraId || !user) {
+    if (!selectedObraId || !user) {
       setError('Debes seleccionar una obra y estar autenticado.');
       toast({ variant: 'destructive', title: 'Error de autenticación', description: 'Debes seleccionar una obra y estar autenticado.' });
       return;
@@ -98,16 +110,16 @@ export default function RegistrarAvanceForm({ obraId, actividades, onAvanceRegis
       const urlsFotos: string[] = await Promise.all(
         archivos.map(async (file) => {
           const nombreArchivo = `${Date.now()}-${file.name}`;
-          const storageRef = ref(firebaseStorage, `avances/${obraId}/${nombreArchivo}`);
+          const storageRef = ref(firebaseStorage, `avances/${selectedObraId}/${nombreArchivo}`);
           await uploadBytes(storageRef, file);
           return await getDownloadURL(storageRef);
         })
       );
 
-      const colRef = collection(firebaseDb, 'obras', obraId, 'avancesDiarios');
+      const colRef = collection(firebaseDb, 'obras', selectedObraId, 'avancesDiarios');
 
       const docData = {
-        obraId: obraId,
+        obraId: selectedObraId,
         actividadId: actividadId === 'null' ? null : actividadId,
         porcentajeAvance: porcentaje,
         comentario: comentario.trim(),
@@ -154,6 +166,13 @@ export default function RegistrarAvanceForm({ obraId, actividades, onAvanceRegis
     }
   };
 
+  const handleObraSelectionChange = (obraId: string) => {
+    setSelectedObraId(obraId);
+    if(onObraChanged) {
+        onObraChanged(obraId);
+    }
+  }
+
   return (
     <Card>
       <CardHeader>
@@ -161,6 +180,23 @@ export default function RegistrarAvanceForm({ obraId, actividades, onAvanceRegis
       </CardHeader>
       <CardContent>
         <form onSubmit={handleAvanceSubmit} className="space-y-4">
+          {allowObraSelection && (
+            <div className="space-y-1">
+              <Label htmlFor="obra-selector" className="text-xs font-medium">Obra*</Label>
+              <Select value={selectedObraId} onValueChange={handleObraSelectionChange}>
+                <SelectTrigger id="obra-selector">
+                  <SelectValue placeholder="Seleccionar obra" />
+                </SelectTrigger>
+                <SelectContent>
+                  {obras.map((obra) => (
+                    <SelectItem key={obra.id} value={obra.id}>
+                      {obra.nombreFaena}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          )}
           <div className="space-y-1">
             <Label htmlFor="avance-actividad" className="text-xs font-medium">Actividad (opcional)</Label>
             <Select value={formAvance.actividadId} onValueChange={(value) => setFormAvance((prev) => ({ ...prev, actividadId: value }))}>
@@ -196,7 +232,7 @@ export default function RegistrarAvanceForm({ obraId, actividades, onAvanceRegis
           </div>
           <div className="space-y-1">
             <Label htmlFor="foto-avance-input" className="text-xs font-medium">Fotos (máx. {MAX_FOTOS}, hasta {MAX_TAMANO_MB}MB c/u)</Label>
-            <Input id="foto-avance-input" type="file" accept="image/*" multiple onChange={handleFileChange} />
+            <Input id="foto-avance-input" type="file" accept="image/*" capture="environment" multiple onChange={handleFileChange} />
           </div>
           {previews.length > 0 && (
             <div className="grid grid-cols-3 gap-2">
@@ -215,7 +251,7 @@ export default function RegistrarAvanceForm({ obraId, actividades, onAvanceRegis
             <Label htmlFor="visibleCliente" className="text-xs text-muted-foreground">Visible para el cliente</Label>
           </div>
           {error && <p className="text-sm font-medium text-destructive">{error}</p>}
-          <Button type="submit" disabled={uploading}>
+          <Button type="submit" disabled={uploading || !selectedObraId}>
             {uploading ? 'Guardando avance y subiendo fotos...' : 'Registrar avance'}
           </Button>
         </form>
