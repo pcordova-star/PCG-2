@@ -38,7 +38,7 @@ const navItems = [
   { href: '/prevencion', label: 'Prevención', icon: ShieldCheck },
 ];
 
-const publicPaths = ['/', '/login/usuario', '/login/cliente', '/public/induccion'];
+const publicPaths = ['/login/usuario', '/login/cliente', '/public/induccion'];
 
 export default function RootLayout({
   children,
@@ -49,7 +49,7 @@ export default function RootLayout({
   const [isCollapsed, setIsCollapsed] = useState(false);
   const timerRef = useRef<NodeJS.Timeout | null>(null);
 
-  const isPublicPage = publicPaths.some(path => pathname.startsWith(path)) || pathname.startsWith('/cliente');
+  const isPublicPage = pathname === '/' || publicPaths.some(path => pathname.startsWith(path)) || pathname.startsWith('/cliente');
 
   const isActive = (href: string) => {
     if (href === '/dashboard') return pathname === '/dashboard';
