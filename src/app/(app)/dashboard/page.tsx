@@ -16,7 +16,6 @@ import {
   AlertTriangle,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import QuickActionAvance from './components/QuickActionAvance';
 
 
 export default function DashboardPage() {
@@ -79,9 +78,6 @@ export default function DashboardPage() {
         </p>
       </header>
       
-      {/* Quick Action */}
-      <QuickActionAvance />
-
       {/* Summary Cards */}
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
         {summaryCards.map((card) => (
