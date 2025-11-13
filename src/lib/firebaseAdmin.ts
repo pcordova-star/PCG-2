@@ -1,15 +1,25 @@
-// src/lib/firebaseAdmin.ts
-import { getApp, getApps, initializeApp } from "firebase-admin/app";
+import { getApps, initializeApp, App } from "firebase-admin/app";
+import { getFirestore } from "firebase-admin/firestore";
+import { getAuth } from "firebase-admin/auth";
 
-let adminApp;
+let adminApp: App | null = null;
 
-export function getAdminApp() {
-  if (!getApps().length) {
-    // En App Hosting / Studio, initializeApp() sin argumentos
-    // usa automáticamente la cuenta de servicio del proyecto.
-    adminApp = initializeApp();
+export function getAdminApp(): App {
+  if (adminApp) return adminApp;
+
+  if (getApps().length === 0) {
+    adminApp = initializeApp(); // usar credenciales del entorno de App Hosting
   } else {
-    adminApp = getApp();
+    adminApp = getApps()[0]!;
   }
+
   return adminApp;
+}
+
+export function getAdminDb() {
+  return getFirestore(getAdminApp());
+}
+
+export function getAdminAuth() {
+  return getAuth(getAdminApp());
 }
