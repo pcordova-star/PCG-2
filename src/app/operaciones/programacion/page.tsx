@@ -527,7 +527,13 @@ function ProgramacionPageInner() {
         subtotal,
         iva,
         total,
-        actividades: actividadesConAvance, 
+        actividades: actividadesConAvance.map(({ id, nombreActividad, precioContrato, porcentajeAvance, montoProyectado }) => ({
+            actividadId: id,
+            nombre: nombreActividad,
+            precioContrato,
+            porcentajeAvance,
+            montoProyectado
+        })),
         creadoEn: new Date().toISOString(),
       };
       
