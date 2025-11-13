@@ -111,7 +111,7 @@ export default function DashboardPage() {
               <span>¿Estás en terreno?</span>
             </CardTitle>
             <CardDescription>
-              Registra el avance diario de tus obras de forma rápida y sencilla desde tu dispositivo móvil. Haz clic aquí y luego selecciona la obra.
+              Registra el avance diario de tus obras de forma rápida y sencilla desde tu dispositivo móvil. Haz clic aquí y luego selecciona la obra para ir directo al formulario.
             </CardDescription>
           </CardHeader>
           <CardContent>
