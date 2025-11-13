@@ -23,10 +23,9 @@ import {
 import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
 import { useToast } from "@/hooks/use-toast";
-import { firebaseDb, firebaseStorage, firebaseFunctions } from "@/lib/firebaseClient";
+import { firebaseDb, firebaseStorage } from "@/lib/firebaseClient";
 import { collection, getDocs, query, orderBy } from "firebase/firestore";
 import { ref, uploadBytesResumable, getDownloadURL } from "firebase/storage";
-import { httpsCallable } from "firebase/functions";
 import { X, Loader2 } from "lucide-react";
 import Image from "next/image";
 
@@ -47,6 +46,8 @@ type QuickAvanceSheetProps = {
 
 const MAX_FOTOS = 5;
 const MAX_TAMANO_MB = 5;
+const CLOUD_FUNCTION_URL = "https://southamerica-west1-pcg-2-8bf1b.cloudfunctions.net/registrarAvanceRapido";
+
 
 export function QuickAvanceSheet({ open, onOpenChange }: QuickAvanceSheetProps) {
   const { user } = useAuth();
@@ -182,6 +183,8 @@ export function QuickAvanceSheet({ open, onOpenChange }: QuickAvanceSheetProps) 
     setUploadProgress(0);
     
     try {
+        const token = await user.getIdToken();
+        
         const uploadedUrls: string[] = [];
         if (archivos.length > 0) {
             await Promise.all(
@@ -212,8 +215,7 @@ export function QuickAvanceSheet({ open, onOpenChange }: QuickAvanceSheetProps) 
 
         setUploadProgress(null);
 
-        const registrarAvance = httpsCallable(firebaseFunctions, "registrarAvanceRapido");
-        const result: any = await registrarAvance({
+        const payload = {
             obraId,
             actividadId: actividadId || null,
             porcentaje: numPorcentaje,
@@ -221,10 +223,21 @@ export function QuickAvanceSheet({ open, onOpenChange }: QuickAvanceSheetProps) 
             fotos: uploadedUrls,
             visibleCliente: !!visibleCliente,
             creadoPorNombre: user.displayName || user.email,
+        };
+
+        const response = await fetch(CLOUD_FUNCTION_URL, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`,
+            },
+            body: JSON.stringify(payload),
         });
 
-        if (!result?.data?.ok) {
-            throw new Error(result?.data?.error || "Error desconocido al registrar avance con la función callable.");
+        const result = await response.json();
+
+        if (!response.ok || !result.ok) {
+            throw new Error(result.details || result.error || "Error desconocido al registrar avance con la función.");
         }
 
         toast({
