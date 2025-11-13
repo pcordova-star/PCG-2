@@ -1,32 +1,33 @@
-// src/app/api/public/obra/[shareId]/route.ts
 import { NextResponse } from "next/server";
-import { getAdminApp } from "@/lib/firebaseAdmin";
-import { getFirestore } from "firebase-admin/firestore";
+import { getAdminDb } from "@/lib/firebaseAdmin";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-type RouteParams = {
-  params: {
-    shareId: string;
-  };
+type ObraPublica = {
+  id: string;
+  nombre: string;
+  cliente?: string;
+  direccion?: string;
+  estado?: string;
 };
 
-export async function GET(_req: Request, { params }: RouteParams) {
-  const { shareId } = params;
+export async function GET(
+  _req: Request,
+  context: { params: { shareId: string } }
+) {
+  const { shareId } = context.params;
 
   if (!shareId) {
     return NextResponse.json(
-      { ok: false, error: "BAD_REQUEST", details: "Falta shareId" },
+      { ok: false, error: "MISSING_SHARE_ID" },
       { status: 400 }
     );
   }
 
   try {
-    const adminApp = getAdminApp();
-    const db = getFirestore(adminApp);
+    const db = getAdminDb();
 
-    // Busca la obra por el campo público de compartir (ajusta el nombre si es distinto)
     const snap = await db
       .collection("obras")
       .where("shareId", "==", shareId)
@@ -35,38 +36,27 @@ export async function GET(_req: Request, { params }: RouteParams) {
 
     if (snap.empty) {
       return NextResponse.json(
-        { ok: false, error: "NOT_FOUND" },
+        { ok: false, error: "OBRA_NOT_FOUND" },
         { status: 404 }
       );
     }
 
     const doc = snap.docs[0];
-    const data = doc.data();
+    const data = doc.data() as any;
 
-    // 🔒 Filtra solo lo que quieras exponer públicamente
-    const publicData = {
+    const obra: ObraPublica = {
       id: doc.id,
       nombre: data.nombre ?? "",
-      codigo: data.codigo ?? "",
-      ubicacion: data.ubicacion ?? "",
       cliente: data.cliente ?? "",
-      // agrega / quita campos públicos aquí
-      avanceAcumulado: data.avanceAcumulado ?? 0,
+      direccion: data.direccion ?? "",
+      estado: data.estado ?? "",
     };
 
-    return NextResponse.json(
-      { ok: true, obra: publicData },
-      { status: 200 }
-    );
+    return NextResponse.json({ ok: true, obra }, { status: 200 });
   } catch (err: any) {
-    console.error("[API public/obra] Error:", err);
-
+    console.error("[API public/obra] INTERNAL_ERROR:", err);
     return NextResponse.json(
-      {
-        ok: false,
-        error: "INTERNAL_ERROR",
-        details: err?.message ?? String(err),
-      },
+      { ok: false, error: "INTERNAL_ERROR", details: err?.message ?? String(err) },
       { status: 500 }
     );
   }
