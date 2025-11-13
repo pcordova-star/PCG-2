@@ -63,10 +63,10 @@ export async function POST(req: Request) {
       
       // Basic permission check: does the user have access to this obra?
       // This is a simplified check. A real-world app would have more complex roles.
-      const miembros = obraData.miembros || [];
-      // const tienePermiso = miembros.some((m: any) => m.uid === user.uid);
+      // const miembros = obraData.miembros || [];
+      // const tienePermiso = miembros.some((m: any) => m.uid === user.uid) || obraData.creadoPorUid === user.uid;
 
-      // if (!tienePermiso && obraData.creadoPorUid !== user.uid) {
+      // if (!tienePermiso) {
       //   throw new Error("PERMISSION_DENIED");
       // }
 
@@ -89,11 +89,9 @@ export async function POST(req: Request) {
       tx.set(nuevoAvanceRef, avanceData);
 
       if (porcentaje > 0) {
-        // Simplified calculation to avoid complex reads inside transaction
         const avancePrevio = Number(obraData.avanceAcumulado || 0);
-        // This is a simplified ponderation. A more complex system would fetch activity weights.
-        // For a quick action, we assume a simple incremental progress.
-        const avancePonderadoDelDia = porcentaje / (obraData.totalActividades || 10);
+        const totalActividades = Number(obraData.totalActividades);
+        const avancePonderadoDelDia = totalActividades > 0 ? porcentaje / totalActividades : 0;
         const nuevoAvanceAcumulado = Math.min(100, avancePrevio + avancePonderadoDelDia);
 
         tx.update(obraRef, {
@@ -101,7 +99,6 @@ export async function POST(req: Request) {
           avanceAcumulado: nuevoAvanceAcumulado,
         });
       } else {
-        // If no progress percentage, just update the timestamp
         tx.update(obraRef, { ultimaActualizacion: FieldValue.serverTimestamp() });
       }
 
