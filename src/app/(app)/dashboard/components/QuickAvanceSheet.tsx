@@ -254,24 +254,22 @@ export function QuickAvanceSheet({ open, onOpenChange }: QuickAvanceSheetProps) 
             });
 
             if (!response.ok) {
-              const errorData = await response.json().catch(() => ({} as any));
-
-              console.error("Error al guardar avance rápido", {
-                status: response.status,
-                errorData,
-              });
-
-              const mensajeBase = errorData.error ?? "Error del servidor";
-              const detalle =
-                errorData.details ??
-                errorData.code ??
-                "";
-
-              throw new Error(
-                detalle
-                  ? `${mensajeBase}: ${detalle}`
-                  : `${mensajeBase} (status ${response.status})`
-              );
+              // Intenta leer la respuesta como texto para no perder el mensaje de error.
+              const errorText = await response.text();
+              console.error("Error al guardar avance rápido (respuesta del servidor):", errorText);
+              
+              try {
+                // Intenta parsear como JSON, si falla, usa el texto plano.
+                const errorData = JSON.parse(errorText);
+                const mensajeBase = errorData.error ?? "Error del servidor";
+                const detalle = errorData.details ?? errorData.code ?? "";
+                throw new Error(
+                  detalle ? `${mensajeBase}: ${detalle}` : `${mensajeBase} (status ${response.status})`
+                );
+              } catch (parseError) {
+                // Si el parseo falla, el error era texto plano.
+                throw new Error(errorText || `Error del servidor (status ${response.status})`);
+              }
             }
         }
 
