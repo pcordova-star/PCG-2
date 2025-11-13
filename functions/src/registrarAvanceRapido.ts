@@ -16,12 +16,22 @@ const corsHandler = cors({
 const AvanceSchema = z.object({
   obraId: z.string().min(1),
   actividadId: z.string().nullable().optional(),
-  porcentaje: z.number().min(0).max(100),
+
+  // 👇 Esto convierte string a número automáticamente (por ejemplo "20" → 20)
+  porcentaje: z.coerce.number().min(0).max(100),
+
   comentario: z.string().optional().default(""),
-  fotos: z.array(z.string().url()).max(5).optional().default([]),
-  visibleCliente: z.boolean().optional().default(true),
+
+  // 👇 Por ahora no validamos que la foto sea URL perfecta, solo texto
+  fotos: z.array(z.string()).max(5).optional().default([]),
+
+  // 👇 Acepta "true"/"false", 1/0, etc. y los convierte a boolean
+  visibleCliente: z.coerce.boolean().optional().default(true),
+
   creadoPorNombre: z.string().optional(),
 });
+
+
 
 function escapeHtml(s: string) {
   return s.replace(/[&<>"']/g, (m) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[m]!));

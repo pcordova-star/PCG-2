@@ -46,7 +46,9 @@ type QuickAvanceSheetProps = {
 
 const MAX_FOTOS = 5;
 const MAX_TAMANO_MB = 5;
-const CLOUD_FUNCTION_URL = "https://southamerica-west1-studio-6495872333-f2751.cloudfunctions.net/registrarAvanceRapido";
+const CLOUD_FUNCTION_URL =
+  "https://southamerica-west1-studio-6495872333-f2751.cloudfunctions.net/registrarAvanceRapido";
+
 
 
 export function QuickAvanceSheet({ open, onOpenChange }: QuickAvanceSheetProps) {
