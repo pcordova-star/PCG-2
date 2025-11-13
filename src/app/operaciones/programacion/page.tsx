@@ -20,7 +20,7 @@ import {
   serverTimestamp
 } from "firebase/firestore";
 import { firebaseDb, firebaseStorage } from "../../../lib/firebaseClient";
-import { ref, uploadBytes, getDownloadURL, deleteObject, uploadBytesResumable } from "firebase/storage";
+import { ref, deleteObject } from "firebase/storage";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -29,7 +29,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
@@ -60,10 +60,9 @@ import {
 } from "@/components/ui/alert-dialog";
 import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
-import { Checkbox } from "@/components/ui/checkbox";
 import Link from "next/link";
-import { FilePlus2, FileText, Trash2, Edit, PlusCircle, X } from 'lucide-react';
-import { useToast } from "@/hooks/use-toast";
+import { FilePlus2, FileText, Trash2, Edit, PlusCircle } from 'lucide-react';
+import RegistrarAvanceForm from "./components/RegistrarAvanceForm";
 
 type Obra = {
   id: string;
@@ -73,7 +72,7 @@ type Obra = {
 type EstadoActividad = "Pendiente" | "En curso" | "Terminada" | "Atrasada";
 
 
-type ActividadProgramada = {
+export type ActividadProgramada = {
   id: string;
   obraId: string;
   nombreActividad: string;
@@ -109,14 +108,10 @@ type EstadoDePago = {
   obraId: string;
 };
 
-const MAX_FOTOS = 5;
-const MAX_TAMANO_MB = 5;
-
 function ProgramacionPageInner() {
   const { user, loading: loadingAuth } = useAuth();
   const router = useRouter();
   const searchParams = useSearchParams();
-  const { toast } = useToast();
 
   const [obras, setObras] = useState<Obra[]>([]);
   const [obraSeleccionadaId, setObraSeleccionadaId] = useState<string>("");
@@ -134,17 +129,6 @@ function ProgramacionPageInner() {
 
   const [dialogOpen, setDialogOpen] = useState(false);
   const [currentActividad, setCurrentActividad] = useState<Partial<ActividadProgramada> | null>(null);
-
-  const [formAvance, setFormAvance] = useState({
-    actividadId: "null", 
-    fecha: new Date().toISOString().slice(0, 10),
-    porcentajeAvance: "",
-    comentario: "",
-  });
-  const [visibleCliente, setVisibleCliente] = useState<boolean>(true);
-  const [archivos, setArchivos] = useState<File[]>([]);
-  const [previews, setPreviews] = useState<string[]>([]);
-  const [uploading, setUploading] = useState(false);
   
   const [dialogEdpOpen, setDialogEdpOpen] = useState(false);
   const [fechaCorteEdp, setFechaCorteEdp] = useState(new Date().toISOString().slice(0, 10));
@@ -219,66 +203,68 @@ function ProgramacionPageInner() {
     cargarObras();
   }, [user, searchParams]);
 
-  useEffect(() => {
-    if (!obraSeleccionadaId || !user) {
-      setActividades([]);
-      setAvances([]);
-      setEstadosDePago([]);
-      return;
+  const cargarDatosDeObra = async (obraId: string) => {
+    if (!obraId || !user) {
+        setActividades([]);
+        setAvances([]);
+        setEstadosDePago([]);
+        return;
     };
-
-    const cargarDatosDeObra = async () => {
-      setError(null);
-      setCargandoActividades(true);
-      try {
-        const actColRef = collection(firebaseDb, "obras", obraSeleccionadaId, "actividades");
+    
+    setError(null);
+    setCargandoActividades(true);
+    try {
+        const actColRef = collection(firebaseDb, "obras", obraId, "actividades");
         const qAct = query(actColRef, orderBy("fechaInicio", "asc"));
         const snapshotAct = await getDocs(qAct);
         const dataAct: ActividadProgramada[] = snapshotAct.docs.map((d) => ({ ...d.data(), id: d.id } as ActividadProgramada));
         setActividades(dataAct);
-      } catch (err) {
+    } catch (err) {
         console.error("Error cargando actividades:", err);
         setError("No se pudieron cargar las actividades de la obra.");
-      } finally {
+    } finally {
         setCargandoActividades(false);
-      }
+    }
 
-      setCargandoAvances(true);
-      try {
-        const avColRef = collection(firebaseDb, "obras", obraSeleccionadaId, "avancesDiarios");
+    setCargandoAvances(true);
+    try {
+        const avColRef = collection(firebaseDb, "obras", obraId, "avancesDiarios");
         const qAv = query(avColRef, orderBy("fecha", "desc"));
         const snapshotAv = await getDocs(qAv);
         const dataAv: AvanceDiario[] = snapshotAv.docs.map((d) => {
-          const data = d.data();
-          return { 
-            id: d.id,
-            ...data,
-            fecha: data.fecha instanceof Timestamp ? data.fecha.toDate().toISOString() : data.fecha,
-          } as AvanceDiario
+            const data = d.data();
+            return {
+                id: d.id,
+                ...data,
+                fecha: data.fecha instanceof Timestamp ? data.fecha.toDate().toISOString() : data.fecha,
+            } as AvanceDiario
         });
         setAvances(dataAv);
-      } catch (err) {
+    } catch (err) {
         console.error("Error cargando avances:", err);
         setError((prev) => (prev ? prev + " " : "") + "No se pudieron cargar los avances diarios.");
-      } finally {
+    } finally {
         setCargandoAvances(false);
-      }
+    }
 
-      setCargandoEdp(true);
-      try {
-        const edpColRef = collection(firebaseDb, "obras", obraSeleccionadaId, "estadosDePago");
+    setCargandoEdp(true);
+    try {
+        const edpColRef = collection(firebaseDb, "obras", obraId, "estadosDePago");
         const qEdp = query(edpColRef, orderBy("correlativo", "desc"));
         const snapshotEdp = await getDocs(qEdp);
         const dataEdp: EstadoDePago[] = snapshotEdp.docs.map((d) => ({ ...d.data(), id: d.id } as EstadoDePago));
         setEstadosDePago(dataEdp);
-      } catch(err) {
+    } catch(err) {
         console.error("Error cargando estados de pago:", err);
-      } finally {
+    } finally {
         setCargandoEdp(false);
-      }
     }
-    
-    cargarDatosDeObra();
+  }
+
+  useEffect(() => {
+    if (obraSeleccionadaId) {
+        cargarDatosDeObra(obraSeleccionadaId);
+    }
   }, [obraSeleccionadaId, user]);
 
   const handleOpenDialog = (actividad: Partial<ActividadProgramada> | null = null) => {
@@ -345,122 +331,6 @@ function ProgramacionPageInner() {
     }
   }
 
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (!e.target.files) return;
-
-    const nuevosArchivos = Array.from(e.target.files);
-    const archivosAProcesar = [...archivos, ...nuevosArchivos];
-
-    if (archivosAProcesar.length > MAX_FOTOS) {
-      setError(`No puedes subir más de ${MAX_FOTOS} fotos por avance.`);
-      return;
-    }
-
-    const archivosValidos = archivosAProcesar.filter(file => {
-      const esValido = file.size <= MAX_TAMANO_MB * 1024 * 1024;
-      if (!esValido) {
-        setError(`El archivo "${file.name}" supera el tamaño máximo de ${MAX_TAMANO_MB} MB.`);
-      }
-      return esValido;
-    });
-
-    setArchivos(archivosValidos);
-
-    const nuevasPreviews = archivosValidos.map(file => URL.createObjectURL(file));
-    previews.forEach(url => URL.revokeObjectURL(url));
-    setPreviews(nuevasPreviews);
-  };
-  
-  const handleRemoveFile = (index: number) => {
-    const nuevosArchivos = archivos.filter((_, i) => i !== index);
-    setArchivos(nuevosArchivos);
-    
-    const nuevasPreviews = nuevosArchivos.map(file => URL.createObjectURL(file));
-    previews.forEach(url => URL.revokeObjectURL(url));
-    setPreviews(nuevasPreviews);
-  };
-
-  const handleAvanceSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!obraSeleccionadaId || !user) {
-      setError("Debes seleccionar una obra y estar autenticado.");
-      toast({ variant: "destructive", title: "Error de autenticación", description: "Debes seleccionar una obra y estar autenticado." });
-      return;
-    }
-
-    const { actividadId, comentario } = formAvance;
-    const porcentaje = Number(formAvance.porcentajeAvance);
-
-    if (isNaN(porcentaje) || porcentaje < 0 || porcentaje > 100) {
-      setError("El porcentaje de avance debe ser un número entre 0 y 100.");
-      toast({ variant: "destructive", title: "Dato inválido", description: "El porcentaje de avance debe ser un número entre 0 y 100." });
-      return;
-    }
-
-    setUploading(true);
-    setError(null);
-    try {
-      const urlsFotos: string[] = await Promise.all(
-        archivos.map(async (file, index) => {
-          const nombreArchivo = `${Date.now()}-${index}-${file.name}`;
-          const storageRef = ref(firebaseStorage, `avances/${obraSeleccionadaId}/${nombreArchivo}`);
-          const uploadTask = uploadBytesResumable(storageRef, file);
-          await uploadTask;
-          return await getDownloadURL(uploadTask.snapshot.ref);
-        })
-      );
-      
-      const colRef = collection(firebaseDb, "obras", obraSeleccionadaId, "avancesDiarios");
-      
-      const docData = {
-        obraId: obraSeleccionadaId,
-        actividadId: actividadId === 'null' ? null : actividadId,
-        porcentajeAvance: porcentaje,
-        comentario: comentario.trim(),
-        fotos: urlsFotos,
-        visibleParaCliente: !!visibleCliente,
-        creadoPor: {
-          uid: user.uid,
-          displayName: user.displayName || user.email || "Usuario Anónimo"
-        },
-        fecha: serverTimestamp(),
-      };
-
-      const docRef = await addDoc(colRef, docData);
-
-      toast({
-        title: "Avance registrado con éxito",
-        description: `El avance para la obra ha sido guardado.`,
-      });
-      
-      // Optimistic UI update
-      const nuevoAvance: AvanceDiario = { 
-        id: docRef.id,
-        ...docData,
-        fecha: new Date().toISOString(), 
-      };
-      
-      setAvances((prev) => [nuevoAvance, ...prev].sort((a,b) => a.fecha < b.fecha ? 1 : -1));
-      
-      setFormAvance({ actividadId: "null", fecha: new Date().toISOString().slice(0, 10), porcentajeAvance: "", comentario: "" });
-      setArchivos([]);
-      previews.forEach(url => URL.revokeObjectURL(url));
-      setPreviews([]);
-      const fileInput = document.getElementById('foto-avance-input') as HTMLInputElement;
-      if (fileInput) fileInput.value = "";
-
-    } catch (err: any) {
-      console.error(err);
-      setError("No se pudo registrar el avance. " + err.message);
-      toast({
-        variant: "destructive",
-        title: "Error al registrar avance",
-        description: err.message || "Ocurrió un problema. Inténtalo de nuevo.",
-      });
-    } finally {
-      setUploading(false);
-    }
-  }
 
   const handleDeleteAvance = async (avance: AvanceDiario) => {
     if (!obraSeleccionadaId) return;
@@ -737,66 +607,7 @@ function ProgramacionPageInner() {
           <p className="text-sm text-muted-foreground">Registra el avance de la obra. Esta información alimentará el Estado de Pago.</p>
         </header>
         <div className="grid gap-6 md:grid-cols-2">
-          <Card>
-            <CardHeader><CardTitle>Registrar avance del día</CardTitle></CardHeader>
-            <CardContent>
-              <form onSubmit={handleAvanceSubmit} className="space-y-4">
-                <div className="space-y-1">
-                    <Label htmlFor="avance-actividad" className="text-xs font-medium">Actividad (opcional)</Label>
-                    <Select value={formAvance.actividadId} onValueChange={(value) => setFormAvance(prev => ({ ...prev, actividadId: value }))}>
-                        <SelectTrigger id="avance-actividad">
-                            <SelectValue placeholder="Seleccionar actividad" />
-                        </SelectTrigger>
-                        <SelectContent>
-                            <SelectItem value="null">
-                              <div>Avance General de Obra</div>
-                              <div className="text-xs text-muted-foreground">Para fotos o comentarios que no afectan el % de una tarea específica.</div>
-                            </SelectItem>
-                            {actividades.map(act => (
-                                <SelectItem key={act.id} value={act.id}>
-                                    {act.nombreActividad}
-                                </SelectItem>
-                            ))}
-                        </SelectContent>
-                    </Select>
-                </div>
-                <div className="grid gap-3 md:grid-cols-2">
-                  <div className="space-y-1"><Label htmlFor="avance-fecha" className="text-xs font-medium">Fecha*</Label><Input id="avance-fecha" type="date" value={formAvance.fecha} onChange={(e) => setFormAvance(prev => ({...prev, fecha: e.target.value}))} /></div>
-                  <div className="space-y-1"><Label htmlFor="avance-porcentaje" className="text-xs font-medium">Avance Acumulado (%)</Label><Input id="avance-porcentaje" type="number" min={0} max={100} value={formAvance.porcentajeAvance} onChange={(e) => setFormAvance(prev => ({...prev, porcentajeAvance: e.target.value}))} /></div>
-                </div>
-                <div className="space-y-1"><Label htmlFor="avance-comentario" className="text-xs font-medium">Comentario*</Label><textarea id="avance-comentario" value={formAvance.comentario} onChange={(e) => setFormAvance(prev => ({...prev, comentario: e.target.value}))} rows={3} className="w-full rounded-lg border bg-background px-3 py-2 text-sm" /></div>
-                <div className="space-y-1">
-                    <Label htmlFor="foto-avance-input" className="text-xs font-medium">Fotos (máx. {MAX_FOTOS}, hasta {MAX_TAMANO_MB}MB c/u)</Label>
-                    <Input id="foto-avance-input" type="file" accept="image/*" multiple onChange={handleFileChange} />
-                </div>
-                 {previews.length > 0 && (
-                    <div className="grid grid-cols-3 gap-2">
-                        {previews.map((preview, index) => (
-                            <div key={index} className="relative group">
-                                <img src={preview} alt={`Vista previa ${index}`} className="w-full h-24 object-cover rounded-md" />
-                                <Button
-                                    type="button"
-                                    variant="destructive"
-                                    size="icon"
-                                    className="absolute top-1 right-1 h-6 w-6 opacity-50 group-hover:opacity-100"
-                                    onClick={() => handleRemoveFile(index)}
-                                >
-                                    <X className="h-4 w-4" />
-                                </Button>
-                            </div>
-                        ))}
-                    </div>
-                 )}
-                 <div className="flex items-center gap-2">
-                    <Checkbox id="visibleCliente" checked={visibleCliente} onCheckedChange={(c) => setVisibleCliente(c === true)} />
-                    <Label htmlFor="visibleCliente" className="text-xs text-muted-foreground">Visible para el cliente</Label>
-                 </div>
-                <Button type="submit" disabled={uploading}>
-                  {uploading ? "Guardando avance y subiendo fotos..." : "Registrar avance"}
-                </Button>
-              </form>
-            </CardContent>
-          </Card>
+          {obraSeleccionadaId && <RegistrarAvanceForm obraId={obraSeleccionadaId} actividades={actividades} onAvanceRegistrado={() => cargarDatosDeObra(obraSeleccionadaId)} />}
           <div className="space-y-3">
             <h4 className="text-sm font-semibold text-card-foreground">Historial de avances de esta obra</h4>
             {cargandoAvances ? <p className="text-sm text-muted-foreground">Cargando avances...</p> : 

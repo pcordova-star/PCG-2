@@ -13,7 +13,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Edit, Trash2, PlusCircle, Link as LinkIcon } from "lucide-react";
+import { Edit, Trash2, PlusCircle, Link as LinkIcon, ClipboardPlus } from "lucide-react";
 import Link from "next/link";
 
 type Obra = {
@@ -232,18 +232,17 @@ export default function ObrasPage() {
                   <TableHead>Nombre Faena</TableHead>
                   <TableHead>Administrador de obra</TableHead>
                   <TableHead>Prevencionista</TableHead>
-                  <TableHead>URL Cliente</TableHead>
                   <TableHead className="text-right">Acciones</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {cargandoObras ? (
                   <TableRow>
-                    <TableCell colSpan={5} className="text-center text-muted-foreground">Cargando...</TableCell>
+                    <TableCell colSpan={4} className="text-center text-muted-foreground">Cargando...</TableCell>
                   </TableRow>
                 ) : obras.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={5} className="text-center text-muted-foreground h-24">
+                    <TableCell colSpan={4} className="text-center text-muted-foreground h-24">
                       No hay obras registradas aún.
                     </TableCell>
                   </TableRow>
@@ -253,16 +252,20 @@ export default function ObrasPage() {
                       <TableCell className="font-medium">{obra.nombreFaena}</TableCell>
                       <TableCell>{obra.jefeObraNombre}</TableCell>
                       <TableCell>{obra.prevencionistaNombre}</TableCell>
-                      <TableCell>
-                        <Button variant="outline" size="sm" asChild>
-                          <Link href={`/clientes/${obra.id}`}>
-                            <LinkIcon className="mr-2 h-3 w-3" />
-                            Ver Panel
-                          </Link>
-                        </Button>
-                      </TableCell>
                       <TableCell className="text-right">
                         <div className="flex justify-end gap-2">
+                           <Button variant="outline" size="sm" asChild>
+                              <Link href={`/obras/${obra.id}/registrar-avance`}>
+                                <ClipboardPlus className="mr-2 h-3 w-3" />
+                                Registrar Avance
+                              </Link>
+                           </Button>
+                           <Button variant="outline" size="sm" asChild>
+                            <Link href={`/clientes/${obra.id}`} target="_blank">
+                              <LinkIcon className="mr-2 h-3 w-3" />
+                              Ver Panel Cliente
+                            </Link>
+                          </Button>
                           <Button variant="ghost" size="icon" onClick={() => handleOpenDialog(obra)}>
                             <Edit className="h-4 w-4" />
                             <span className="sr-only">Editar</span>
