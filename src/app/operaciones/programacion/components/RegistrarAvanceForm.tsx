@@ -124,7 +124,7 @@ export default function RegistrarAvanceForm({ obraId: initialObraId, obras = [],
           porcentajeAvance: Math.min(100, porcentajeAcumulado), // Para compatibilidad
           comentario: comentarios[actividadId] || '',
           fotos: urlsFotos,
-          visibleParaCliente: true,
+          visibleCliente: true,
           creadoPor: {
             uid: user.uid,
             displayName: user.displayName || user.email || 'Anónimo',

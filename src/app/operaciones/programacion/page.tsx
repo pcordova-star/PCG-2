@@ -75,6 +75,7 @@ import {
   ResponsiveContainer,
 } from 'recharts';
 import { differenceInDays, eachDayOfInterval, format, isAfter } from 'date-fns';
+import ImageFromStorage from '@/components/client/ImageFromStorage';
 
 
 export type Obra = {
@@ -105,7 +106,7 @@ export type AvanceDiario = {
   porcentajeAvance?: number;
   comentario: string;
   fotos?: string[];
-  visibleParaCliente: boolean;
+  visibleCliente: boolean;
   creadoPor: {
     uid: string;
     displayName: string;
@@ -758,6 +759,39 @@ function ProgramacionPageInner() {
         </header>
         <div className="grid gap-6">
           {obraSeleccionadaId && <RegistrarAvanceForm obraId={obraSeleccionadaId} actividades={actividades} onAvanceRegistrado={refetchAvances} />}
+          {!cargandoAvances && avances.length > 0 && (
+            <Card>
+              <CardHeader>
+                <CardTitle>Historial de Avances Diarios</CardTitle>
+                <CardDescription>Últimos avances registrados para la obra seleccionada.</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                {avances.slice(0, 10).map(avance => {
+                  const actividad = actividades.find(a => a.id === avance.actividadId);
+                  return (
+                    <div key={avance.id} className="border-b pb-4">
+                      <p className="font-semibold">{avance.fecha.toDate().toLocaleDateString('es-CL')} - {actividad?.nombreActividad || 'Avance General'}</p>
+                      <p className="text-sm text-muted-foreground">
+                        Cantidad: {avance.cantidadEjecutada} {actividad?.unidad} · Reportado por: {avance.creadoPor.displayName}
+                      </p>
+                      {avance.comentario && <p className="text-sm mt-1">"{avance.comentario}"</p>}
+                      {avance.fotos && avance.fotos.length > 0 && (
+                        <div className="flex gap-2 mt-2">
+                          {avance.fotos.map(foto => (
+                            <div key={foto} className="w-16 h-16">
+                               <Suspense fallback={<div className="bg-muted animate-pulse w-16 h-16 rounded-md"></div>}>
+                                <ImageFromStorage storagePath={foto} />
+                              </Suspense>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  )
+                })}
+              </CardContent>
+            </Card>
+          )}
         </div>
       </section>
 
