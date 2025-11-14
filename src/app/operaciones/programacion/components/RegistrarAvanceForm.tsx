@@ -1,158 +1,153 @@
 "use client";
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { useAuth } from '@/context/AuthContext';
-import { collection, addDoc, serverTimestamp, getDocs, query, orderBy } from 'firebase/firestore';
+import { collection, addDoc, serverTimestamp, getDocs, query, orderBy, writeBatch } from 'firebase/firestore';
 import { firebaseDb, firebaseStorage } from '@/lib/firebaseClient';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Checkbox } from '@/components/ui/checkbox';
 import { X } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { ActividadProgramada, Obra } from '../page';
+import { useActividadAvance } from '../hooks/useActividadAvance';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 
 type RegistrarAvanceFormProps = {
   obraId?: string;
-  obras?: Obra[]; // Lista de obras para el selector
+  obras?: Obra[]; 
   actividades: ActividadProgramada[];
   onAvanceRegistrado?: (avance: any) => void;
-  allowObraSelection?: boolean; // Para mostrar el selector de obra
-  onObraChanged?: (obraId: string) => void; // Para notificar cambio de obra
+  allowObraSelection?: boolean; 
+  onObraChanged?: (obraId: string) => void; 
 };
 
 const MAX_FOTOS = 5;
 const MAX_TAMANO_MB = 5;
 
-export default function RegistrarAvanceForm({ obraId: initialObraId, obras = [], actividades, onAvanceRegistrado, allowObraSelection = false, onObraChanged }: RegistrarAvanceFormProps) {
+export default function RegistrarAvanceForm({ obraId: initialObraId, obras = [], actividades: initialActividades, onAvanceRegistrado, allowObraSelection = false, onObraChanged }: RegistrarAvanceFormProps) {
   const { user } = useAuth();
   const { toast } = useToast();
   
   const [selectedObraId, setSelectedObraId] = useState(initialObraId || (obras.length > 0 ? obras[0].id : ""));
+  const [fechaAvance, setFechaAvance] = useState(new Date().toISOString().slice(0, 10));
+  const [cantidadesHoy, setCantidadesHoy] = useState<Record<string, number>>({});
+  const [comentarios, setComentarios] = useState<Record<string, string>>({});
+  const [fotos, setFotos] = useState<Record<string, File[]>>({});
 
-  const [formAvance, setFormAvance] = useState({
-    actividadId: 'null',
-    fecha: new Date().toISOString().slice(0, 10),
-    porcentajeAvance: '',
-    comentario: '',
-  });
-  const [visibleCliente, setVisibleCliente] = useState<boolean>(true);
-  const [archivos, setArchivos] = useState<File[]>([]);
-  const [previews, setPreviews] = useState<string[]>([]);
+  const { avancesPorActividad: avancesAcumulados } = useActividadAvance(selectedObraId);
+  
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  const actividadesAMostrar = useMemo(() => {
+    return initialActividades.filter(act => act.obraId === selectedObraId);
+  }, [initialActividades, selectedObraId]);
+
   useEffect(() => {
-    // Si la obra inicial cambia desde las props, actualizamos el estado
     if (initialObraId) {
       setSelectedObraId(initialObraId);
     }
   }, [initialObraId]);
 
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileChange = (actividadId: string, e: React.ChangeEvent<HTMLInputElement>) => {
     if (!e.target.files) return;
-
     const nuevosArchivos = Array.from(e.target.files);
-    const archivosAProcesar = [...archivos, ...nuevosArchivos];
-
-    if (archivosAProcesar.length > MAX_FOTOS) {
-      setError(`No puedes subir más de ${MAX_FOTOS} fotos por avance.`);
-      return;
-    }
-
-    const archivosValidos = archivosAProcesar.filter((file) => {
-      const esValido = file.size <= MAX_TAMANO_MB * 1024 * 1024;
-      if (!esValido) {
-        setError(`El archivo "${file.name}" supera el tamaño máximo de ${MAX_TAMANO_MB} MB.`);
-      }
-      return esValido;
+    
+    setFotos(prev => {
+        const actuales = prev[actividadId] || [];
+        const total = actuales.length + nuevosArchivos.length;
+        if(total > MAX_FOTOS) {
+            setError(`No más de ${MAX_FOTOS} fotos por actividad.`);
+            toast({ variant: 'destructive', title: 'Límite de fotos excedido' });
+            return prev;
+        }
+        return { ...prev, [actividadId]: [...actuales, ...nuevosArchivos] };
     });
-
-    setArchivos(archivosValidos);
-
-    const nuevasPreviews = archivosValidos.map((file) => URL.createObjectURL(file));
-    previews.forEach((url) => URL.revokeObjectURL(url));
-    setPreviews(nuevasPreviews);
   };
 
-  const handleRemoveFile = (index: number) => {
-    const nuevosArchivos = archivos.filter((_, i) => i !== index);
-    setArchivos(nuevosArchivos);
-
-    const nuevasPreviews = nuevosArchivos.map((file) => URL.createObjectURL(file));
-    previews.forEach((url) => URL.revokeObjectURL(url));
-    setPreviews(nuevasPreviews);
-  };
+  const handleRemoveFile = (actividadId: string, index: number) => {
+    setFotos(prev => ({
+        ...prev,
+        [actividadId]: prev[actividadId]?.filter((_, i) => i !== index) || []
+    }));
+  }
 
   const handleAvanceSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!selectedObraId || !user) {
       setError('Debes seleccionar una obra y estar autenticado.');
-      toast({ variant: 'destructive', title: 'Error de autenticación', description: 'Debes seleccionar una obra y estar autenticado.' });
+      toast({ variant: 'destructive', title: 'Error', description: 'Selecciona una obra y asegúrate de estar autenticado.' });
       return;
     }
 
-    const { actividadId, comentario } = formAvance;
-    const porcentaje = Number(formAvance.porcentajeAvance);
-
-    if (isNaN(porcentaje) || porcentaje < 0 || porcentaje > 100) {
-      setError('El porcentaje de avance debe ser un número entre 0 y 100.');
-      toast({ variant: 'destructive', title: 'Dato inválido', description: 'El porcentaje de avance debe ser un número entre 0 y 100.' });
+    const avancesParaGuardar = Object.entries(cantidadesHoy).filter(([_, cant]) => cant > 0);
+    if (avancesParaGuardar.length === 0) {
+      setError('No hay cantidades para registrar. Ingresa un valor en "Cantidad de Hoy" para al menos una actividad.');
+      toast({ variant: 'destructive', title: 'Sin datos', description: 'No hay cantidades para registrar.' });
       return;
     }
 
     setUploading(true);
     setError(null);
-    try {
-      const urlsFotos: string[] = await Promise.all(
-        archivos.map(async (file) => {
-          const nombreArchivo = `${Date.now()}-${file.name}`;
-          const storageRef = ref(firebaseStorage, `avances/${selectedObraId}/${nombreArchivo}`);
-          await uploadBytes(storageRef, file);
-          return await getDownloadURL(storageRef);
-        })
-      );
 
+    try {
+      const batch = writeBatch(firebaseDb);
       const colRef = collection(firebaseDb, 'obras', selectedObraId, 'avancesDiarios');
 
-      const docData = {
-        obraId: selectedObraId,
-        actividadId: actividadId === 'null' ? null : actividadId,
-        porcentajeAvance: porcentaje,
-        comentario: comentario.trim(),
-        fotos: urlsFotos,
-        visibleParaCliente: !!visibleCliente,
-        creadoPor: {
-          uid: user.uid,
-          displayName: user.displayName || user.email || 'Usuario Anónimo',
-        },
-        fecha: serverTimestamp(),
-      };
+      for (const [actividadId, cantidadHoy] of avancesParaGuardar) {
+        const actividad = actividadesAMostrar.find(a => a.id === actividadId);
+        if (!actividad) continue;
 
-      const docRef = await addDoc(colRef, docData);
+        const urlsFotos: string[] = [];
+        if (fotos[actividadId] && fotos[actividadId].length > 0) {
+            for(const file of fotos[actividadId]){
+                const nombreArchivo = `${Date.now()}-${file.name}`;
+                const storageRef = ref(firebaseStorage, `avances/${selectedObraId}/${nombreArchivo}`);
+                await uploadBytes(storageRef, file);
+                const url = await getDownloadURL(storageRef);
+                urlsFotos.push(url);
+            }
+        }
+        
+        const avanceAcumulado = (avancesAcumulados[actividadId]?.cantidadAcumulada || 0) + cantidadHoy;
+        const porcentajeAcumulado = actividad.cantidad > 0 ? (avanceAcumulado / actividad.cantidad) * 100 : 0;
+
+        const docData = {
+          obraId: selectedObraId,
+          actividadId,
+          cantidadEjecutada: cantidadHoy,
+          porcentajeAcumuladoCalculado: Math.min(100, porcentajeAcumulado),
+          porcentajeAvance: Math.min(100, porcentajeAcumulado), // Para compatibilidad
+          comentario: comentarios[actividadId] || '',
+          fotos: urlsFotos,
+          visibleParaCliente: true,
+          creadoPor: {
+            uid: user.uid,
+            displayName: user.displayName || user.email || 'Anónimo',
+          },
+          fecha: new Date(fechaAvance + 'T12:00:00Z'), // Usar fecha del formulario
+        };
+        
+        const nuevoDocRef = doc(colRef);
+        batch.set(nuevoDocRef, docData);
+      }
+
+      await batch.commit();
 
       toast({
         title: 'Avance registrado con éxito',
-        description: `El avance para la obra ha sido guardado.`,
+        description: `Se guardaron ${avancesParaGuardar.length} registros de avance.`,
       });
 
-      const nuevoAvance = {
-        id: docRef.id,
-        ...docData,
-        fecha: new Date().toISOString(),
-      };
+      onAvanceRegistrado?.(avancesParaGuardar);
+      setCantidadesHoy({});
+      setComentarios({});
+      setFotos({});
 
-      onAvanceRegistrado?.(nuevoAvance);
-
-      setFormAvance({ actividadId: 'null', fecha: new Date().toISOString().slice(0, 10), porcentajeAvance: '', comentario: '' });
-      setArchivos([]);
-      previews.forEach((url) => URL.revokeObjectURL(url));
-      setPreviews([]);
-      const fileInput = document.getElementById('foto-avance-input') as HTMLInputElement;
-      if (fileInput) fileInput.value = '';
     } catch (err: any) {
       console.error(err);
       setError('No se pudo registrar el avance. ' + err.message);
@@ -168,6 +163,9 @@ export default function RegistrarAvanceForm({ obraId: initialObraId, obras = [],
 
   const handleObraSelectionChange = (obraId: string) => {
     setSelectedObraId(obraId);
+    setCantidadesHoy({});
+    setComentarios({});
+    setFotos({});
     if(onObraChanged) {
         onObraChanged(obraId);
     }
@@ -177,82 +175,105 @@ export default function RegistrarAvanceForm({ obraId: initialObraId, obras = [],
     <Card>
       <CardHeader>
         <CardTitle>Registrar avance del día</CardTitle>
+        <CardDescription>Ingresa la cantidad ejecutada HOY para cada actividad. El sistema calculará el avance acumulado.</CardDescription>
       </CardHeader>
       <CardContent>
         <form onSubmit={handleAvanceSubmit} className="space-y-4">
-          {allowObraSelection && (
-            <div className="space-y-1">
-              <Label htmlFor="obra-selector" className="text-xs font-medium">Obra*</Label>
-              <Select value={selectedObraId} onValueChange={handleObraSelectionChange}>
-                <SelectTrigger id="obra-selector">
-                  <SelectValue placeholder="Seleccionar obra" />
-                </SelectTrigger>
-                <SelectContent>
-                  {obras.map((obra) => (
-                    <SelectItem key={obra.id} value={obra.id}>
-                      {obra.nombreFaena}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-          )}
-          <div className="space-y-1">
-            <Label htmlFor="avance-actividad" className="text-xs font-medium">Actividad (opcional)</Label>
-            <Select value={formAvance.actividadId} onValueChange={(value) => setFormAvance((prev) => ({ ...prev, actividadId: value }))}>
-              <SelectTrigger id="avance-actividad">
-                <SelectValue placeholder="Seleccionar actividad" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="null">
-                  <div>Avance General de Obra</div>
-                  <div className="text-xs text-muted-foreground">Para fotos o comentarios que no afectan el % de una tarea específica.</div>
-                </SelectItem>
-                {actividades.map((act) => (
-                  <SelectItem key={act.id} value={act.id}>
-                    {act.nombreActividad}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-          <div className="grid gap-3 md:grid-cols-2">
-            <div className="space-y-1">
-              <Label htmlFor="avance-fecha" className="text-xs font-medium">Fecha*</Label>
-              <Input id="avance-fecha" type="date" value={formAvance.fecha} onChange={(e) => setFormAvance((prev) => ({ ...prev, fecha: e.target.value }))} />
-            </div>
-            <div className="space-y-1">
-              <Label htmlFor="avance-porcentaje" className="text-xs font-medium">Avance Acumulado (%)</Label>
-              <Input id="avance-porcentaje" type="number" min={0} max={100} value={formAvance.porcentajeAvance} onChange={(e) => setFormAvance((prev) => ({ ...prev, porcentajeAvance: e.target.value }))} />
+          <div className="flex flex-col sm:flex-row gap-4 sm:items-end">
+            {allowObraSelection && (
+              <div className="space-y-1 flex-grow">
+                <Label htmlFor="obra-selector" className="text-xs font-medium">Obra*</Label>
+                <Select value={selectedObraId} onValueChange={handleObraSelectionChange}>
+                  <SelectTrigger id="obra-selector">
+                    <SelectValue placeholder="Seleccionar obra" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {obras.map((obra) => (
+                      <SelectItem key={obra.id} value={obra.id}>
+                        {obra.nombreFaena}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
+             <div className="space-y-1">
+              <Label htmlFor="avance-fecha" className="text-xs font-medium">Fecha de Avance*</Label>
+              <Input id="avance-fecha" type="date" value={fechaAvance} onChange={(e) => setFechaAvance(e.target.value)} />
             </div>
           </div>
-          <div className="space-y-1">
-            <Label htmlFor="avance-comentario" className="text-xs font-medium">Comentario*</Label>
-            <textarea id="avance-comentario" value={formAvance.comentario} onChange={(e) => setFormAvance((prev) => ({ ...prev, comentario: e.target.value }))} rows={3} className="w-full rounded-lg border bg-background px-3 py-2 text-sm" />
+          
+          <div className="overflow-x-auto border rounded-lg">
+            <Table>
+                <TableHeader>
+                    <TableRow>
+                        <TableHead className="w-[25%]">Actividad</TableHead>
+                        <TableHead>Total</TableHead>
+                        <TableHead>Acumulado</TableHead>
+                        <TableHead className="w-[120px]">Cant. de Hoy</TableHead>
+                        <TableHead>Nuevo %</TableHead>
+                        <TableHead>Comentario / Foto</TableHead>
+                    </TableRow>
+                </TableHeader>
+                <TableBody>
+                    {actividadesAMostrar.map(act => {
+                        const avanceActual = avancesAcumulados[act.id] || { cantidadAcumulada: 0, porcentajeAcumulado: 0 };
+                        const cantidadHoy = cantidadesHoy[act.id] || 0;
+                        const nuevaCantidadAcumulada = avanceActual.cantidadAcumulada + cantidadHoy;
+                        const nuevoPorcentaje = act.cantidad > 0 ? (nuevaCantidadAcumulada / act.cantidad) * 100 : 0;
+
+                        return (
+                            <TableRow key={act.id}>
+                                <TableCell className="font-medium text-xs">{act.nombreActividad}</TableCell>
+                                <TableCell className="text-xs">{act.cantidad} {act.unidad}</TableCell>
+                                <TableCell className="text-xs font-semibold">{avanceActual.cantidadAcumulada.toFixed(2)} ({avanceActual.porcentajeAcumulado.toFixed(1)}%)</TableCell>
+                                <TableCell>
+                                    <Input 
+                                        type="number" 
+                                        placeholder="0"
+                                        value={cantidadesHoy[act.id] || ''}
+                                        onChange={(e) => setCantidadesHoy(prev => ({...prev, [act.id]: Number(e.target.value)}))}
+                                        className="h-8 text-xs"
+                                    />
+                                </TableCell>
+                                <TableCell className="text-xs font-bold text-primary">{Math.min(100, nuevoPorcentaje).toFixed(1)}%</TableCell>
+                                <TableCell className="w-[250px] space-y-2">
+                                     <Input 
+                                        type="text" 
+                                        placeholder="Comentario..."
+                                        value={comentarios[act.id] || ''}
+                                        onChange={(e) => setComentarios(prev => ({...prev, [act.id]: e.target.value}))}
+                                        className="h-8 text-xs"
+                                    />
+                                    <Input 
+                                        type="file" 
+                                        accept="image/*"
+                                        capture="environment"
+                                        multiple
+                                        onChange={(e) => handleFileChange(act.id, e)}
+                                        className="h-8 text-xs"
+                                    />
+                                    <div className="flex flex-wrap gap-1 mt-1">
+                                        {(fotos[act.id] || []).map((file, index) => (
+                                            <div key={index} className="relative text-xs bg-muted p-1 rounded">
+                                                <span>{file.name.substring(0,10)}...</span>
+                                                <button type="button" onClick={() => handleRemoveFile(act.id, index)} className="absolute -top-1 -right-1 bg-destructive text-destructive-foreground rounded-full h-4 w-4 flex items-center justify-center text-white">
+                                                    <X size={10} />
+                                                </button>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </TableCell>
+                            </TableRow>
+                        )
+                    })}
+                </TableBody>
+            </Table>
           </div>
-          <div className="space-y-1">
-            <Label htmlFor="foto-avance-input" className="text-xs font-medium">Fotos (máx. {MAX_FOTOS}, hasta {MAX_TAMANO_MB}MB c/u)</Label>
-            <Input id="foto-avance-input" type="file" accept="image/*" capture="environment" multiple onChange={handleFileChange} />
-          </div>
-          {previews.length > 0 && (
-            <div className="grid grid-cols-3 gap-2">
-              {previews.map((preview, index) => (
-                <div key={index} className="relative group">
-                  <img src={preview} alt={`Vista previa ${index}`} className="w-full h-24 object-cover rounded-md" />
-                  <Button type="button" variant="destructive" size="icon" className="absolute top-1 right-1 h-6 w-6 opacity-50 group-hover:opacity-100" onClick={() => handleRemoveFile(index)}>
-                    <X className="h-4 w-4" />
-                  </Button>
-                </div>
-              ))}
-            </div>
-          )}
-          <div className="flex items-center gap-2">
-            <Checkbox id="visibleCliente" checked={visibleCliente} onCheckedChange={(c) => setVisibleCliente(c === true)} />
-            <Label htmlFor="visibleCliente" className="text-xs text-muted-foreground">Visible para el cliente</Label>
-          </div>
+
           {error && <p className="text-sm font-medium text-destructive">{error}</p>}
           <Button type="submit" disabled={uploading || !selectedObraId}>
-            {uploading ? 'Guardando avance y subiendo fotos...' : 'Registrar avance'}
+            {uploading ? 'Guardando avances...' : 'Registrar Avances del Día'}
           </Button>
         </form>
       </CardContent>
