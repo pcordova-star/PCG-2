@@ -78,7 +78,12 @@ export type ActividadProgramada = {
   nombreActividad: string;
   fechaInicio: string;
   fechaFin: string;
-  precioContrato: number;
+  // --- Campos existentes ---
+  precioContrato: number; // Ahora se interpreta como Precio Unitario
+  // --- Nuevos campos opcionales ---
+  unidad?: string;
+  cantidad?: number;
+  avanceProgramado?: number;
 };
 
 type AvanceDiario = {
@@ -268,7 +273,15 @@ function ProgramacionPageInner() {
   }, [obraSeleccionadaId, user]);
 
   const handleOpenDialog = (actividad: Partial<ActividadProgramada> | null = null) => {
-    setCurrentActividad(actividad || { nombreActividad: "", fechaInicio: "", fechaFin: "", precioContrato: 0 });
+    setCurrentActividad(actividad || { 
+      nombreActividad: "", 
+      unidad: "glb",
+      cantidad: 1,
+      precioContrato: 0, 
+      fechaInicio: "", 
+      fechaFin: "",
+      avanceProgramado: 0
+    });
     setDialogOpen(true);
     setError(null);
   };
@@ -284,20 +297,29 @@ function ProgramacionPageInner() {
         return;
     }
 
-    const { nombreActividad, fechaInicio, fechaFin, precioContrato } = currentActividad;
+    const { nombreActividad, fechaInicio, fechaFin, precioContrato, unidad, cantidad, avanceProgramado } = currentActividad;
     const precioNum = Number(precioContrato);
 
     if (!nombreActividad || !fechaInicio || !precioContrato) {
       setError("Nombre, fecha inicio y precio son obligatorios.");
       return;
     }
-    if (isNaN(precioNum) || precioNum <= 0) {
-      setError("El precio del contrato debe ser un número mayor que cero.");
+    if (isNaN(precioNum) || precioNum < 0) {
+      setError("El precio del contrato debe ser un número mayor o igual que cero.");
       return;
     }
 
     try {
-      const docData = { obraId: obraSeleccionadaId, nombreActividad, fechaInicio, fechaFin, precioContrato: precioNum };
+      const docData = { 
+        obraId: obraSeleccionadaId, 
+        nombreActividad, 
+        fechaInicio, 
+        fechaFin, 
+        precioContrato: precioNum,
+        unidad: unidad || 'glb',
+        cantidad: Number(cantidad) || 1,
+        avanceProgramado: Number(avanceProgramado) || 0
+      };
       
       if (currentActividad.id) {
         const docRef = doc(firebaseDb, "obras", obraSeleccionadaId, "actividades", currentActividad.id);
@@ -379,7 +401,7 @@ function ProgramacionPageInner() {
           .sort((a, b) => new Date(b.fecha).getTime() - new Date(a.fecha).getTime())[0];
         
         const porcentajeAvance = ultimoAvance?.porcentajeAvance ?? 0;
-        const montoProyectado = act.precioContrato * (porcentajeAvance / 100);
+        const montoProyectado = (act.cantidad || 1) * act.precioContrato * (porcentajeAvance / 100);
         
         return { ...act, porcentajeAvance, montoProyectado };
       });
@@ -433,6 +455,10 @@ function ProgramacionPageInner() {
         setError("No se pudo eliminar el estado de pago.");
     }
   }
+
+  const formatCurrency = (value: number) => {
+    return value.toLocaleString('es-CL', { style: 'currency', currency: 'CLP', maximumFractionDigits: 0 });
+  };
   
   if (loadingAuth) return <p className="text-sm text-muted-foreground">Cargando sesión...</p>;
   if (!user) return <p className="text-sm text-muted-foreground">Redirigiendo a login...</p>;
@@ -505,26 +531,36 @@ function ProgramacionPageInner() {
                 <Table>
                     <TableHeader>
                       <TableRow>
-                        <TableHead>Actividad</TableHead>
-                        <TableHead>Precio</TableHead>
-                        <TableHead>% Avance Real</TableHead>
-                        <TableHead>Inicio</TableHead>
-                        <TableHead>Fin</TableHead>
+                        <TableHead className="w-[30%]">Actividad</TableHead>
+                        <TableHead>Un.</TableHead>
+                        <TableHead>Cant.</TableHead>
+                        <TableHead>P. Unitario</TableHead>
+                        <TableHead>Total</TableHead>
+                        <TableHead>Av. Prog. (%)</TableHead>
+                        <TableHead>Av. Real (%)</TableHead>
+                        <TableHead className="hidden md:table-cell">Inicio</TableHead>
+                        <TableHead className="hidden md:table-cell">Fin</TableHead>
                         <TableHead>Estado</TableHead>
                         <TableHead className="text-right">Acciones</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                    {cargandoActividades ? <TableRow><TableCell colSpan={7} className="text-center">Cargando...</TableCell></TableRow> : 
-                    actividades.length > 0 ? (actividades.map((act) => (
+                    {cargandoActividades ? <TableRow><TableCell colSpan={11} className="text-center">Cargando...</TableCell></TableRow> : 
+                    actividades.length > 0 ? (actividades.map((act) => {
+                      const total = (act.cantidad ?? 0) * (act.precioContrato ?? 0);
+                      return (
                         <TableRow key={act.id}>
                             <TableCell className="font-medium">{act.nombreActividad}</TableCell>
-                            <TableCell>{act.precioContrato.toLocaleString('es-CL', { style: 'currency', currency: 'CLP', maximumFractionDigits: 0 })}</TableCell>
+                            <TableCell>{act.unidad ?? '-'}</TableCell>
+                            <TableCell>{act.cantidad ?? '-'}</TableCell>
+                            <TableCell>{formatCurrency(act.precioContrato)}</TableCell>
+                            <TableCell>{total > 0 ? formatCurrency(total) : '-'}</TableCell>
+                            <TableCell>{act.avanceProgramado ?? '0'}%</TableCell>
                             <TableCell className="font-semibold">
                                 {avancesPorActividad.get(act.id)?.toFixed(1) ?? '0.0'}%
                             </TableCell>
-                            <TableCell>{act.fechaInicio}</TableCell>
-                            <TableCell>{act.fechaFin}</TableCell>
+                            <TableCell className="hidden md:table-cell">{act.fechaInicio}</TableCell>
+                            <TableCell className="hidden md:table-cell">{act.fechaFin}</TableCell>
                             <TableCell>
                                <EstadoBadge estado={getEstadoActividad(act)} />
                             </TableCell>
@@ -557,8 +593,9 @@ function ProgramacionPageInner() {
                                 </div>
                             </TableCell>
                         </TableRow>
-                    ))) : (
-                        <TableRow><TableCell colSpan={7} className="text-center text-muted-foreground py-8">No hay actividades para esta obra.</TableCell></TableRow>
+                      )
+                    })) : (
+                        <TableRow><TableCell colSpan={11} className="text-center text-muted-foreground py-8">No hay actividades para esta obra.</TableCell></TableRow>
                     )}
                     </TableBody>
                 </Table>
@@ -567,7 +604,7 @@ function ProgramacionPageInner() {
       </Card>
       
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent className="sm:max-w-[425px]">
+        <DialogContent className="sm:max-w-2xl">
           <form onSubmit={handleActividadSubmit}>
             <DialogHeader>
               <DialogTitle>{currentActividad?.id ? "Editar Actividad" : "Crear Nueva Actividad"}</DialogTitle>
@@ -575,24 +612,16 @@ function ProgramacionPageInner() {
                 {currentActividad?.id ? "Modifica los detalles y haz clic en Guardar." : "Completa los detalles para registrar una nueva actividad."}
               </DialogDescription>
             </DialogHeader>
-            <div className="grid gap-4 py-4">
-              <div className="grid grid-cols-4 items-center gap-4">
-                <Label htmlFor="nombreActividad" className="text-right">Nombre</Label>
-                <Input id="nombreActividad" name="nombreActividad" value={currentActividad?.nombreActividad || ""} onChange={(e) => setCurrentActividad(prev => prev ? {...prev, nombreActividad: e.target.value} : null)} className="col-span-3" />
-              </div>
-              <div className="grid grid-cols-4 items-center gap-4">
-                <Label htmlFor="fechaInicio" className="text-right">Inicio</Label>
-                <Input id="fechaInicio" name="fechaInicio" type="date" value={currentActividad?.fechaInicio || ""} onChange={(e) => setCurrentActividad(prev => prev ? {...prev, fechaInicio: e.target.value} : null)} className="col-span-3" />
-              </div>
-              <div className="grid grid-cols-4 items-center gap-4">
-                <Label htmlFor="fechaFin" className="text-right">Fin</Label>
-                <Input id="fechaFin" name="fechaFin" type="date" value={currentActividad?.fechaFin || ""} onChange={(e) => setCurrentActividad(prev => prev ? {...prev, fechaFin: e.target.value} : null)} className="col-span-3" />
-              </div>
-              <div className="grid grid-cols-4 items-center gap-4">
-                <Label htmlFor="precioContrato" className="text-right">Precio</Label>
-                <Input id="precioContrato" name="precioContrato" type="number" value={currentActividad?.precioContrato || ""} onChange={(e) => setCurrentActividad(prev => prev ? {...prev, precioContrato: Number(e.target.value)} : null)} className="col-span-3" />
-              </div>
-              {error && <p className="col-span-4 text-sm font-medium text-destructive">{error}</p>}
+            <div className="grid gap-4 py-4 md:grid-cols-2 lg:grid-cols-3">
+              <div className="space-y-2 col-span-full"><Label>Nombre Actividad*</Label><Input value={currentActividad?.nombreActividad || ""} onChange={(e) => setCurrentActividad(prev => prev ? {...prev, nombreActividad: e.target.value} : null)} /></div>
+              <div className="space-y-2"><Label>Unidad</Label><Input value={currentActividad?.unidad || ""} onChange={(e) => setCurrentActividad(prev => prev ? {...prev, unidad: e.target.value} : null)} placeholder="m², m³, glb, etc."/></div>
+              <div className="space-y-2"><Label>Cantidad</Label><Input type="number" value={currentActividad?.cantidad || ""} onChange={(e) => setCurrentActividad(prev => prev ? {...prev, cantidad: Number(e.target.value)} : null)} /></div>
+              <div className="space-y-2"><Label>Precio Unitario*</Label><Input type="number" value={currentActividad?.precioContrato || ""} onChange={(e) => setCurrentActividad(prev => prev ? {...prev, precioContrato: Number(e.target.value)} : null)} /></div>
+              <div className="space-y-2"><Label>Fecha Inicio*</Label><Input type="date" value={currentActividad?.fechaInicio || ""} onChange={(e) => setCurrentActividad(prev => prev ? {...prev, fechaInicio: e.target.value} : null)} /></div>
+              <div className="space-y-2"><Label>Fecha Fin</Label><Input type="date" value={currentActividad?.fechaFin || ""} onChange={(e) => setCurrentActividad(prev => prev ? {...prev, fechaFin: e.target.value} : null)} /></div>
+              <div className="space-y-2"><Label>Avance Programado (%)</Label><Input type="number" min="0" max="100" value={currentActividad?.avanceProgramado || ""} onChange={(e) => setCurrentActividad(prev => prev ? {...prev, avanceProgramado: Number(e.target.value)} : null)} /></div>
+
+              {error && <p className="col-span-full text-sm font-medium text-destructive">{error}</p>}
             </div>
             <DialogFooter>
               <Button type="submit">Guardar Actividad</Button>
