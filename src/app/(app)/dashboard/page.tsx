@@ -14,10 +14,11 @@ import {
   Building2,
   ListChecks,
   AlertTriangle,
-  ClipboardPlus,
+  Camera,
   Users,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 
 
 export default function DashboardPage() {
@@ -106,30 +107,62 @@ export default function DashboardPage() {
         ))}
       </div>
 
-      {/* Quick Action Card */}
+      {/* Quick Action Cards */}
       <div>
         <h3 className="text-xl font-semibold mb-4">Acceso Rápido para Terreno</h3>
-        <Card className="group transition-all duration-300 hover:shadow-lg hover:border-primary/30">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-4">
-              <div className="p-3 bg-primary/10 rounded-full">
-                  <ClipboardPlus className="h-6 w-6 text-primary" />
-              </div>
-              <span>¿Estás en terreno?</span>
-            </CardTitle>
-            <CardDescription>
-              Registra el avance diario de tus obras de forma rápida y sencilla desde tu dispositivo móvil. Haz clic aquí para ir directo al formulario de registro.
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-              <Button asChild className="w-full md:w-auto transform transition-transform duration-200 group-hover:scale-105">
-                <Link href="/operaciones/avance-en-terreno">
-                  <ClipboardPlus className="mr-2 h-4 w-4" />
-                  Registrar Avance en Terreno
+        <TooltipProvider>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Link href="/operaciones/registro-fotografico">
+                  <Card className="group transition-all duration-300 hover:shadow-lg hover:border-primary/30 hover:-translate-y-1">
+                    <CardHeader className="flex-row items-center gap-4">
+                      <div className="p-3 bg-blue-100 rounded-full">
+                          <Camera className="h-6 w-6 text-blue-600" />
+                      </div>
+                      <div>
+                        <CardTitle>Fotografiar Hito / Avance</CardTitle>
+                        <CardDescription>Registra solo fotos y comentarios desde terreno.</CardDescription>
+                      </div>
+                    </CardHeader>
+                  </Card>
                 </Link>
-              </Button>
-          </CardContent>
-        </Card>
+              </TooltipTrigger>
+              <TooltipContent>
+                <p className="max-w-xs">
+                  Registra solo fotos y comentarios del estado de la obra. 
+                  No modifica el % de avance ni la Curva S. Ideal para dejar evidencia en terreno.
+                </p>
+              </TooltipContent>
+            </Tooltip>
+
+            <Tooltip>
+              <TooltipTrigger asChild>
+                 <Link href="/operaciones/avance-en-terreno">
+                  <Card className="group transition-all duration-300 hover:shadow-lg hover:border-primary/30 hover:-translate-y-1">
+                    <CardHeader className="flex-row items-center gap-4">
+                      <div className="p-3 bg-green-100 rounded-full">
+                          <ListChecks className="h-6 w-6 text-green-600" />
+                      </div>
+                      <div>
+                        <CardTitle>Actualizar Avance</CardTitle>
+                        <CardDescription>Registra cantidades ejecutadas por actividad.</CardDescription>
+                      </div>
+                    </CardHeader>
+                  </Card>
+                </Link>
+              </TooltipTrigger>
+              <TooltipContent>
+                <p className="max-w-xs">
+                  Registra la cantidad ejecutada por actividad. 
+                  Actualiza el % de avance real y la Curva S del contrato.
+                </p>
+              </TooltipContent>
+            </Tooltip>
+
+          </div>
+        </TooltipProvider>
       </div>
 
 

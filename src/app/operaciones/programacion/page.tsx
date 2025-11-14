@@ -20,7 +20,7 @@ import {
   serverTimestamp,
   writeBatch
 } from "firebase/firestore";
-import { firebaseDb, firebaseStorage } from "../../../lib/firebaseClient";
+import { firebaseDb } from "../../../lib/firebaseClient";
 import { Button } from "@/components/ui/button";
 import {
   Card,

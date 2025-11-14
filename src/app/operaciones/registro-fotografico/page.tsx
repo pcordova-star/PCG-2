@@ -1,4 +1,4 @@
-// src/app/operaciones/avance-en-terreno/page.tsx
+// src/app/operaciones/registro-fotografico/page.tsx
 "use client";
 
 import { useEffect, useState } from "react";
@@ -6,11 +6,11 @@ import { useRouter } from "next/navigation";
 import { useAuth } from "@/context/AuthContext";
 import { collection, getDocs, query, orderBy } from "firebase/firestore";
 import { firebaseDb } from "@/lib/firebaseClient";
-import RegistrarAvanceForm from "@/app/operaciones/programacion/components/RegistrarAvanceForm";
+import RegistroFotograficoForm from "@/app/operaciones/programacion/components/RegistroFotograficoForm";
 import { ActividadProgramada } from "@/app/operaciones/programacion/page";
 import { Obra } from "../programacion/page";
 
-export default function AvanceEnTerrenoPage() {
+export default function RegistroFotograficoPage() {
   const { user, loading: authLoading } = useAuth();
   const router = useRouter();
 
@@ -32,7 +32,6 @@ export default function AvanceEnTerrenoPage() {
       setLoading(true);
       setError(null);
       try {
-        // Cargar todas las obras y todas las actividades de una vez
         const colRefObras = collection(firebaseDb, "obras");
         const qObras = query(colRefObras, orderBy("nombreFaena", "asc"));
         const snapshotObras = await getDocs(qObras);
@@ -56,7 +55,7 @@ export default function AvanceEnTerrenoPage() {
         setActividades(dataActividades);
 
       } catch (err) {
-        console.error("Error fetching data for advance form:", err);
+        console.error("Error fetching data for photo form:", err);
         setError(err instanceof Error ? err.message : "No se pudieron cargar los datos necesarios.");
       } finally {
         setLoading(false);
@@ -66,13 +65,12 @@ export default function AvanceEnTerrenoPage() {
     fetchInitialData();
   }, [user]);
 
-  const handleAvanceRegistrado = () => {
-    // Redirigir al dashboard después de registrar
+  const handleRegistroGuardado = () => {
     router.push(`/dashboard`);
   };
 
   if (authLoading || loading) {
-    return <p className="text-center text-muted-foreground">Cargando formulario de avance...</p>;
+    return <p className="text-center text-muted-foreground">Cargando formulario...</p>;
   }
 
   if (error) {
@@ -80,18 +78,17 @@ export default function AvanceEnTerrenoPage() {
   }
 
   return (
-    <div className="max-w-4xl mx-auto space-y-6">
+    <div className="max-w-2xl mx-auto space-y-6">
       <div className="flex items-center gap-4">
         <div>
-            <h1 className="text-2xl font-bold">Registrar Avance por Cantidad</h1>
-            <p className="text-muted-foreground">Formulario rápido para registrar cantidades ejecutadas desde tu dispositivo móvil.</p>
+            <h1 className="text-2xl font-bold">Registro Fotográfico de Hito / Avance</h1>
+            <p className="text-muted-foreground">Formulario rápido para dejar evidencia fotográfica desde terreno.</p>
         </div>
       </div>
-      <RegistrarAvanceForm
+      <RegistroFotograficoForm
         obras={obras}
         actividades={actividades}
-        onAvanceRegistrado={handleAvanceRegistrado}
-        allowObraSelection={true}
+        onRegistroGuardado={handleRegistroGuardado}
       />
     </div>
   );
