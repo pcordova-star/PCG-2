@@ -57,9 +57,12 @@ export function useActividadAvance(obraId: string | null) {
     const calcularAvanceParaActividades = useCallback((actividades: ActividadProgramada[]) => {
          const resultado: Record<string, AvanceInfo> = {};
          
+         // Filtra solo avances que tengan cantidad, ignorando los fotográficos
+         const avancesConCantidad = avances.filter(a => a.tipoRegistro !== 'FOTOGRAFICO' && typeof a.cantidadEjecutada === 'number');
+
          const avancesPorActividadMap: Record<string, number> = {};
 
-         for (const avance of avances) {
+         for (const avance of avancesConCantidad) {
              if (avance.actividadId) {
                 if (!avancesPorActividadMap[avance.actividadId]) {
                     avancesPorActividadMap[avance.actividadId] = 0;
