@@ -74,7 +74,7 @@ import {
   Legend,
   ResponsiveContainer,
 } from 'recharts';
-import { differenceInDays, eachDayOfInterval, format } from 'date-fns';
+import { differenceInDays, eachDayOfInterval, format, isAfter } from 'date-fns';
 
 
 export type Obra = {
@@ -137,6 +137,9 @@ function CurvaSChart({ actividades, avances, montoTotalContrato }: { actividades
 
     const fechasInicio = actividades.map(a => new Date(a.fechaInicio + 'T00:00:00'));
     const fechasFin = actividades.map(a => new Date(a.fechaFin + 'T00:00:00'));
+    
+    if (fechasInicio.length === 0 || fechasFin.length === 0) return [];
+
     const fechaInicioObra = new Date(Math.min(...fechasInicio.map(d => d.getTime())));
     const fechaFinObra = new Date(Math.max(...fechasFin.map(d => d.getTime())));
 
@@ -147,33 +150,37 @@ function CurvaSChart({ actividades, avances, montoTotalContrato }: { actividades
 
     // --- Cálculo Curva Programada ---
     const costosProgramadosDiarios: Record<string, number> = {};
-    for (const act of actividades) {
-        const totalPartida = (act.cantidad || 0) * (act.precioContrato || 0);
-        const inicioAct = new Date(act.fechaInicio + 'T00:00:00');
-        const finAct = new Date(act.fechaFin + 'T00:00:00');
-        const duracion = differenceInDays(finAct, inicioAct) + 1;
-        const costoDiario = duracion > 0 ? totalPartida / duracion : totalPartida;
+    actividades.forEach(act => {
+      const totalPartida = (act.cantidad || 0) * (act.precioContrato || 0);
+      if (totalPartida === 0 || !act.fechaInicio || !act.fechaFin) return;
 
-        eachDayOfInterval({ start: inicioAct, end: finAct }).forEach(dia => {
-            const fechaStr = format(dia, 'yyyy-MM-dd');
-            if (!costosProgramadosDiarios[fechaStr]) costosProgramadosDiarios[fechaStr] = 0;
-            costosProgramadosDiarios[fechaStr] += costoDiario;
-        });
-    }
+      const inicioAct = new Date(act.fechaInicio + 'T00:00:00');
+      const finAct = new Date(act.fechaFin + 'T00:00:00');
+      if (inicioAct > finAct) return;
+
+      const duracion = differenceInDays(finAct, inicioAct) + 1;
+      const costoDiario = totalPartida / duracion;
+
+      eachDayOfInterval({ start: inicioAct, end: finAct }).forEach(dia => {
+        const fechaStr = format(dia, 'yyyy-MM-dd');
+        if (!costosProgramadosDiarios[fechaStr]) costosProgramadosDiarios[fechaStr] = 0;
+        costosProgramadosDiarios[fechaStr] += costoDiario;
+      });
+    });
 
     // --- Cálculo Curva Real ---
     const costosRealesDiarios: Record<string, number> = {};
-    for (const avance of avances) {
-      if (!avance.cantidadEjecutada || !avance.actividadId || !avance.fecha) continue;
+    avances.forEach(avance => {
+      if (!avance.cantidadEjecutada || !avance.actividadId || !avance.fecha) return;
       const actividadAsociada = actividades.find(a => a.id === avance.actividadId);
-      if (!actividadAsociada) continue;
+      if (!actividadAsociada) return;
       
       const costoDia = avance.cantidadEjecutada * (actividadAsociada.precioContrato || 0);
       const fechaStr = format(avance.fecha.toDate(), 'yyyy-MM-dd');
       
       if (!costosRealesDiarios[fechaStr]) costosRealesDiarios[fechaStr] = 0;
       costosRealesDiarios[fechaStr] += costoDia;
-    }
+    });
     
     let acumuladoProgramado = 0;
     let acumuladoReal = 0;
@@ -184,11 +191,19 @@ function CurvaSChart({ actividades, avances, montoTotalContrato }: { actividades
         acumuladoProgramado += (costosProgramadosDiarios[fechaStr] || 0);
         acumuladoReal += (costosRealesDiarios[fechaStr] || 0);
         
+        const porcentajeProgramado = Math.min(100, (acumuladoProgramado / montoTotalContrato) * 100);
+        const porcentajeReal = isAfter(dia, new Date()) ? null : Math.min(100, (acumuladoReal / montoTotalContrato) * 100);
+
         dataCurva.push({
             fecha: format(dia, 'dd-MM'),
-            programado: parseFloat(((acumuladoProgramado / montoTotalContrato) * 100).toFixed(2)),
-            real: parseFloat(((acumuladoReal / montoTotalContrato) * 100).toFixed(2))
+            programado: porcentajeProgramado,
+            real: porcentajeReal
         });
+
+        // Detener la curva si se alcanza el 100%
+        if (porcentajeProgramado >= 100 || (porcentajeReal !== null && porcentajeReal >= 100)) {
+            break;
+        }
     }
 
     return dataCurva;
@@ -213,11 +228,11 @@ function CurvaSChart({ actividades, avances, montoTotalContrato }: { actividades
           <LineChart data={data} margin={{ top: 5, right: 20, left: -10, bottom: 5 }}>
             <CartesianGrid strokeDasharray="3 3" />
             <XAxis dataKey="fecha" tick={{ fontSize: 12 }} />
-            <YAxis tickFormatter={(value) => `${value}%`} tick={{ fontSize: 12 }} />
+            <YAxis tickFormatter={(value) => `${value}%`} domain={[0, 100]} tick={{ fontSize: 12 }} />
             <Tooltip formatter={(value: number) => [`${value.toFixed(1)}%`, '']} />
             <Legend />
             <Line type="monotone" dataKey="programado" name="Programado" stroke="#8884d8" strokeWidth={2} dot={false} />
-            <Line type="monotone" dataKey="real" name="Real" stroke="#82ca9d" strokeWidth={2} dot={false} />
+            <Line type="monotone" dataKey="real" name="Real" stroke="#82ca9d" strokeWidth={2} dot={false} connectNulls />
           </LineChart>
         </ResponsiveContainer>
       </CardContent>
@@ -257,12 +272,16 @@ function ProgramacionPageInner() {
   }, [actividades]);
 
   const actividadesConPeso = useMemo(() => {
+    if (montoTotalContrato === 0) {
+        return actividades.map(act => ({ ...act, peso: 0 }));
+    }
     return actividades.map(act => {
       const totalPartida = (act.cantidad || 0) * (act.precioContrato || 0);
-      const peso = montoTotalContrato > 0 ? (totalPartida / montoTotalContrato) * 100 : 0;
+      const peso = (totalPartida / montoTotalContrato) * 100;
       return { ...act, peso };
     });
   }, [actividades, montoTotalContrato]);
+
 
   const currentActividadConPeso = useMemo(() => {
     if (!currentActividad) return null;
@@ -289,7 +308,10 @@ function ProgramacionPageInner() {
 
   const resumenActividades = useMemo(() => {
     const total = actividades.length;
-    const estados = actividades.map(getEstadoActividad);
+    if (total === 0) {
+        return { total: 0, pendientes: 0, enCurso: 0, completadas: 0, atrasadas: 0 };
+    }
+    const estados = actividades.map(act => getEstadoActividad(act));
     const pendientes = estados.filter(e => e === "Pendiente").length;
     const enCurso = estados.filter(e => e === "En curso").length;
     const completadas = estados.filter(e => e === "Terminada").length;
