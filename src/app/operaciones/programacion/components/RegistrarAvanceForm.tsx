@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { useAuth } from '@/context/AuthContext';
-import { collection, addDoc, serverTimestamp, getDocs, query, orderBy, writeBatch } from 'firebase/firestore';
+import { collection, addDoc, serverTimestamp, getDocs, query, orderBy, writeBatch, doc } from 'firebase/firestore';
 import { firebaseDb, firebaseStorage } from '@/lib/firebaseClient';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { Button } from '@/components/ui/button';
