@@ -32,21 +32,28 @@ export default function AvanceEnTerrenoPage() {
       setLoading(true);
       setError(null);
       try {
-        // Cargar obras
-        const colRef = collection(firebaseDb, "obras");
-        const qObras = query(colRef, orderBy("nombreFaena", "asc"));
+        // Cargar todas las obras y todas las actividades de una vez
+        const colRefObras = collection(firebaseDb, "obras");
+        const qObras = query(colRefObras, orderBy("nombreFaena", "asc"));
         const snapshotObras = await getDocs(qObras);
-        const dataObras: Obra[] = snapshotObras.docs.map((d) => ({ ...d.data(), id: d.id } as Obra));
-        setObras(dataObras);
+        
+        const dataObras: Obra[] = [];
+        const dataActividades: ActividadProgramada[] = [];
 
-        // Si hay obras, carga las actividades de la primera por defecto (o podrías dejarlo vacío)
-        if (dataObras.length > 0) {
-          const actColRef = collection(firebaseDb, "obras", dataObras[0].id, "actividades");
+        for (const obraDoc of snapshotObras.docs) {
+          const obraData = { ...obraDoc.data(), id: obraDoc.id } as Obra;
+          dataObras.push(obraData);
+
+          const actColRef = collection(firebaseDb, "obras", obraDoc.id, "actividades");
           const qAct = query(actColRef, orderBy("fechaInicio", "asc"));
           const snapshotAct = await getDocs(qAct);
-          const dataAct: ActividadProgramada[] = snapshotAct.docs.map((d) => ({ ...d.data(), id: d.id } as ActividadProgramada));
-          setActividades(dataAct);
+          snapshotAct.forEach(actDoc => {
+            dataActividades.push({ ...actDoc.data(), id: actDoc.id } as ActividadProgramada);
+          });
         }
+        
+        setObras(dataObras);
+        setActividades(dataActividades);
 
       } catch (err) {
         console.error("Error fetching data for advance form:", err);
@@ -58,24 +65,6 @@ export default function AvanceEnTerrenoPage() {
 
     fetchInitialData();
   }, [user]);
-  
-  const handleObraChange = async (obraId: string) => {
-    if (!obraId) {
-        setActividades([]);
-        return;
-    }
-    try {
-        const actColRef = collection(firebaseDb, "obras", obraId, "actividades");
-        const qAct = query(actColRef, orderBy("fechaInicio", "asc"));
-        const snapshotAct = await getDocs(qAct);
-        const dataAct: ActividadProgramada[] = snapshotAct.docs.map((d) => ({ ...d.data(), id: d.id } as ActividadProgramada));
-        setActividades(dataAct);
-    } catch(err) {
-        console.error("Error fetching activities for selected obra:", err);
-        setError("No se pudieron cargar las actividades de la obra seleccionada.");
-    }
-  }
-
 
   const handleAvanceRegistrado = () => {
     // Redirigir al dashboard después de registrar
@@ -91,7 +80,7 @@ export default function AvanceEnTerrenoPage() {
   }
 
   return (
-    <div className="max-w-2xl mx-auto space-y-6">
+    <div className="max-w-4xl mx-auto space-y-6">
       <div className="flex items-center gap-4">
         <div>
             <h1 className="text-2xl font-bold">Registrar Avance en Terreno</h1>
@@ -103,7 +92,6 @@ export default function AvanceEnTerrenoPage() {
         actividades={actividades}
         onAvanceRegistrado={handleAvanceRegistrado}
         allowObraSelection={true}
-        onObraChanged={handleObraChange}
       />
     </div>
   );

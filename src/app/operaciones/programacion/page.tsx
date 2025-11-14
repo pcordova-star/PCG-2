@@ -17,10 +17,10 @@ import {
   orderBy,
   deleteDoc,
   Timestamp,
-  serverTimestamp
+  serverTimestamp,
+  writeBatch
 } from "firebase/firestore";
 import { firebaseDb, firebaseStorage } from "../../../lib/firebaseClient";
-import { ref, deleteObject } from "firebase/storage";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -63,6 +63,7 @@ import { Badge } from "@/components/ui/badge";
 import Link from "next/link";
 import { FilePlus2, FileText, Trash2, Edit, PlusCircle } from 'lucide-react';
 import RegistrarAvanceForm from "./components/RegistrarAvanceForm";
+import { useActividadAvance } from "./hooks/useActividadAvance";
 
 export type Obra = {
   id: string;
@@ -71,18 +72,15 @@ export type Obra = {
 
 type EstadoActividad = "Pendiente" | "En curso" | "Terminada" | "Atrasada";
 
-
 export type ActividadProgramada = {
   id: string;
   obraId: string;
   nombreActividad: string;
   fechaInicio: string;
   fechaFin: string;
-  // --- Campos existentes ---
-  precioContrato: number; // Ahora se interpreta como Precio Unitario
-  // --- Nuevos campos opcionales ---
-  unidad?: string;
-  cantidad?: number;
+  precioContrato: number; 
+  unidad: string;
+  cantidad: number;
   avanceProgramado?: number;
 };
 
@@ -90,10 +88,10 @@ type AvanceDiario = {
   id: string;
   obraId: string;
   actividadId?: string;
-  fecha: string;
-  porcentajeAvance: number;
+  fecha: string; // ISO string
+  cantidadEjecutada?: number;
+  porcentajeAvance: number; // Esto puede ser el % acumulado calculado
   comentario: string;
-  fotoUrl?: string;
   fotos?: string[];
   visibleParaCliente: boolean;
   creadoPor: {
@@ -122,11 +120,11 @@ function ProgramacionPageInner() {
   const [obraSeleccionadaId, setObraSeleccionadaId] = useState<string>("");
 
   const [actividades, setActividades] = useState<ActividadProgramada[]>([]);
-  const [avances, setAvances] = useState<AvanceDiario[]>([]);
   const [estadosDePago, setEstadosDePago] = useState<EstadoDePago[]>([]);
+  const { avancesPorActividad, avances, loading: cargandoAvances, refetchAvances } = useActividadAvance(obraSeleccionadaId);
+
 
   const [cargandoActividades, setCargandoActividades] = useState(true);
-  const [cargandoAvances, setCargandoAvances] = useState(true);
   const [cargandoEdp, setCargandoEdp] = useState(true);
   const [generandoEdp, setGenerandoEdp] = useState(false);
   
@@ -138,20 +136,8 @@ function ProgramacionPageInner() {
   const [dialogEdpOpen, setDialogEdpOpen] = useState(false);
   const [fechaCorteEdp, setFechaCorteEdp] = useState(new Date().toISOString().slice(0, 10));
 
-  const avancesPorActividad = useMemo(() => {
-    const mapaAvances = new Map<string, number>();
-    const avancesOrdenados = [...avances].sort((a,b) => a.fecha < b.fecha ? 1 : -1);
-
-    for (const avance of avancesOrdenados) {
-        if (avance.actividadId && !mapaAvances.has(avance.actividadId)) {
-            mapaAvances.set(avance.actividadId, avance.porcentajeAvance);
-        }
-    }
-    return mapaAvances;
-  }, [avances]);
-
   const getEstadoActividad = (act: ActividadProgramada): EstadoActividad => {
-    const avance = avancesPorActividad.get(act.id) ?? 0;
+    const avance = avancesPorActividad[act.id]?.porcentajeAcumulado ?? 0;
     if (avance >= 100) return "Terminada";
 
     const hoy = new Date();
@@ -211,7 +197,6 @@ function ProgramacionPageInner() {
   const cargarDatosDeObra = async (obraId: string) => {
     if (!obraId || !user) {
         setActividades([]);
-        setAvances([]);
         setEstadosDePago([]);
         return;
     };
@@ -230,27 +215,8 @@ function ProgramacionPageInner() {
     } finally {
         setCargandoActividades(false);
     }
-
-    setCargandoAvances(true);
-    try {
-        const avColRef = collection(firebaseDb, "obras", obraId, "avancesDiarios");
-        const qAv = query(avColRef, orderBy("fecha", "desc"));
-        const snapshotAv = await getDocs(qAv);
-        const dataAv: AvanceDiario[] = snapshotAv.docs.map((d) => {
-            const data = d.data();
-            return {
-                id: d.id,
-                ...data,
-                fecha: data.fecha instanceof Timestamp ? data.fecha.toDate().toISOString() : data.fecha,
-            } as AvanceDiario
-        });
-        setAvances(dataAv);
-    } catch (err) {
-        console.error("Error cargando avances:", err);
-        setError((prev) => (prev ? prev + " " : "") + "No se pudieron cargar los avances diarios.");
-    } finally {
-        setCargandoAvances(false);
-    }
+    
+    refetchAvances();
 
     setCargandoEdp(true);
     try {
@@ -299,13 +265,14 @@ function ProgramacionPageInner() {
 
     const { nombreActividad, fechaInicio, fechaFin, precioContrato, unidad, cantidad, avanceProgramado } = currentActividad;
     const precioNum = Number(precioContrato);
+    const cantNum = Number(cantidad);
 
     if (!nombreActividad || !fechaInicio || !precioContrato) {
       setError("Nombre, fecha inicio y precio son obligatorios.");
       return;
     }
-    if (isNaN(precioNum) || precioNum < 0) {
-      setError("El precio del contrato debe ser un número mayor o igual que cero.");
+    if (isNaN(precioNum) || precioNum < 0 || isNaN(cantNum) || cantNum <= 0) {
+      setError("El precio y la cantidad deben ser números válidos y positivos.");
       return;
     }
 
@@ -317,7 +284,7 @@ function ProgramacionPageInner() {
         fechaFin, 
         precioContrato: precioNum,
         unidad: unidad || 'glb',
-        cantidad: Number(cantidad) || 1,
+        cantidad: cantNum,
         avanceProgramado: Number(avanceProgramado) || 0
       };
       
@@ -344,46 +311,28 @@ function ProgramacionPageInner() {
   const handleDeleteActividad = async (actividadId: string) => {
     if (!obraSeleccionadaId) return;
     try {
+        const avancesASociados = query(collection(firebaseDb, "obras", obraSeleccionadaId, "avancesDiarios"), where("actividadId", "==", actividadId));
+        const avancesSnap = await getDocs(avancesASociados);
+        
+        const batch = writeBatch(firebaseDb);
+        
+        avancesSnap.forEach(avanceDoc => {
+            batch.delete(avanceDoc.ref);
+        });
+
         const docRef = doc(firebaseDb, "obras", obraSeleccionadaId, "actividades", actividadId);
-        await deleteDoc(docRef);
+        batch.delete(docRef);
+
+        await batch.commit();
+        
         setActividades(prev => prev.filter(act => act.id !== actividadId));
+        refetchAvances();
+        
     } catch(err) {
         console.error(err);
-        setError("No se pudo eliminar la actividad.");
+        setError("No se pudo eliminar la actividad y sus avances.");
     }
   }
-
-
-  const handleDeleteAvance = async (avance: AvanceDiario) => {
-    if (!obraSeleccionadaId) return;
-
-    try {
-      const photoUrls = avance.fotos || (avance.fotoUrl ? [avance.fotoUrl] : []);
-      if (photoUrls.length > 0) {
-        await Promise.all(
-          photoUrls.map(async (url) => {
-            try {
-              const photoRef = ref(firebaseStorage, url);
-              await deleteObject(photoRef);
-            } catch (storageError: any) {
-              if (storageError.code !== 'storage/object-not-found') {
-                throw storageError;
-              }
-            }
-          })
-        );
-      }
-
-      const docRef = doc(firebaseDb, "obras", obraSeleccionadaId, "avancesDiarios", avance.id);
-      await deleteDoc(docRef);
-
-      setAvances(prev => prev.filter(a => a.id !== avance.id));
-
-    } catch (err) {
-      console.error("Error deleting daily progress:", err);
-      setError("No se pudo eliminar el registro de avance. Inténtelo de nuevo.");
-    }
-  };
 
   const handleGenerarEstadoDePago = async () => {
     if (!obraSeleccionadaId) return;
@@ -396,14 +345,19 @@ function ProgramacionPageInner() {
       const nuevoCorrelativo = ultimoCorrelativo + 1;
       
       const actividadesConAvance = actividades.map(act => {
-        const ultimoAvance = avances
-          .filter(av => av.actividadId === act.id && new Date(av.fecha) <= new Date(fechaCorteEdp + 'T23:59:59')) 
-          .sort((a, b) => new Date(b.fecha).getTime() - new Date(a.fecha).getTime())[0];
+        const avanceInfo = avancesPorActividad[act.id];
+        const porcentajeAvance = avanceInfo?.porcentajeAcumulado ?? 0;
+        const montoProyectado = (act.cantidad || 0) * act.precioContrato * (porcentajeAvance / 100);
         
-        const porcentajeAvance = ultimoAvance?.porcentajeAvance ?? 0;
-        const montoProyectado = (act.cantidad || 1) * act.precioContrato * (porcentajeAvance / 100);
-        
-        return { ...act, porcentajeAvance, montoProyectado };
+        return { 
+            id: act.id, 
+            nombreActividad: act.nombreActividad, 
+            precioContrato: act.precioContrato,
+            cantidad: act.cantidad,
+            unidad: act.unidad,
+            porcentajeAvance, 
+            montoProyectado 
+        };
       });
       
       const subtotal = actividadesConAvance.reduce((sum, act) => sum + act.montoProyectado, 0);
@@ -419,10 +373,12 @@ function ProgramacionPageInner() {
         subtotal,
         iva,
         total,
-        actividades: actividadesConAvance.map(({ id, nombreActividad, precioContrato, porcentajeAvance, montoProyectado }) => ({
+        actividades: actividadesConAvance.map(({ id, nombreActividad, precioContrato, cantidad, unidad, porcentajeAvance, montoProyectado }) => ({
             actividadId: id,
             nombre: nombreActividad,
             precioContrato,
+            cantidad,
+            unidad,
             porcentajeAvance,
             montoProyectado
         })),
@@ -466,9 +422,9 @@ function ProgramacionPageInner() {
   return (
     <div className="space-y-8">
       <header>
-        <h1 className="text-4xl font-bold font-headline tracking-tight">Programación de Obras v2.0</h1>
+        <h1 className="text-4xl font-bold font-headline tracking-tight">Programación de Obras v3.0</h1>
         <p className="mt-2 text-lg text-muted-foreground">
-          Gestione actividades con precios y registre avances para generar estados de pago.
+          Gestione actividades por cantidad y precio, registre avances diarios por cantidad ejecutada y genere estados de pago.
         </p>
       </header>
 
@@ -548,6 +504,7 @@ function ProgramacionPageInner() {
                     {cargandoActividades ? <TableRow><TableCell colSpan={11} className="text-center">Cargando...</TableCell></TableRow> : 
                     actividades.length > 0 ? (actividades.map((act) => {
                       const total = (act.cantidad ?? 0) * (act.precioContrato ?? 0);
+                      const avanceInfo = avancesPorActividad[act.id];
                       return (
                         <TableRow key={act.id}>
                             <TableCell className="font-medium">{act.nombreActividad}</TableCell>
@@ -557,7 +514,7 @@ function ProgramacionPageInner() {
                             <TableCell>{total > 0 ? formatCurrency(total) : '-'}</TableCell>
                             <TableCell>{act.avanceProgramado ?? '0'}%</TableCell>
                             <TableCell className="font-semibold">
-                                {avancesPorActividad.get(act.id)?.toFixed(1) ?? '0.0'}%
+                                {avanceInfo?.porcentajeAcumulado.toFixed(1) ?? '0.0'}%
                             </TableCell>
                             <TableCell className="hidden md:table-cell">{act.fechaInicio}</TableCell>
                             <TableCell className="hidden md:table-cell">{act.fechaFin}</TableCell>
@@ -581,7 +538,7 @@ function ProgramacionPageInner() {
                                       <AlertDialogHeader>
                                         <AlertDialogTitle>¿Estás seguro de que deseas eliminar esta actividad?</AlertDialogTitle>
                                         <AlertDialogDescription>
-                                          Esta acción no se puede deshacer. Se eliminará permanentemente la actividad "{act.nombreActividad}".
+                                          Esta acción no se puede deshacer. Se eliminará permanentemente la actividad "{act.nombreActividad}" y todos sus avances asociados.
                                         </AlertDialogDescription>
                                       </AlertDialogHeader>
                                       <AlertDialogFooter>
@@ -614,8 +571,8 @@ function ProgramacionPageInner() {
             </DialogHeader>
             <div className="grid gap-4 py-4 md:grid-cols-2 lg:grid-cols-3">
               <div className="space-y-2 col-span-full"><Label>Nombre Actividad*</Label><Input value={currentActividad?.nombreActividad || ""} onChange={(e) => setCurrentActividad(prev => prev ? {...prev, nombreActividad: e.target.value} : null)} /></div>
-              <div className="space-y-2"><Label>Unidad</Label><Input value={currentActividad?.unidad || ""} onChange={(e) => setCurrentActividad(prev => prev ? {...prev, unidad: e.target.value} : null)} placeholder="m², m³, glb, etc."/></div>
-              <div className="space-y-2"><Label>Cantidad</Label><Input type="number" value={currentActividad?.cantidad || ""} onChange={(e) => setCurrentActividad(prev => prev ? {...prev, cantidad: Number(e.target.value)} : null)} /></div>
+              <div className="space-y-2"><Label>Unidad*</Label><Input value={currentActividad?.unidad || ""} onChange={(e) => setCurrentActividad(prev => prev ? {...prev, unidad: e.target.value} : null)} placeholder="m², m³, glb, etc."/></div>
+              <div className="space-y-2"><Label>Cantidad*</Label><Input type="number" value={currentActividad?.cantidad || ""} onChange={(e) => setCurrentActividad(prev => prev ? {...prev, cantidad: Number(e.target.value)} : null)} /></div>
               <div className="space-y-2"><Label>Precio Unitario*</Label><Input type="number" value={currentActividad?.precioContrato || ""} onChange={(e) => setCurrentActividad(prev => prev ? {...prev, precioContrato: Number(e.target.value)} : null)} /></div>
               <div className="space-y-2"><Label>Fecha Inicio*</Label><Input type="date" value={currentActividad?.fechaInicio || ""} onChange={(e) => setCurrentActividad(prev => prev ? {...prev, fechaInicio: e.target.value} : null)} /></div>
               <div className="space-y-2"><Label>Fecha Fin</Label><Input type="date" value={currentActividad?.fechaFin || ""} onChange={(e) => setCurrentActividad(prev => prev ? {...prev, fechaFin: e.target.value} : null)} /></div>
@@ -635,71 +592,8 @@ function ProgramacionPageInner() {
           <h3 className="text-xl font-semibold">Avance diario</h3>
           <p className="text-sm text-muted-foreground">Registra el avance de la obra. Esta información alimentará el Estado de Pago.</p>
         </header>
-        <div className="grid gap-6 md:grid-cols-2">
-          {obraSeleccionadaId && <RegistrarAvanceForm obraId={obraSeleccionadaId} actividades={actividades} onAvanceRegistrado={() => cargarDatosDeObra(obraSeleccionadaId)} />}
-          <div className="space-y-3">
-            <h4 className="text-sm font-semibold text-card-foreground">Historial de avances de esta obra</h4>
-            {cargandoAvances ? <p className="text-sm text-muted-foreground">Cargando avances...</p> : 
-            avances.length === 0 ? <p className="text-sm text-muted-foreground">Aún no hay avances registrados para esta obra.</p> : (
-              <div className="space-y-3 max-h-[600px] overflow-y-auto pr-2">
-                {avances.map((av) => {
-                  const actividadAsociada = av.actividadId ? actividades.find(a => a.id === av.actividadId) : null;
-                  const imagenes = av.fotos && av.fotos.length > 0 ? av.fotos : (av.fotoUrl ? [av.fotoUrl] : []);
-                  return (
-                  <Card key={av.id} className="overflow-hidden">
-                    {imagenes.length > 0 && (
-                      <div className={cn("grid gap-1 p-2 bg-muted/20", imagenes.length > 1 ? "grid-cols-3" : "grid-cols-1")}>
-                          {imagenes.map((imgUrl, idx) => (
-                              <img key={idx} src={imgUrl} alt={`Avance ${av.fecha} - ${idx + 1}`} className="h-48 w-full object-cover rounded-md"/>
-                          ))}
-                      </div>
-                    )}
-                    <CardContent className="p-4 space-y-2">
-                        <div className="flex items-start justify-between gap-2">
-                            <div>
-                                <p className="font-semibold text-primary">{new Date(av.fecha).toLocaleDateString('es-CL', {timeZone: 'UTC'})}{av.porcentajeAvance ? ` · ${av.porcentajeAvance}% avance` : ''}</p>
-                                {actividadAsociada ? (
-                                    <p className="text-xs font-medium text-foreground mt-1">{actividadAsociada.nombreActividad}</p>
-                                ) : (
-                                    <p className="text-xs italic text-muted-foreground mt-1">Avance General</p>
-                                )}
-                                <p className="text-xs text-muted-foreground mt-1">Registrado por: {av.creadoPor.displayName || av.creadoPor.uid || 'N/A'}</p>
-                            </div>
-                            <div className="flex items-center gap-2">
-                                <Badge variant="outline" className={cn(av.visibleParaCliente ? "border-emerald-200 bg-emerald-50 text-emerald-700" : "border-slate-200 bg-slate-100 text-slate-600")}>
-                                    {av.visibleParaCliente ? "Visible cliente" : "Interno"}
-                                </Badge>
-                                <AlertDialog>
-                                    <AlertDialogTrigger asChild>
-                                        <Button variant="ghost" size="icon" className="text-destructive hover:text-destructive h-7 w-7">
-                                            <Trash2 className="h-4 w-4" />
-                                            <span className="sr-only">Eliminar Avance</span>
-                                        </Button>
-                                    </AlertDialogTrigger>
-                                    <AlertDialogContent>
-                                        <AlertDialogHeader>
-                                            <AlertDialogTitle>¿Desea eliminar este registro de avance?</AlertDialogTitle>
-                                            <AlertDialogDescription>
-                                                Esta acción es irreversible. Se eliminará el registro del día {new Date(av.fecha).toLocaleDateString('es-CL', {timeZone: 'UTC'})} y todas sus fotos asociadas.
-                                            </AlertDialogDescription>
-                                        </AlertDialogHeader>
-                                        <AlertDialogFooter>
-                                            <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                                            <AlertDialogAction onClick={() => handleDeleteAvance(av)} className="bg-destructive hover:bg-destructive/90">
-                                                Eliminar Permanentemente
-                                            </AlertDialogAction>
-                                        </AlertDialogFooter>
-                                    </AlertDialogContent>
-                                </AlertDialog>
-                            </div>
-                        </div>
-                        <p className="text-card-foreground/90 text-sm whitespace-pre-line pt-1">{av.comentario}</p>
-                    </CardContent>
-                  </Card>
-                )})}
-              </div>
-            )}
-          </div>
+        <div className="grid gap-6">
+          {obraSeleccionadaId && <RegistrarAvanceForm obraId={obraSeleccionadaId} actividades={actividades} onAvanceRegistrado={refetchAvances} />}
         </div>
       </section>
 
@@ -759,7 +653,7 @@ function ProgramacionPageInner() {
                         <TableCell className="text-right">
                           <div className="flex justify-end gap-2">
                             <Button asChild variant="outline" size="sm">
-                                <Link href={`/operaciones/programacion/estado-pago/${obraSeleccionadaId}?edpId=${edp.id}&fechaCorte=${edp.fechaDeCorte}`}>
+                                <Link href={`/operaciones/programacion/estado-pago/${obraSeleccionadaId}?edpId=${edp.id}&fechaCorte=${edp.fechaDeCorte}`} target="_blank">
                                 <FileText className="mr-2 h-3 w-3" />
                                 Ver
                                 </Link>
