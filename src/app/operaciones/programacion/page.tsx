@@ -64,6 +64,18 @@ import Link from "next/link";
 import { FilePlus2, FileText, Trash2, Edit, PlusCircle } from 'lucide-react';
 import RegistrarAvanceForm from "./components/RegistrarAvanceForm";
 import { useActividadAvance } from "./hooks/useActividadAvance";
+import {
+  LineChart,
+  Line,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  Legend,
+  ResponsiveContainer,
+} from 'recharts';
+import { differenceInDays, eachDayOfInterval, format } from 'date-fns';
+
 
 export type Obra = {
   id: string;
@@ -84,13 +96,13 @@ export type ActividadProgramada = {
   avanceProgramado?: number;
 };
 
-type AvanceDiario = {
+export type AvanceDiario = {
   id: string;
   obraId: string;
-  actividadId?: string;
-  fecha: string; // ISO string
+  actividadId: string;
+  fecha: { toDate: () => Date }; // Aseguramos que es un Timestamp de Firestore
   cantidadEjecutada?: number;
-  porcentajeAvance: number; // Esto puede ser el % acumulado calculado
+  porcentajeAvance?: number;
   comentario: string;
   fotos?: string[];
   visibleParaCliente: boolean;
@@ -111,6 +123,110 @@ type EstadoDePago = {
   obraId: string;
 };
 
+type CurvaSDataPoint = {
+  fecha: string;
+  programado: number | null;
+  real: number | null;
+};
+
+
+// --- Componente Curva S ---
+function CurvaSChart({ actividades, avances, montoTotalContrato }: { actividades: ActividadProgramada[], avances: AvanceDiario[], montoTotalContrato: number }) {
+  const data = useMemo(() => {
+    if (!actividades.length || montoTotalContrato === 0) return [];
+
+    const fechasInicio = actividades.map(a => new Date(a.fechaInicio + 'T00:00:00'));
+    const fechasFin = actividades.map(a => new Date(a.fechaFin + 'T00:00:00'));
+    const fechaInicioObra = new Date(Math.min(...fechasInicio.map(d => d.getTime())));
+    const fechaFinObra = new Date(Math.max(...fechasFin.map(d => d.getTime())));
+
+    if (fechaInicioObra > fechaFinObra) return [];
+
+    const rangoFechas = eachDayOfInterval({ start: fechaInicioObra, end: fechaFinObra });
+    const dataCurva: CurvaSDataPoint[] = [];
+
+    // --- Cálculo Curva Programada ---
+    const costosProgramadosDiarios: Record<string, number> = {};
+    for (const act of actividades) {
+        const totalPartida = (act.cantidad || 0) * (act.precioContrato || 0);
+        const inicioAct = new Date(act.fechaInicio + 'T00:00:00');
+        const finAct = new Date(act.fechaFin + 'T00:00:00');
+        const duracion = differenceInDays(finAct, inicioAct) + 1;
+        const costoDiario = duracion > 0 ? totalPartida / duracion : totalPartida;
+
+        eachDayOfInterval({ start: inicioAct, end: finAct }).forEach(dia => {
+            const fechaStr = format(dia, 'yyyy-MM-dd');
+            if (!costosProgramadosDiarios[fechaStr]) costosProgramadosDiarios[fechaStr] = 0;
+            costosProgramadosDiarios[fechaStr] += costoDiario;
+        });
+    }
+
+    // --- Cálculo Curva Real ---
+    const costosRealesDiarios: Record<string, number> = {};
+    for (const avance of avances) {
+      if (!avance.cantidadEjecutada || !avance.actividadId || !avance.fecha) continue;
+      const actividadAsociada = actividades.find(a => a.id === avance.actividadId);
+      if (!actividadAsociada) continue;
+      
+      const costoDia = avance.cantidadEjecutada * (actividadAsociada.precioContrato || 0);
+      const fechaStr = format(avance.fecha.toDate(), 'yyyy-MM-dd');
+      
+      if (!costosRealesDiarios[fechaStr]) costosRealesDiarios[fechaStr] = 0;
+      costosRealesDiarios[fechaStr] += costoDia;
+    }
+    
+    let acumuladoProgramado = 0;
+    let acumuladoReal = 0;
+
+    for (const dia of rangoFechas) {
+        const fechaStr = format(dia, 'yyyy-MM-dd');
+        
+        acumuladoProgramado += (costosProgramadosDiarios[fechaStr] || 0);
+        acumuladoReal += (costosRealesDiarios[fechaStr] || 0);
+        
+        dataCurva.push({
+            fecha: format(dia, 'dd-MM'),
+            programado: parseFloat(((acumuladoProgramado / montoTotalContrato) * 100).toFixed(2)),
+            real: parseFloat(((acumuladoReal / montoTotalContrato) * 100).toFixed(2))
+        });
+    }
+
+    return dataCurva;
+  }, [actividades, avances, montoTotalContrato]);
+
+  if (!data.length) {
+    return (
+      <div className="text-center text-muted-foreground py-8">
+        No hay suficientes datos para generar la Curva S. Asegúrese de que las actividades tengan fechas y costos definidos.
+      </div>
+    );
+  }
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle>Curva S de Avance (Programado vs. Real)</CardTitle>
+        <CardDescription>Comparativa del avance en base al costo acumulado del contrato.</CardDescription>
+      </CardHeader>
+      <CardContent>
+        <ResponsiveContainer width="100%" height={400}>
+          <LineChart data={data} margin={{ top: 5, right: 20, left: -10, bottom: 5 }}>
+            <CartesianGrid strokeDasharray="3 3" />
+            <XAxis dataKey="fecha" tick={{ fontSize: 12 }} />
+            <YAxis tickFormatter={(value) => `${value}%`} tick={{ fontSize: 12 }} />
+            <Tooltip formatter={(value: number) => [`${value.toFixed(1)}%`, '']} />
+            <Legend />
+            <Line type="monotone" dataKey="programado" name="Programado" stroke="#8884d8" strokeWidth={2} dot={false} />
+            <Line type="monotone" dataKey="real" name="Real" stroke="#82ca9d" strokeWidth={2} dot={false} />
+          </LineChart>
+        </ResponsiveContainer>
+      </CardContent>
+    </Card>
+  );
+}
+
+
+
 function ProgramacionPageInner() {
   const { user, loading: loadingAuth } = useAuth();
   const router = useRouter();
@@ -121,7 +237,7 @@ function ProgramacionPageInner() {
 
   const [actividades, setActividades] = useState<ActividadProgramada[]>([]);
   const [estadosDePago, setEstadosDePago] = useState<EstadoDePago[]>([]);
-  const { avancesPorActividad, avances, loading: cargandoAvances, refetchAvances } = useActividadAvance(obraSeleccionadaId);
+  const { avancesPorActividad, avances, loading: cargandoAvances, refetchAvances, calcularAvanceParaActividades } = useActividadAvance(obraSeleccionadaId);
 
 
   const [cargandoActividades, setCargandoActividades] = useState(true);
@@ -135,6 +251,25 @@ function ProgramacionPageInner() {
   
   const [dialogEdpOpen, setDialogEdpOpen] = useState(false);
   const [fechaCorteEdp, setFechaCorteEdp] = useState(new Date().toISOString().slice(0, 10));
+
+  const montoTotalContrato = useMemo(() => {
+    return actividades.reduce((sum, act) => sum + ((act.cantidad || 0) * (act.precioContrato || 0)), 0);
+  }, [actividades]);
+
+  const actividadesConPeso = useMemo(() => {
+    return actividades.map(act => {
+      const totalPartida = (act.cantidad || 0) * (act.precioContrato || 0);
+      const peso = montoTotalContrato > 0 ? (totalPartida / montoTotalContrato) * 100 : 0;
+      return { ...act, peso };
+    });
+  }, [actividades, montoTotalContrato]);
+
+  const currentActividadConPeso = useMemo(() => {
+    if (!currentActividad) return null;
+    const totalPartida = (currentActividad.cantidad || 0) * (currentActividad.precioContrato || 0);
+    const peso = montoTotalContrato > 0 ? (totalPartida / montoTotalContrato) * 100 : 0;
+    return { ...currentActividad, peso };
+  }, [currentActividad, montoTotalContrato]);
 
   const getEstadoActividad = (act: ActividadProgramada): EstadoActividad => {
     const avance = avancesPorActividad[act.id]?.porcentajeAcumulado ?? 0;
@@ -263,7 +398,7 @@ function ProgramacionPageInner() {
         return;
     }
 
-    const { nombreActividad, fechaInicio, fechaFin, precioContrato, unidad, cantidad, avanceProgramado } = currentActividad;
+    const { nombreActividad, fechaInicio, fechaFin, precioContrato, unidad, cantidad } = currentActividad;
     const precioNum = Number(precioContrato);
     const cantNum = Number(cantidad);
 
@@ -284,8 +419,7 @@ function ProgramacionPageInner() {
         fechaFin, 
         precioContrato: precioNum,
         unidad: unidad || 'glb',
-        cantidad: cantNum,
-        avanceProgramado: Number(avanceProgramado) || 0
+        cantidad: cantNum
       };
       
       if (currentActividad.id) {
@@ -344,8 +478,10 @@ function ProgramacionPageInner() {
       const ultimoCorrelativo = estadosDePago.reduce((max, edp) => Math.max(max, edp.correlativo), 0);
       const nuevoCorrelativo = ultimoCorrelativo + 1;
       
+      const avancesCalculados = calcularAvanceParaActividades(actividades);
+      
       const actividadesConAvance = actividades.map(act => {
-        const avanceInfo = avancesPorActividad[act.id];
+        const avanceInfo = avancesCalculados[act.id];
         const porcentajeAvance = avanceInfo?.porcentajeAcumulado ?? 0;
         const montoProyectado = (act.cantidad || 0) * act.precioContrato * (porcentajeAvance / 100);
         
@@ -492,7 +628,7 @@ function ProgramacionPageInner() {
                         <TableHead>Cant.</TableHead>
                         <TableHead>P. Unitario</TableHead>
                         <TableHead>Total</TableHead>
-                        <TableHead>Av. Prog. (%)</TableHead>
+                        <TableHead>Peso (%)</TableHead>
                         <TableHead>Av. Real (%)</TableHead>
                         <TableHead className="hidden md:table-cell">Inicio</TableHead>
                         <TableHead className="hidden md:table-cell">Fin</TableHead>
@@ -502,7 +638,7 @@ function ProgramacionPageInner() {
                     </TableHeader>
                     <TableBody>
                     {cargandoActividades ? <TableRow><TableCell colSpan={11} className="text-center">Cargando...</TableCell></TableRow> : 
-                    actividades.length > 0 ? (actividades.map((act) => {
+                    actividadesConPeso.length > 0 ? (actividadesConPeso.map((act) => {
                       const total = (act.cantidad ?? 0) * (act.precioContrato ?? 0);
                       const avanceInfo = avancesPorActividad[act.id];
                       return (
@@ -512,8 +648,8 @@ function ProgramacionPageInner() {
                             <TableCell>{act.cantidad ?? '-'}</TableCell>
                             <TableCell>{formatCurrency(act.precioContrato)}</TableCell>
                             <TableCell>{total > 0 ? formatCurrency(total) : '-'}</TableCell>
-                            <TableCell>{act.avanceProgramado ?? '0'}%</TableCell>
-                            <TableCell className="font-semibold">
+                            <TableCell className="font-semibold">{act.peso.toFixed(2)}%</TableCell>
+                            <TableCell className="font-semibold text-blue-600">
                                 {avanceInfo?.porcentajeAcumulado.toFixed(1) ?? '0.0'}%
                             </TableCell>
                             <TableCell className="hidden md:table-cell">{act.fechaInicio}</TableCell>
@@ -564,19 +700,22 @@ function ProgramacionPageInner() {
         <DialogContent className="sm:max-w-2xl">
           <form onSubmit={handleActividadSubmit}>
             <DialogHeader>
-              <DialogTitle>{currentActividad?.id ? "Editar Actividad" : "Crear Nueva Actividad"}</DialogTitle>
+              <DialogTitle>{currentActividadConPeso?.id ? "Editar Actividad" : "Crear Nueva Actividad"}</DialogTitle>
               <DialogDescription>
-                {currentActividad?.id ? "Modifica los detalles y haz clic en Guardar." : "Completa los detalles para registrar una nueva actividad."}
+                {currentActividadConPeso?.id ? "Modifica los detalles y haz clic en Guardar." : "Completa los detalles para registrar una nueva actividad."}
               </DialogDescription>
             </DialogHeader>
             <div className="grid gap-4 py-4 md:grid-cols-2 lg:grid-cols-3">
-              <div className="space-y-2 col-span-full"><Label>Nombre Actividad*</Label><Input value={currentActividad?.nombreActividad || ""} onChange={(e) => setCurrentActividad(prev => prev ? {...prev, nombreActividad: e.target.value} : null)} /></div>
-              <div className="space-y-2"><Label>Unidad*</Label><Input value={currentActividad?.unidad || ""} onChange={(e) => setCurrentActividad(prev => prev ? {...prev, unidad: e.target.value} : null)} placeholder="m², m³, glb, etc."/></div>
-              <div className="space-y-2"><Label>Cantidad*</Label><Input type="number" value={currentActividad?.cantidad || ""} onChange={(e) => setCurrentActividad(prev => prev ? {...prev, cantidad: Number(e.target.value)} : null)} /></div>
-              <div className="space-y-2"><Label>Precio Unitario*</Label><Input type="number" value={currentActividad?.precioContrato || ""} onChange={(e) => setCurrentActividad(prev => prev ? {...prev, precioContrato: Number(e.target.value)} : null)} /></div>
-              <div className="space-y-2"><Label>Fecha Inicio*</Label><Input type="date" value={currentActividad?.fechaInicio || ""} onChange={(e) => setCurrentActividad(prev => prev ? {...prev, fechaInicio: e.target.value} : null)} /></div>
-              <div className="space-y-2"><Label>Fecha Fin</Label><Input type="date" value={currentActividad?.fechaFin || ""} onChange={(e) => setCurrentActividad(prev => prev ? {...prev, fechaFin: e.target.value} : null)} /></div>
-              <div className="space-y-2"><Label>Avance Programado (%)</Label><Input type="number" min="0" max="100" value={currentActividad?.avanceProgramado || ""} onChange={(e) => setCurrentActividad(prev => prev ? {...prev, avanceProgramado: Number(e.target.value)} : null)} /></div>
+              <div className="space-y-2 col-span-full"><Label>Nombre Actividad*</Label><Input value={currentActividadConPeso?.nombreActividad || ""} onChange={(e) => setCurrentActividad(prev => prev ? {...prev, nombreActividad: e.target.value} : null)} /></div>
+              <div className="space-y-2"><Label>Unidad*</Label><Input value={currentActividadConPeso?.unidad || ""} onChange={(e) => setCurrentActividad(prev => prev ? {...prev, unidad: e.target.value} : null)} placeholder="m², m³, glb, etc."/></div>
+              <div className="space-y-2"><Label>Cantidad*</Label><Input type="number" value={currentActividadConPeso?.cantidad || ""} onChange={(e) => setCurrentActividad(prev => prev ? {...prev, cantidad: Number(e.target.value)} : null)} /></div>
+              <div className="space-y-2"><Label>Precio Unitario*</Label><Input type="number" value={currentActividadConPeso?.precioContrato || ""} onChange={(e) => setCurrentActividad(prev => prev ? {...prev, precioContrato: Number(e.target.value)} : null)} /></div>
+              <div className="space-y-2"><Label>Fecha Inicio*</Label><Input type="date" value={currentActividadConPeso?.fechaInicio || ""} onChange={(e) => setCurrentActividad(prev => prev ? {...prev, fechaInicio: e.target.value} : null)} /></div>
+              <div className="space-y-2"><Label>Fecha Fin</Label><Input type="date" value={currentActividadConPeso?.fechaFin || ""} onChange={(e) => setCurrentActividad(prev => prev ? {...prev, fechaFin: e.target.value} : null)} /></div>
+              <div className="space-y-2">
+                <Label>Peso en Contrato (%)</Label>
+                <Input type="text" value={currentActividadConPeso?.peso?.toFixed(2) + '%' || '0.00%'} readOnly disabled />
+              </div>
 
               {error && <p className="col-span-full text-sm font-medium text-destructive">{error}</p>}
             </div>
@@ -586,6 +725,9 @@ function ProgramacionPageInner() {
           </form>
         </DialogContent>
       </Dialog>
+
+      {/* Gráfico Curva S */}
+      {obraSeleccionadaId && <CurvaSChart actividades={actividades} avances={avances} montoTotalContrato={montoTotalContrato} />}
       
       <section className="space-y-4 mt-8">
         <header className="space-y-1">
