@@ -4,15 +4,7 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { collection, query, where, orderBy, onSnapshot, DocumentData } from 'firebase/firestore';
 import { firebaseDb } from '@/lib/firebaseClient';
-import { ActividadProgramada } from '../page';
-
-type AvanceDiarioDoc = {
-    id: string;
-    actividadId: string;
-    cantidadEjecutada: number;
-    porcentajeAvance?: number; // Para compatibilidad con datos antiguos
-    fecha: { toDate: () => Date };
-} & DocumentData;
+import { ActividadProgramada, AvanceDiario } from '../page';
 
 type AvanceInfo = {
     cantidadAcumulada: number;
@@ -20,7 +12,7 @@ type AvanceInfo = {
 };
 
 export function useActividadAvance(obraId: string | null) {
-    const [avances, setAvances] = useState<AvanceDiarioDoc[]>([]);
+    const [avances, setAvances] = useState<AvanceDiario[]>([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
 
@@ -37,7 +29,7 @@ export function useActividadAvance(obraId: string | null) {
 
         const unsubscribe = onSnapshot(q, 
             (snapshot) => {
-                const data: AvanceDiarioDoc[] = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as AvanceDiarioDoc));
+                const data: AvanceDiario[] = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as AvanceDiario));
                 setAvances(data);
                 setLoading(false);
             },
@@ -57,38 +49,9 @@ export function useActividadAvance(obraId: string | null) {
     }, [refetchAvances]);
     
     const avancesPorActividad = useMemo(() => {
-        const mapa = new Map<string, { cantidadAcumulada: number; ultimoPorcentaje: number }>();
-        
-        // No necesitamos ordenar aquí porque sumamos todo
-        for (const avance of avances) {
-            if (avance.actividadId) {
-                const info = mapa.get(avance.actividadId) || { cantidadAcumulada: 0, ultimoPorcentaje: 0 };
-                info.cantidadAcumulada += Number(avance.cantidadEjecutada || 0);
-
-                // Para mantener el porcentaje si es el más reciente (aunque ahora se calcula).
-                // Ordenar primero por fecha descendente asegura que el primer `porcentajeAvance` que encontremos es el más reciente.
-                if (info.ultimoPorcentaje === 0 && avance.porcentajeAcumuladoCalculado) {
-                    info.ultimoPorcentaje = avance.porcentajeAcumuladoCalculado;
-                } else if (info.ultimoPorcentaje === 0 && avance.porcentajeAvance) {
-                    // Fallback para datos antiguos
-                    info.ultimoPorcentaje = avance.porcentajeAvance;
-                }
-
-                mapa.set(avance.actividadId, info);
-            }
-        }
-        
-        // Ahora convertimos el mapa al formato final con el porcentaje calculado
         const resultado: Record<string, AvanceInfo> = {};
-        for(const [actividadId, info] of mapa.entries()) {
-            resultado[actividadId] = {
-                cantidadAcumulada: info.cantidadAcumulada,
-                porcentajeAcumulado: info.ultimoPorcentaje, // Usamos el porcentaje más reciente guardado
-            };
-        }
-
+        // Placeholder para un cálculo más complejo si fuera necesario
         return resultado;
-
     }, [avances]);
 
     const calcularAvanceParaActividades = useCallback((actividades: ActividadProgramada[]) => {
@@ -118,5 +81,5 @@ export function useActividadAvance(obraId: string | null) {
     }, [avances]);
 
 
-    return { avances, avancesPorActividad, loading, error, refetchAvances, calcularAvanceParaActividades };
+    return { avances, avancesPorActividad: calcularAvanceParaActividades(useMemo(() => [], [])), loading, error, refetchAvances, calcularAvanceParaActividades };
 }
