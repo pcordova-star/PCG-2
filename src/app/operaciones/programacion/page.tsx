@@ -61,7 +61,7 @@ import {
 import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
 import Link from "next/link";
-import { FilePlus2, FileText, Trash2, Edit, PlusCircle } from 'lucide-react';
+import { FilePlus2, FileText, Trash2, Edit, PlusCircle, Camera } from 'lucide-react';
 import RegistrarAvanceForm from "./components/RegistrarAvanceForm";
 import { useActividadAvance } from "./hooks/useActividadAvance";
 import {
@@ -111,6 +111,7 @@ export type AvanceDiario = {
     uid: string;
     displayName: string;
   };
+  tipoRegistro?: 'CANTIDAD' | 'FOTOGRAFICO';
 };
 
 type EstadoDePago = {
@@ -170,8 +171,9 @@ function CurvaSChart({ actividades, avances, montoTotalContrato }: { actividades
     });
 
     // --- Cálculo Curva Real ---
+    const avancesConCantidad = avances.filter(a => a.tipoRegistro !== 'FOTOGRAFICO' && typeof a.cantidadEjecutada === 'number');
     const costosRealesDiarios: Record<string, number> = {};
-    avances.forEach(avance => {
+    avancesConCantidad.forEach(avance => {
       if (!avance.cantidadEjecutada || !avance.actividadId || !avance.fecha) return;
       const actividadAsociada = actividades.find(a => a.id === avance.actividadId);
       if (!actividadAsociada) return;
@@ -201,7 +203,6 @@ function CurvaSChart({ actividades, avances, montoTotalContrato }: { actividades
             real: porcentajeReal
         });
 
-        // Detener la curva si se alcanza el 100%
         if (porcentajeProgramado >= 100 || (porcentajeReal !== null && porcentajeReal >= 100)) {
             break;
         }
@@ -253,7 +254,9 @@ function ProgramacionPageInner() {
 
   const [actividades, setActividades] = useState<ActividadProgramada[]>([]);
   const [estadosDePago, setEstadosDePago] = useState<EstadoDePago[]>([]);
-  const { avancesPorActividad, avances, loading: cargandoAvances, refetchAvances, calcularAvanceParaActividades } = useActividadAvance(obraSeleccionadaId);
+  const { avances, loading: cargandoAvances, refetchAvances, calcularAvanceParaActividades } = useActividadAvance(obraSeleccionadaId);
+  
+  const avancesPorActividad = useMemo(() => calcularAvanceParaActividades(actividades), [actividades, calcularAvanceParaActividades]);
 
 
   const [cargandoActividades, setCargandoActividades] = useState(true);
@@ -770,10 +773,19 @@ function ProgramacionPageInner() {
                   const actividad = actividades.find(a => a.id === avance.actividadId);
                   return (
                     <div key={avance.id} className="border-b pb-4">
-                      <p className="font-semibold">{avance.fecha.toDate().toLocaleDateString('es-CL')} - {actividad?.nombreActividad || 'Avance General'}</p>
-                      <p className="text-sm text-muted-foreground">
-                        Cantidad: {avance.cantidadEjecutada} {actividad?.unidad} · Reportado por: {avance.creadoPor.displayName}
-                      </p>
+                      <div className="flex justify-between items-start">
+                        <div>
+                          <p className="font-semibold">{avance.fecha.toDate().toLocaleDateString('es-CL')} - {actividad?.nombreActividad || 'Avance General'}</p>
+                          <p className="text-sm text-muted-foreground">
+                             Reportado por: {avance.creadoPor.displayName}
+                          </p>
+                        </div>
+                         <Badge variant="outline" className={avance.tipoRegistro === 'FOTOGRAFICO' ? 'bg-blue-100 text-blue-800' : ''}>
+                          {avance.tipoRegistro === 'FOTOGRAFICO' ? <Camera className="h-3 w-3 mr-1"/> : null}
+                          {avance.tipoRegistro === 'FOTOGRAFICO' ? 'Solo Foto' : `Avance: ${avance.cantidadEjecutada} ${actividad?.unidad}`}
+                        </Badge>
+                      </div>
+
                       {avance.comentario && <p className="text-sm mt-1">"{avance.comentario}"</p>}
                       {avance.fotos && avance.fotos.length > 0 && (
                         <div className="flex gap-2 mt-2">
