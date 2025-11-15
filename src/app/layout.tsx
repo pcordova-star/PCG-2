@@ -49,8 +49,45 @@ function MainLayout({ children }: { children: React.ReactNode }) {
   const [isCollapsed, setIsCollapsed] = useState(false);
   const timerRef = useRef<NodeJS.Timeout | null>(null);
   const { customClaims } = useAuth();
+
   const isSuperAdmin = customClaims?.role === 'SUPER_ADMIN';
 
+  const startTimer = () => {
+    if (timerRef.current) {
+        clearTimeout(timerRef.current);
+    }
+    timerRef.current = setTimeout(() => {
+        setIsCollapsed(true);
+    }, 4000);
+  };
+
+  const handleMouseEnter = () => {
+    if (timerRef.current) {
+      clearTimeout(timerRef.current);
+    }
+    setIsCollapsed(false);
+  };
+
+  const handleMouseLeave = () => {
+    startTimer();
+  };
+  
+  const toggleCollapse = () => {
+    setIsCollapsed(prev => !prev);
+     if (timerRef.current) {
+      clearTimeout(timerRef.current);
+    }
+  };
+
+  useEffect(() => {
+    startTimer();
+
+    return () => {
+      if (timerRef.current) {
+        clearTimeout(timerRef.current);
+      }
+    };
+  }, [pathname]);
 
   const isPublicPage = pathname === '/' || publicPaths.some(path => pathname.startsWith(path)) || pathname.startsWith('/cliente') || pathname.startsWith('/admin');
 
@@ -77,43 +114,6 @@ function MainLayout({ children }: { children: React.ReactNode }) {
     return pathname.startsWith(href);
   };
   
-  const startTimer = () => {
-    if (timerRef.current) {
-        clearTimeout(timerRef.current);
-    }
-    timerRef.current = setTimeout(() => {
-        setIsCollapsed(true);
-    }, 4000);
-  }
-
-  const handleMouseEnter = () => {
-    if (timerRef.current) {
-      clearTimeout(timerRef.current);
-    }
-    setIsCollapsed(false);
-  };
-
-  const handleMouseLeave = () => {
-    startTimer();
-  };
-  
-  const toggleCollapse = () => {
-    setIsCollapsed(prev => !prev);
-     if (timerRef.current) {
-      clearTimeout(timerRef.current);
-    }
-  }
-
-  useEffect(() => {
-    startTimer();
-
-    return () => {
-      if (timerRef.current) {
-        clearTimeout(timerRef.current);
-      }
-    };
-  }, [pathname]);
-
   const sidebarWidth = isCollapsed ? "w-20" : "w-64";
 
   return (
