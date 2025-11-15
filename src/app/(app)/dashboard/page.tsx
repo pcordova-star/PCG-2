@@ -18,6 +18,7 @@ import {
   AlertTriangle,
   Camera,
   Users,
+  Info
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
@@ -25,6 +26,8 @@ import { useEffect, useState } from 'react';
 import { collection, getDocs, query, where, collectionGroup } from 'firebase/firestore';
 import { firebaseDb } from '@/lib/firebaseClient';
 import { Skeleton } from '@/components/ui/skeleton';
+import TourOnboarding from '@/components/onboarding/TourOnboarding';
+
 
 type SummaryData = {
   obrasActivas: number | null;
@@ -40,21 +43,26 @@ export default function DashboardPage() {
   });
   const [loading, setLoading] = useState(true);
 
+  const [startTour, setStartTour] = useState(false);
+
   useEffect(() => {
+    // Iniciar tour automáticamente si no se ha completado antes
+    const tourDone = localStorage.getItem('pcg-tour-done');
+    if (tourDone !== 'true') {
+      setStartTour(true);
+    }
+
     async function fetchSummaryData() {
       setLoading(true);
       try {
-        // 1. Obras Activas (contar todas las obras)
         const obrasQuery = query(collection(firebaseDb, 'obras'));
         const obrasSnap = await getDocs(obrasQuery);
         const obrasActivas = obrasSnap.size;
 
-        // 2. Tareas en Progreso (actividades que no están 'Completada')
         const actividadesQuery = query(collectionGroup(firebaseDb, 'actividades'), where('estado', '!=', 'Completada'));
         const actividadesSnap = await getDocs(actividadesQuery);
         const tareasEnProgreso = actividadesSnap.size;
         
-        // 3. Alertas de Seguridad (incidentes con estado 'Abierto')
         const alertasQuery = query(collection(firebaseDb, 'investigacionesIncidentes'), where('estadoCierre', '==', 'Abierto'));
         const alertasSnap = await getDocs(alertasQuery);
         const alertasSeguridad = alertasSnap.size;
@@ -79,10 +87,15 @@ export default function DashboardPage() {
 
     fetchSummaryData();
   }, []);
-
+  
+  const handleTourComplete = () => {
+    localStorage.setItem('pcg-tour-done', 'true');
+    setStartTour(false);
+  }
 
   const summaryCards = [
     {
+      id: 'tour-step-obras-activas',
       title: 'Obras Activas',
       value: summaryData.obrasActivas,
       icon: Building2,
@@ -90,6 +103,7 @@ export default function DashboardPage() {
       iconColor: 'text-blue-600',
     },
     {
+      id: 'tour-step-tareas-progreso',
       title: 'Tareas en Progreso',
       value: summaryData.tareasEnProgreso,
       icon: ListChecks,
@@ -97,6 +111,7 @@ export default function DashboardPage() {
       iconColor: 'text-green-600',
     },
     {
+      id: 'tour-step-alertas-seguridad',
       title: 'Alertas de Seguridad',
       value: summaryData.alertasSeguridad,
       icon: AlertTriangle,
@@ -107,6 +122,7 @@ export default function DashboardPage() {
 
   const modules = [
     {
+      id: 'tour-step-modulo-obras',
       title: 'Obras',
       description:
         'Gestione los datos centrales de cada obra, desde la planificación hasta la ejecución. Este es el corazón de la plataforma.',
@@ -114,6 +130,7 @@ export default function DashboardPage() {
       icon: HardHat,
     },
     {
+      id: 'tour-step-modulo-operaciones',
       title: 'Operaciones',
       description:
         'Planifique, programe y controle el avance diario de sus faenas.',
@@ -121,6 +138,7 @@ export default function DashboardPage() {
       icon: Activity,
     },
     {
+      id: 'tour-step-modulo-prevencion',
       title: 'Prevención de Riesgos',
       description:
         'Administre la seguridad y salud ocupacional. Un módulo especializado para un aspecto crítico de la construcción.',
@@ -131,19 +149,29 @@ export default function DashboardPage() {
 
   return (
     <div className="flex flex-1 flex-col gap-4 md:gap-8">
-      <header>
-        <h2 className="text-3xl font-bold tracking-tight">
-          Hola, Bienvenido de vuelta!
-        </h2>
-        <p className="text-muted-foreground">
-          Aquí tienes un resumen de la actividad reciente en tus obras.
-        </p>
+      <TourOnboarding 
+        run={startTour}
+        onComplete={handleTourComplete}
+      />
+      <header className='flex justify-between items-center'>
+        <div>
+          <h2 className="text-3xl font-bold tracking-tight">
+            Hola, Bienvenido de vuelta!
+          </h2>
+          <p className="text-muted-foreground">
+            Aquí tienes un resumen de la actividad reciente en tus obras.
+          </p>
+        </div>
+        <Button variant="outline" onClick={() => setStartTour(true)}>
+          <Info className="mr-2 h-4 w-4" />
+          Ver Tour / Guía de Inicio
+        </Button>
       </header>
       
       {/* Summary Cards */}
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
         {summaryCards.map((card) => (
-          <Card key={card.title}>
+          <Card key={card.title} id={card.id}>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium">{card.title}</CardTitle>
               <div className={cn('p-2 rounded-full', card.bgColor)}>
@@ -165,7 +193,7 @@ export default function DashboardPage() {
       </div>
 
       {/* Quick Action Cards */}
-      <div>
+      <div id="tour-step-acceso-rapido">
         <h3 className="text-xl font-semibold mb-4">Acceso Rápido para Terreno</h3>
         <TooltipProvider>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -230,6 +258,7 @@ export default function DashboardPage() {
           {modules.map((mod) => (
             <Card
               key={mod.title}
+              id={mod.id}
               className="flex flex-col transition-all duration-300 hover:shadow-lg hover:-translate-y-1"
             >
               <CardHeader>

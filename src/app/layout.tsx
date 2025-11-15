@@ -152,7 +152,7 @@ export default function RootLayout({
                   ))}
                 </nav>
               </div>
-              <div className="mt-auto p-4 border-t">
+              <div id="tour-step-soporte" className="mt-auto p-4 border-t">
                   <nav className="grid items-start px-2 text-sm font-medium lg:px-4 gap-2">
                      <Link
                         href="/login/usuario"
