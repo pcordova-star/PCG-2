@@ -9,6 +9,8 @@ import { firebaseDb } from "@/lib/firebaseClient";
 import RegistrarAvanceForm from "@/app/operaciones/programacion/components/RegistrarAvanceForm";
 import { ActividadProgramada } from "@/app/operaciones/programacion/page";
 import { Obra } from "../programacion/page";
+import { Button } from "@/components/ui/button";
+import { ArrowLeft } from "lucide-react";
 
 export default function AvanceEnTerrenoPage() {
   const { user, loading: authLoading } = useAuth();
@@ -81,12 +83,15 @@ export default function AvanceEnTerrenoPage() {
 
   return (
     <div className="max-w-4xl mx-auto space-y-6">
-      <div className="flex items-center gap-4">
+      <header className="flex items-center gap-4">
+        <Button variant="outline" size="icon" onClick={() => router.back()}>
+          <ArrowLeft className="h-4 w-4" />
+        </Button>
         <div>
             <h1 className="text-2xl font-bold">Registrar Avance por Cantidad</h1>
             <p className="text-muted-foreground">Formulario rápido para registrar cantidades ejecutadas desde tu dispositivo móvil.</p>
         </div>
-      </div>
+      </header>
       <RegistrarAvanceForm
         obras={obras}
         actividades={actividades}
