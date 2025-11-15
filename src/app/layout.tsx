@@ -57,7 +57,9 @@ function MainLayout({ children }: { children: React.ReactNode }) {
   const [isCollapsed, setIsCollapsed] = useState(false);
   const timerRef = useRef<NodeJS.Timeout | null>(null);
   const { user, customClaims, loading: authLoading, logout } = useAuth();
-
+  
+  const isPublicPage = pathname === '/' || publicPaths.some(path => pathname.startsWith(path)) || pathname.startsWith('/cliente');
+  const isAdminPage = pathname.startsWith('/admin');
   const isSuperAdmin = customClaims?.role === 'SUPER_ADMIN';
 
   const startTimer = () => {
@@ -86,9 +88,6 @@ function MainLayout({ children }: { children: React.ReactNode }) {
       clearTimeout(timerRef.current);
     }
   };
-  
-  const isPublicPage = pathname === '/' || publicPaths.some(path => pathname.startsWith(path)) || pathname.startsWith('/cliente');
-  const isAdminPage = pathname.startsWith('/admin');
 
   useEffect(() => {
     if (isPublicPage) return;
@@ -107,23 +106,22 @@ function MainLayout({ children }: { children: React.ReactNode }) {
     return <>{children}</>;
   }
 
-  if (isAdminPage) {
-    if (authLoading) {
-      return (
-          <div className="flex flex-col items-center justify-center min-h-screen">
-             <h1 className="text-2xl font-bold">Verificando permisos...</h1>
-          </div>
-        )
-    }
-    if (!isSuperAdmin) {
-       return (
-          <div className="flex flex-col items-center justify-center min-h-screen">
-             <h1 className="text-2xl font-bold">Acceso Denegado</h1>
-             <p className="text-muted-foreground">No tienes permisos para acceder a esta sección.</p>
-             <Button asChild variant="link" className="mt-4"><Link href="/dashboard">Volver al Dashboard</Link></Button>
-          </div>
-        )
-    }
+  if (authLoading) {
+    return (
+        <div className="flex flex-col items-center justify-center min-h-screen">
+            <h1 className="text-2xl font-bold">Verificando permisos...</h1>
+        </div>
+    )
+  }
+
+  if (isAdminPage && !isSuperAdmin) {
+    return (
+        <div className="flex flex-col items-center justify-center min-h-screen">
+            <h1 className="text-2xl font-bold">Acceso Denegado</h1>
+            <p className="text-muted-foreground">No tienes permisos para acceder a esta sección.</p>
+            <Button asChild variant="link" className="mt-4"><Link href="/dashboard">Volver al Dashboard</Link></Button>
+        </div>
+    )
   }
 
 
