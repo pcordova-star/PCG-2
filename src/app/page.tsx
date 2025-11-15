@@ -84,7 +84,7 @@ const StaticPlatformMockup = () => {
             </div>
             <div className="w-full h-full rounded-md overflow-hidden">
                  <Image
-                    src="https://picsum.photos/seed/construction/1400/900"
+                    src="/images/mockup-pcg.png"
                     alt="Plataforma PCG en acción"
                     width={1400}
                     height={900}
