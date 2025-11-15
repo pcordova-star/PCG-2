@@ -16,6 +16,7 @@ import {
   User,
   PanelLeft,
   FileText,
+  LifeBuoy,
 } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import {
@@ -164,6 +165,16 @@ export default function RootLayout({
                         <User className="h-5 w-5 shrink-0" />
                         <span className={cn(isCollapsed && "hidden")}>Login</span>
                       </Link>
+                      <Link
+                        href="mailto:paulo@ipsconstruccion.cl?subject=Soporte%20Faena%20Manager%202.0"
+                        className={cn(
+                          "flex items-center gap-3 rounded-lg px-3 py-2 text-muted-foreground transition-all hover:text-primary hover:bg-muted",
+                           isCollapsed && "justify-center"
+                        )}
+                      >
+                        <LifeBuoy className="h-5 w-5 shrink-0" />
+                        <span className={cn(isCollapsed && "hidden")}>Soporte</span>
+                      </Link>
                      <Link
                         href="#"
                         className={cn(
@@ -227,6 +238,13 @@ export default function RootLayout({
                           >
                             <User className="h-5 w-5" />
                             Login
+                          </Link>
+                          <Link
+                            href="mailto:paulo@ipsconstruccion.cl?subject=Soporte%20Faena%20Manager%202.0"
+                            className="mx-[-0.65rem] flex items-center gap-4 rounded-xl px-3 py-2 text-muted-foreground hover:text-foreground"
+                          >
+                            <LifeBuoy className="h-5 w-5" />
+                            Soporte
                           </Link>
                            <Link
                             href="#"
