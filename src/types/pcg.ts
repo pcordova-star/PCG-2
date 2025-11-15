@@ -1,6 +1,7 @@
 // src/types/pcg.ts
 
 import { Timestamp } from "firebase/firestore";
+import { UserRole } from "@/lib/roles";
 
 /**
  * Representa una empresa en la plataforma.
@@ -19,28 +20,42 @@ export interface Company {
 
 /**
  * Representa un usuario dentro del contexto de una empresa específica.
- * Almacenado en la subcolección `companies/{companyId}/users`.
+ * Este tipo se usa principalmente para mostrar datos, el 'role' se obtiene de 'AppUser'.
  */
 export interface CompanyUser {
-  id?: string; // El ID del documento puede ser el mismo que el UID de Auth
+  id?: string;
   uid: string;
   email: string;
   nombre: string;
-  role: "EMPRESA_ADMIN" | "JEFE_OBRA" | "PREVENCIONISTA" | "LECTOR_CLIENTE";
-  obrasAsignadas: string[]; // Array de IDs de obras
+  role: UserRole;
+  obrasAsignadas: string[];
   activo: boolean;
 }
 
 /**
  * Representa un usuario a nivel global en la plataforma.
- * Almacenado en la colección `users`.
+ * Almacenado en la colección `users`. Esta es la fuente de verdad para los roles.
  */
 export interface AppUser {
   id?: string; // El ID del documento es el UID de Firebase Auth
   nombre: string;
   email: string;
   phone?: string;
-  isSuperAdmin: boolean;
-  companyIdPrincipal?: string | null; // ID de la empresa principal a la que pertenece
+  role: UserRole;
+  empresaId: string | null;
   createdAt: Date | Timestamp;
+}
+
+/**
+ * Representa una invitación para unirse a una empresa.
+ * Almacenada en la colección `invitacionesUsuarios`.
+ */
+export interface UserInvitation {
+    id?: string;
+    email: string;
+    empresaId: string;
+    roleDeseado: UserRole;
+    estado: "pendiente" | "aceptada" | "revocada";
+    creadoPorUid: string;
+    createdAt: Date | Timestamp;
 }
