@@ -19,7 +19,6 @@ import {
   AlertTriangle,
   BookCopy,
   GanttChartSquare,
-  Award,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useEffect, useState } from 'react';
@@ -55,13 +54,6 @@ const mainModules = [
     href: '/operaciones/programacion',
     icon: GanttChartSquare,
     linkText: 'Ir a Programación'
-  },
-   {
-    title: 'Calidad',
-    description: 'Controla inspecciones, protocolos y no conformidades para asegurar los estándares del proyecto.',
-    href: '#',
-    icon: Award,
-    linkText: 'Próximamente'
   },
   {
     title: 'Prevención de Riesgos',

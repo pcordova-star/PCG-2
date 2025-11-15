@@ -43,7 +43,7 @@ export function OnboardingSteps() {
         <StepItem step="3" title="Programar obra" description="Define plazos y secuencia de actividades." />
         <Arrow />
         {/* Paso 4 */}
-        <StepItem step="4" title="Calidad y Prevención" description="Controla inspecciones, IPER e incidentes." />
+        <StepItem step="4" title="Prevención de Riesgos" description="Controla IPER, incidentes y documentación." />
       </div>
     </div>
   );
