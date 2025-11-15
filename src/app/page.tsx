@@ -1,10 +1,14 @@
 // src/app/page.tsx
+"use client";
 
+import { useEffect, useState } from 'react';
 import Link from 'next/link';
+import { motion, useInView, useAnimation } from 'framer-motion';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { ArrowRight, Building, CheckCircle, ChevronRight, DollarSign, GanttChartSquare, HardHat, PieChart, ShieldCheck, Users, Zap } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import React from 'react';
 
 
 const NavLink = ({ href, children }: { href: string; children: React.ReactNode }) => (
@@ -70,6 +74,42 @@ const ModuleCard = ({ icon, title, description, href }: { icon: React.ElementTyp
         </Button>
       </CardFooter>
     </Card>
+  );
+};
+
+const AnimatedMetric = ({ value, suffix, text }: { value: number; suffix: string; text: string }) => {
+  const ref = React.useRef<HTMLDivElement>(null);
+  const isInView = useInView(ref, { once: true, margin: "-50px" });
+  const controls = useAnimation();
+  const [displayValue, setDisplayValue] = useState(0);
+
+  useEffect(() => {
+    if (isInView) {
+      controls.start({
+        opacity: 1,
+        y: 0,
+        transition: { duration: 0.5 }
+      });
+      const animation = motion.animate(0, value, {
+        duration: 2,
+        ease: "easeOut",
+        onUpdate: (latest) => {
+          setDisplayValue(Math.round(latest));
+        }
+      });
+      return () => animation.stop();
+    }
+  }, [isInView, value, controls]);
+  
+  return (
+    <motion.div
+        ref={ref}
+        initial={{ opacity: 0, y: 20 }}
+        animate={controls}
+    >
+      <p className="text-5xl font-bold">{displayValue}{suffix}</p>
+      <p className="mt-2 text-primary-foreground/80">{text}</p>
+    </motion.div>
   );
 };
 
@@ -225,18 +265,9 @@ export default function WelcomePage() {
         <section className="py-20 bg-primary text-primary-foreground">
             <div className="max-w-6xl mx-auto px-4 md:px-6 lg:px-8">
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-8 text-center">
-                    <div>
-                        <p className="text-5xl font-bold">30%</p>
-                        <p className="mt-2 text-primary-foreground/80">Menos tiempo en reportes manuales</p>
-                    </div>
-                     <div>
-                        <p className="text-5xl font-bold">15%</p>
-                        <p className="mt-2 text-primary-foreground/80">Mejora en la precisión del control de costos</p>
-                    </div>
-                     <div>
-                        <p className="text-5xl font-bold">99%</p>
-                        <p className="mt-2 text-primary-foreground/80">Trazabilidad en la gestión de calidad y seguridad</p>
-                    </div>
+                    <AnimatedMetric value={30} suffix="%" text="Menos tiempo en reportes manuales" />
+                    <AnimatedMetric value={15} suffix="%" text="Mejora en la precisión del control de costos" />
+                    <AnimatedMetric value={99} suffix="%" text="Trazabilidad en la gestión de calidad y seguridad" />
                 </div>
             </div>
         </section>
