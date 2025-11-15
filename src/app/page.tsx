@@ -369,7 +369,7 @@ export default function WelcomePage() {
                 <div>
                     <h3 className="font-semibold">Legal</h3>
                     <ul className="mt-4 space-y-2 text-sm">
-                        <li><Link href="#" className="text-muted-foreground hover:text-primary">Términos de servicio</Link></li>
+                        <li><Link href="/terminos" className="text-muted-foreground hover:text-primary">Términos de servicio</Link></li>
                         <li><Link href="#" className="text-muted-foreground hover:text-primary">Política de privacidad</Link></li>
                     </ul>
                 </div>
