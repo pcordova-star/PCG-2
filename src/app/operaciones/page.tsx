@@ -33,7 +33,7 @@ export default function OperacionesPage() {
       <div className="space-y-4 max-w-3xl">
         <h1 className="text-4xl font-bold font-headline tracking-tight">Módulo de Operaciones</h1>
         <p className="text-lg text-muted-foreground">
-          Este módulo será independiente del de Prevención. En el futuro aquí irán tarjetas como “Programación”, “Avances”, etc.
+          Desde aquí puedes acceder a la programación de obras, la gestión de estados de pago y el control del personal en terreno.
         </p>
       </div>
 
