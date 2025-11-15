@@ -56,11 +56,11 @@ function MainLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const [isCollapsed, setIsCollapsed] = useState(false);
   const timerRef = useRef<NodeJS.Timeout | null>(null);
-  const { user, customClaims, loading: authLoading, logout } = useAuth();
+  const { user, role, loading: authLoading, logout } = useAuth();
   
   const isPublicPage = pathname === '/' || publicPaths.some(path => pathname.startsWith(path)) || pathname.startsWith('/cliente');
   const isAdminPage = pathname.startsWith('/admin');
-  const isSuperAdmin = customClaims?.role === 'SUPER_ADMIN';
+  const isSuperAdmin = role === 'superadmin';
 
   useEffect(() => {
     if (isPublicPage) return;
@@ -373,5 +373,3 @@ export default function RootLayout({
     </html>
   );
 }
-
-    
