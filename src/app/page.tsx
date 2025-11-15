@@ -5,10 +5,10 @@ import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
-import { ArrowRight, CheckCircle, DollarSign, GanttChartSquare, HardHat, ShieldCheck, Users, BarChart, FileImage, Layers } from 'lucide-react';
+import { ArrowRight, CheckCircle, DollarSign, GanttChartSquare, HardHat, ShieldCheck, Users, Layers } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import Image from 'next/image';
-import { motion, AnimatePresence, useCycle } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 
 
 const NavLink = ({ href, children }: { href: string; children: React.ReactNode }) => (
@@ -54,24 +54,21 @@ const StepCard = ({ step, title, description }: { step: string, title: string, d
 const ModuleCard = ({ icon, title, description, href }: { icon: React.ElementType, title: string, description: string, href: string }) => {
   const Icon = icon;
   return (
-    <Card className="flex flex-col">
-      <CardHeader>
-        <div className="flex items-center gap-4">
-            <div className="p-3 bg-primary/10 rounded-full">
-                <Icon className="h-6 w-6 text-primary" />
+    <Link href={href} className="block group">
+        <Card className="flex flex-col h-full transition-all duration-300 group-hover:shadow-xl group-hover:-translate-y-1">
+          <CardHeader>
+            <div className="flex items-center gap-4">
+                <div className="p-3 bg-primary/10 rounded-full">
+                    <Icon className="h-6 w-6 text-primary" />
+                </div>
+                <CardTitle>{title}</CardTitle>
             </div>
-            <CardTitle>{title}</CardTitle>
-        </div>
-      </CardHeader>
-      <CardContent className="flex-grow">
-        <p className="text-sm text-muted-foreground">{description}</p>
-      </CardContent>
-      <CardFooter>
-        <Button variant="outline" asChild>
-          <Link href={href}>Ver módulo <ArrowRight className="ml-2 h-4 w-4" /></Link>
-        </Button>
-      </CardFooter>
-    </Card>
+          </CardHeader>
+          <CardContent className="flex-grow">
+            <p className="text-sm text-muted-foreground">{description}</p>
+          </CardContent>
+        </Card>
+    </Link>
   );
 };
 
@@ -126,7 +123,7 @@ const AnimatedPlatformMockup = () => {
             <motion.div key="scene3" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="w-full h-full p-2 md:p-4">
                  <div className="w-full h-full rounded-lg bg-slate-800/80 p-2 md:p-4 flex flex-col md:flex-row gap-2 md:gap-4">
                     <motion.div initial={{ scale: 0.8, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} transition={{ delay: 0.2 }} className="w-full md:w-1/2 h-1/2 md:h-full rounded-md overflow-hidden relative">
-                        <Image src="/WhatsApp Image 2025-10-15 at 11.13.21 PM (2).jpeg" alt="Foto de obra" fill className="object-cover" data-ai-hint="construction worker" />
+                         <Image src="/WhatsApp Image 2025-10-15 at 11.13.21 PM (2).jpeg" alt="Foto de obra" fill className="object-cover" data-ai-hint="construction worker" />
                     </motion.div>
                     <div className="flex-1 flex flex-col">
                         <h4 className="text-xs md:text-sm font-bold text-white">Reporte de Avance</h4>
@@ -199,9 +196,9 @@ export default function WelcomePage() {
         <section className="py-20 md:py-32">
           <div className="max-w-6xl mx-auto px-4 md:px-6 lg:px-8 text-center">
             <div className="max-w-3xl mx-auto">
-                <p className="font-semibold text-primary">PCG: Una obra bien gestionada, una cadena completa alineada.</p>
+                <p className="font-semibold text-primary">SOFTWARE PARA CONSTRUCTORAS</p>
                 <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold tracking-tighter">
-                    PCG: Una obra bien gestionada, una cadena completa alineada.
+                   PCG: Una obra bien gestionada, una cadena completa alineada.
                 </h1>
                 <p className="mt-6 text-lg md:text-xl text-muted-foreground">
                     PCG es la plataforma de control y gestión diseñada para constructoras que necesitan alinear presupuesto, programación, calidad y prevención de riesgos en una sola vista.
@@ -275,12 +272,9 @@ export default function WelcomePage() {
               <p className="mt-4 text-muted-foreground">PCG está diseñado modularmente para que puedas enfocarte en lo que más importa, con la certeza de que toda la información está conectada.</p>
             </div>
             <div className="mt-12 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-              <ModuleCard icon={HardHat} title="Obras" description="Gestión central de tus proyectos. Define datos maestros, clientes y responsables." href="/obras" />
-              <ModuleCard icon={DollarSign} title="Presupuestos" description="Administra tu catálogo de precios, crea y duplica presupuestos detallados por obra." href="/operaciones/presupuestos" />
-              <ModuleCard icon={GanttChartSquare} title="Programación" description="Define actividades, plazos y recursos. Registra avances y visualiza la Curva S." href="/operaciones/programacion" />
-              <ModuleCard icon={CheckCircle} title="Calidad" description="Define y aplica protocolos de calidad en terreno, asociando evidencia fotográfica y no conformidades." href="#" />
-              <ModuleCard icon={ShieldCheck} title="Prevención de Riesgos" description="Gestiona IPER, incidentes, charlas y documentación de seguridad (DS44)." href="/prevencion" />
-              <ModuleCard icon={Users} title="Portal Cliente" description="Dale a tu cliente una visión transparente del avance de su proyecto, con reportes y fotos." href="/cliente" />
+              <ModuleCard icon={DollarSign} title="Presupuestos" description="Conecta tus análisis de precios unitarios con la programación y el avance real. Genera presupuestos dinámicos, controla costos y proyecta flujos de caja con precisión." href="/operaciones/presupuestos" />
+              <ModuleCard icon={GanttChartSquare} title="Programación" description="Visualiza tu proyecto con una Curva S que compara el avance programado vs. el real. Registra el progreso diario y detecta desviaciones a tiempo para tomar acciones correctivas." href="/operaciones/programacion" />
+              <ModuleCard icon={ShieldCheck} title="Prevención de Riesgos" description="Digitaliza la gestión de seguridad. Administra la documentación de contratistas (DS44), realiza inspecciones, registra IPER y gestiona incidentes desde un solo lugar." href="/prevencion" />
             </div>
           </div>
         </section>
