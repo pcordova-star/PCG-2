@@ -9,35 +9,48 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import Link from 'next/link';
+import { Loader2 } from "lucide-react";
 
 export default function UsuarioLoginPage() {
-  const { login, user, loading, logout } = useAuth();
+  const { login, user, loading, customClaims } = useAuth();
   const router = useRouter();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
+  const [isLoggingIn, setIsLoggingIn] = useState(false);
 
   useEffect(() => {
     if (!loading && user) {
-      router.replace('/dashboard');
+        if(customClaims?.role === 'SUPER_ADMIN'){
+            router.replace('/admin/empresas');
+        } else {
+            router.replace('/dashboard');
+        }
     }
-  }, [user, loading, router]);
+  }, [user, loading, customClaims, router]);
 
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
     setError(null);
+    setIsLoggingIn(true);
     try {
       await login(email, password);
       // La redirección se maneja con el useEffect
     } catch (err) {
       console.error(err);
       setError("Error al iniciar sesión. Revisa tu correo y contraseña.");
+      setIsLoggingIn(false);
     }
   }
 
   if (loading || user) {
-    return <p className="text-center p-8">Cargando...</p>;
+    return (
+        <div className="flex flex-col items-center justify-center min-h-screen text-muted-foreground">
+            <Loader2 className="h-8 w-8 animate-spin mb-4" />
+            <p>Cargando sesión y verificando permisos...</p>
+        </div>
+    );
   }
 
   return (
@@ -66,8 +79,9 @@ export default function UsuarioLoginPage() {
                         <Input id="password" type="password" value={password} onChange={(e) => setPassword(e.target.value)} required />
                     </div>
 
-                    <Button type="submit" className="w-full">
-                        Iniciar Sesión
+                    <Button type="submit" className="w-full" disabled={isLoggingIn}>
+                        {isLoggingIn && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                        {isLoggingIn ? "Iniciando..." : "Iniciar Sesión"}
                     </Button>
                 </form>
             </CardContent>

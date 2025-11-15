@@ -5,3 +5,4 @@ if (!getApps().length) {
 }
 
 export { createCompanyUser } from './createCompanyUser';
+export { setSuperAdminClaim } from './setSuperAdmin';
