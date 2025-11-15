@@ -15,6 +15,7 @@ import {
   Settings,
   User,
   PanelLeft,
+  FileText,
 } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import {
@@ -35,6 +36,7 @@ const navItems = [
   { href: '/dashboard', label: 'Dashboard', icon: Home },
   { href: '/obras', label: 'Obras', icon: HardHat },
   { href: '/operaciones', label: 'Operaciones', icon: Activity },
+  { href: '/operaciones/estados-de-pago', label: 'Estados de Pago', icon: FileText },
   { href: '/prevencion', label: 'Prevención', icon: ShieldCheck },
 ];
 
@@ -53,6 +55,7 @@ export default function RootLayout({
 
   const isActive = (href: string) => {
     if (href === '/dashboard') return pathname === '/dashboard';
+    if (href === '/operaciones') return pathname === '/operaciones' && !pathname.startsWith('/operaciones/estados-de-pago');
     return pathname.startsWith(href);
   };
   
