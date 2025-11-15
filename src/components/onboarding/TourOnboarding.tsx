@@ -113,82 +113,88 @@ export default function TourOnboarding({ run, onComplete }: TourOnboardingProps)
 
   return (
     <AnimatePresence>
-      <motion.div
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        exit={{ opacity: 0 }}
-        className="fixed inset-0 z-[100] bg-black/50 backdrop-blur-sm"
-        onClick={handleSkip}
-      />
-      
-      {elementRect && (
-        <motion.div
-          initial={{
-            x: elementRect.left,
-            y: elementRect.top,
-            width: elementRect.width,
-            height: elementRect.height,
-          }}
-          animate={{
-            x: elementRect.left - 8,
-            y: elementRect.top - 8,
-            width: elementRect.width + 16,
-            height: elementRect.height + 16,
-          }}
-          transition={{ type: 'spring', stiffness: 300, damping: 30 }}
-          className="fixed z-[101] rounded-lg border-2 border-primary border-dashed shadow-2xl bg-primary/10 pointer-events-none"
-        />
-      )}
+      {isOpen && (
+        <>
+          <motion.div
+            key="tour-backdrop"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[100] bg-black/50 backdrop-blur-sm"
+            onClick={handleSkip}
+          />
+          
+          {elementRect && (
+            <motion.div
+              key="tour-highlight-box"
+              initial={{
+                x: elementRect.left,
+                y: elementRect.top,
+                width: elementRect.width,
+                height: elementRect.height,
+              }}
+              animate={{
+                x: elementRect.left - 8,
+                y: elementRect.top - 8,
+                width: elementRect.width + 16,
+                height: elementRect.height + 16,
+              }}
+              transition={{ type: 'spring', stiffness: 300, damping: 30 }}
+              className="fixed z-[101] rounded-lg border-2 border-primary border-dashed shadow-2xl bg-primary/10 pointer-events-none"
+            />
+          )}
 
-      <Popover open={true}>
-         <PopoverContent
-          side={currentStep.position}
-          align="start"
-          className="z-[102] w-80 shadow-2xl"
-          style={
-            elementRect ?
-            {
-              position: 'fixed',
-              top: elementRect.top,
-              left: elementRect.left,
-              transform: `translate(
-                ${currentStep.position === 'right' ? `${elementRect.width + 16}px` : currentStep.position === 'left' ? '-100%' : '0'}, 
-                ${currentStep.position === 'bottom' ? `${elementRect.height + 16}px` : currentStep.position === 'top' ? '-100%' : '0'}
-              )`,
-            } : {
-               position: 'fixed', top: '50%', left: '50%', transform: 'translate(-50%, -50%)'
-            }
-          }
-        >
-          <div className="space-y-4">
-            <h4 className="font-semibold text-lg">{currentStep.title}</h4>
-            <p className="text-sm text-muted-foreground">{currentStep.content}</p>
-            <div className="flex justify-between items-center">
-              <span className="text-xs text-muted-foreground">
-                Paso {stepIndex + 1} de {tourSteps.length}
-              </span>
-              <div className="flex gap-2">
-                {stepIndex < tourSteps.length - 1 ? (
-                  <Button variant="ghost" size="sm" onClick={handleSkip}>
-                    Omitir
-                  </Button>
-                ) : null}
-                <Button size="sm" onClick={handleNext}>
-                  {stepIndex < tourSteps.length - 1 ? 'Siguiente' : 'Finalizar'}
+          <Popover open={true}>
+            <PopoverContent
+              side={currentStep.position}
+              align="start"
+              className="z-[102] w-80 shadow-2xl"
+              style={
+                elementRect ?
+                {
+                  position: 'fixed',
+                  top: elementRect.top,
+                  left: elementRect.left,
+                  transform: `translate(
+                    ${currentStep.position === 'right' ? `${elementRect.width + 16}px` : currentStep.position === 'left' ? '-100%' : '0'}, 
+                    ${currentStep.position === 'bottom' ? `${elementRect.height + 16}px` : currentStep.position === 'top' ? '-100%' : '0'}
+                  )`,
+                } : {
+                  position: 'fixed', top: '50%', left: '50%', transform: 'translate(-50%, -50%)'
+                }
+              }
+            >
+              <div className="space-y-4">
+                <h4 className="font-semibold text-lg">{currentStep.title}</h4>
+                <p className="text-sm text-muted-foreground">{currentStep.content}</p>
+                <div className="flex justify-between items-center">
+                  <span className="text-xs text-muted-foreground">
+                    Paso {stepIndex + 1} de {tourSteps.length}
+                  </span>
+                  <div className="flex gap-2">
+                    {stepIndex < tourSteps.length - 1 ? (
+                      <Button variant="ghost" size="sm" onClick={handleSkip}>
+                        Omitir
+                      </Button>
+                    ) : null}
+                    <Button size="sm" onClick={handleNext}>
+                      {stepIndex < tourSteps.length - 1 ? 'Siguiente' : 'Finalizar'}
+                    </Button>
+                  </div>
+                </div>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="absolute right-2 top-2 h-6 w-6"
+                  onClick={handleSkip}
+                >
+                  <X className="h-4 w-4" />
                 </Button>
               </div>
-            </div>
-            <Button
-              variant="ghost"
-              size="icon"
-              className="absolute right-2 top-2 h-6 w-6"
-              onClick={handleSkip}
-            >
-              <X className="h-4 w-4" />
-            </Button>
-          </div>
-        </PopoverContent>
-      </Popover>
+            </PopoverContent>
+          </Popover>
+        </>
+      )}
     </AnimatePresence>
   );
 }
