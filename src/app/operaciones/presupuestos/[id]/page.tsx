@@ -11,10 +11,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { ArrowLeft, Trash2, Loader2, Save } from 'lucide-react';
-import { collection, doc, getDoc, setDoc, addDoc, serverTimestamp, query, orderBy, getDocs } from 'firebase/firestore';
+import { collection, doc, getDoc, setDoc, addDoc, serverTimestamp, query, orderBy, getDocs, Timestamp } from 'firebase/firestore';
 import { firebaseDb } from '@/lib/firebaseClient';
 import { useToast } from "@/hooks/use-toast";
-import { Timestamp } from 'firebase/firestore';
 
 // --- Tipos ---
 type Obra = { id: string; nombreFaena: string; };
@@ -39,6 +38,18 @@ type Presupuesto = {
     totalPresupuesto: number;
     items: Omit<PresupuestoItem, 'id'>[];
 };
+
+function formatCurrency(value: number) {
+    if (isNaN(value)) return '$ 0';
+    return value.toLocaleString('es-CL', { style: 'currency', currency: 'CLP' });
+}
+
+function parseCurrency(value: string): number {
+    const numberString = value.replace(/[^0-9,-]+/g, "").replace(",", ".");
+    const parsed = parseFloat(numberString);
+    return isNaN(parsed) ? 0 : parsed;
+}
+
 
 export default function PresupuestoEditPage() {
     const { id: presupuestoId } = useParams<{ id: string }>();
@@ -102,7 +113,15 @@ export default function PresupuestoEditPage() {
     const handleItemChange = (index: number, field: keyof PresupuestoItem, value: any) => {
         const newItems = [...items];
         const item = newItems[index];
-        (item as any)[field] = value;
+        
+        let numericValue = value;
+        if (field === 'cantidad' || field === 'precioUnitario') {
+            numericValue = typeof value === 'string' ? parseCurrency(value) : Number(value);
+             if (isNaN(numericValue)) numericValue = 0;
+        }
+
+        (item as any)[field] = numericValue;
+
         if (field === 'cantidad' || field === 'precioUnitario') {
             item.subtotal = item.cantidad * item.precioUnitario;
         }
@@ -218,7 +237,7 @@ export default function PresupuestoEditPage() {
                         <Table>
                             <TableHeader>
                                 <TableRow>
-                                    <TableHead>Código</TableHead>
+                                    <TableHead>Ítem</TableHead>
                                     <TableHead className="w-1/3">Descripción</TableHead>
                                     <TableHead>Un.</TableHead>
                                     <TableHead>Cant.</TableHead>
@@ -230,12 +249,12 @@ export default function PresupuestoEditPage() {
                             <TableBody>
                                 {items.map((item, index) => (
                                     <TableRow key={item.id}>
-                                        <TableCell><Input value={item.codigo} onChange={(e) => handleItemChange(index, 'codigo', e.target.value)} className="font-mono" /></TableCell>
+                                        <TableCell className="font-mono text-center">{index + 1}</TableCell>
                                         <TableCell><Input value={item.descripcion} onChange={(e) => handleItemChange(index, 'descripcion', e.target.value)} /></TableCell>
-                                        <TableCell><Input value={item.unidad} onChange={(e) => handleItemChange(index, 'unidad', e.target.value)} /></TableCell>
-                                        <TableCell><Input type="number" value={item.cantidad} onChange={(e) => handleItemChange(index, 'cantidad', Number(e.target.value))} /></TableCell>
-                                        <TableCell><Input type="number" value={item.precioUnitario} onChange={(e) => handleItemChange(index, 'precioUnitario', Number(e.target.value))} /></TableCell>
-                                        <TableCell>{item.subtotal.toLocaleString('es-CL', { style: 'currency', currency: 'CLP' })}</TableCell>
+                                        <TableCell><Input value={item.unidad} onChange={(e) => handleItemChange(index, 'unidad', e.target.value)} className="w-20" /></TableCell>
+                                        <TableCell><Input type="text" value={item.cantidad.toLocaleString('es-CL')} onChange={(e) => handleItemChange(index, 'cantidad', e.target.value)} className="w-24"/></TableCell>
+                                        <TableCell><Input type="text" value={item.precioUnitario.toLocaleString('es-CL')} onChange={(e) => handleItemChange(index, 'precioUnitario', e.target.value)} className="w-32" /></TableCell>
+                                        <TableCell>{formatCurrency(item.subtotal)}</TableCell>
                                         <TableCell><Button variant="ghost" size="icon" onClick={() => removeItemRow(index)}><Trash2 className="h-4 w-4 text-destructive" /></Button></TableCell>
                                     </TableRow>
                                 ))}
@@ -251,7 +270,7 @@ export default function PresupuestoEditPage() {
                                     {catalogo.map(catItem => (
                                         <div key={catItem.id} onClick={() => handleSelectItemFromCatalogo(catItem)} className="p-2 hover:bg-accent rounded-md cursor-pointer text-sm">
                                             <p className="font-semibold">{catItem.codigo} - {catItem.descripcion}</p>
-                                            <p className="text-muted-foreground">{catItem.precioActual.toLocaleString('es-CL', { style: 'currency', currency: 'CLP' })}</p>
+                                            <p className="text-muted-foreground">{formatCurrency(catItem.precioActual)}</p>
                                         </div>
                                     ))}
                                 </div>
@@ -262,7 +281,7 @@ export default function PresupuestoEditPage() {
                 </CardContent>
                 <CardFooter className="flex-col items-end gap-2">
                     <p className="text-lg font-semibold">Total Presupuesto:</p>
-                    <p className="text-3xl font-bold">{totalPresupuesto.toLocaleString('es-CL', { style: 'currency', currency: 'CLP' })}</p>
+                    <p className="text-3xl font-bold">{formatCurrency(totalPresupuesto)}</p>
                 </CardFooter>
             </Card>
              <div className="flex justify-end gap-2">
