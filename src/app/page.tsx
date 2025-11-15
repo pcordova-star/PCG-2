@@ -1,62 +1,373 @@
 // src/app/page.tsx
+
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { ArrowRight, User, Building } from 'lucide-react';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
+import { ArrowRight, Building, CheckCircle, ChevronRight, DollarSign, GanttChartSquare, HardHat, PieChart, ShieldCheck, Users, Zap } from 'lucide-react';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+
+
+const NavLink = ({ href, children }: { href: string; children: React.ReactNode }) => (
+  <Link href={href} className="text-sm font-medium text-muted-foreground transition-colors hover:text-primary">
+    {children}
+  </Link>
+);
+
+const FeatureCard = ({ icon, title, description }: { icon: React.ElementType, title: string, description: string }) => {
+  const Icon = icon;
+  return (
+    <Card className="text-center">
+      <CardHeader>
+        <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-primary/10">
+          <Icon className="h-6 w-6 text-primary" />
+        </div>
+        <CardTitle className="mt-4 text-lg font-semibold">{title}</CardTitle>
+      </CardHeader>
+      <CardContent>
+        <CardDescription>{description}</CardDescription>
+      </CardContent>
+    </Card>
+  );
+};
+
+
+const StepCard = ({ step, title, description }: { step: string, title: string, description: string }) => (
+  <div className="flex">
+    <div className="flex flex-col items-center mr-4">
+      <div>
+        <div className="flex h-10 w-10 items-center justify-center rounded-full border-2 border-primary text-primary">
+          <span className="font-bold">{step}</span>
+        </div>
+      </div>
+      <div className="w-px h-full bg-primary/20"></div>
+    </div>
+    <div className="pb-8">
+      <h3 className="font-semibold mb-1">{title}</h3>
+      <p className="text-sm text-muted-foreground">{description}</p>
+    </div>
+  </div>
+);
+
+
+const ModuleCard = ({ icon, title, description, href }: { icon: React.ElementType, title: string, description: string, href: string }) => {
+  const Icon = icon;
+  return (
+    <Card className="flex flex-col">
+      <CardHeader>
+        <div className="flex items-center gap-4">
+            <div className="p-3 bg-primary/10 rounded-full">
+                <Icon className="h-6 w-6 text-primary" />
+            </div>
+            <CardTitle>{title}</CardTitle>
+        </div>
+      </CardHeader>
+      <CardContent className="flex-grow">
+        <p className="text-sm text-muted-foreground">{description}</p>
+      </CardContent>
+      <CardFooter>
+        <Button variant="outline" asChild>
+          <Link href={href}>Ver módulo <ArrowRight className="ml-2 h-4 w-4" /></Link>
+        </Button>
+      </CardFooter>
+    </Card>
+  );
+};
+
+
+const PricingCard = ({ plan, price, description, features, isFeatured }: { plan: string, price: string, description: string, features: string[], isFeatured?: boolean }) => (
+    <Card className={`flex flex-col ${isFeatured ? 'border-primary shadow-lg' : ''}`}>
+        <CardHeader>
+            <CardTitle>{plan}</CardTitle>
+            <p className="text-4xl font-bold">{price}<span className="text-sm font-normal text-muted-foreground">/mes</span></p>
+            <CardDescription>{description}</CardDescription>
+        </CardHeader>
+        <CardContent className="flex-grow">
+            <ul className="space-y-2 text-sm">
+                {features.map((feature, i) => (
+                    <li key={i} className="flex items-center gap-2">
+                        <CheckCircle className="h-4 w-4 text-green-500" />
+                        <span>{feature}</span>
+                    </li>
+                ))}
+            </ul>
+        </CardContent>
+        <CardFooter>
+            <Button className="w-full" variant={isFeatured ? 'default' : 'outline'}>
+                {isFeatured ? 'Empezar ahora' : 'Elegir plan'}
+            </Button>
+        </CardFooter>
+    </Card>
+);
 
 export default function WelcomePage() {
   return (
-    <div className="flex flex-col items-center justify-center min-h-screen bg-muted/20 p-4">
-      <div className="text-center mb-12">
-        <h1 className="text-4xl font-bold tracking-tight text-primary">Bienvenido a PCG 2.0</h1>
-        <p className="text-lg text-muted-foreground mt-2">Plataforma de Control y Gestión de Obras</p>
-      </div>
-
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-8 max-w-4xl w-full">
-        {/* Card para Usuarios Internos */}
-        <Card className="transform transition-all duration-300 hover:scale-105 hover:shadow-xl">
-          <CardHeader className="text-center">
-            <div className="mx-auto bg-primary/10 p-4 rounded-full w-fit mb-4">
-                <Building className="h-10 w-10 text-primary" />
+    <div className="bg-slate-50 text-foreground">
+      {/* Navbar */}
+      <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex h-16 items-center justify-between">
+            <div className="flex items-center gap-6">
+              <Link href="#" className="font-bold text-lg text-primary">PCG</Link>
+              <nav className="hidden md:flex gap-6">
+                <NavLink href="#">Producto</NavLink>
+                <NavLink href="#">Módulos</NavLink>
+                <NavLink href="#">Precios</NavLink>
+                <NavLink href="#">Recursos</NavLink>
+              </nav>
             </div>
-            <CardTitle className="text-2xl">Acceso Empresa / Obras</CardTitle>
-            <CardDescription>
-              Para administradores, jefes de obra, prevencionistas y personal interno.
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <Button asChild className="w-full text-lg py-6">
-              <Link href="/login/usuario">
-                Ingresar al sistema
-                <ArrowRight className="ml-2 h-5 w-5" />
-              </Link>
-            </Button>
-          </CardContent>
-        </Card>
-
-        {/* Card para Clientes */}
-        <Card className="transform transition-all duration-300 hover:scale-105 hover:shadow-xl">
-          <CardHeader className="text-center">
-             <div className="mx-auto bg-accent/10 p-4 rounded-full w-fit mb-4">
-                <User className="h-10 w-10 text-accent" />
+            <div className="flex items-center gap-2">
+              <Button variant="ghost" asChild><Link href="/login/usuario">Ingresar</Link></Button>
+              <Button>Agendar Demo</Button>
             </div>
-            <CardTitle className="text-2xl">Acceso Clientes</CardTitle>
-            <CardDescription>
-              Para mandantes e inmobiliarias que deseen ver el avance de sus obras.
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <Button asChild className="w-full text-lg py-6" variant="secondary">
-              <Link href="/login/cliente">
-                Ingresar al portal de clientes
-                <ArrowRight className="ml-2 h-5 w-5" />
-              </Link>
-            </Button>
-          </CardContent>
-        </Card>
-      </div>
-       <footer className="mt-16 text-center text-sm text-muted-foreground">
-        <p>&copy; {new Date().getFullYear()} PCG 2.0. Todos los derechos reservados.</p>
+          </div>
+        </div>
+      </header>
+
+      <main>
+        {/* Hero Section */}
+        <section className="py-20 md:py-32">
+          <div className="max-w-6xl mx-auto px-4 md:px-6 lg:px-8 text-center">
+            <div className="max-w-3xl mx-auto">
+                <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold tracking-tighter text-primary">
+                    Control total de tus obras, sin perderte en el Excel.
+                </h1>
+                <p className="mt-6 text-lg md:text-xl text-muted-foreground">
+                    PCG es la plataforma de control y gestión diseñada para constructoras que necesitan alinear presupuesto, programación, calidad y prevención de riesgos en una sola vista.
+                </p>
+            </div>
+            <div className="mt-8 flex justify-center gap-4">
+              <Button size="lg">Ver demo en 3 minutos</Button>
+              <Button size="lg" variant="outline">Hablar con un experto</Button>
+            </div>
+            <div className="mt-12 md:mt-16">
+              <div className="relative mx-auto w-full max-w-4xl h-64 md:h-96 rounded-xl border-2 border-primary/20 bg-slate-900 shadow-2xl shadow-primary/10">
+                 <div className="absolute top-2 left-2 flex gap-1.5">
+                    <div className="w-3 h-3 rounded-full bg-red-500"></div>
+                    <div className="w-3 h-3 rounded-full bg-yellow-400"></div>
+                    <div className="w-3 h-3 rounded-full bg-green-500"></div>
+                 </div>
+              </div>
+            </div>
+          </div>
+        </section>
+        
+        {/* Social Proof */}
+        <section className="py-16">
+            <div className="max-w-6xl mx-auto px-4 md:px-6 lg:px-8 text-center">
+                <p className="text-sm font-semibold text-muted-foreground tracking-wider uppercase">
+                    Confían en nosotros para gestionar sus proyectos
+                </p>
+                <div className="mt-6 grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-8 items-center">
+                    <div className="h-8 w-full bg-gray-300 rounded-md animate-pulse"></div>
+                    <div className="h-8 w-full bg-gray-300 rounded-md animate-pulse"></div>
+                    <div className="h-8 w-full bg-gray-300 rounded-md animate-pulse"></div>
+                    <div className="h-8 w-full bg-gray-300 rounded-md animate-pulse"></div>
+                    <div className="h-8 w-full bg-gray-300 rounded-md animate-pulse hidden lg:block"></div>
+                </div>
+            </div>
+        </section>
+
+
+        {/* Why ERP is not enough */}
+        <section className="py-20 bg-white">
+          <div className="max-w-6xl mx-auto px-4 md:px-6 lg:px-8">
+            <div className="text-center max-w-2xl mx-auto">
+              <h2 className="text-3xl font-bold tracking-tight">¿Por qué un ERP genérico no sirve en obra?</h2>
+              <p className="mt-4 text-muted-foreground">
+                Las obras tienen una dinámica que los sistemas de gestión tradicionales no entienden. Necesitas una herramienta construida para el terreno, no para la oficina.
+              </p>
+            </div>
+            <div className="mt-12 grid grid-cols-1 md:grid-cols-3 gap-8">
+              <FeatureCard icon={HardHat} title="La obra es dinámica" description="El plan cambia. PCG te permite ajustar la programación y ver el impacto en tiempo real en costos y plazos, algo imposible en un sistema rígido." />
+              <FeatureCard icon={Users} title="Todos deben estar conectados" description="Desde el jefe de obra hasta el prevencionista y el cliente. PCG centraliza la información para que las decisiones se tomen con datos, no con suposiciones." />
+              <FeatureCard icon={DollarSign} title="El costo se controla en terreno" description="Cada avance de obra es un costo. PCG conecta el progreso físico con el presupuesto, dándote control financiero real día a día." />
+            </div>
+          </div>
+        </section>
+
+        {/* How PCG works */}
+        <section className="py-20">
+          <div className="max-w-6xl mx-auto px-4 md:px-6 lg:px-8">
+            <div className="text-center max-w-2xl mx-auto">
+              <h2 className="text-3xl font-bold tracking-tight">Cómo PCG ordena tu operación</h2>
+              <p className="mt-4 text-muted-foreground">En 4 simples pasos, pasas del caos de planillas y correos a un flujo de trabajo ordenado y centralizado.</p>
+            </div>
+            <div className="mt-12 max-w-md mx-auto">
+              <StepCard step="1" title="Crea tu obra" description="Define los datos maestros del proyecto: mandante, plazos, responsables y dirección." />
+              <StepCard step="2" title="Carga tu presupuesto" description="Importa tus APU o créalos en PCG. El sistema los conecta automáticamente a la programación." />
+              <StepCard step="3" title="Programa las actividades" description="Define la ruta crítica y las duraciones. El sistema genera la Curva S y el flujo de caja proyectado." />
+              <StepCard step="4" title="Calidad y Prevención" description="Registra avances, controla la calidad con protocolos y gestiona la prevención de riesgos desde un solo lugar." />
+            </div>
+          </div>
+        </section>
+
+        {/* Modules Section */}
+        <section className="py-20 bg-white">
+          <div className="max-w-6xl mx-auto px-4 md:px-6 lg:px-8">
+            <div className="text-center max-w-2xl mx-auto">
+              <h2 className="text-3xl font-bold tracking-tight">Un módulo para cada necesidad de la obra</h2>
+              <p className="mt-4 text-muted-foreground">PCG está diseñado modularmente para que puedas enfocarte en lo que más importa, con la certeza de que toda la información está conectada.</p>
+            </div>
+            <div className="mt-12 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+              <ModuleCard icon={HardHat} title="Obras" description="Gestión central de tus proyectos. Define datos maestros, clientes y responsables." href="/obras" />
+              <ModuleCard icon={DollarSign} title="Presupuestos" description="Administra tu catálogo de precios, crea y duplica presupuestos detallados por obra." href="/operaciones/presupuestos" />
+              <ModuleCard icon={GanttChartSquare} title="Programación" description="Define actividades, plazos y recursos. Registra avances y visualiza la Curva S." href="/operaciones/programacion" />
+              <ModuleCard icon={CheckCircle} title="Calidad" description="Define y aplica protocolos de calidad en terreno, asociando evidencia fotográfica y no conformidades." href="#" />
+              <ModuleCard icon={ShieldCheck} title="Prevención de Riesgos" description="Gestiona IPER, incidentes, charlas y documentación de seguridad (DS44)." href="/prevencion" />
+              <ModuleCard icon={Users} title="Portal Cliente" description="Dale a tu cliente una visión transparente del avance de su proyecto, con reportes y fotos." href="/cliente" />
+            </div>
+          </div>
+        </section>
+
+        {/* Who is it for */}
+        <section className="py-20">
+          <div className="max-w-6xl mx-auto px-4 md:px-6 lg:px-8">
+            <div className="text-center max-w-2xl mx-auto">
+              <h2 className="text-3xl font-bold tracking-tight">Para cada rol en la obra</h2>
+              <p className="mt-4 text-muted-foreground">PCG entrega la información que cada profesional necesita, en el formato que le sirve.</p>
+            </div>
+            <div className="mt-12 grid grid-cols-1 md:grid-cols-2 gap-8">
+              <Card>
+                <CardHeader><CardTitle>Gerencia / Directorio</CardTitle></CardHeader>
+                <CardContent><p className="text-muted-foreground">Visibilidad completa del margen, avance y riesgos de todos los proyectos en un solo dashboard.</p></CardContent>
+              </Card>
+               <Card>
+                <CardHeader><CardTitle>Jefes de Obra / Administradores</CardTitle></CardHeader>
+                <CardContent><p className="text-muted-foreground">Control diario del avance físico vs. el programado y el presupuestado, con reportes automáticos.</p></CardContent>
+              </Card>
+               <Card>
+                <CardHeader><CardTitle>Prevencionistas de Riesgos</CardTitle></CardHeader>
+                <CardContent><p className="text-muted-foreground">Gestión digital de formularios, cumplimiento del DS44 y seguimiento de planes de acción desde el celular.</p></CardContent>
+              </Card>
+               <Card>
+                <CardHeader><CardTitle>Mandantes / Clientes</CardTitle></CardHeader>
+                <CardContent><p className="text-muted-foreground">Acceso a un portal exclusivo para ver el progreso real de su inversión con fotos y reportes claros.</p></CardContent>
+              </Card>
+            </div>
+          </div>
+        </section>
+        
+        {/* Metrics */}
+        <section className="py-20 bg-primary text-primary-foreground">
+            <div className="max-w-6xl mx-auto px-4 md:px-6 lg:px-8">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-8 text-center">
+                    <div>
+                        <p className="text-5xl font-bold">30%</p>
+                        <p className="mt-2 text-primary-foreground/80">Menos tiempo en reportes manuales</p>
+                    </div>
+                     <div>
+                        <p className="text-5xl font-bold">15%</p>
+                        <p className="mt-2 text-primary-foreground/80">Mejora en la precisión del control de costos</p>
+                    </div>
+                     <div>
+                        <p className="text-5xl font-bold">99%</p>
+                        <p className="mt-2 text-primary-foreground/80">Trazabilidad en la gestión de calidad y seguridad</p>
+                    </div>
+                </div>
+            </div>
+        </section>
+        
+         {/* Pricing Section */}
+        <section className="py-20">
+            <div className="max-w-6xl mx-auto px-4 md:px-6 lg:px-8">
+                 <div className="text-center max-w-2xl mx-auto">
+                    <h2 className="text-3xl font-bold tracking-tight">Un plan para cada tamaño de constructora</h2>
+                    <p className="mt-4 text-muted-foreground">Escala a medida que creces. Sin costos ocultos ni sorpresas.</p>
+                </div>
+                <div className="mt-12 grid grid-cols-1 md:grid-cols-3 gap-8">
+                    <PricingCard 
+                        plan="Plan Pyme"
+                        price="$150"
+                        description="Para constructoras pequeñas y proyectos específicos."
+                        features={['Hasta 3 obras activas', '5 usuarios', 'Módulos de Obras, Presupuesto y Programación']}
+                    />
+                    <PricingCard 
+                        plan="Constructoras"
+                        price="$400"
+                        description="La solución completa para constructoras en crecimiento."
+                        features={['Obras ilimitadas', '20 usuarios', 'Todos los módulos incluidos', 'Soporte prioritario']}
+                        isFeatured
+                    />
+                    <PricingCard 
+                        plan="Mandantes / Inmobiliarias"
+                        price="Custom"
+                        description="Visibilidad y control sobre todo tu portafolio de proyectos."
+                        features={['Múltiples constructoras', 'Usuarios ilimitados', 'Dashboard de Gerencia', 'Integraciones a medida']}
+                    />
+                </div>
+            </div>
+        </section>
+
+        {/* Testimonial */}
+        <section className="py-20 bg-white">
+            <div className="max-w-3xl mx-auto px-4 md:px-6 lg:px-8 text-center">
+                <Avatar className="w-20 h-20 mx-auto mb-4">
+                    <AvatarImage src="https://picsum.photos/seed/101/100/100" />
+                    <AvatarFallback>JP</AvatarFallback>
+                </Avatar>
+                <blockquote className="text-xl italic text-foreground">
+                    "PCG cambió la forma en que gestionamos nuestras obras. Pasamos de un desorden de planillas a tener una fuente única de verdad, y la gerencia ahora tiene visibilidad real del negocio."
+                </blockquote>
+                <p className="mt-4 font-semibold">Juan Pérez</p>
+                <p className="text-sm text-muted-foreground">Gerente de Operaciones, Constructora Ejemplo</p>
+            </div>
+        </section>
+        
+        {/* Final CTA */}
+        <section className="py-20">
+             <div className="max-w-6xl mx-auto px-4 md:px-6 lg:px-8 text-center">
+                <h2 className="text-3xl font-bold tracking-tight">¿Listo para tomar el control de tus obras?</h2>
+                <p className="mt-4 text-muted-foreground max-w-xl mx-auto">
+                    Deja de adivinar y empieza a gestionar con datos. Agenda una demostración y descubre cómo PCG puede transformar tu operación.
+                </p>
+                 <div className="mt-8 flex justify-center gap-4">
+                    <Button size="lg">Agendar demo</Button>
+                    <Button size="lg" variant="outline">Explorar el producto</Button>
+                </div>
+            </div>
+        </section>
+
+      </main>
+
+      {/* Footer */}
+      <footer className="border-t bg-white">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+           <div className="grid grid-cols-2 md:grid-cols-4 gap-8">
+                <div>
+                    <h3 className="font-semibold">Producto</h3>
+                    <ul className="mt-4 space-y-2 text-sm">
+                        <li><Link href="#" className="text-muted-foreground hover:text-primary">Módulos</Link></li>
+                        <li><Link href="#" className="text-muted-foreground hover:text-primary">Precios</Link></li>
+                        <li><Link href="#" className="text-muted-foreground hover:text-primary">Seguridad</Link></li>
+                    </ul>
+                </div>
+                 <div>
+                    <h3 className="font-semibold">Recursos</h3>
+                    <ul className="mt-4 space-y-2 text-sm">
+                        <li><Link href="#" className="text-muted-foreground hover:text-primary">Blog</Link></li>
+                        <li><Link href="#" className="text-muted-foreground hover:text-primary">Casos de Éxito</Link></li>
+                        <li><Link href="#" className="text-muted-foreground hover:text-primary">Soporte</Link></li>
+                    </ul>
+                </div>
+                 <div>
+                    <h3 className="font-semibold">Compañía</h3>
+                    <ul className="mt-4 space-y-2 text-sm">
+                        <li><Link href="#" className="text-muted-foreground hover:text-primary">Sobre nosotros</Link></li>
+                        <li><Link href="#" className="text-muted-foreground hover:text-primary">Contacto</Link></li>
+                    </ul>
+                </div>
+                <div>
+                    <h3 className="font-semibold">Legal</h3>
+                    <ul className="mt-4 space-y-2 text-sm">
+                        <li><Link href="#" className="text-muted-foreground hover:text-primary">Términos de servicio</Link></li>
+                        <li><Link href="#" className="text-muted-foreground hover:text-primary">Política de privacidad</Link></li>
+                    </ul>
+                </div>
+           </div>
+           <div className="mt-8 border-t pt-8 text-center text-sm text-muted-foreground">
+                <p>&copy; {new Date().getFullYear()} PCG 2.0. Todos los derechos reservados.</p>
+           </div>
+        </div>
       </footer>
     </div>
   );
