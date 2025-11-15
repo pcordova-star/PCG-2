@@ -20,7 +20,8 @@ import {
   serverTimestamp,
   writeBatch
 } from "firebase/firestore";
-import { firebaseDb } from "../../../lib/firebaseClient";
+import { firebaseDb, firebaseStorage } from "../../../lib/firebaseClient";
+import { ref, deleteObject } from "firebase/storage";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -29,7 +30,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
@@ -61,8 +62,9 @@ import {
 import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
 import Link from "next/link";
-import { FilePlus2, FileText, Trash2, Edit, PlusCircle, Camera } from 'lucide-react';
+import { FilePlus2, FileText, Trash2, Edit, PlusCircle, Camera, Download, X } from 'lucide-react';
 import RegistrarAvanceForm from "./components/RegistrarAvanceForm";
+import RegistroFotograficoForm from "./components/RegistroFotograficoForm";
 import { useActividadAvance } from "./hooks/useActividadAvance";
 import {
   LineChart,
@@ -76,6 +78,8 @@ import {
 } from 'recharts';
 import { differenceInDays, eachDayOfInterval, format, isAfter } from 'date-fns';
 import ImageFromStorage from '@/components/client/ImageFromStorage';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { useToast } from "@/hooks/use-toast";
 
 
 export type Obra = {
@@ -137,9 +141,9 @@ function CurvaSChart({ actividades, avances, montoTotalContrato }: { actividades
   const data = useMemo(() => {
     if (!actividades.length || montoTotalContrato === 0) return [];
 
-    const fechasInicio = actividades.map(a => new Date(a.fechaInicio + 'T00:00:00'));
-    const fechasFin = actividades.map(a => new Date(a.fechaFin + 'T00:00:00'));
-    
+    const fechasInicio = actividades.map(a => new Date(a.fechaInicio + 'T00:00:00')).filter(d => !isNaN(d.getTime()));
+    const fechasFin = actividades.map(a => new Date(a.fechaFin + 'T00:00:00')).filter(d => !isNaN(d.getTime()));
+
     if (fechasInicio.length === 0 || fechasFin.length === 0) return [];
 
     const fechaInicioObra = new Date(Math.min(...fechasInicio.map(d => d.getTime())));
@@ -155,7 +159,7 @@ function CurvaSChart({ actividades, avances, montoTotalContrato }: { actividades
     actividades.forEach(act => {
       const totalPartida = (act.cantidad || 0) * (act.precioContrato || 0);
       if (totalPartida === 0 || !act.fechaInicio || !act.fechaFin) return;
-
+      
       const inicioAct = new Date(act.fechaInicio + 'T00:00:00');
       const finAct = new Date(act.fechaFin + 'T00:00:00');
       if (inicioAct > finAct) return;
@@ -248,7 +252,8 @@ function ProgramacionPageInner() {
   const { user, loading: loadingAuth } = useAuth();
   const router = useRouter();
   const searchParams = useSearchParams();
-
+  const { toast } = useToast();
+  
   const [obras, setObras] = useState<Obra[]>([]);
   const [obraSeleccionadaId, setObraSeleccionadaId] = useState<string>("");
 
@@ -257,7 +262,6 @@ function ProgramacionPageInner() {
   const { avances, loading: cargandoAvances, refetchAvances, calcularAvanceParaActividades } = useActividadAvance(obraSeleccionadaId);
   
   const avancesPorActividad = useMemo(() => calcularAvanceParaActividades(actividades), [actividades, calcularAvanceParaActividades]);
-
 
   const [cargandoActividades, setCargandoActividades] = useState(true);
   const [cargandoEdp, setCargandoEdp] = useState(true);
@@ -270,6 +274,8 @@ function ProgramacionPageInner() {
   
   const [dialogEdpOpen, setDialogEdpOpen] = useState(false);
   const [fechaCorteEdp, setFechaCorteEdp] = useState(new Date().toISOString().slice(0, 10));
+
+  const [selectedImage, setSelectedImage] = useState<string | null>(null);
 
   const montoTotalContrato = useMemo(() => {
     return actividades.reduce((sum, act) => sum + ((act.cantidad || 0) * (act.precioContrato || 0)), 0);
@@ -574,6 +580,38 @@ function ProgramacionPageInner() {
     }
   }
 
+  const handleDeleteAvance = async (avance: AvanceDiario) => {
+    if (!avance || !avance.id) return;
+
+    try {
+        // 1. Borrar fotos de Storage si existen
+        if (avance.fotos && avance.fotos.length > 0) {
+            const deletePromises = avance.fotos.map(url => {
+                try {
+                    const photoRef = ref(firebaseStorage, url);
+                    return deleteObject(photoRef);
+                } catch(e) {
+                    console.warn(`URL inválida para Storage ref, no se pudo borrar: ${url}`, e);
+                    return Promise.resolve(); // No romper si una URL es inválida
+                }
+            });
+            await Promise.allSettled(deletePromises);
+        }
+
+        // 2. Borrar documento de Firestore
+        const avanceRef = doc(firebaseDb, 'obras', avance.obraId, 'avancesDiarios', avance.id);
+        await deleteDoc(avanceRef);
+        
+        toast({ title: "Avance eliminado", description: "El registro de avance y sus fotos asociadas han sido eliminados." });
+        
+        // La UI se refrescará automáticamente gracias a onSnapshot en el hook useActividadAvance
+        
+    } catch (err) {
+        console.error("Error eliminando avance:", err);
+        toast({ variant: "destructive", title: "Error al eliminar", description: "No se pudo eliminar el registro de avance." });
+    }
+  };
+
   const formatCurrency = (value: number) => {
     return value.toLocaleString('es-CL', { style: 'currency', currency: 'CLP', maximumFractionDigits: 0 });
   };
@@ -761,7 +799,21 @@ function ProgramacionPageInner() {
           <p className="text-sm text-muted-foreground">Registra el avance de la obra. Esta información alimentará el Estado de Pago.</p>
         </header>
         <div className="grid gap-6">
-          {obraSeleccionadaId && <RegistrarAvanceForm obraId={obraSeleccionadaId} actividades={actividades} onAvanceRegistrado={refetchAvances} />}
+          {obraSeleccionadaId && (
+             <Tabs defaultValue="cantidad" className="w-full">
+                <TabsList>
+                  <TabsTrigger value="cantidad">Avance con Cantidad</TabsTrigger>
+                  <TabsTrigger value="foto">Solo Registro Fotográfico</TabsTrigger>
+                </TabsList>
+                <TabsContent value="cantidad">
+                  <RegistrarAvanceForm obraId={obraSeleccionadaId} actividades={actividades} onAvanceRegistrado={refetchAvances} />
+                </TabsContent>
+                <TabsContent value="foto">
+                   <RegistroFotograficoForm obras={obras} actividades={actividades} onRegistroGuardado={refetchAvances} />
+                </TabsContent>
+              </Tabs>
+          )}
+
           {!cargandoAvances && avances.length > 0 && (
             <Card>
               <CardHeader>
@@ -772,7 +824,7 @@ function ProgramacionPageInner() {
                 {avances.slice(0, 10).map(avance => {
                   const actividad = actividades.find(a => a.id === avance.actividadId);
                   return (
-                    <div key={avance.id} className="border-b pb-4">
+                    <div key={avance.id} className="border-b pb-4 last:border-b-0">
                       <div className="flex justify-between items-start">
                         <div>
                           <p className="font-semibold">{avance.fecha.toDate().toLocaleDateString('es-CL')} - {actividad?.nombreActividad || 'Avance General'}</p>
@@ -780,20 +832,49 @@ function ProgramacionPageInner() {
                              Reportado por: {avance.creadoPor.displayName}
                           </p>
                         </div>
-                         <Badge variant="outline" className={avance.tipoRegistro === 'FOTOGRAFICO' ? 'bg-blue-100 text-blue-800' : ''}>
-                          {avance.tipoRegistro === 'FOTOGRAFICO' ? <Camera className="h-3 w-3 mr-1"/> : null}
-                          {avance.tipoRegistro === 'FOTOGRAFICO' ? 'Solo Foto' : `Avance: ${avance.cantidadEjecutada} ${actividad?.unidad}`}
-                        </Badge>
+                        <div className="flex items-center gap-2">
+                          <Badge variant="outline" className={avance.tipoRegistro === 'FOTOGRAFICO' ? 'bg-blue-100 text-blue-800' : ''}>
+                            {avance.tipoRegistro === 'FOTOGRAFICO' ? <Camera className="h-3 w-3 mr-1"/> : null}
+                            {avance.tipoRegistro === 'FOTOGRAFICO' ? 'Solo Foto' : `Avance: ${avance.cantidadEjecutada} ${actividad?.unidad}`}
+                          </Badge>
+                          <AlertDialog>
+                            <AlertDialogTrigger asChild>
+                              <Button variant="ghost" size="icon" className="h-6 w-6 text-muted-foreground hover:text-destructive">
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            </AlertDialogTrigger>
+                            <AlertDialogContent>
+                              <AlertDialogHeader>
+                                <AlertDialogTitle>¿Eliminar este registro de avance?</AlertDialogTitle>
+                                <AlertDialogDescription>
+                                  Esta acción no se puede deshacer. Se eliminará el registro del día {avance.fecha.toDate().toLocaleDateString('es-CL')} y las fotos asociadas. El cálculo de avance se reajustará.
+                                </AlertDialogDescription>
+                              </AlertDialogHeader>
+                              <AlertDialogFooter>
+                                <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                                <AlertDialogAction onClick={() => handleDeleteAvance(avance)} className="bg-destructive hover:bg-destructive/90">Confirmar Eliminación</AlertDialogAction>
+                              </AlertDialogFooter>
+                            </AlertDialogContent>
+                          </AlertDialog>
+                        </div>
                       </div>
 
                       {avance.comentario && <p className="text-sm mt-1">"{avance.comentario}"</p>}
                       {avance.fotos && avance.fotos.length > 0 && (
-                        <div className="flex gap-2 mt-2">
+                        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-2 mt-2">
                           {avance.fotos.map(foto => (
-                            <div key={foto} className="w-16 h-16">
-                               <Suspense fallback={<div className="bg-muted animate-pulse w-16 h-16 rounded-md"></div>}>
+                            <div key={foto} className="w-full aspect-square relative group">
+                               <Suspense fallback={<div className="bg-muted animate-pulse w-full h-full rounded-md"></div>}>
                                 <ImageFromStorage storagePath={foto} />
                               </Suspense>
+                               <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center cursor-pointer" onClick={() => setSelectedImage(foto)}>
+                                    <p className="text-white text-xs text-center">Ver foto</p>
+                               </div>
+                               <a href={foto} download target="_blank" rel="noopener noreferrer" 
+                                  onClick={(e) => e.stopPropagation()} 
+                                  className="absolute bottom-1 right-1 bg-white/80 text-black p-1 rounded-full hover:bg-white transition-colors">
+                                  <Download className="h-3 w-3" />
+                                </a>
                             </div>
                           ))}
                         </div>
@@ -806,6 +887,23 @@ function ProgramacionPageInner() {
           )}
         </div>
       </section>
+
+      {/* Modal para ver imagen en grande */}
+       <Dialog open={!!selectedImage} onOpenChange={(open) => !open && setSelectedImage(null)}>
+        <DialogContent className="max-w-4xl h-[90vh]">
+          <DialogHeader>
+            <DialogTitle>Vista de la imagen</DialogTitle>
+             <DialogDescription>Imagen registrada en el avance.</DialogDescription>
+          </DialogHeader>
+          <div className="flex-grow flex items-center justify-center overflow-hidden">
+            {selectedImage && <img src={selectedImage} alt="Vista ampliada" className="max-w-full max-h-full object-contain" />}
+          </div>
+           <DialogFooter>
+             <Button variant="outline" onClick={() => setSelectedImage(null)}>Cerrar</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
 
       <Card>
         <CardHeader>
@@ -926,3 +1024,4 @@ export default function ProgramacionPage() {
     </Suspense>
   );
 }
+
