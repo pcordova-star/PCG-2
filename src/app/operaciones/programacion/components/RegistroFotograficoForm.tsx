@@ -95,7 +95,7 @@ export default function RegistroFotograficoForm({ obras, actividades, onRegistro
         const docData = {
           tipoRegistro: 'FOTOGRAFICO',
           obraId: selectedObraId,
-          actividadId: actividadFotoId || null,
+          actividadId: actividadFotoId === 'SIN_ACTIVIDAD' ? null : actividadFotoId,
           comentario: comentarioFoto || '',
           fotos: urlsFotos,
           visibleCliente: true,
@@ -151,7 +151,7 @@ export default function RegistroFotograficoForm({ obras, actividades, onRegistro
                 <Select value={actividadFotoId} onValueChange={setActividadFotoId}>
                 <SelectTrigger id="actividad-foto-selector"><SelectValue placeholder="Seleccionar actividad" /></SelectTrigger>
                 <SelectContent>
-                    <SelectItem value="">Sin actividad específica</SelectItem>
+                    <SelectItem value="SIN_ACTIVIDAD">Sin actividad específica</SelectItem>
                     {actividadesAMostrar.map((act) => (<SelectItem key={act.id} value={act.id}>{act.nombreActividad}</SelectItem>))}
                 </SelectContent>
                 </Select>
