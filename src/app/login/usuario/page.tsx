@@ -10,6 +10,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import Link from 'next/link';
 import { Loader2 } from "lucide-react";
+import TermsAcceptance from "@/components/auth/TermsAcceptance";
 
 export default function UsuarioLoginPage() {
   const { login, user, loading, customClaims } = useAuth();
@@ -18,6 +19,7 @@ export default function UsuarioLoginPage() {
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [isLoggingIn, setIsLoggingIn] = useState(false);
+  const [acceptedTerms, setAcceptedTerms] = useState(false);
 
   useEffect(() => {
     if (!loading && user) {
@@ -33,6 +35,10 @@ export default function UsuarioLoginPage() {
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
     setError(null);
+    if (!acceptedTerms) {
+      setError("Debes aceptar los Términos y Condiciones para continuar.");
+      return;
+    }
     setIsLoggingIn(true);
     try {
       await login(email, password);
@@ -67,8 +73,6 @@ export default function UsuarioLoginPage() {
                     onSubmit={handleSubmit}
                     className="space-y-4"
                 >
-                    {error && <p className="text-sm font-medium text-destructive text-center">{error}</p>}
-
                     <div className="space-y-2">
                         <Label htmlFor="email">Correo electrónico</Label>
                         <Input id="email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} required />
@@ -79,7 +83,11 @@ export default function UsuarioLoginPage() {
                         <Input id="password" type="password" value={password} onChange={(e) => setPassword(e.target.value)} required />
                     </div>
 
-                    <Button type="submit" className="w-full" disabled={isLoggingIn}>
+                    <TermsAcceptance acceptedTerms={acceptedTerms} onAcceptedTermsChange={setAcceptedTerms} />
+
+                    {error && <p className="text-sm font-medium text-destructive text-center pt-2">{error}</p>}
+
+                    <Button type="submit" className="w-full" disabled={isLoggingIn || !acceptedTerms}>
                         {isLoggingIn && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                         {isLoggingIn ? "Iniciando..." : "Iniciar Sesión"}
                     </Button>
