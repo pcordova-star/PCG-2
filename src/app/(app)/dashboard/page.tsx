@@ -35,6 +35,31 @@ type SummaryData = {
   alertasSeguridad: number | null;
 };
 
+const modules = [
+  {
+    id: 'tour-step-modulo-obras',
+    title: 'Obras',
+    description: 'Crea y gestiona tus proyectos de construcción. Asigna presupuestos, personal y lleva el control de la programación y los avances.',
+    href: '/obras',
+    icon: HardHat,
+  },
+  {
+    id: 'tour-step-modulo-operaciones',
+    title: 'Operaciones',
+    description: 'Controla el día a día: programación de actividades, registro de avances, estados de pago y gestión de personal en terreno.',
+    href: '/operaciones',
+    icon: Activity,
+  },
+  {
+    id: 'tour-step-modulo-prevencion',
+    title: 'Prevención de Riesgos',
+    description: 'Gestiona la seguridad en obra con auditorías, registro de hallazgos, investigación de incidentes y control documental (DS44).',
+    href: '/prevencion',
+    icon: ShieldCheck,
+  },
+];
+
+
 export default function DashboardPage() {
   const [summaryData, setSummaryData] = useState<SummaryData>({
     obrasActivas: null,
@@ -52,8 +77,8 @@ export default function DashboardPage() {
       setStartTour(true);
     }
 
+    setLoading(true);
     async function fetchSummaryData() {
-      setLoading(true);
       try {
         const obrasQuery = query(collection(firebaseDb, 'obras'));
         const obrasSnap = await getDocs(obrasQuery);
