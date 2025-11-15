@@ -14,18 +14,16 @@ import {
   useState,
   ReactNode,
 } from "react";
-import { firebaseAuth } from "../lib/firebaseClient";
+import { firebaseAuth, firebaseDb } from "../lib/firebaseClient";
 import { useRouter } from "next/navigation";
+import { doc, getDoc, setDoc, serverTimestamp } from "firebase/firestore";
+import { resolveRole, UserRole } from "@/lib/roles";
 
-type CustomClaims = {
-  role?: "SUPER_ADMIN" | "EMPRESA_ADMIN" | "JEFE_OBRA" | "PREVENCIONISTA" | "LECTOR_CLIENTE";
-  companyId?: string | null;
-  [key: string]: any;
-};
 
 type AuthContextValue = {
   user: User | null;
-  customClaims: CustomClaims | null;
+  role: UserRole;
+  companyId: string | null;
   loading: boolean;
   login: (email: string, password: string) => Promise<void>;
   logout: () => Promise<void>;
@@ -35,18 +33,55 @@ const AuthContext = createContext<AuthContextValue | undefined>(undefined);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
-  const [customClaims, setCustomClaims] = useState<CustomClaims | null>(null);
+  const [role, setRole] = useState<UserRole>("none");
+  const [companyId, setCompanyId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const router = useRouter();
 
   useEffect(() => {
     const unsub = onAuthStateChanged(firebaseAuth, async (firebaseUser) => {
+      setLoading(true);
       setUser(firebaseUser);
+
       if (firebaseUser) {
-        const idTokenResult: IdTokenResult = await firebaseUser.getIdTokenResult(true); // Forzar refresco
-        setCustomClaims(idTokenResult.claims as CustomClaims);
+        try {
+            const idTokenResult: IdTokenResult = await firebaseUser.getIdTokenResult(true);
+            const claims = idTokenResult.claims;
+            
+            // Obtener el documento del usuario desde Firestore
+            const userDocRef = doc(firebaseDb, "users", firebaseUser.uid);
+            const userDocSnap = await getDoc(userDocRef);
+            let userDocData = null;
+
+            if (userDocSnap.exists()) {
+                userDocData = userDocSnap.data();
+            } else {
+                 // Si no existe, creamos un registro básico.
+                 // Esto es útil para nuevos usuarios o para consistencia de datos.
+                const newUserDoc = {
+                    email: firebaseUser.email,
+                    nombre: firebaseUser.displayName || firebaseUser.email,
+                    createdAt: serverTimestamp(),
+                    updatedAt: serverTimestamp(),
+                };
+                await setDoc(userDocRef, newUserDoc);
+                userDocData = newUserDoc;
+            }
+
+            // Centralizamos la lógica de roles usando la nueva función
+            const resolvedUserRole = resolveRole(firebaseUser, userDocData, claims);
+            setRole(resolvedUserRole);
+            setCompanyId(claims.companyId || userDocData?.companyIdPrincipal || null);
+
+        } catch (error) {
+            console.error("Error al obtener datos del usuario:", error);
+            setRole("none");
+            setCompanyId(null);
+        }
+
       } else {
-        setCustomClaims(null);
+        setRole("none");
+        setCompanyId(null);
       }
       setLoading(false);
     });
@@ -56,14 +91,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   async function login(email: string, password: string) {
     await signInWithEmailAndPassword(firebaseAuth, email, password);
-    // El onAuthStateChanged se encargará del resto
+    // El onAuthStateChanged se encargará del resto (obtener token, doc, y resolver rol)
   }
 
   async function logout() {
     try {
       await signOut(firebaseAuth);
       setUser(null);
-      setCustomClaims(null);
+      setRole("none");
+      setCompanyId(null);
       router.push('/');
     } catch (error) {
       console.error("Error al cerrar sesión", error);
@@ -72,7 +108,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const value: AuthContextValue = {
     user,
-    customClaims,
+    role,
+    companyId,
     loading,
     login,
     logout,

@@ -20,8 +20,8 @@ import { useAuth } from '@/context/AuthContext';
 
 
 export default function AdminEmpresasPage() {
-    const { customClaims, loading: authLoading } = useAuth();
-    const isSuperAdmin = customClaims?.role === 'SUPER_ADMIN';
+    const { role, loading: authLoading } = useAuth();
+    const isSuperAdmin = role === 'superadmin';
     const router = useRouter();
 
     const [empresas, setEmpresas] = useState<Company[]>([]);

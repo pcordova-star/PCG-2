@@ -25,8 +25,9 @@ type Obra = {
 };
 
 export default function AdminGlobalObrasPage() {
-  const { customClaims, loading: authLoading } = useAuth();
+  const { role, loading: authLoading } = useAuth();
   const router = useRouter();
+  const isSuperAdmin = role === 'superadmin';
 
   const [obras, setObras] = useState<Obra[]>([]);
   const [companies, setCompanies] = useState<Company[]>([]);
@@ -39,12 +40,10 @@ export default function AdminGlobalObrasPage() {
 
   useEffect(() => {
     if (authLoading) return;
-    if (customClaims?.role !== 'SUPER_ADMIN') {
-      // Idealmente, esto se manejaría con middleware o en el layout,
-      // pero por seguridad lo dejamos aquí también.
+    if (!isSuperAdmin) {
       router.replace('/dashboard');
     }
-  }, [customClaims, authLoading, router]);
+  }, [isSuperAdmin, authLoading, router]);
   
   useEffect(() => {
     const fetchAllData = async () => {
@@ -79,11 +78,11 @@ export default function AdminGlobalObrasPage() {
       }
     };
     
-    if (customClaims?.role === 'SUPER_ADMIN') {
+    if (isSuperAdmin) {
         fetchAllData();
     }
 
-  }, [customClaims]);
+  }, [isSuperAdmin]);
 
   const obrasFiltradas = useMemo(() => {
     return obras.filter(obra => {
@@ -104,7 +103,7 @@ export default function AdminGlobalObrasPage() {
     }
   };
   
-  if (authLoading || customClaims?.role !== 'SUPER_ADMIN') {
+  if (authLoading || !isSuperAdmin) {
     return (
         <div className="flex justify-center items-center h-full">
             <p>Verificando permisos...</p>

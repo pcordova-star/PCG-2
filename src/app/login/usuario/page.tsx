@@ -15,7 +15,7 @@ import TermsAcceptance from "@/components/auth/TermsAcceptance";
 const TERMS_ACCEPTANCE_KEY = "pcg_terms_accepted";
 
 export default function UsuarioLoginPage() {
-  const { login, user, loading, customClaims } = useAuth();
+  const { login, user, loading, role } = useAuth();
   const router = useRouter();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -31,14 +31,14 @@ export default function UsuarioLoginPage() {
   }, []);
 
   useEffect(() => {
-    if (!loading && user && customClaims) {
-        if(customClaims?.role === 'SUPER_ADMIN'){
+    if (!loading && user && role !== 'none') {
+        if(role === 'superadmin'){
             router.replace('/admin/empresas');
         } else {
             router.replace('/dashboard');
         }
     }
-  }, [user, loading, customClaims, router]);
+  }, [user, loading, role, router]);
 
 
   async function handleSubmit(e: FormEvent) {
