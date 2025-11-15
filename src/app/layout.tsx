@@ -106,15 +106,7 @@ function MainLayout({ children }: { children: React.ReactNode }) {
     return <>{children}</>;
   }
 
-  if (authLoading) {
-    return (
-        <div className="flex flex-col items-center justify-center min-h-screen">
-            <h1 className="text-2xl font-bold">Verificando permisos...</h1>
-        </div>
-    )
-  }
-
-  if (isAdminPage && !isSuperAdmin) {
+  if (isAdminPage && !authLoading && !isSuperAdmin) {
     return (
         <div className="flex flex-col items-center justify-center min-h-screen">
             <h1 className="text-2xl font-bold">Acceso Denegado</h1>
@@ -348,7 +340,13 @@ function MainLayout({ children }: { children: React.ReactNode }) {
         </header>
 
         <main className="flex flex-1 flex-col gap-4 p-4 lg:gap-6 lg:p-6 bg-muted/40">
-          {children}
+          {authLoading ? (
+             <div className="flex flex-col items-center justify-center min-h-full">
+                <h1 className="text-2xl font-bold">Verificando permisos...</h1>
+            </div>
+          ) : (
+            children
+          )}
         </main>
       </div>
     </div>
