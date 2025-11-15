@@ -1,7 +1,7 @@
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
-import { Users, GanttChartSquare, DollarSign } from 'lucide-react';
+import { Users, GanttChartSquare, DollarSign, BookCopy } from 'lucide-react';
 
 export default function OperacionesPage() {
   const modules = [
@@ -18,6 +18,13 @@ export default function OperacionesPage() {
       href: "/operaciones/estados-de-pago",
       icon: DollarSign,
       linkText: "Ir a Estados de Pago"
+    },
+    {
+      title: "Presupuestos",
+      description: "Administra tu catálogo de ítems y crea presupuestos por obra.",
+      href: "/operaciones/presupuestos",
+      icon: BookCopy,
+      linkText: "Ir a Presupuestos"
     },
     {
       title: "Personal de Obra",
