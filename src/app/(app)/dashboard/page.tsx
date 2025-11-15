@@ -127,12 +127,6 @@ export default function DashboardPage() {
       href: '/prevencion',
       icon: ShieldCheck,
     },
-    {
-      title: 'Personal de Obra',
-      description: 'Gestione el plantel de trabajadores y su estado para cada obra.',
-      href: '/operaciones/personal',
-      icon: Users,
-    },
   ];
 
   return (
