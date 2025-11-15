@@ -15,6 +15,7 @@ import {
   ReactNode,
 } from "react";
 import { firebaseAuth } from "../lib/firebaseClient";
+import { useRouter } from "next/navigation";
 
 type CustomClaims = {
   role?: "SUPER_ADMIN" | "EMPRESA_ADMIN" | "JEFE_OBRA" | "PREVENCIONISTA" | "LECTOR_CLIENTE";
@@ -36,6 +37,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [customClaims, setCustomClaims] = useState<CustomClaims | null>(null);
   const [loading, setLoading] = useState(true);
+  const router = useRouter();
 
   useEffect(() => {
     const unsub = onAuthStateChanged(firebaseAuth, async (firebaseUser) => {
@@ -58,8 +60,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }
 
   async function logout() {
-    await signOut(firebaseAuth);
-    // El onAuthStateChanged se encargará del resto
+    try {
+      await signOut(firebaseAuth);
+      setUser(null);
+      setCustomClaims(null);
+      router.push('/');
+    } catch (error) {
+      console.error("Error al cerrar sesión", error);
+    }
   }
 
   const value: AuthContextValue = {
