@@ -9,6 +9,8 @@ import { firebaseDb } from "@/lib/firebaseClient";
 import RegistroFotograficoForm from "@/app/operaciones/programacion/components/RegistroFotograficoForm";
 import { ActividadProgramada } from "@/app/operaciones/programacion/page";
 import { Obra } from "../programacion/page";
+import { Button } from "@/components/ui/button";
+import { ArrowLeft } from "lucide-react";
 
 export default function RegistroFotograficoPage() {
   const { user, loading: authLoading } = useAuth();
@@ -79,12 +81,15 @@ export default function RegistroFotograficoPage() {
 
   return (
     <div className="max-w-2xl mx-auto space-y-6">
-      <div className="flex items-center gap-4">
+      <header className="flex items-center gap-4">
+         <Button variant="outline" size="icon" onClick={() => router.back()}>
+          <ArrowLeft className="h-4 w-4" />
+        </Button>
         <div>
             <h1 className="text-2xl font-bold">Registro Fotográfico de Hito / Avance</h1>
             <p className="text-muted-foreground">Formulario rápido para dejar evidencia fotográfica desde terreno.</p>
         </div>
-      </div>
+      </header>
       <RegistroFotograficoForm
         obras={obras}
         actividades={actividades}

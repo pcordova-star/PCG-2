@@ -3,7 +3,7 @@
 
 import React, { useState, useEffect, useMemo } from 'react';
 import { useAuth } from '@/context/AuthContext';
-import { collection, addDoc } from 'firebase/firestore';
+import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
 import { firebaseDb, firebaseStorage } from '@/lib/firebaseClient';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { Button } from '@/components/ui/button';
@@ -11,10 +11,11 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { X, Camera } from 'lucide-react';
+import { X, Camera, Loader2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { ActividadProgramada, Obra } from '../page';
 import { Textarea } from '@/components/ui/textarea';
+import { useRouter } from 'next/navigation';
 
 type RegistroFotograficoFormProps = {
   obras: Obra[]; 
@@ -27,6 +28,7 @@ const MAX_FOTOS = 5;
 export default function RegistroFotograficoForm({ obras, actividades, onRegistroGuardado }: RegistroFotograficoFormProps) {
   const { user } = useAuth();
   const { toast } = useToast();
+  const router = useRouter();
   
   const [selectedObraId, setSelectedObraId] = useState(obras.length > 0 ? obras[0].id : "");
   const [fechaAvance, setFechaAvance] = useState(new Date().toISOString().slice(0, 10));
@@ -35,7 +37,7 @@ export default function RegistroFotograficoForm({ obras, actividades, onRegistro
   const [comentarioFoto, setComentarioFoto] = useState('');
   const [fotosSolo, setFotosSolo] = useState<File[]>([]);
 
-  const [uploading, setUploading] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const actividadesAMostrar = useMemo(() => {
@@ -76,7 +78,7 @@ export default function RegistroFotograficoForm({ obras, actividades, onRegistro
       return;
     }
 
-    setUploading(true);
+    setIsSaving(true);
     setError(null);
 
     try {
@@ -101,19 +103,21 @@ export default function RegistroFotograficoForm({ obras, actividades, onRegistro
           visibleCliente: true,
           creadoPor: { uid: user.uid, displayName: user.displayName || user.email || 'Anónimo', },
           fecha: new Date(fechaAvance + 'T12:00:00Z'),
+          createdAt: serverTimestamp(),
         };
         
         await addDoc(colRef, docData);
 
-        toast({ title: 'Registro fotográfico guardado con éxito.' });
+        toast({ title: 'Registro guardado', description: 'El registro fotográfico se ha guardado con éxito.' });
         onRegistroGuardado?.();
         resetFormStates();
 
     } catch(err: any) {
       console.error(err);
       setError('No se pudo guardar el registro fotográfico. ' + err.message);
+      toast({ variant: 'destructive', title: 'Error', description: 'Ocurrió un problema al guardar el registro.' });
     } finally {
-      setUploading(false);
+      setIsSaving(false);
     }
   }
 
@@ -133,7 +137,7 @@ export default function RegistroFotograficoForm({ obras, actividades, onRegistro
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="space-y-1">
                 <Label htmlFor="obra-selector">Obra*</Label>
-                <Select value={selectedObraId} onValueChange={handleObraSelectionChange}>
+                <Select value={selectedObraId} onValueChange={handleObraSelectionChange} required>
                   <SelectTrigger id="obra-selector"><SelectValue placeholder="Seleccionar obra" /></SelectTrigger>
                   <SelectContent>
                     {obras.map((obra) => (<SelectItem key={obra.id} value={obra.id}>{obra.nombreFaena}</SelectItem>))}
@@ -142,7 +146,7 @@ export default function RegistroFotograficoForm({ obras, actividades, onRegistro
               </div>
               <div className="space-y-1">
                 <Label htmlFor="avance-fecha">Fecha del Registro*</Label>
-                <Input id="avance-fecha" type="date" value={fechaAvance} onChange={(e) => setFechaAvance(e.target.value)} />
+                <Input id="avance-fecha" type="date" value={fechaAvance} onChange={(e) => setFechaAvance(e.target.value)} required />
               </div>
             </div>
             
@@ -173,10 +177,15 @@ export default function RegistroFotograficoForm({ obras, actividades, onRegistro
                 </div>
             </div>
             {error && <p className="text-sm font-medium text-destructive">{error}</p>}
-            <Button type="submit" disabled={uploading || !selectedObraId} className="w-full">
-                <Camera className="mr-2 h-4 w-4" />
-                {uploading ? 'Guardando registro...' : 'Guardar Registro Fotográfico'}
-            </Button>
+            <div className="flex items-center gap-4">
+              <Button type="submit" disabled={isSaving || !selectedObraId} className="w-full sm:w-auto">
+                  <Camera className="mr-2 h-4 w-4" />
+                  {isSaving ? 'Guardando...' : 'Guardar Registro Fotográfico'}
+              </Button>
+               <Button type="button" variant="ghost" onClick={() => router.back()}>
+                  Cancelar
+              </Button>
+            </div>
           </form>
       </CardContent>
     </Card>

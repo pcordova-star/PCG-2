@@ -15,6 +15,8 @@ import { Label } from "@/components/ui/label";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Edit, Trash2, PlusCircle, Link as LinkIcon, ClipboardPlus } from "lucide-react";
 import Link from "next/link";
+import { useToast } from "@/hooks/use-toast";
+
 
 type Obra = {
   id: string;
@@ -52,6 +54,7 @@ async function deleteSubcollection(db: any, collectionPath: string) {
 export default function ObrasPage() {
   const { user, loading } = useAuth();
   const router = useRouter();
+  const { toast } = useToast();
 
   const [obras, setObras] = useState<Obra[]>([]);
   const [cargandoObras, setCargandoObras] = useState(true);
@@ -59,6 +62,8 @@ export default function ObrasPage() {
 
   const [dialogOpen, setDialogOpen] = useState(false);
   const [currentObra, setCurrentObra] = useState<Partial<Obra> | null>(null);
+  const [isSaving, setIsSaving] = useState(false);
+
 
   useEffect(() => {
     if (!loading && !user) {
@@ -87,13 +92,14 @@ export default function ObrasPage() {
       } catch (err) {
         console.error(err);
         setError("No se pudieron cargar las obras desde el servidor.");
+        toast({ variant: "destructive", title: "Error al cargar obras", description: "No se pudieron cargar las obras desde el servidor." });
       } finally {
         setCargandoObras(false);
       }
     }
 
     cargarObras();
-  }, [user]);
+  }, [user, toast]);
   
   const handleOpenDialog = (obra: Partial<Obra> | null = null) => {
     setCurrentObra(obra || { 
@@ -125,6 +131,7 @@ export default function ObrasPage() {
       return;
     }
 
+    setIsSaving(true);
     const obraData = {
       nombreFaena: currentObra.nombreFaena,
       direccion: currentObra.direccion,
@@ -142,6 +149,7 @@ export default function ObrasPage() {
         const docRef = doc(firebaseDb, "obras", currentObra.id);
         await updateDoc(docRef, obraData);
         setObras(obras.map(o => o.id === currentObra!.id ? { ...o, ...currentObra, ...obraData } as Obra : o));
+        toast({ title: "Obra actualizada", description: `La obra "${obraData.nombreFaena}" ha sido actualizada.` });
       } else {
         // Crear nueva obra
         const colRef = collection(firebaseDb, "obras");
@@ -149,19 +157,22 @@ export default function ObrasPage() {
           ...obraData,
           creadoEn: serverTimestamp(),
         });
-        // Para la UI, usamos una fecha local hasta que se recargue
         const nuevaObra: Obra = {
           id: docRef.id,
           ...obraData,
           creadoEn: new Date(),
         };
         setObras([nuevaObra, ...obras]);
+        toast({ title: "Obra creada", description: `La obra "${obraData.nombreFaena}" ha sido creada.` });
       }
       setDialogOpen(false);
       setCurrentObra(null);
     } catch (err) {
       console.error(err);
       setError("No se pudo guardar la obra. Intenta nuevamente.");
+      toast({ variant: "destructive", title: "Error al guardar", description: "No se pudo guardar la obra. Intenta nuevamente." });
+    } finally {
+      setIsSaving(false);
     }
   };
 
@@ -184,11 +195,12 @@ export default function ObrasPage() {
       const docRef = doc(firebaseDb, "obras", obraId);
       await deleteDoc(docRef);
 
-      // Actualizar el estado de la UI
       setObras(obras.filter(o => o.id !== obraId));
+      toast({ title: "Obra eliminada", description: "La obra y todos sus datos asociados han sido eliminados." });
     } catch (err) {
       console.error(err);
       setError("No se pudo eliminar la obra y sus datos asociados. Intenta nuevamente.");
+      toast({ variant: "destructive", title: "Error al eliminar", description: "No se pudo eliminar la obra. Intenta nuevamente." });
     }
   };
 
@@ -257,7 +269,7 @@ export default function ObrasPage() {
                       <TableCell className="text-right">
                         <div className="flex justify-end gap-2">
                            <Button variant="outline" size="sm" asChild>
-                            <Link href={`/clientes/${obra.id}`} target="_blank">
+                            <Link href={`/cliente/obras/${obra.id}`} target="_blank">
                               <LinkIcon className="mr-2 h-3 w-3" />
                               Ver Panel Cliente
                             </Link>
@@ -309,15 +321,15 @@ export default function ObrasPage() {
             <div className="grid gap-4 py-4 md:grid-cols-2">
               <div className="space-y-2">
                 <Label htmlFor="nombreFaena">Nombre Faena*</Label>
-                <Input id="nombreFaena" name="nombreFaena" value={currentObra?.nombreFaena || ""} onChange={handleFormChange} />
+                <Input id="nombreFaena" name="nombreFaena" value={currentObra?.nombreFaena || ""} onChange={handleFormChange} required />
               </div>
               <div className="space-y-2">
                 <Label htmlFor="direccion">Dirección*</Label>
-                <Input id="direccion" name="direccion" value={currentObra?.direccion || ""} onChange={handleFormChange} />
+                <Input id="direccion" name="direccion" value={currentObra?.direccion || ""} onChange={handleFormChange} required />
               </div>
               <div className="space-y-2">
                 <Label htmlFor="clienteEmail">Email Cliente*</Label>
-                <Input id="clienteEmail" name="clienteEmail" type="email" value={currentObra?.clienteEmail || ""} onChange={handleFormChange} />
+                <Input id="clienteEmail" name="clienteEmail" type="email" value={currentObra?.clienteEmail || ""} onChange={handleFormChange} required />
               </div>
                <div className="space-y-2">
                 <Label htmlFor="jefeObraNombre">Administrador de obra</Label>
@@ -342,7 +354,10 @@ export default function ObrasPage() {
               {error && <p className="col-span-full text-sm font-medium text-destructive">{error}</p>}
             </div>
             <DialogFooter>
-              <Button type="submit">Guardar Obra</Button>
+               <Button type="button" variant="ghost" onClick={() => setDialogOpen(false)}>Cancelar</Button>
+              <Button type="submit" disabled={isSaving}>
+                {isSaving ? "Guardando..." : "Guardar Obra"}
+              </Button>
             </DialogFooter>
           </form>
         </DialogContent>

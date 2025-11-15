@@ -10,7 +10,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { X } from 'lucide-react';
+import { X, Loader2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { ActividadProgramada, Obra } from '../page';
 import { useActividadAvance } from '../hooks/useActividadAvance';
@@ -40,7 +40,7 @@ export default function RegistrarAvanceForm({ obraId: initialObraId, obras = [],
   
   const { avancesPorActividad: avancesAcumulados } = useActividadAvance(selectedObraId);
   
-  const [uploading, setUploading] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const actividadesAMostrar = useMemo(() => {
@@ -96,7 +96,7 @@ export default function RegistrarAvanceForm({ obraId: initialObraId, obras = [],
       return;
     }
 
-    setUploading(true);
+    setIsSaving(true);
     setError(null);
 
     try {
@@ -148,8 +148,9 @@ export default function RegistrarAvanceForm({ obraId: initialObraId, obras = [],
     } catch (err: any) {
       console.error(err);
       setError('No se pudo registrar el avance. ' + err.message);
+      toast({ variant: "destructive", title: "Error al registrar", description: "Ocurrió un problema al guardar el avance."});
     } finally {
-      setUploading(false);
+      setIsSaving(false);
     }
   };
   
@@ -173,7 +174,7 @@ export default function RegistrarAvanceForm({ obraId: initialObraId, obras = [],
               {allowObraSelection && (
                 <div className="space-y-1 flex-grow">
                   <Label htmlFor="obra-selector" className="text-xs font-medium">Obra*</Label>
-                  <Select value={selectedObraId} onValueChange={handleObraSelectionChange}>
+                  <Select value={selectedObraId} onValueChange={handleObraSelectionChange} required>
                     <SelectTrigger id="obra-selector"><SelectValue placeholder="Seleccionar obra" /></SelectTrigger>
                     <SelectContent>
                       {obras.map((obra) => (<SelectItem key={obra.id} value={obra.id}>{obra.nombreFaena}</SelectItem>))}
@@ -183,7 +184,7 @@ export default function RegistrarAvanceForm({ obraId: initialObraId, obras = [],
               )}
                <div className="space-y-1">
                 <Label htmlFor="avance-fecha" className="text-xs font-medium">Fecha de Avance*</Label>
-                <Input id="avance-fecha" type="date" value={fechaAvance} onChange={(e) => setFechaAvance(e.target.value)} />
+                <Input id="avance-fecha" type="date" value={fechaAvance} onChange={(e) => setFechaAvance(e.target.value)} required />
               </div>
             </div>
             
@@ -200,7 +201,7 @@ export default function RegistrarAvanceForm({ obraId: initialObraId, obras = [],
                       </TableRow>
                   </TableHeader>
                   <TableBody>
-                      {actividadesAMostrar.map(act => {
+                      {actividadesAMostrar.length > 0 ? actividadesAMostrar.map(act => {
                           const avanceActual = avancesAcumulados[act.id] || { cantidadAcumulada: 0, porcentajeAcumulado: 0 };
                           const cantidadHoy = cantidadesHoy[act.id] || 0;
                           const nuevaCantidadAcumulada = avanceActual.cantidadAcumulada + cantidadHoy;
@@ -229,12 +230,26 @@ export default function RegistrarAvanceForm({ obraId: initialObraId, obras = [],
                                   </TableCell>
                               </TableRow>
                           )
-                      })}
+                      }) : (
+                        <TableRow>
+                          <TableCell colSpan={6} className="h-24 text-center text-muted-foreground">
+                            No hay actividades programadas para la obra seleccionada.
+                          </TableCell>
+                        </TableRow>
+                      )}
                   </TableBody>
               </Table>
             </div>
              {error && <p className="text-sm font-medium text-destructive">{error}</p>}
-             <Button type="submit" disabled={uploading || !selectedObraId}>{uploading ? 'Guardando avances...' : 'Registrar Avances del Día'}</Button>
+             <div className="flex items-center gap-4">
+                <Button type="submit" disabled={isSaving || !selectedObraId}>
+                    {isSaving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                    {isSaving ? 'Guardando...' : 'Registrar Avances del Día'}
+                </Button>
+                <Button type="button" variant="ghost" onClick={() => router.back()}>
+                    Cancelar
+                </Button>
+             </div>
           </form>
       </CardContent>
     </Card>
