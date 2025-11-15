@@ -1,16 +1,13 @@
 // src/app/page.tsx
 "use client";
 
-import React, {
-} from 'react';
+import React from 'react';
 import Link from 'next/link';
-import { motion, useInView, useAnimation, animate, AnimatePresence } from 'framer-motion';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
-import { ArrowRight, Building, CheckCircle, ChevronRight, DollarSign, GanttChartSquare, HardHat, PieChart, ShieldCheck, Users, Zap, Image as ImageIcon, Check } from 'lucide-react';
+import { ArrowRight, Building, CheckCircle, DollarSign, GanttChartSquare, HardHat, PieChart, ShieldCheck, Users, Zap, Image as ImageIcon, Check } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import Image from 'next/image';
-
 
 const NavLink = ({ href, children }: { href: string; children: React.ReactNode }) => (
   <Link href={href} className="text-sm font-medium text-muted-foreground transition-colors hover:text-primary">
@@ -35,7 +32,6 @@ const FeatureCard = ({ icon, title, description }: { icon: React.ElementType, ti
   );
 };
 
-
 const StepCard = ({ step, title, description }: { step: string, title: string, description: string }) => (
   <div className="flex">
     <div className="flex flex-col items-center mr-4">
@@ -52,7 +48,6 @@ const StepCard = ({ step, title, description }: { step: string, title: string, d
     </div>
   </div>
 );
-
 
 const ModuleCard = ({ icon, title, description, href }: { icon: React.ElementType, title: string, description: string, href: string }) => {
   const Icon = icon;
@@ -78,123 +73,25 @@ const ModuleCard = ({ icon, title, description, href }: { icon: React.ElementTyp
   );
 };
 
-const AnimatedMetric = ({ value, suffix, text }: { value: number; suffix: string; text: string }) => {
-  const ref = React.useRef<HTMLDivElement>(null);
-  const isInView = useInView(ref, { once: true, margin: "-50px" });
-  const controls = useAnimation();
-  const [displayValue, setDisplayValue] = React.useState(0);
-
-  React.useEffect(() => {
-    if (isInView) {
-      controls.start({
-        opacity: 1,
-        y: 0,
-        transition: { duration: 0.5 }
-      });
-      const animation = animate(0, value, {
-        duration: 2,
-        ease: "easeOut",
-        onUpdate: (latest) => {
-          setDisplayValue(Math.round(latest));
-        }
-      });
-      return () => animation.stop();
-    }
-  }, [isInView, value, controls]);
-  
-  return (
-    <motion.div
-        ref={ref}
-        initial={{ opacity: 0, y: 20 }}
-        animate={controls}
-    >
-      <p className="text-5xl font-bold">{displayValue}{suffix}</p>
-      <p className="mt-2 text-primary-foreground/80">{text}</p>
-    </motion.div>
-  );
-};
-
-const AnimatedPlatformMockup = () => {
-    const [scene, setScene] = React.useState(0);
-
-    React.useEffect(() => {
-        const interval = setInterval(() => {
-            setScene((prevScene) => (prevScene + 1) % 3);
-        }, 5000);
-        return () => clearInterval(interval);
-    }, []);
-
-    const scenes = [
-        // Scene 1: Dashboard
-        <motion.div key="dashboard" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0, scale: 0.95 }} transition={{ duration: 0.5 }} className="absolute inset-0 grid grid-cols-3 grid-rows-3 gap-3 p-3">
-            <motion.div initial={{ y: -20, opacity: 0 }} animate={{ y: 0, opacity: 1 }} transition={{ delay: 0.2 }} className="col-span-2 row-span-2 rounded-lg bg-slate-800/80 p-2 md:p-4 flex flex-col justify-between">
-                <div>
-                  <h4 className="text-xs md:text-sm font-bold text-white">Reposición de Soleras Quinta Avenida</h4>
-                  <p className="text-[10px] md:text-xs text-slate-400">Cliente: Constructora Los Maitenes</p>
-                </div>
-                 <div className="w-full h-8 md:h-12 bg-slate-700/50 rounded-md flex items-center p-1 md:p-2">
-                    <motion.div initial={{ width: '0%'}} animate={{ width: '75%'}} transition={{ delay: 0.5, duration: 1}} className="h-full bg-blue-500/50 rounded"></motion.div>
-                 </div>
-            </motion.div>
-            <motion.div initial={{ x: 20, opacity: 0 }} animate={{ x: 0, opacity: 1 }} transition={{ delay: 0.4 }} className="col-span-1 row-span-1 rounded-lg bg-slate-800/80 p-2 md:p-4 flex items-center gap-2">
-                <ShieldCheck className="w-4 h-4 md:w-6 md:h-6 text-green-400 shrink-0" />
-                <div><h5 className="text-[10px] md:text-xs font-semibold text-white">Seguridad</h5><p className="text-[10px] text-slate-400">0 Incidentes</p></div>
-            </motion.div>
-            <motion.div initial={{ x: 20, opacity: 0 }} animate={{ x: 0, opacity: 1 }} transition={{ delay: 0.6 }} className="col-span-1 row-span-1 rounded-lg bg-slate-800/80 p-2 md:p-4 flex items-center gap-2">
-                <DollarSign className="w-4 h-4 md:w-6 md:h-6 text-yellow-400 shrink-0" />
-                <div><h5 className="text-[10px] md:text-xs font-semibold text-white">Costos</h5><p className="text-[10px] text-slate-400">+2%</p></div>
-            </motion.div>
-            <motion.div initial={{ y: 20, opacity: 0 }} animate={{ y: 0, opacity: 1 }} transition={{ delay: 0.8 }} className="col-span-3 row-span-1 rounded-lg bg-slate-800/80 p-2 md:p-4 flex flex-col">
-                <h4 className="text-xs md:text-sm font-bold text-white">Programación</h4>
-                <div className="flex-grow w-full h-px bg-slate-700/50 rounded-full mt-2 relative"><div className="absolute top-0 left-[10%] w-1/4 h-full bg-indigo-500/70 rounded-full"></div><div className="absolute top-0 left-[40%] w-1/3 h-full bg-purple-500/70 rounded-full"></div></div>
-            </motion.div>
-        </motion.div>,
-
-        // Scene 2: Gantt Chart
-        <motion.div key="gantt" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0, scale: 0.95 }} transition={{ duration: 0.5 }} className="absolute inset-0 p-3">
-             <div className="w-full h-full rounded-lg bg-slate-800/80 p-2 md:p-4 flex flex-col">
-                <h4 className="text-xs md:text-sm font-bold text-white">Programación de Obra</h4>
-                <div className="space-y-1.5 mt-2 flex-grow">
-                    {[20, 60, 40, 75, 30].map((width, i) => (
-                        <motion.div key={i} initial={{ x: -20, opacity: 0 }} animate={{ x: 0, opacity: 1 }} transition={{ delay: 0.2 + i * 0.1 }} className="flex items-center gap-2">
-                            <div className="w-1/4 text-white/70 text-[8px] md:text-[10px] truncate">Actividad 0{i + 1}</div>
-                            <div className="w-3/4 h-3 md:h-4 bg-slate-700/50 rounded-full"><div className="h-full bg-indigo-500/70 rounded-full" style={{ width: `${width}%` }}></div></div>
-                        </motion.div>
-                    ))}
-                </div>
-            </div>
-        </motion.div>,
-        
-        // Scene 3: Reporte Fotográfico
-        <motion.div key="report" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0, scale: 0.95 }} transition={{ duration: 0.5 }} className="absolute inset-0 p-3">
-             <div className="w-full h-full rounded-lg bg-slate-800/80 p-2 md:p-4 flex flex-col md:flex-row gap-2 md:gap-4">
-                <motion.div initial={{ scale: 0.8, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} transition={{ delay: 0.2 }} className="w-full md:w-1/2 h-1/2 md:h-full rounded-md overflow-hidden relative">
-                    <Image src="https://i.imgur.com/8p5eI7p.jpeg" alt="Foto de obra" fill className="object-cover" data-ai-hint="construction worker" />
-                </motion.div>
-                <div className="flex-1 flex flex-col">
-                    <h4 className="text-xs md:text-sm font-bold text-white">Reporte de Avance</h4>
-                    <p className="text-[10px] text-slate-400 mb-1">Fecha: {new Date().toLocaleDateString()}</p>
-                    <div className="text-[10px] md:text-xs text-white/90 space-y-1 mt-1">
-                        <motion.p initial={{ x: -10, opacity: 0 }} animate={{ x: 0, opacity: 1 }} transition={{ delay: 0.4 }} className="flex items-center gap-1"><Check className="w-3 h-3 text-green-400" />Instalación de moldajes completa.</motion.p>
-                        <motion.p initial={{ x: -10, opacity: 0 }} animate={{ x: 0, opacity: 1 }} transition={{ delay: 0.5 }} className="flex items-center gap-1"><Check className="w-3 h-3 text-green-400" />Armadura de losa instalada.</motion.p>
-                        <motion.p initial={{ x: -10, opacity: 0 }} animate={{ x: 0, opacity: 1 }} transition={{ delay: 0.6 }} className="flex items-center gap-1"><Check className="w-3 h-3 text-green-400" />Hormigonado programado para mañana.</motion.p>
-                    </div>
-                </div>
-            </div>
-        </motion.div>
-    ];
-
+const StaticPlatformMockup = () => {
     return (
-        <div className="relative w-full max-w-4xl h-64 md:h-96 rounded-xl border-2 border-primary/20 bg-slate-900 shadow-2xl shadow-primary/10">
+        <div className="relative w-full max-w-4xl h-64 md:h-96 rounded-xl border-2 border-primary/20 bg-slate-900 shadow-2xl shadow-primary/10 p-4">
              {/* Top Bar */}
             <div className="absolute top-2 left-2 md:top-4 md:left-4 flex gap-1.5 z-10">
                 <div className="w-2 h-2 md:w-3 md:h-3 rounded-full bg-red-500"></div>
                 <div className="w-2 h-2 md:w-3 md:h-3 rounded-full bg-yellow-400"></div>
                 <div className="w-2 h-2 md:w-3 md:h-3 rounded-full bg-green-500"></div>
             </div>
-            <AnimatePresence mode="wait">
-                {scenes[scene]}
-            </AnimatePresence>
+            <div className="w-full h-full rounded-md overflow-hidden">
+                 <Image
+                    src={"PÉGALA_AQUÍ_ENTRE_COMILLAS"}
+                    alt="Plataforma PCG en acción"
+                    width={1400}
+                    height={900}
+                    className="w-full h-auto rounded-xl object-cover"
+                    unoptimized={false}
+                 />
+            </div>
         </div>
     );
 };
@@ -242,7 +139,7 @@ export default function WelcomePage() {
               <Button size="lg" variant="outline">Hablar con un experto</Button>
             </div>
             <div className="mt-12 md:mt-16 flex justify-center">
-              <AnimatedPlatformMockup />
+              <StaticPlatformMockup />
             </div>
           </div>
         </section>
@@ -343,17 +240,6 @@ export default function WelcomePage() {
           </div>
         </section>
         
-        {/* Metrics */}
-        <section className="py-20 bg-primary text-primary-foreground">
-            <div className="max-w-6xl mx-auto px-4 md:px-6 lg:px-8">
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-8 text-center">
-                    <AnimatedMetric value={30} suffix="%" text="Menos tiempo en reportes manuales" />
-                    <AnimatedMetric value={15} suffix="%" text="Mejora en la precisión del control de costos" />
-                    <AnimatedMetric value={99} suffix="%" text="Trazabilidad en la gestión de calidad y seguridad" />
-                </div>
-            </div>
-        </section>
-
         {/* Testimonial */}
         <section className="py-20 bg-white">
             <div className="max-w-3xl mx-auto px-4 md:px-6 lg:px-8 text-center">
