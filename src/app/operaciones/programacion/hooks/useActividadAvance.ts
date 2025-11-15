@@ -5,6 +5,7 @@ import { useState, useEffect, useCallback, useMemo } from 'react';
 import { collection, query, where, orderBy, onSnapshot, DocumentData } from 'firebase/firestore';
 import { firebaseDb } from '@/lib/firebaseClient';
 import { ActividadProgramada, AvanceDiario } from '../page';
+import { isBefore, parseISO } from 'date-fns';
 
 type AvanceInfo = {
     cantidadAcumulada: number;
@@ -54,15 +55,22 @@ export function useActividadAvance(obraId: string | null) {
         return resultado;
     }, [avances]);
 
-    const calcularAvanceParaActividades = useCallback((actividades: ActividadProgramada[]) => {
+    const calcularAvanceParaActividades = useCallback((actividades: ActividadProgramada[], fechaCorte?: string) => {
          const resultado: Record<string, AvanceInfo> = {};
          
-         // Filtra solo avances que tengan cantidad, ignorando los fotográficos
-         const avancesConCantidad = avances.filter(a => a.tipoRegistro !== 'FOTOGRAFICO' && typeof a.cantidadEjecutada === 'number');
+         let avancesFiltrados = avances.filter(a => a.tipoRegistro !== 'FOTOGRAFICO' && typeof a.cantidadEjecutada === 'number');
+
+         if (fechaCorte) {
+             const fechaDeCorte = parseISO(fechaCorte + 'T23:59:59');
+             avancesFiltrados = avancesFiltrados.filter(a => {
+                 const fechaAvance = a.fecha?.toDate();
+                 return fechaAvance && isBefore(fechaAvance, fechaDeCorte);
+             });
+         }
 
          const avancesPorActividadMap: Record<string, number> = {};
 
-         for (const avance of avancesConCantidad) {
+         for (const avance of avancesFiltrados) {
              if (avance.actividadId) {
                 if (!avancesPorActividadMap[avance.actividadId]) {
                     avancesPorActividadMap[avance.actividadId] = 0;

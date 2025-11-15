@@ -3,13 +3,15 @@
 "use client";
 
 import { useEffect, useState, Suspense } from 'react';
-import { useParams, useSearchParams } from 'next/navigation';
+import { useParams, useSearchParams, useRouter } from 'next/navigation';
 import {
   doc,
   getDoc,
 } from 'firebase/firestore';
 import { firebaseDb } from '@/lib/firebaseClient';
-import { Label } from '@/components/ui/label';
+import { Button } from '@/components/ui/button';
+import { ArrowLeft } from 'lucide-react';
+
 
 type ItemEstadoPago = {
   actividadId: string;
@@ -42,6 +44,7 @@ type EstadoDePagoCompleto = {
 function EstadoDePagoPageInner() {
   const { obraId } = useParams<{ obraId: string }>();
   const searchParams = useSearchParams();
+  const router = useRouter();
   const edpId = searchParams.get('edpId');
   const fechaCorteParam = searchParams.get('fechaCorte');
 
@@ -135,27 +138,37 @@ function EstadoDePagoPageInner() {
     <div className="p-8 space-y-6 bg-white min-h-screen print:bg-white">
       {/* Encabezado */}
       <header className="border-b pb-4">
-        <h1 className="text-2xl font-semibold">
-          Estado de Pago – {obra.nombre}
-        </h1>
-        <p className="text-sm text-gray-600">
-          Código obra: {obra.codigo}
-        </p>
-        {obra.cliente && (
-          <p className="text-sm text-gray-600">Cliente: {obra.cliente}</p>
-        )}
-        {obra.direccion && (
-          <p className="text-sm text-gray-600">Dirección: {obra.direccion}</p>
-        )}
-        <p className="text-sm text-gray-600 mt-2">
-            Fecha de corte: {new Date(estadoDePago.fechaDeCorte + 'T00:00:00').toLocaleDateString('es-CL')}
-        </p>
-        <button
-          onClick={handlePrint}
-          className="mt-4 px-4 py-2 rounded-md bg-blue-600 text-white text-sm hover:bg-blue-700 print:hidden"
-        >
-          Imprimir / Exportar a PDF
-        </button>
+        <div className="flex justify-between items-start">
+            <div>
+                 <h1 className="text-2xl font-semibold">
+                    Estado de Pago – {obra.nombre}
+                </h1>
+                <p className="text-sm text-gray-600">
+                Código obra: {obra.codigo}
+                </p>
+                {obra.cliente && (
+                <p className="text-sm text-gray-600">Cliente: {obra.cliente}</p>
+                )}
+                {obra.direccion && (
+                <p className="text-sm text-gray-600">Dirección: {obra.direccion}</p>
+                )}
+                <p className="text-sm text-gray-600 mt-2">
+                    Fecha de corte: {new Date(estadoDePago.fechaDeCorte + 'T00:00:00').toLocaleDateString('es-CL')}
+                </p>
+            </div>
+             <div className="flex items-center gap-2 no-print">
+                 <Button variant="outline" onClick={() => router.back()}>
+                    <ArrowLeft className="mr-2 h-4 w-4" />
+                    Volver
+                 </Button>
+                <Button
+                onClick={handlePrint}
+                className="mt-4 px-4 py-2 rounded-md bg-blue-600 text-white text-sm hover:bg-blue-700 print:hidden"
+                >
+                Imprimir / Exportar a PDF
+                </Button>
+            </div>
+        </div>
       </header>
 
       {/* Tabla de actividades */}
