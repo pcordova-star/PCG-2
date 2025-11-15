@@ -19,6 +19,7 @@ import {
   LifeBuoy,
   ShieldAlert,
   Building,
+  LogOut,
 } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import {
@@ -55,7 +56,7 @@ function MainLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const [isCollapsed, setIsCollapsed] = useState(false);
   const timerRef = useRef<NodeJS.Timeout | null>(null);
-  const { customClaims, loading: authLoading } = useAuth();
+  const { user, customClaims, loading: authLoading, logout } = useAuth();
 
   const isSuperAdmin = customClaims?.role === 'SUPER_ADMIN';
 
@@ -85,8 +86,13 @@ function MainLayout({ children }: { children: React.ReactNode }) {
       clearTimeout(timerRef.current);
     }
   };
+  
+  const isPublicPage = pathname === '/' || publicPaths.some(path => pathname.startsWith(path)) || pathname.startsWith('/cliente');
+  const isAdminPage = pathname.startsWith('/admin');
 
   useEffect(() => {
+    if (isPublicPage) return;
+    
     startTimer();
 
     return () => {
@@ -94,10 +100,8 @@ function MainLayout({ children }: { children: React.ReactNode }) {
         clearTimeout(timerRef.current);
       }
     };
-  }, [pathname]);
+  }, [pathname, isPublicPage]);
 
-  const isPublicPage = pathname === '/' || publicPaths.some(path => pathname.startsWith(path)) || pathname.startsWith('/cliente');
-  const isAdminPage = pathname.startsWith('/admin');
   
   if (isPublicPage) {
     return <>{children}</>;
@@ -150,6 +154,26 @@ function MainLayout({ children }: { children: React.ReactNode }) {
               <HardHat className="h-6 w-6 shrink-0" />
               <span className={cn("transition-opacity", isCollapsed && "opacity-0 hidden")}>PCG 2.0</span>
             </Link>
+             <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="ghost" size="icon" className="ml-auto h-8 w-8">
+                  <Avatar>
+                    <AvatarFallback>{user?.email?.[0]?.toUpperCase() ?? 'U'}</AvatarFallback>
+                  </Avatar>
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuLabel>Mi Cuenta</DropdownMenuLabel>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem>Perfil</DropdownMenuItem>
+                <DropdownMenuItem>Configuración</DropdownMenuItem>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem onClick={logout}>
+                   <LogOut className="mr-2 h-4 w-4" />
+                   Cerrar sesión
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
         </div>
         <div className="flex-1 overflow-y-auto">
           <nav className="grid items-start px-2 text-sm font-medium lg:px-4">
@@ -192,17 +216,6 @@ function MainLayout({ children }: { children: React.ReactNode }) {
         <div id="tour-step-soporte" className="mt-auto p-4 border-t">
             <nav className="grid items-start px-2 text-sm font-medium lg:px-4 gap-2">
                <Link
-                  href="/login/usuario"
-                  className={cn(
-                    "flex items-center gap-3 rounded-lg px-3 py-2 text-muted-foreground transition-all hover:text-primary hover:bg-muted",
-                    isActive("/login") && "bg-muted text-primary",
-                    isCollapsed && "justify-center"
-                  )}
-                >
-                  <User className="h-5 w-5 shrink-0" />
-                  <span className={cn(isCollapsed && "hidden")}>Login</span>
-                </Link>
-                <Link
                   href="mailto:paulo@ipsconstruccion.cl?subject=Soporte%20Faena%20Manager%202.0"
                   className={cn(
                     "flex items-center gap-3 rounded-lg px-3 py-2 text-muted-foreground transition-all hover:text-primary hover:bg-muted",
@@ -289,13 +302,6 @@ function MainLayout({ children }: { children: React.ReactNode }) {
                <div className="mt-auto">
                  <nav className="grid gap-2 text-lg font-medium">
                     <Link
-                      href="/login/usuario"
-                      className="mx-[-0.65rem] flex items-center gap-4 rounded-xl px-3 py-2 text-muted-foreground hover:text-foreground"
-                    >
-                      <User className="h-5 w-5" />
-                      Login
-                    </Link>
-                    <Link
                       href="mailto:paulo@ipsconstruccion.cl?subject=Soporte%20Faena%20Manager%202.0"
                       className="mx-[-0.65rem] flex items-center gap-4 rounded-xl px-3 py-2 text-muted-foreground hover:text-foreground"
                     >
@@ -324,7 +330,7 @@ function MainLayout({ children }: { children: React.ReactNode }) {
                 className="rounded-full"
               >
                 <Avatar>
-                  <AvatarFallback>U</AvatarFallback>
+                  <AvatarFallback>{user?.email?.[0]?.toUpperCase() ?? 'U'}</AvatarFallback>
                 </Avatar>
                 <span className="sr-only">Toggle user menu</span>
               </Button>
@@ -335,7 +341,10 @@ function MainLayout({ children }: { children: React.ReactNode }) {
               <DropdownMenuItem>Perfil</DropdownMenuItem>
               <DropdownMenuItem>Ajustes</DropdownMenuItem>
               <DropdownMenuSeparator />
-              <DropdownMenuItem>Cerrar sesión</DropdownMenuItem>
+              <DropdownMenuItem onClick={logout}>
+                <LogOut className="mr-2 h-4 w-4" />
+                <span>Cerrar sesión</span>
+              </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
         </header>
