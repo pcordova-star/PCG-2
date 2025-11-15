@@ -73,32 +73,6 @@ const ModuleCard = ({ icon, title, description, href }: { icon: React.ElementTyp
   );
 };
 
-
-const PricingCard = ({ plan, price, description, features, isFeatured }: { plan: string, price: string, description: string, features: string[], isFeatured?: boolean }) => (
-    <Card className={`flex flex-col ${isFeatured ? 'border-primary shadow-lg' : ''}`}>
-        <CardHeader>
-            <CardTitle>{plan}</CardTitle>
-            <p className="text-4xl font-bold">{price}<span className="text-sm font-normal text-muted-foreground">/mes</span></p>
-            <CardDescription>{description}</CardDescription>
-        </CardHeader>
-        <CardContent className="flex-grow">
-            <ul className="space-y-2 text-sm">
-                {features.map((feature, i) => (
-                    <li key={i} className="flex items-center gap-2">
-                        <CheckCircle className="h-4 w-4 text-green-500" />
-                        <span>{feature}</span>
-                    </li>
-                ))}
-            </ul>
-        </CardContent>
-        <CardFooter>
-            <Button className="w-full" variant={isFeatured ? 'default' : 'outline'}>
-                {isFeatured ? 'Empezar ahora' : 'Elegir plan'}
-            </Button>
-        </CardFooter>
-    </Card>
-);
-
 export default function WelcomePage() {
   return (
     <div className="bg-slate-50 text-foreground">
@@ -263,37 +237,6 @@ export default function WelcomePage() {
                         <p className="text-5xl font-bold">99%</p>
                         <p className="mt-2 text-primary-foreground/80">Trazabilidad en la gestión de calidad y seguridad</p>
                     </div>
-                </div>
-            </div>
-        </section>
-        
-         {/* Pricing Section */}
-        <section className="py-20">
-            <div className="max-w-6xl mx-auto px-4 md:px-6 lg:px-8">
-                 <div className="text-center max-w-2xl mx-auto">
-                    <h2 className="text-3xl font-bold tracking-tight">Un plan para cada tamaño de constructora</h2>
-                    <p className="mt-4 text-muted-foreground">Escala a medida que creces. Sin costos ocultos ni sorpresas.</p>
-                </div>
-                <div className="mt-12 grid grid-cols-1 md:grid-cols-3 gap-8">
-                    <PricingCard 
-                        plan="Plan Pyme"
-                        price="$150"
-                        description="Para constructoras pequeñas y proyectos específicos."
-                        features={['Hasta 3 obras activas', '5 usuarios', 'Módulos de Obras, Presupuesto y Programación']}
-                    />
-                    <PricingCard 
-                        plan="Constructoras"
-                        price="$400"
-                        description="La solución completa para constructoras en crecimiento."
-                        features={['Obras ilimitadas', '20 usuarios', 'Todos los módulos incluidos', 'Soporte prioritario']}
-                        isFeatured
-                    />
-                    <PricingCard 
-                        plan="Mandantes / Inmobiliarias"
-                        price="Custom"
-                        description="Visibilidad y control sobre todo tu portafolio de proyectos."
-                        features={['Múltiples constructoras', 'Usuarios ilimitados', 'Dashboard de Gerencia', 'Integraciones a medida']}
-                    />
                 </div>
             </div>
         </section>
