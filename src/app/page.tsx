@@ -123,7 +123,7 @@ const AnimatedPlatformMockup = () => {
             <motion.div key="scene3" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="w-full h-full p-2 md:p-4">
                  <div className="w-full h-full rounded-lg bg-slate-800/80 p-2 md:p-4 flex flex-col md:flex-row gap-2 md:gap-4">
                     <motion.div initial={{ scale: 0.8, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} transition={{ delay: 0.2 }} className="w-full md:w-1/2 h-1/2 md:h-full rounded-md overflow-hidden relative">
-                         <Image src="/WhatsApp Image 2025-10-15 at 11.13.21 PM (2).jpeg" alt="Foto de obra" fill className="object-cover" data-ai-hint="construction worker" />
+                         <Image src="/WhatsApp Image 2025-10-15 at 11.13.21 PM (2).jpeg" alt="Foto de obra" fill className="object-cover" data-ai-hint="construction site" />
                     </motion.div>
                     <div className="flex-1 flex flex-col">
                         <h4 className="text-xs md:text-sm font-bold text-white">Reporte de Avance</h4>
@@ -271,7 +271,8 @@ export default function WelcomePage() {
               <h2 className="text-3xl font-bold tracking-tight">Un módulo para cada necesidad de la obra</h2>
               <p className="mt-4 text-muted-foreground">PCG está diseñado modularmente para que puedas enfocarte en lo que más importa, con la certeza de que toda la información está conectada.</p>
             </div>
-            <div className="mt-12 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+            <div className="mt-12 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
+              <ModuleCard icon={HardHat} title="Gestión de Obras" description="Centraliza toda la información de tus proyectos. Asigna responsables, define datos maestros, gestiona contratos y mantén un registro documental ordenado y accesible desde cualquier lugar." href="/obras" />
               <ModuleCard icon={DollarSign} title="Presupuestos" description="Conecta tus análisis de precios unitarios con la programación y el avance real. Genera presupuestos dinámicos, controla costos y proyecta flujos de caja con precisión." href="/operaciones/presupuestos" />
               <ModuleCard icon={GanttChartSquare} title="Programación" description="Visualiza tu proyecto con una Curva S que compara el avance programado vs. el real. Registra el progreso diario y detecta desviaciones a tiempo para tomar acciones correctivas." href="/operaciones/programacion" />
               <ModuleCard icon={ShieldCheck} title="Prevención de Riesgos" description="Digitaliza la gestión de seguridad. Administra la documentación de contratistas (DS44), realiza inspecciones, registra IPER y gestiona incidentes desde un solo lugar." href="/prevencion" />
