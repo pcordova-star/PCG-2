@@ -190,7 +190,7 @@ function EstadosDePagoPageInner() {
       
       const docRef = await addDoc(edpColRef, nuevoEdpDoc);
       
-      setEstadosDePago(prev => [{...nuevoEdpDoc, id: docRef.id, creadoEn: new Date().toISOString() } as EstadoDePago, ...prev]);
+      setEstadosDePago(prev => [{...nuevoEdpDoc, id: docRef.id, creadoEn: new Date().toISOString() } as EstadoDePago, ...prev].sort((a,b) => b.correlativo - a.correlativo));
       setDialogEdpOpen(false);
       
       toast({
@@ -350,9 +350,9 @@ function EstadosDePagoPageInner() {
                                 </Button>
                                 <AlertDialog>
                                     <AlertDialogTrigger asChild>
-                                        <Button variant="destructive" size="sm">
-                                            <Trash2 className="mr-2 h-3 w-3"/>
-                                            Eliminar
+                                        <Button variant="ghost" size="icon" className="text-destructive hover:text-destructive h-9 w-9">
+                                            <Trash2 className="h-4 w-4"/>
+                                            <span className="sr-only">Eliminar</span>
                                         </Button>
                                     </AlertDialogTrigger>
                                     <AlertDialogContent>
