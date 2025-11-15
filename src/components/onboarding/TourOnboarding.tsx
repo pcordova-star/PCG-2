@@ -3,14 +3,12 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { Button } from '@/components/ui/button';
-import { Popover, PopoverContent } from '@/components/ui/popover';
 import { X } from 'lucide-react';
 
 type TourStep = {
   id: string;
   title: string;
   content: string;
-  position?: 'top' | 'bottom' | 'left' | 'right';
 };
 
 const tourSteps: TourStep[] = [
@@ -18,37 +16,31 @@ const tourSteps: TourStep[] = [
     id: 'welcome',
     title: 'Bienvenido a Faena Manager 2.0',
     content: 'Este tour rápido te mostrará las principales funcionalidades. Puedes omitirlo en cualquier momento y volver a verlo desde el botón en el dashboard.',
-    position: 'bottom',
   },
   {
     id: 'tour-step-obras-activas',
     title: 'Métricas Principales',
     content: 'Aquí verás un resumen en tiempo real del estado de tus obras, tareas en progreso y alertas de seguridad.',
-    position: 'bottom',
   },
   {
     id: 'tour-step-acceso-rapido',
     title: 'Acceso Rápido para Terreno',
     content: 'Estas tarjetas te permiten registrar avances o fotos desde terreno en segundos, de forma rápida y sencilla.',
-    position: 'bottom',
   },
   {
     id: 'tour-step-modulo-operaciones',
     title: 'Módulo de Operaciones',
     content: 'En Operaciones podrás programar actividades, registrar avances detallados y generar estados de pago.',
-    position: 'right',
   },
   {
     id: 'tour-step-modulo-prevencion',
     title: 'Módulo de Prevención',
     content: 'Administra auditorías, hallazgos, incidentes y toda la documentación de seguridad de la obra desde este módulo.',
-    position: 'bottom',
   },
   {
     id: 'tour-step-soporte',
     title: 'Soporte y Ayuda',
     content: 'Si necesitas ayuda o tienes alguna duda, desde aquí puedes contactar a soporte para que te ayudemos.',
-    position: 'right',
   },
 ];
 
@@ -79,14 +71,30 @@ export default function TourOnboarding({ run, onComplete }: TourOnboardingProps)
       return;
     }
     const element = document.getElementById(currentStep.id);
+    if (element) {
+        element.scrollIntoView({ behavior: 'smooth', block: 'center', inline: 'center' });
+    }
     setHighlightedElement(element);
   }, [currentStep]);
 
   useEffect(() => {
-    updateHighlightedElement();
-    window.addEventListener('resize', updateHighlightedElement);
-    return () => window.removeEventListener('resize', updateHighlightedElement);
-  }, [updateHighlightedElement]);
+    const handleKeyDown = (e: KeyboardEvent) => {
+        if (e.key === 'Escape') {
+            handleSkip();
+        }
+    }
+    
+    if (isOpen) {
+        updateHighlightedElement();
+        window.addEventListener('resize', updateHighlightedElement);
+        window.addEventListener('keydown', handleKeyDown);
+    }
+    
+    return () => {
+        window.removeEventListener('resize', updateHighlightedElement);
+        window.removeEventListener('keydown', handleKeyDown);
+    }
+  }, [isOpen, updateHighlightedElement]);
   
   const handleNext = () => {
     if (stepIndex < tourSteps.length - 1) {
@@ -144,26 +152,14 @@ export default function TourOnboarding({ run, onComplete }: TourOnboardingProps)
             />
           )}
 
-          <Popover open={true}>
-            <PopoverContent
-              side={currentStep.position}
-              align="start"
-              className="z-[102] w-80 shadow-2xl"
-              style={
-                elementRect ?
-                {
-                  position: 'fixed',
-                  top: elementRect.top,
-                  left: elementRect.left,
-                  transform: `translate(
-                    ${currentStep.position === 'right' ? `${elementRect.width + 16}px` : currentStep.position === 'left' ? '-100%' : '0'}, 
-                    ${currentStep.position === 'bottom' ? `${elementRect.height + 16}px` : currentStep.position === 'top' ? '-100%' : '0'}
-                  )`,
-                } : {
-                  position: 'fixed', top: '50%', left: '50%', transform: 'translate(-50%, -50%)'
-                }
-              }
-            >
+           <motion.div
+            key="tour-step-content"
+            initial={{ y: 100, opacity: 0 }}
+            animate={{ y: 0, opacity: 1 }}
+            exit={{ y: 100, opacity: 0 }}
+            transition={{ type: 'spring', stiffness: 300, damping: 30 }}
+            className="fixed bottom-4 left-1/2 -translate-x-1/2 z-[102] w-[90vw] max-w-lg rounded-lg bg-card p-6 shadow-2xl"
+          >
               <div className="space-y-4">
                 <h4 className="font-semibold text-lg">{currentStep.title}</h4>
                 <p className="text-sm text-muted-foreground">{currentStep.content}</p>
@@ -191,8 +187,7 @@ export default function TourOnboarding({ run, onComplete }: TourOnboardingProps)
                   <X className="h-4 w-4" />
                 </Button>
               </div>
-            </PopoverContent>
-          </Popover>
+          </motion.div>
         </>
       )}
     </AnimatePresence>
