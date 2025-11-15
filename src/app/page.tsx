@@ -141,6 +141,7 @@ export default function WelcomePage() {
         <section className="py-20 md:py-32">
           <div className="max-w-6xl mx-auto px-4 md:px-6 lg:px-8 text-center">
             <div className="max-w-3xl mx-auto">
+                <p className="mb-4 text-lg font-semibold text-accent tracking-wide">PCG: Una obra bien gestionada, una cadena completa alineada.</p>
                 <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold tracking-tighter text-primary">
                     Control total de tus obras, sin perderte en el Excel.
                 </h1>
