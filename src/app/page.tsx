@@ -185,7 +185,9 @@ export default function WelcomePage() {
             </div>
             <div className="flex items-center gap-2">
               <Button variant="ghost" asChild><Link href="/login/usuario">Ingresar</Link></Button>
-              <Button>Agendar Demo</Button>
+              <Button asChild>
+                <a href="mailto:paulo@ipsconstruccion.cl?subject=Solicitud%20de%20Demo%20de%20PCG">Agendar Demo</a>
+              </Button>
             </div>
           </div>
         </div>
@@ -331,7 +333,9 @@ export default function WelcomePage() {
                     Deja de adivinar y empieza a gestionar con datos. Agenda una demostración y descubre cómo PCG puede transformar tu operación.
                 </p>
                  <div className="mt-8 flex justify-center gap-4">
-                    <Button size="lg">Agendar demo</Button>
+                    <Button size="lg" asChild>
+                      <a href="mailto:paulo@ipsconstruccion.cl?subject=Solicitud%20de%20Demo%20de%20PCG">Agendar demo</a>
+                    </Button>
                     <Button size="lg" variant="outline">Explorar el producto</Button>
                 </div>
             </div>
