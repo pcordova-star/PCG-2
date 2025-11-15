@@ -65,8 +65,9 @@ export default function AdminEmpresaUsuariosPage() {
             }
         };
 
-        const unsubUsers = onSnapshot(query(collection(firebaseDb, "users"), where("empresaId", "==", companyId), orderBy("nombre", "asc")), (snapshot) => {
+        const unsubUsers = onSnapshot(query(collection(firebaseDb, "users"), where("empresaId", "==", companyId)), (snapshot) => {
             const usersData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as CompanyUser));
+            usersData.sort((a, b) => a.nombre.localeCompare(b.nombre));
             setUsers(usersData);
         });
 
