@@ -1,7 +1,7 @@
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
-import { Users, GanttChartSquare } from 'lucide-react';
+import { Users, GanttChartSquare, DollarSign } from 'lucide-react';
 
 export default function OperacionesPage() {
   const modules = [
@@ -11,6 +11,13 @@ export default function OperacionesPage() {
       href: "/operaciones/programacion",
       icon: GanttChartSquare,
       linkText: "Ir a Programación"
+    },
+    {
+      title: "Estados de Pago",
+      description: "Gestiona y visualiza el avance económico de tus obras.",
+      href: "/operaciones/estados-de-pago",
+      icon: DollarSign,
+      linkText: "Ir a Estados de Pago"
     },
     {
       title: "Personal de Obra",
