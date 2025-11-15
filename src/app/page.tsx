@@ -1,13 +1,15 @@
 // src/app/page.tsx
 "use client";
 
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
-import { ArrowRight, CheckCircle, DollarSign, GanttChartSquare, HardHat, ShieldCheck, Users } from 'lucide-react';
+import { ArrowRight, CheckCircle, DollarSign, GanttChartSquare, HardHat, ShieldCheck, Users, BarChart, FileImage, Layers } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import Image from 'next/image';
+import { motion, AnimatePresence, useCycle } from 'framer-motion';
+
 
 const NavLink = ({ href, children }: { href: string; children: React.ReactNode }) => (
   <Link href={href} className="text-sm font-medium text-muted-foreground transition-colors hover:text-primary">
@@ -73,29 +75,99 @@ const ModuleCard = ({ icon, title, description, href }: { icon: React.ElementTyp
   );
 };
 
-const StaticPlatformMockup = () => {
+const AnimatedPlatformMockup = () => {
+    const scenes = [
+        // Escena 1: Dashboard
+        (
+            <motion.div key="scene1" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="w-full h-full p-2 md:p-4 grid grid-cols-3 grid-rows-3 gap-2 md:gap-4">
+                <motion.div initial={{ y: -20, opacity: 0 }} animate={{ y: 0, opacity: 1 }} transition={{ delay: 0.1 }} className="col-span-3 rounded-lg bg-slate-800/80 p-2 md:p-4">
+                    <h3 className="text-xs md:text-sm font-bold text-white">Constructora Los Maitenes</h3>
+                    <p className="text-[10px] md:text-xs text-slate-400">Obra: Reposición de Soleras Quinta Avenida</p>
+                </motion.div>
+                <motion.div initial={{ x: -20, opacity: 0 }} animate={{ x: 0, opacity: 1 }} transition={{ delay: 0.2 }} className="col-span-1 row-span-2 rounded-lg bg-slate-800/80 p-2 md:p-4 flex flex-col justify-center items-center">
+                    <Layers className="h-6 w-6 md:h-10 md:w-10 text-blue-400 mb-2"/>
+                    <p className="text-white font-bold text-lg md:text-2xl">78%</p>
+                    <p className="text-slate-400 text-[10px] md:text-xs text-center">Avance Físico</p>
+                </motion.div>
+                <motion.div initial={{ y: 20, opacity: 0 }} animate={{ y: 0, opacity: 1 }} transition={{ delay: 0.3 }} className="col-span-2 row-span-2 rounded-lg bg-slate-800/80 p-2 md:p-4 flex flex-col">
+                    <h4 className="text-xs md:text-sm font-bold text-white mb-2">Resumen</h4>
+                    <div className="flex-1 grid grid-cols-2 gap-2 text-center">
+                        <div className="bg-slate-700/50 rounded-md p-1 md:p-2"><p className="text-[10px] md:text-xs text-slate-300">Seguridad</p><p className="font-bold text-sm md:text-lg text-green-400">95%</p></div>
+                        <div className="bg-slate-700/50 rounded-md p-1 md:p-2"><p className="text-[10px] md:text-xs text-slate-300">Costos</p><p className="font-bold text-sm md:text-lg text-yellow-400">102%</p></div>
+                        <div className="bg-slate-700/50 rounded-md p-1 md:p-2"><p className="text-[10px] md:text-xs text-slate-300">Calidad</p><p className="font-bold text-sm md:text-lg text-blue-400">88%</p></div>
+                        <div className="bg-slate-700/50 rounded-md p-1 md:p-2"><p className="text-[10px] md:text-xs text-slate-300">Plazo</p><p className="font-bold text-sm md:text-lg text-red-400">Atrasado</p></div>
+                    </div>
+                </motion.div>
+            </motion.div>
+        ),
+        // Escena 2: Gantt
+        (
+             <motion.div key="scene2" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="w-full h-full p-2 md:p-4 flex flex-col gap-2">
+                <h3 className="text-xs md:text-sm font-bold text-white px-2">Programación y Avance (Gantt)</h3>
+                <div className="flex-1 rounded-lg bg-slate-800/80 p-2 space-y-1.5 md:space-y-2">
+                    {/* Simulacion de barras de Gantt */}
+                    <div className="w-full h-4 md:h-6 rounded-sm bg-slate-700 flex items-center">
+                        <div className="h-full bg-blue-500 rounded-sm" style={{ width: '80%' }}></div>
+                    </div>
+                    <div className="w-full h-4 md:h-6 rounded-sm bg-slate-700 flex items-center">
+                        <div className="h-full bg-blue-500 rounded-sm" style={{ width: '60%', marginLeft: '10%' }}></div>
+                    </div>
+                    <div className="w-full h-4 md:h-6 rounded-sm bg-slate-700 flex items-center">
+                        <div className="h-full bg-blue-500 rounded-sm" style={{ width: '40%', marginLeft: '25%' }}></div>
+                    </div>
+                     <div className="w-full h-4 md:h-6 rounded-sm bg-slate-700 flex items-center">
+                        <div className="h-full bg-slate-500 rounded-sm" style={{ width: '30%', marginLeft: '50%' }}></div>
+                    </div>
+                </div>
+            </motion.div>
+        ),
+        // Escena 3: Reporte con Foto
+        (
+            <motion.div key="scene3" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="w-full h-full p-2 md:p-4">
+                 <div className="w-full h-full rounded-lg bg-slate-800/80 p-2 md:p-4 flex flex-col md:flex-row gap-2 md:gap-4">
+                    <motion.div initial={{ scale: 0.8, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} transition={{ delay: 0.2 }} className="w-full md:w-1/2 h-1/2 md:h-full rounded-md overflow-hidden relative">
+                        <Image src="/WhatsApp Image 2025-10-15 at 11.13.21 PM (2).jpeg" alt="Foto de obra" fill className="object-cover" data-ai-hint="construction worker" />
+                    </motion.div>
+                    <div className="flex-1 flex flex-col">
+                        <h4 className="text-xs md:text-sm font-bold text-white">Reporte de Avance</h4>
+                        <p className="text-[10px] md:text-xs text-slate-400">Fecha: 20/10/2025</p>
+                        <div className="mt-2 text-xs md:text-sm text-slate-200 bg-slate-700/50 rounded p-2 flex-1">
+                            <p className="font-semibold">Actividad: Instalación de Soleras</p>
+                            <p className="mt-1">Se completa la instalación de 50 metros lineales de soleras en el sector norte, cumpliendo con las especificaciones técnicas. Personal y equipo sin incidentes.</p>
+                        </div>
+                    </div>
+                </div>
+            </motion.div>
+        )
+    ];
+
+    const [sceneIndex, setSceneIndex] = useState(0);
+
+    useEffect(() => {
+        const interval = setInterval(() => {
+            setSceneIndex(prevIndex => (prevIndex + 1) % scenes.length);
+        }, 5000); // Cambia cada 5 segundos
+        return () => clearInterval(interval);
+    }, [scenes.length]);
+
+
     return (
-        <div className="relative w-full max-w-4xl h-64 md:h-96 rounded-xl border-2 border-primary/20 bg-slate-900 shadow-2xl shadow-primary/10 p-4">
-             {/* Top Bar */}
+        <div className="relative w-full max-w-4xl h-64 md:h-96 rounded-xl border-2 border-primary/20 bg-slate-900 shadow-2xl shadow-primary/10 p-2 md:p-4">
+            {/* Top Bar */}
             <div className="absolute top-2 left-2 md:top-4 md:left-4 flex gap-1.5 z-10">
                 <div className="w-2 h-2 md:w-3 md:h-3 rounded-full bg-red-500"></div>
                 <div className="w-2 h-2 md:w-3 md:h-3 rounded-full bg-yellow-400"></div>
                 <div className="w-2 h-2 md:w-3 md:h-3 rounded-full bg-green-500"></div>
             </div>
             <div className="w-full h-full rounded-md overflow-hidden">
-                 <Image
-                    src="/WhatsApp Image 2025-10-15 at 11.13.21 PM (2).jpeg"
-                    alt="Plataforma PCG en acción"
-                    width={1400}
-                    height={900}
-                    className="w-full h-auto rounded-xl object-cover"
-                    unoptimized={false}
-                    data-ai-hint="construction site"
-                 />
+                <AnimatePresence mode="wait">
+                    {scenes[sceneIndex]}
+                </AnimatePresence>
             </div>
         </div>
     );
 };
+
 
 
 export default function WelcomePage() {
@@ -140,7 +212,7 @@ export default function WelcomePage() {
               <Button size="lg" variant="outline">Hablar con un experto</Button>
             </div>
             <div className="mt-12 md:mt-16 flex justify-center">
-              <StaticPlatformMockup />
+              <AnimatedPlatformMockup />
             </div>
           </div>
         </section>
