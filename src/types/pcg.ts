@@ -41,7 +41,7 @@ export interface AppUser {
   nombre: string;
   email: string;
   phone?: string;
-  role: UserRole;
+  role: UserRole | "none";
   empresaId: string | null;
   createdAt: Date | Timestamp;
 }
@@ -54,7 +54,7 @@ export interface UserInvitation {
     id?: string;
     email: string;
     empresaId: string;
-    roleDeseado: UserRole;
+    roleDeseado: "admin_empresa" | "jefe_obra" | "prevencionista" | "cliente";
     estado: "pendiente" | "aceptada" | "revocada";
     creadoPorUid: string;
     createdAt: Date | Timestamp;

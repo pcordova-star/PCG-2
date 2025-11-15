@@ -19,7 +19,7 @@ import { firebaseAuth, firebaseDb } from "../lib/firebaseClient";
 import { useRouter } from "next/navigation";
 import { doc, getDoc, setDoc, serverTimestamp, collection, query, where, getDocs, writeBatch } from "firebase/firestore";
 import { resolveRole, UserRole } from "@/lib/roles";
-import { AppUser } from "@/types/pcg";
+import { AppUser, UserInvitation } from "@/types/pcg";
 
 
 type AuthContextValue = {
@@ -33,17 +33,38 @@ type AuthContextValue = {
 
 const AuthContext = createContext<AuthContextValue | undefined>(undefined);
 
-async function ensureUserDocForAuthUser(user: User): Promise<AppUser | null> {
+async function ensureUserDocForAuthUser(user: User, invitation?: UserInvitation | null): Promise<AppUser | null> {
     const userDocRef = doc(firebaseDb, "users", user.uid);
     let userDocSnap = await getDoc(userDocRef);
     
+    // Si ya existe un perfil con empresaId, no hacemos nada más.
     if (userDocSnap.exists() && userDocSnap.data().empresaId) {
-        // El usuario ya existe y tiene una empresa asignada, devolvemos sus datos.
         return { id: userDocSnap.id, ...userDocSnap.data() } as AppUser;
     }
 
-    // Si el usuario no existe o no tiene empresa, buscamos una invitación pendiente.
     const emailLower = user.email!.toLowerCase().trim();
+
+    // Flujo 1: El usuario viene de un enlace de invitación
+    if (invitation) {
+        const newUserProfile: Omit<AppUser, 'id'> = {
+            email: emailLower,
+            nombre: user.displayName || user.email!.split('@')[0],
+            empresaId: invitation.empresaId,
+            role: invitation.roleDeseado,
+            createdAt: serverTimestamp(),
+        };
+
+        const batch = writeBatch(firebaseDb);
+        batch.set(userDocRef, newUserProfile, { merge: true });
+        // Actualizamos la invitación a aceptada
+        const invitationRef = doc(firebaseDb, "invitacionesUsuarios", invitation.id!);
+        batch.update(invitationRef, { estado: "aceptada" });
+        await batch.commit();
+
+        return { id: user.uid, ...newUserProfile } as AppUser;
+    }
+
+    // Flujo 2: El usuario hace login normal, buscamos si hay una invitación para él
     const invitationsRef = collection(firebaseDb, "invitacionesUsuarios");
     const q = query(
         invitationsRef,
@@ -53,9 +74,8 @@ async function ensureUserDocForAuthUser(user: User): Promise<AppUser | null> {
     const invitationSnapshot = await getDocs(q);
 
     if (!invitationSnapshot.empty) {
-        // Encontramos una invitación, la usamos para crear/actualizar el perfil del usuario.
-        const invitation = invitationSnapshot.docs[0];
-        const invitationData = invitation.data();
+        const firstInvitation = invitationSnapshot.docs[0];
+        const invitationData = firstInvitation.data() as UserInvitation;
         
         const newUserProfile: Omit<AppUser, 'id'> = {
             email: emailLower,
@@ -67,13 +87,13 @@ async function ensureUserDocForAuthUser(user: User): Promise<AppUser | null> {
 
         const batch = writeBatch(firebaseDb);
         batch.set(userDocRef, newUserProfile, { merge: true });
-        batch.update(invitation.ref, { estado: "aceptada" });
+        batch.update(firstInvitation.ref, { estado: "aceptada" });
         await batch.commit();
 
         return { id: user.uid, ...newUserProfile } as AppUser;
     }
 
-    // Si no hay invitación y el documento no existe, creamos uno básico sin rol/empresa.
+    // Flujo 3: Si no hay invitación y el documento no existe, creamos uno básico.
     if (!userDocSnap.exists()) {
         const newUserProfile: Omit<AppUser, 'id'> = {
             email: emailLower,
@@ -86,9 +106,11 @@ async function ensureUserDocForAuthUser(user: User): Promise<AppUser | null> {
         return { id: user.uid, ...newUserProfile } as AppUser;
     }
 
-    // Si el documento existe pero sin empresa, lo devolvemos como está.
+    // Si el documento existe pero sin empresa (y no hay invitación), lo devolvemos como está.
     return { id: userDocSnap.id, ...userDocSnap.data() } as AppUser;
 }
+
+export { ensureUserDocForAuthUser };
 
 
 export function AuthProvider({ children }: { children: ReactNode }) {
@@ -104,6 +126,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (firebaseUser) {
         setUser(firebaseUser);
         try {
+            // No pasamos invitación aquí, el login normal la busca por sí solo.
             const userDoc = await ensureUserDocForAuthUser(firebaseUser);
             const idTokenResult = await firebaseUser.getIdTokenResult(true);
             const resolvedUserRole = resolveRole(firebaseUser, userDoc, idTokenResult.claims);

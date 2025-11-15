@@ -13,11 +13,12 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Badge } from '@/components/ui/badge';
 import { PlusCircle, ArrowLeft, Loader2, Trash2 } from 'lucide-react';
 import Link from 'next/link';
-import { collection, getDocs, doc, getDoc, query, orderBy, where, addDoc, serverTimestamp, updateDoc, onSnapshot } from 'firebase/firestore';
-import { firebaseDb } from '@/lib/firebaseClient';
+import { collection, doc, getDoc, query, orderBy, where, addDoc, serverTimestamp, updateDoc, onSnapshot } from 'firebase/firestore';
+import { firebaseAuth, firebaseDb } from '@/lib/firebaseClient';
 import { Company, CompanyUser, UserInvitation } from '@/types/pcg';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/context/AuthContext';
+import { sendSignInLinkToEmail } from 'firebase/auth';
 
 
 export default function AdminEmpresaUsuariosPage() {
@@ -35,7 +36,7 @@ export default function AdminEmpresaUsuariosPage() {
     const [error, setError] = useState<string | null>(null);
 
     const [dialogOpen, setDialogOpen] = useState(false);
-    const [newInvitation, setNewInvitation] = useState({ email: '', roleDeseado: 'cliente' });
+    const [newInvitation, setNewInvitation] = useState<{ email: string, roleDeseado: "admin_empresa" | "jefe_obra" | "prevencionista" | "cliente" }>({ email: '', roleDeseado: 'cliente' });
     const [isSaving, setIsSaving] = useState(false);
     const [formError, setFormError] = useState<string | null>(null);
 
@@ -67,7 +68,7 @@ export default function AdminEmpresaUsuariosPage() {
 
         const unsubUsers = onSnapshot(query(collection(firebaseDb, "users"), where("empresaId", "==", companyId)), (snapshot) => {
             const usersData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as CompanyUser));
-            usersData.sort((a, b) => a.nombre.localeCompare(b.nombre));
+            usersData.sort((a, b) => (a.nombre || '').localeCompare(b.nombre || ''));
             setUsers(usersData);
         });
 
@@ -102,7 +103,7 @@ export default function AdminEmpresaUsuariosPage() {
         setNewInvitation({ ...newInvitation, [name]: value });
     };
     
-    const handleSelectChange = (value: string) => {
+    const handleSelectChange = (value: "admin_empresa" | "jefe_obra" | "prevencionista" | "cliente") => {
         setNewInvitation({ ...newInvitation, roleDeseado: value });
     };
 
@@ -121,9 +122,11 @@ export default function AdminEmpresaUsuariosPage() {
         setFormError(null);
 
         try {
+            const email = newInvitation.email.toLowerCase().trim();
+            // 1. Guardar la invitación en Firestore
             const invitationsRef = collection(firebaseDb, "invitacionesUsuarios");
-            await addDoc(invitationsRef, {
-                email: newInvitation.email.toLowerCase().trim(),
+            const invitationDocRef = await addDoc(invitationsRef, {
+                email: email,
                 empresaId: companyId,
                 roleDeseado: newInvitation.roleDeseado,
                 estado: "pendiente",
@@ -131,9 +134,22 @@ export default function AdminEmpresaUsuariosPage() {
                 createdAt: serverTimestamp(),
             });
 
+            // 2. Enviar el correo de invitación con Firebase Auth
+            const actionCodeSettings = {
+              // La URL que el usuario abrirá después de hacer clic en el enlace de correo.
+              // Debe incluir el ID de la invitación para poder procesarla.
+              url: `${window.location.origin}/accept-invite?invId=${invitationDocRef.id}`,
+              handleCodeInApp: true,
+            };
+
+            await sendSignInLinkToEmail(firebaseAuth, email, actionCodeSettings);
+
+            // Guardar el correo en localStorage para el flujo de UX en el mismo navegador
+            window.localStorage.setItem('emailForSignIn', email);
+
             toast({
                 title: "Invitación Enviada",
-                description: `Se ha enviado una invitación a ${newInvitation.email}.`
+                description: `Se ha enviado una invitación por correo a ${email} usando Firebase Auth.`
             });
 
             setDialogOpen(false);
@@ -315,5 +331,4 @@ export default function AdminEmpresaUsuariosPage() {
             </Dialog>
         </div>
     );
-
-    
+}
