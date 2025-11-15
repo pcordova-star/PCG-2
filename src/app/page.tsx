@@ -1,9 +1,8 @@
-
-
 // src/app/page.tsx
 "use client";
 
-import React, from 'react';
+import React, {
+} from 'react';
 import Link from 'next/link';
 import { motion, useInView, useAnimation, animate, AnimatePresence } from 'framer-motion';
 import { Button } from '@/components/ui/button';
@@ -170,7 +169,7 @@ const AnimatedPlatformMockup = () => {
         <motion.div key="report" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0, scale: 0.95 }} transition={{ duration: 0.5 }} className="absolute inset-0 p-3">
              <div className="w-full h-full rounded-lg bg-slate-800/80 p-2 md:p-4 flex flex-col md:flex-row gap-2 md:gap-4">
                 <motion.div initial={{ scale: 0.8, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} transition={{ delay: 0.2 }} className="w-full md:w-1/2 h-1/2 md:h-full rounded-md overflow-hidden relative">
-                    <Image src="https://picsum.photos/seed/construction/400/400" alt="Foto de obra" fill className="object-cover" data-ai-hint="construction site" />
+                    <Image src="https://i.imgur.com/8p5eI7p.jpeg" alt="Foto de obra" fill className="object-cover" data-ai-hint="construction worker" />
                 </motion.div>
                 <div className="flex-1 flex flex-col">
                     <h4 className="text-xs md:text-sm font-bold text-white">Reporte de Avance</h4>
