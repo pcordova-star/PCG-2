@@ -1,14 +1,20 @@
 // src/app/page.tsx
 "use client";
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, FormEvent } from 'react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
-import { ArrowRight, CheckCircle, DollarSign, GanttChartSquare, HardHat, ShieldCheck, Users, Layers } from 'lucide-react';
+import { ArrowRight, CheckCircle, DollarSign, GanttChartSquare, HardHat, ShieldCheck, Users, Layers, Loader2 } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import Image from 'next/image';
 import { motion, AnimatePresence } from 'framer-motion';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
+import { firebaseDb } from '@/lib/firebaseClient';
+import { addDoc, collection, serverTimestamp } from 'firebase/firestore';
+import { useToast } from '@/hooks/use-toast';
 
 
 const NavLink = ({ href, children }: { href: string; children: React.ReactNode }) => (
@@ -165,6 +171,85 @@ const AnimatedPlatformMockup = () => {
     );
 };
 
+const ContactForm = () => {
+    const { toast } = useToast();
+    const [formData, setFormData] = useState({ name: '', email: '', company: '', message: '' });
+    const [isSending, setIsSending] = useState(false);
+    
+    const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+        const { name, value } = e.target;
+        setFormData(prev => ({ ...prev, [name]: value }));
+    };
+    
+    const handleSubmit = async (e: FormEvent) => {
+        e.preventDefault();
+        if (!formData.name || !formData.email || !formData.message) {
+            toast({ variant: 'destructive', title: 'Campos requeridos', description: 'Por favor, complete nombre, email y mensaje.' });
+            return;
+        }
+        setIsSending(true);
+        try {
+            const mailRef = collection(firebaseDb, 'mail');
+            await addDoc(mailRef, {
+                to: ['admin@pcg.cl'], // Email del SUPER_ADMIN o de contacto
+                message: {
+                    subject: `Nuevo Contacto desde la Web: ${formData.name}`,
+                    html: `
+                        <p><strong>Nombre:</strong> ${formData.name}</p>
+                        <p><strong>Email:</strong> ${formData.email}</p>
+                        <p><strong>Empresa:</strong> ${formData.company || 'No especificada'}</p>
+                        <hr>
+                        <p><strong>Mensaje:</strong></p>
+                        <p>${formData.message.replace(/\n/g, '<br>')}</p>
+                    `,
+                },
+                createdAt: serverTimestamp(),
+            });
+            toast({ title: 'Mensaje enviado', description: 'Gracias por contactarnos. Nos pondremos en contacto contigo pronto.' });
+            setFormData({ name: '', email: '', company: '', message: '' });
+        } catch (error) {
+            console.error("Error sending contact form:", error);
+            toast({ variant: 'destructive', title: 'Error al enviar', description: 'No se pudo enviar tu mensaje. Inténtalo de nuevo más tarde.' });
+        } finally {
+            setIsSending(false);
+        }
+    };
+
+    return (
+        <Card className="w-full">
+            <CardHeader>
+                <CardTitle>Contacto</CardTitle>
+                <CardDescription>¿Tienes alguna pregunta? Envíanos un mensaje y te responderemos a la brevedad.</CardDescription>
+            </CardHeader>
+            <CardContent>
+                <form onSubmit={handleSubmit} className="space-y-4">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <div className="space-y-2">
+                            <Label htmlFor="name">Nombre*</Label>
+                            <Input id="name" name="name" value={formData.name} onChange={handleInputChange} required />
+                        </div>
+                        <div className="space-y-2">
+                            <Label htmlFor="email">Email*</Label>
+                            <Input id="email" name="email" type="email" value={formData.email} onChange={handleInputChange} required />
+                        </div>
+                    </div>
+                     <div className="space-y-2">
+                        <Label htmlFor="company">Empresa</Label>
+                        <Input id="company" name="company" value={formData.company} onChange={handleInputChange} />
+                    </div>
+                    <div className="space-y-2">
+                        <Label htmlFor="message">Mensaje*</Label>
+                        <Textarea id="message" name="message" value={formData.message} onChange={handleInputChange} required />
+                    </div>
+                    <Button type="submit" disabled={isSending} className="w-full">
+                        {isSending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                        {isSending ? 'Enviando...' : 'Enviar Mensaje'}
+                    </Button>
+                </form>
+            </CardContent>
+        </Card>
+    )
+}
 
 
 export default function WelcomePage() {
@@ -207,7 +292,9 @@ export default function WelcomePage() {
                 </p>
             </div>
             <div className="mt-8 flex justify-center gap-4">
-              <Button size="lg">Ver demo en 3 minutos</Button>
+              <Button size="lg" asChild>
+                <a href="mailto:paulo@ipsconstruccion.cl?subject=Solicitud%20de%20Demo%20de%20PCG">Agendar Demo</a>
+              </Button>
               <Button size="lg" variant="outline">Hablar con un experto</Button>
             </div>
             <div className="mt-12 md:mt-16 flex justify-center">
@@ -325,19 +412,22 @@ export default function WelcomePage() {
             </div>
         </section>
         
-        {/* Final CTA */}
-        <section className="py-20">
-             <div className="max-w-6xl mx-auto px-4 md:px-6 lg:px-8 text-center">
-                <h2 className="text-3xl font-bold tracking-tight">¿Listo para tomar el control de tus obras?</h2>
-                <p className="mt-4 text-muted-foreground max-w-xl mx-auto">
-                    Deja de adivinar y empieza a gestionar con datos. Agenda una demostración y descubre cómo PCG puede transformar tu operación.
-                </p>
-                 <div className="mt-8 flex justify-center gap-4">
-                    <Button size="lg" asChild>
-                      <a href="mailto:paulo@ipsconstruccion.cl?subject=Solicitud%20de%20Demo%20de%20PCG">Agendar demo</a>
-                    </Button>
-                    <Button size="lg" variant="outline">Explorar el producto</Button>
+        {/* Final CTA & Contact */}
+        <section id="contact" className="py-20">
+             <div className="max-w-6xl mx-auto px-4 md:px-6 lg:px-8 grid grid-cols-1 md:grid-cols-2 gap-12 items-center">
+                <div className="text-center md:text-left">
+                    <h2 className="text-3xl font-bold tracking-tight">¿Listo para tomar el control de tus obras?</h2>
+                    <p className="mt-4 text-muted-foreground max-w-xl mx-auto md:mx-0">
+                        Deja de adivinar y empieza a gestionar con datos. Agenda una demostración y descubre cómo PCG puede transformar tu operación.
+                    </p>
+                     <div className="mt-8 flex justify-center md:justify-start gap-4">
+                        <Button size="lg" asChild>
+                          <a href="mailto:paulo@ipsconstruccion.cl?subject=Solicitud%20de%20Demo%20de%20PCG">Agendar demo</a>
+                        </Button>
+                        <Button size="lg" variant="outline">Explorar el producto</Button>
+                    </div>
                 </div>
+                <ContactForm />
             </div>
         </section>
 
@@ -367,7 +457,7 @@ export default function WelcomePage() {
                     <h3 className="font-semibold">Compañía</h3>
                     <ul className="mt-4 space-y-2 text-sm">
                         <li><Link href="#" className="text-muted-foreground hover:text-primary">Sobre nosotros</Link></li>
-                        <li><Link href="#" className="text-muted-foreground hover:text-primary">Contacto</Link></li>
+                        <li><Link href="#contact" className="text-muted-foreground hover:text-primary">Contacto</Link></li>
                     </ul>
                 </div>
                 <div>

@@ -128,7 +128,7 @@ service cloud.firestore {
     
     // --- Colección para envío de correos ---
     match /mail/{mailId} {
-        allow create: if isSignedIn(); // Permite a cualquier usuario autenticado crear un documento para enviar un correo.
+        allow create: if true; // Permite a cualquiera crear un documento para enviar un correo (ej. desde un formulario de contacto público).
     }
   }
 }
