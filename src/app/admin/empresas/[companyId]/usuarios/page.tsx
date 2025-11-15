@@ -10,11 +10,14 @@ import { Label } from '@/components/ui/label';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
-import { PlusCircle, ArrowLeft } from 'lucide-react';
+import { PlusCircle, ArrowLeft, Loader2 } from 'lucide-react';
 import Link from 'next/link';
-import { collection, addDoc, getDocs, doc, getDoc, serverTimestamp, query, orderBy, setDoc, where } from 'firebase/firestore';
-import { firebaseDb } from '@/lib/firebaseClient';
+import { collection, getDocs, doc, getDoc, query, orderBy, where } from 'firebase/firestore';
+import { firebaseDb, firebaseFunctions } from '@/lib/firebaseClient';
+import { httpsCallable } from 'firebase/functions';
 import { Company, CompanyUser } from '@/types/pcg';
+import { useToast } from '@/hooks/use-toast';
+
 
 // Simulación de rol, reemplazar con lógica de claims real
 const useSuperAdminRole = () => {
@@ -26,6 +29,7 @@ export default function AdminEmpresaUsuariosPage() {
     const router = useRouter();
     const params = useParams();
     const companyId = params.companyId as string;
+    const { toast } = useToast();
 
     const [company, setCompany] = useState<Company | null>(null);
     const [users, setUsers] = useState<CompanyUser[]>([]);
@@ -33,101 +37,86 @@ export default function AdminEmpresaUsuariosPage() {
     const [error, setError] = useState<string | null>(null);
 
     const [dialogOpen, setDialogOpen] = useState(false);
-    const [currentUser, setCurrentUser] = useState<Partial<CompanyUser> | null>(null);
+    const [newUser, setNewUser] = useState({ nombre: '', email: '', role: 'LECTOR_CLIENTE' });
     const [isSaving, setIsSaving] = useState(false);
+    const [formError, setFormError] = useState<string | null>(null);
 
-    useEffect(() => {
+    const createCompanyUserFn = httpsCallable(firebaseFunctions, 'createCompanyUser');
+
+    const fetchCompanyData = async () => {
         if (!isSuperAdmin || !companyId) return;
 
-        async function fetchData() {
-            setLoading(true);
-            try {
-                // Cargar datos de la empresa
-                const companyRef = doc(firebaseDb, "companies", companyId);
-                const companySnap = await getDoc(companyRef);
-                if (!companySnap.exists()) throw new Error("Empresa no encontrada");
-                setCompany({ id: companySnap.id, ...companySnap.data() } as Company);
+        setLoading(true);
+        try {
+            // Cargar datos de la empresa
+            const companyRef = doc(firebaseDb, "companies", companyId);
+            const companySnap = await getDoc(companyRef);
+            if (!companySnap.exists()) throw new Error("Empresa no encontrada");
+            setCompany({ id: companySnap.id, ...companySnap.data() } as Company);
 
-                // Cargar usuarios de la empresa
-                const usersQuery = query(collection(firebaseDb, "companies", companyId, "users"), orderBy("nombre", "asc"));
-                const usersSnapshot = await getDocs(usersQuery);
-                const usersData = usersSnapshot.docs.map(doc => ({
-                    id: doc.id,
-                    ...doc.data()
-                } as CompanyUser));
-                setUsers(usersData);
-            } catch (err) {
-                console.error("Error fetching data:", err);
-                setError(err instanceof Error ? err.message : "No se pudieron cargar los datos.");
-            } finally {
-                setLoading(false);
-            }
-        }
-        fetchData();
-    }, [isSuperAdmin, companyId]);
-
-    const handleOpenDialog = (user: Partial<CompanyUser> | null = null) => {
-        setCurrentUser(user || { nombre: '', email: '', role: 'LECTOR_CLIENTE', activo: true });
-        setDialogOpen(true);
-        setError(null);
-    };
-
-    const handleFormChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-        if (currentUser) {
-            const { name, value } = e.target;
-            setCurrentUser({ ...currentUser, [name]: value });
+            // Cargar usuarios de la empresa
+            const usersQuery = query(collection(firebaseDb, "companies", companyId, "users"), orderBy("nombre", "asc"));
+            const usersSnapshot = await getDocs(usersQuery);
+            const usersData = usersSnapshot.docs.map(doc => ({
+                id: doc.id,
+                ...doc.data()
+            } as CompanyUser));
+            setUsers(usersData);
+        } catch (err) {
+            console.error("Error fetching data:", err);
+            setError(err instanceof Error ? err.message : "No se pudieron cargar los datos.");
+        } finally {
+            setLoading(false);
         }
     };
     
-    const handleSelectChange = (name: keyof CompanyUser, value: string) => {
-         if (currentUser) {
-            setCurrentUser({ ...currentUser, [name]: value });
-        }
-    }
+    useEffect(() => {
+        fetchCompanyData();
+    }, [isSuperAdmin, companyId]);
+
+    const handleOpenDialog = () => {
+        setNewUser({ nombre: '', email: '', role: 'LECTOR_CLIENTE' });
+        setDialogOpen(true);
+        setFormError(null);
+    };
+
+    const handleFormChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const { name, value } = e.target;
+        setNewUser({ ...newUser, [name]: value });
+    };
+    
+    const handleSelectChange = (value: string) => {
+        setNewUser({ ...newUser, role: value });
+    };
 
     const handleSubmit = async (e: FormEvent) => {
         e.preventDefault();
-        if (!currentUser || !currentUser.nombre || !currentUser.email) {
-            setError("Nombre y Email son obligatorios.");
+        if (!newUser.nombre || !newUser.email) {
+            setFormError("Nombre y Email son obligatorios.");
             return;
         }
 
         setIsSaving(true);
-        setError(null);
+        setFormError(null);
 
         try {
-            // Simulación: en un caso real, aquí llamaríamos a una Cloud Function
-            // que crea el usuario en Firebase Auth y nos devuelve el UID.
-            const simularedUid = `sim_${currentUser.email.split('@')[0]}_${Date.now()}`;
-            
-            const companyUserRef = doc(firebaseDb, "companies", companyId, "users", simularedUid);
-            const globalUserRef = doc(firebaseDb, "users", simularedUid);
+            const result = await createCompanyUserFn({
+              companyId,
+              email: newUser.email,
+              nombre: newUser.nombre,
+              role: newUser.role,
+            });
 
-            const companyUserData = {
-                uid: simularedUid,
-                email: currentUser.email,
-                nombre: currentUser.nombre,
-                role: currentUser.role || 'LECTOR_CLIENTE',
-                activo: currentUser.activo !== false, // por defecto true
-                obrasAsignadas: currentUser.obrasAsignadas || [],
-            };
-            
-            await setDoc(companyUserRef, companyUserData);
-            
-            // Crear o actualizar el usuario global
-            await setDoc(globalUserRef, {
-                nombre: currentUser.nombre,
-                email: currentUser.email,
-                isSuperAdmin: false,
-                companyIdPrincipal: companyId,
-                createdAt: serverTimestamp(),
-            }, { merge: true });
+            toast({
+                title: "Usuario Creado",
+                description: `El usuario ${newUser.nombre} ha sido creado con éxito.`
+            })
 
-            setUsers(prev => [...prev, { id: simularedUid, ...companyUserData } as CompanyUser]);
+            await fetchCompanyData(); // Refrescar la lista de usuarios
             setDialogOpen(false);
-        } catch (err) {
+        } catch (err: any) {
             console.error("Error saving user:", err);
-            setError("No se pudo guardar el usuario.");
+            setFormError(err.message || "No se pudo guardar el usuario. Intente de nuevo.");
         } finally {
             setIsSaving(false);
         }
@@ -155,7 +144,7 @@ export default function AdminEmpresaUsuariosPage() {
                     <h1 className="text-2xl font-bold">Usuarios de {company?.nombre}</h1>
                     <p className="text-muted-foreground">Administra los usuarios asignados a esta empresa.</p>
                 </div>
-                <Button onClick={() => handleOpenDialog()}>
+                <Button onClick={handleOpenDialog}>
                     <PlusCircle className="mr-2 h-4 w-4" />
                     Agregar Usuario
                 </Button>
@@ -208,15 +197,15 @@ export default function AdminEmpresaUsuariosPage() {
                         <div className="py-4 grid gap-4">
                             <div className="space-y-2">
                                 <Label htmlFor="nombre">Nombre Completo*</Label>
-                                <Input id="nombre" name="nombre" value={currentUser?.nombre || ''} onChange={handleFormChange} />
+                                <Input id="nombre" name="nombre" value={newUser.nombre || ''} onChange={handleFormChange} />
                             </div>
                              <div className="space-y-2">
                                 <Label htmlFor="email">Email*</Label>
-                                <Input id="email" name="email" type="email" value={currentUser?.email || ''} onChange={handleFormChange} />
+                                <Input id="email" name="email" type="email" value={newUser.email || ''} onChange={handleFormChange} />
                             </div>
                             <div className="space-y-2">
                                 <Label htmlFor="role">Rol en la Empresa</Label>
-                                <Select value={currentUser?.role || 'LECTOR_CLIENTE'} onValueChange={(value) => handleSelectChange('role', value)}>
+                                <Select value={newUser.role || 'LECTOR_CLIENTE'} onValueChange={handleSelectChange}>
                                     <SelectTrigger id="role">
                                         <SelectValue placeholder="Seleccione un rol" />
                                     </SelectTrigger>
@@ -228,11 +217,12 @@ export default function AdminEmpresaUsuariosPage() {
                                     </SelectContent>
                                 </Select>
                             </div>
-                            {error && <p className="text-sm font-medium text-destructive">{error}</p>}
+                            {formError && <p className="text-sm font-medium text-destructive">{formError}</p>}
                         </div>
                         <DialogFooter>
                             <Button type="button" variant="ghost" onClick={() => setDialogOpen(false)}>Cancelar</Button>
                             <Button type="submit" disabled={isSaving}>
+                                {isSaving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                                 {isSaving ? "Guardando..." : "Agregar Usuario"}
                             </Button>
                         </DialogFooter>
