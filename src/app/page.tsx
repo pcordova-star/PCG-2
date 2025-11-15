@@ -1,13 +1,16 @@
 // src/app/page.tsx
 "use client";
 
-import React from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
-import { ArrowRight, Building, CheckCircle, DollarSign, GanttChartSquare, HardHat, PieChart, ShieldCheck, Users, Zap, Image as ImageIcon, Check } from 'lucide-react';
+import { ArrowRight, Building, Check, CheckCircle, DollarSign, GanttChartSquare, HardHat, PieChart, ShieldCheck, Users, Zap, Image as ImageIcon } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { motion, useInView, useAnimation, animate, AnimatePresence } from 'framer-motion';
 import Image from 'next/image';
+import { cn } from '@/lib/utils';
+
 
 const NavLink = ({ href, children }: { href: string; children: React.ReactNode }) => (
   <Link href={href} className="text-sm font-medium text-muted-foreground transition-colors hover:text-primary">
@@ -84,7 +87,7 @@ const StaticPlatformMockup = () => {
             </div>
             <div className="w-full h-full rounded-md overflow-hidden">
                  <Image
-                    src={"PÉGALA_AQUÍ_ENTRE_COMILLAS"}
+                    src="/images/mockup-pcg.png"
                     alt="Plataforma PCG en acción"
                     width={1400}
                     height={900}
