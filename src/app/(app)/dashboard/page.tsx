@@ -41,7 +41,7 @@ export default function DashboardPage() {
     tareasEnProgreso: null,
     alertasSeguridad: null,
   });
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
 
   const [startTour, setStartTour] = useState(false);
 
@@ -117,33 +117,6 @@ export default function DashboardPage() {
       icon: AlertTriangle,
       bgColor: 'bg-yellow-100',
       iconColor: 'text-yellow-600',
-    },
-  ];
-
-  const modules = [
-    {
-      id: 'tour-step-modulo-obras',
-      title: 'Obras',
-      description:
-        'Gestione los datos centrales de cada obra, desde la planificación hasta la ejecución. Este es el corazón de la plataforma.',
-      href: '/obras',
-      icon: HardHat,
-    },
-    {
-      id: 'tour-step-modulo-operaciones',
-      title: 'Operaciones',
-      description:
-        'Planifique, programe y controle el avance diario de sus faenas.',
-      href: '/operaciones',
-      icon: Activity,
-    },
-    {
-      id: 'tour-step-modulo-prevencion',
-      title: 'Prevención de Riesgos',
-      description:
-        'Administre la seguridad y salud ocupacional. Un módulo especializado para un aspecto crítico de la construcción.',
-      href: '/prevencion',
-      icon: ShieldCheck,
     },
   ];
 
