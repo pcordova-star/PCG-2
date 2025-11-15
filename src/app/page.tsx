@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { ArrowRight, Building, CheckCircle, ChevronRight, DollarSign, GanttChartSquare, HardHat, PieChart, ShieldCheck, Users, Zap } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 
@@ -246,13 +246,13 @@ export default function WelcomePage() {
             <div className="max-w-3xl mx-auto px-4 md:px-6 lg:px-8 text-center">
                 <Avatar className="w-20 h-20 mx-auto mb-4">
                     <AvatarImage src="https://picsum.photos/seed/101/100/100" />
-                    <AvatarFallback>JP</AvatarFallback>
+                    <AvatarFallback>EP</AvatarFallback>
                 </Avatar>
                 <blockquote className="text-xl italic text-foreground">
-                    "PCG cambió la forma en que gestionamos nuestras obras. Pasamos de un desorden de planillas a tener una fuente única de verdad, y la gerencia ahora tiene visibilidad real del negocio."
+                    "PCG cambió la forma en que gestionamos nuestras obras. Pasamos de un desorden de planillas a tener una fuente única de verdad. Además nuestro cliente también puede interactuar con nosotros en la plataforma."
                 </blockquote>
-                <p className="mt-4 font-semibold">Juan Pérez</p>
-                <p className="text-sm text-muted-foreground">Gerente de Operaciones, Constructora Ejemplo</p>
+                <p className="mt-4 font-semibold">Erick Pizarro</p>
+                <p className="text-sm text-muted-foreground">Gerente General IPS Construcción</p>
             </div>
         </section>
         
