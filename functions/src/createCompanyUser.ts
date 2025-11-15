@@ -31,6 +31,7 @@ export const createCompanyUser = onCall(
     const data = request.data as {
       companyId: string;
       email: string;
+      password?: string;
       nombre: string;
       role: "EMPRESA_ADMIN" | "JEFE_OBRA" | "PREVENCIONISTA" | "LECTOR_CLIENTE";
       phone?: string;
@@ -43,6 +44,14 @@ export const createCompanyUser = onCall(
         "Faltan campos obligatorios: companyId, email, nombre, role."
       );
     }
+    
+    if (!data.password || data.password.length < 6) {
+        throw new HttpsError(
+            "invalid-argument",
+            "La contraseña es obligatoria y debe tener al menos 6 caracteres."
+        );
+    }
+
 
     // 4. Verificar que la empresa existe y está activa
     const companyRef = db.collection("companies").doc(data.companyId);
@@ -64,6 +73,7 @@ export const createCompanyUser = onCall(
     try {
       userRecord = await auth.createUser({
         email: data.email,
+        password: data.password,
         displayName: data.nombre,
         emailVerified: false,
         disabled: false,

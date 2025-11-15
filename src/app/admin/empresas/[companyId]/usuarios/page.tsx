@@ -37,7 +37,7 @@ export default function AdminEmpresaUsuariosPage() {
     const [error, setError] = useState<string | null>(null);
 
     const [dialogOpen, setDialogOpen] = useState(false);
-    const [newUser, setNewUser] = useState({ nombre: '', email: '', role: 'LECTOR_CLIENTE' });
+    const [newUser, setNewUser] = useState({ nombre: '', email: '', password: '', role: 'LECTOR_CLIENTE' });
     const [isSaving, setIsSaving] = useState(false);
     const [formError, setFormError] = useState<string | null>(null);
 
@@ -75,7 +75,7 @@ export default function AdminEmpresaUsuariosPage() {
     }, [isSuperAdmin, companyId]);
 
     const handleOpenDialog = () => {
-        setNewUser({ nombre: '', email: '', role: 'LECTOR_CLIENTE' });
+        setNewUser({ nombre: '', email: '', password: '', role: 'LECTOR_CLIENTE' });
         setDialogOpen(true);
         setFormError(null);
     };
@@ -91,8 +91,8 @@ export default function AdminEmpresaUsuariosPage() {
 
     const handleSubmit = async (e: FormEvent) => {
         e.preventDefault();
-        if (!newUser.nombre || !newUser.email) {
-            setFormError("Nombre y Email son obligatorios.");
+        if (!newUser.nombre || !newUser.email || !newUser.password) {
+            setFormError("Nombre, Email y Contraseña son obligatorios.");
             return;
         }
 
@@ -104,6 +104,7 @@ export default function AdminEmpresaUsuariosPage() {
               companyId,
               email: newUser.email,
               nombre: newUser.nombre,
+              password: newUser.password,
               role: newUser.role,
             });
 
@@ -202,6 +203,10 @@ export default function AdminEmpresaUsuariosPage() {
                              <div className="space-y-2">
                                 <Label htmlFor="email">Email*</Label>
                                 <Input id="email" name="email" type="email" value={newUser.email || ''} onChange={handleFormChange} />
+                            </div>
+                             <div className="space-y-2">
+                                <Label htmlFor="password">Contraseña*</Label>
+                                <Input id="password" name="password" type="password" value={newUser.password || ''} onChange={handleFormChange} />
                             </div>
                             <div className="space-y-2">
                                 <Label htmlFor="role">Rol en la Empresa</Label>
