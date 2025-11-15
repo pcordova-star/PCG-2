@@ -31,6 +31,11 @@ type CatalogoItem = {
 type HistorialPrecio = { id: string; itemId: string; precio: number; fecha: Timestamp; fuente: string; };
 type Presupuesto = { id: string; obraId: string; nombre: string; fechaCreacion: Timestamp; totalPresupuesto: number; };
 
+function formatCurrency(value: number) {
+    if (isNaN(value)) return '$ 0';
+    return value.toLocaleString('es-CL', { style: 'currency', currency: 'CLP' });
+}
+
 // --- Componente de Catálogo ---
 function CatalogoTab() {
     const { toast } = useToast();
@@ -146,7 +151,7 @@ function CatalogoTab() {
                                     <TableCell className="font-mono">{item.codigo}</TableCell>
                                     <TableCell>{item.descripcion}</TableCell>
                                     <TableCell>{item.unidad}</TableCell>
-                                    <TableCell>{item.precioActual.toLocaleString('es-CL', { style: 'currency', currency: 'CLP' })}</TableCell>
+                                    <TableCell>{formatCurrency(item.precioActual)}</TableCell>
                                     <TableCell className="flex gap-2">
                                         <Button variant="ghost" size="icon" onClick={() => handleOpenDialog(item)}><Edit className="h-4 w-4" /></Button>
                                         <Button variant="ghost" size="icon" onClick={() => handleShowHistory(item.id)}><History className="h-4 w-4" /></Button>
@@ -192,7 +197,7 @@ function CatalogoTab() {
                             {historialPrecios.map(h => (
                                 <TableRow key={h.id}>
                                     <TableCell>{h.fecha?.toDate().toLocaleDateString('es-CL')}</TableCell>
-                                    <TableCell>{h.precio.toLocaleString('es-CL', { style: 'currency', currency: 'CLP' })}</TableCell>
+                                    <TableCell>{formatCurrency(h.precio)}</TableCell>
                                     <TableCell>{h.fuente}</TableCell>
                                 </TableRow>
                             ))}
@@ -307,7 +312,7 @@ function PresupuestosTab() {
                                 <TableRow key={p.id}>
                                     <TableCell>{p.nombre}</TableCell>
                                     <TableCell>{p.fechaCreacion?.toDate().toLocaleDateString('es-CL')}</TableCell>
-                                    <TableCell>{(p.totalPresupuesto || 0).toLocaleString('es-CL', { style: 'currency', currency: 'CLP' })}</TableCell>
+                                    <TableCell>{formatCurrency(p.totalPresupuesto || 0)}</TableCell>
                                     <TableCell className="flex gap-2">
                                         <Button variant="outline" size="sm" onClick={() => router.push(`/operaciones/presupuestos/${p.id}`)}>Ver / Editar</Button>
                                         <Button variant="ghost" size="icon" onClick={() => handleDuplicar(p.id)}><Copy className="h-4 w-4" /></Button>
