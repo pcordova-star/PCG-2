@@ -5,6 +5,7 @@ import {
   signInWithEmailAndPassword,
   signOut,
   User,
+  IdTokenResult,
 } from "firebase/auth";
 import {
   createContext,
@@ -15,8 +16,15 @@ import {
 } from "react";
 import { firebaseAuth } from "../lib/firebaseClient";
 
+type CustomClaims = {
+  role?: "SUPER_ADMIN" | "EMPRESA_ADMIN" | "JEFE_OBRA" | "PREVENCIONISTA" | "LECTOR_CLIENTE";
+  companyId?: string | null;
+  [key: string]: any;
+};
+
 type AuthContextValue = {
   user: User | null;
+  customClaims: CustomClaims | null;
   loading: boolean;
   login: (email: string, password: string) => Promise<void>;
   logout: () => Promise<void>;
@@ -26,11 +34,18 @@ const AuthContext = createContext<AuthContextValue | undefined>(undefined);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
+  const [customClaims, setCustomClaims] = useState<CustomClaims | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const unsub = onAuthStateChanged(firebaseAuth, (firebaseUser) => {
+    const unsub = onAuthStateChanged(firebaseAuth, async (firebaseUser) => {
       setUser(firebaseUser);
+      if (firebaseUser) {
+        const idTokenResult: IdTokenResult = await firebaseUser.getIdTokenResult(true); // Forzar refresco
+        setCustomClaims(idTokenResult.claims as CustomClaims);
+      } else {
+        setCustomClaims(null);
+      }
       setLoading(false);
     });
 
@@ -39,14 +54,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   async function login(email: string, password: string) {
     await signInWithEmailAndPassword(firebaseAuth, email, password);
+    // El onAuthStateChanged se encargará del resto
   }
 
   async function logout() {
     await signOut(firebaseAuth);
+    // El onAuthStateChanged se encargará del resto
   }
 
   const value: AuthContextValue = {
     user,
+    customClaims,
     loading,
     login,
     logout,
