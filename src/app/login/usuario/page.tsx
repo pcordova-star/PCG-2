@@ -31,7 +31,7 @@ export default function UsuarioLoginPage() {
   }, []);
 
   useEffect(() => {
-    if (!loading && user) {
+    if (!loading && user && customClaims) {
         if(customClaims?.role === 'SUPER_ADMIN'){
             router.replace('/admin/empresas');
         } else {
