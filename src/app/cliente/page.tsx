@@ -9,7 +9,7 @@ import { firebaseDb } from '@/lib/firebaseClient';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
-import { Building, ArrowRight } from 'lucide-react';
+import { Building, ArrowRight, LogOut } from 'lucide-react';
 
 type Obra = {
   id: string;
@@ -75,7 +75,10 @@ export default function ClienteDashboardPage() {
                  <h1 className="text-xl font-bold text-primary">Portal del Cliente</h1>
                  <div className="flex items-center gap-4">
                      <span className="text-sm text-muted-foreground hidden sm:inline">{user.email}</span>
-                    <Button variant="outline" onClick={logout}>Cerrar Sesión</Button>
+                    <Button variant="outline" onClick={logout}>
+                      <LogOut className="mr-2 h-4 w-4" />
+                      Cerrar Sesión
+                    </Button>
                  </div>
             </div>
         </header>
