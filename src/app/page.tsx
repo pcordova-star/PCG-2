@@ -112,6 +112,80 @@ const AnimatedMetric = ({ value, suffix, text }: { value: number; suffix: string
   );
 };
 
+const AnimatedPlatformMockup = () => {
+    const ref = React.useRef(null);
+    const isInView = useInView(ref, { once: true, margin: "-100px" });
+
+    const containerVariants = {
+        hidden: { opacity: 0 },
+        visible: { 
+            opacity: 1,
+            transition: { staggerChildren: 0.1 }
+        }
+    };
+    
+    const itemVariants = {
+        hidden: { opacity: 0, y: 20, scale: 0.95 },
+        visible: { opacity: 1, y: 0, scale: 1 }
+    };
+
+    return (
+        <motion.div 
+            ref={ref}
+            variants={containerVariants}
+            initial="hidden"
+            animate={isInView ? "visible" : "hidden"}
+            className="relative grid grid-cols-3 grid-rows-3 gap-3 md:gap-4 w-full max-w-4xl h-64 md:h-96 rounded-xl border-2 border-primary/20 bg-slate-900 shadow-2xl shadow-primary/10 p-3 md:p-4"
+        >
+            {/* Top Bar */}
+            <div className="absolute top-2 left-2 md:top-4 md:left-4 flex gap-1.5">
+                <div className="w-2 h-2 md:w-3 md:h-3 rounded-full bg-red-500"></div>
+                <div className="w-2 h-2 md:w-3 md:h-3 rounded-full bg-yellow-400"></div>
+                <div className="w-2 h-2 md:w-3 md:h-3 rounded-full bg-green-500"></div>
+            </div>
+
+            {/* Main Dashboard Card */}
+            <motion.div variants={itemVariants} className="col-span-2 row-span-2 rounded-lg bg-slate-800/80 p-2 md:p-4 flex flex-col justify-between">
+                <div>
+                  <h4 className="text-xs md:text-sm font-bold text-white">Avance de Obra</h4>
+                  <p className="text-[10px] md:text-xs text-slate-400">Edificio Los Álamos</p>
+                </div>
+                 <div className="w-full h-8 md:h-12 bg-slate-700/50 rounded-md flex items-center p-1 md:p-2">
+                    <div className="w-3/4 h-full bg-blue-500/50 rounded"></div>
+                 </div>
+            </motion.div>
+
+            {/* Side Card 1 */}
+            <motion.div variants={itemVariants} className="col-span-1 row-span-1 rounded-lg bg-slate-800/80 p-2 md:p-4 flex items-center gap-2">
+                <ShieldCheck className="w-4 h-4 md:w-6 md:h-6 text-green-400 shrink-0" />
+                <div>
+                    <h5 className="text-[10px] md:text-xs font-semibold text-white">Seguridad</h5>
+                    <p className="text-[10px] text-slate-400">0 Incidentes</p>
+                </div>
+            </motion.div>
+            
+            {/* Side Card 2 */}
+            <motion.div variants={itemVariants} className="col-span-1 row-span-1 rounded-lg bg-slate-800/80 p-2 md:p-4 flex items-center gap-2">
+                <DollarSign className="w-4 h-4 md:w-6 md:h-6 text-yellow-400 shrink-0" />
+                <div>
+                    <h5 className="text-[10px] md:text-xs font-semibold text-white">Costos</h5>
+                    <p className="text-[10px] text-slate-400">+2%</p>
+                </div>
+            </motion.div>
+
+            {/* Bottom Card */}
+             <motion.div variants={itemVariants} className="col-span-3 row-span-1 rounded-lg bg-slate-800/80 p-2 md:p-4 flex flex-col">
+                <h4 className="text-xs md:text-sm font-bold text-white">Programación</h4>
+                <div className="flex-grow w-full h-px bg-slate-700/50 rounded-full mt-2 relative">
+                    <div className="absolute top-0 left-[10%] w-1/4 h-full bg-indigo-500/70 rounded-full"></div>
+                    <div className="absolute top-0 left-[40%] w-1/3 h-full bg-purple-500/70 rounded-full"></div>
+                </div>
+             </motion.div>
+        </motion.div>
+    );
+};
+
+
 export default function WelcomePage() {
   return (
     <div className="bg-slate-50 text-foreground">
@@ -152,14 +226,8 @@ export default function WelcomePage() {
               <Button size="lg">Ver demo en 3 minutos</Button>
               <Button size="lg" variant="outline">Hablar con un experto</Button>
             </div>
-            <div className="mt-12 md:mt-16">
-              <div className="relative mx-auto w-full max-w-4xl h-64 md:h-96 rounded-xl border-2 border-primary/20 bg-slate-900 shadow-2xl shadow-primary/10">
-                 <div className="absolute top-2 left-2 flex gap-1.5">
-                    <div className="w-3 h-3 rounded-full bg-red-500"></div>
-                    <div className="w-3 h-3 rounded-full bg-yellow-400"></div>
-                    <div className="w-3 h-3 rounded-full bg-green-500"></div>
-                 </div>
-              </div>
+            <div className="mt-12 md:mt-16 flex justify-center">
+              <AnimatedPlatformMockup />
             </div>
           </div>
         </section>
