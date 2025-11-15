@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, FormEvent } from 'react';
+import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
@@ -17,15 +18,12 @@ import { firebaseDb } from '@/lib/firebaseClient';
 import { Company } from '@/types/pcg';
 import { useAuth } from '@/context/AuthContext';
 
-// Simulación de rol, reemplazar con lógica de claims real
-const useSuperAdminRole = () => {
-    // const { claims } = useAuth(); // Descomentar cuando los claims estén listos
-    // return claims?.role === 'SUPER_ADMIN';
-    return true; // Temporalmente permitir acceso para desarrollo
-}
 
 export default function AdminEmpresasPage() {
-    const isSuperAdmin = useSuperAdminRole();
+    const { customClaims, loading: authLoading } = useAuth();
+    const isSuperAdmin = customClaims?.role === 'SUPER_ADMIN';
+    const router = useRouter();
+
     const [empresas, setEmpresas] = useState<Company[]>([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
@@ -34,6 +32,12 @@ export default function AdminEmpresasPage() {
     const [currentCompany, setCurrentCompany] = useState<Partial<Company> | null>(null);
     const [isSaving, setIsSaving] = useState(false);
 
+    useEffect(() => {
+        if (!authLoading && !isSuperAdmin) {
+          router.replace('/dashboard');
+        }
+    }, [authLoading, isSuperAdmin, router]);
+    
     useEffect(() => {
         if (!isSuperAdmin) return;
 
@@ -70,7 +74,7 @@ export default function AdminEmpresasPage() {
         }
     };
     
-    const handleSelectChange = (name: keyof Company, value: string) => {
+    const handleSelectChange = (name: keyof Company, value: any) => {
          if (currentCompany) {
             setCurrentCompany({ ...currentCompany, [name]: value });
         }
@@ -115,8 +119,8 @@ export default function AdminEmpresasPage() {
         }
     };
 
-    if (!isSuperAdmin) {
-        return <div className="p-8 text-center text-destructive">Acceso denegado. Esta sección es solo para administradores.</div>;
+    if (authLoading || (!isSuperAdmin && !loading)) {
+        return <div className="p-8 text-center text-muted-foreground">Verificando permisos...</div>;
     }
 
     return (
@@ -210,7 +214,7 @@ export default function AdminEmpresasPage() {
                                 </Select>
                             </div>
                              <div className="flex items-center space-x-2">
-                                <Checkbox id="activa" name="activa" checked={currentCompany?.activa} onCheckedChange={(checked) => handleSelectChange('activa', !!checked ? 'true' : 'false')} />
+                                <Checkbox id="activa" name="activa" checked={currentCompany?.activa} onCheckedChange={(checked) => handleSelectChange('activa', !!checked)} />
                                 <Label htmlFor="activa">Empresa activa</Label>
                             </div>
                             {error && <p className="text-sm font-medium text-destructive">{error}</p>}

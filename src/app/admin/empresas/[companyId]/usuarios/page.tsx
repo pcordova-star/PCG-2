@@ -17,15 +17,12 @@ import { firebaseDb, firebaseFunctions } from '@/lib/firebaseClient';
 import { httpsCallable } from 'firebase/functions';
 import { Company, CompanyUser } from '@/types/pcg';
 import { useToast } from '@/hooks/use-toast';
+import { useAuth } from '@/context/AuthContext';
 
-
-// Simulación de rol, reemplazar con lógica de claims real
-const useSuperAdminRole = () => {
-    return true; // Temporalmente permitir acceso para desarrollo
-}
 
 export default function AdminEmpresaUsuariosPage() {
-    const isSuperAdmin = useSuperAdminRole();
+    const { customClaims, loading: authLoading } = useAuth();
+    const isSuperAdmin = customClaims?.role === 'SUPER_ADMIN';
     const router = useRouter();
     const params = useParams();
     const companyId = params.companyId as string;
@@ -71,7 +68,15 @@ export default function AdminEmpresaUsuariosPage() {
     };
     
     useEffect(() => {
-        fetchCompanyData();
+        if (!authLoading && !isSuperAdmin) {
+            router.replace('/dashboard');
+        }
+    }, [authLoading, isSuperAdmin, router]);
+
+    useEffect(() => {
+        if (isSuperAdmin) {
+          fetchCompanyData();
+        }
     }, [isSuperAdmin, companyId]);
 
     const handleOpenDialog = () => {
@@ -123,8 +128,8 @@ export default function AdminEmpresaUsuariosPage() {
         }
     };
 
-    if (!isSuperAdmin) {
-        return <div className="p-8 text-center text-destructive">Acceso denegado.</div>;
+    if (authLoading || (!isSuperAdmin && !loading)) {
+        return <div className="p-8 text-center text-muted-foreground">Verificando permisos...</div>;
     }
     
     if (loading) {
