@@ -1,3 +1,5 @@
+"use client";
+
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import {
@@ -19,27 +21,84 @@ import {
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import { useEffect, useState } from 'react';
+import { collection, getDocs, query, where, collectionGroup } from 'firebase/firestore';
+import { firebaseDb } from '@/lib/firebaseClient';
+import { Skeleton } from '@/components/ui/skeleton';
 
+type SummaryData = {
+  obrasActivas: number | null;
+  tareasEnProgreso: number | null;
+  alertasSeguridad: number | null;
+};
 
 export default function DashboardPage() {
+  const [summaryData, setSummaryData] = useState<SummaryData>({
+    obrasActivas: null,
+    tareasEnProgreso: null,
+    alertasSeguridad: null,
+  });
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    async function fetchSummaryData() {
+      setLoading(true);
+      try {
+        // 1. Obras Activas (contar todas las obras)
+        const obrasQuery = query(collection(firebaseDb, 'obras'));
+        const obrasSnap = await getDocs(obrasQuery);
+        const obrasActivas = obrasSnap.size;
+
+        // 2. Tareas en Progreso (actividades que no están 'Completada')
+        const actividadesQuery = query(collectionGroup(firebaseDb, 'actividades'), where('estado', '!=', 'Completada'));
+        const actividadesSnap = await getDocs(actividadesQuery);
+        const tareasEnProgreso = actividadesSnap.size;
+        
+        // 3. Alertas de Seguridad (incidentes con estado 'Abierto')
+        const alertasQuery = query(collection(firebaseDb, 'investigacionesIncidentes'), where('estadoCierre', '==', 'Abierto'));
+        const alertasSnap = await getDocs(alertasQuery);
+        const alertasSeguridad = alertasSnap.size;
+        
+        setSummaryData({
+          obrasActivas,
+          tareasEnProgreso,
+          alertasSeguridad,
+        });
+
+      } catch (error) {
+        console.error("Error fetching dashboard summary data:", error);
+        setSummaryData({
+          obrasActivas: 0,
+          tareasEnProgreso: 0,
+          alertasSeguridad: 0,
+        });
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    fetchSummaryData();
+  }, []);
+
+
   const summaryCards = [
     {
       title: 'Obras Activas',
-      value: '3',
+      value: summaryData.obrasActivas,
       icon: Building2,
       bgColor: 'bg-blue-100',
       iconColor: 'text-blue-600',
     },
     {
       title: 'Tareas en Progreso',
-      value: '15',
+      value: summaryData.tareasEnProgreso,
       icon: ListChecks,
       bgColor: 'bg-green-100',
       iconColor: 'text-green-600',
     },
     {
       title: 'Alertas de Seguridad',
-      value: '8',
+      value: summaryData.alertasSeguridad,
       icon: AlertTriangle,
       bgColor: 'bg-yellow-100',
       iconColor: 'text-yellow-600',
@@ -98,9 +157,13 @@ export default function DashboardPage() {
               </div>
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{card.value}</div>
+              {loading ? (
+                <Skeleton className="h-8 w-1/3" />
+              ) : (
+                <div className="text-2xl font-bold">{card.value ?? 0}</div>
+              )}
               <p className="text-xs text-muted-foreground">
-                +2.1% desde el mes pasado
+                Datos actualizados en tiempo real.
               </p>
             </CardContent>
           </Card>
@@ -146,7 +209,7 @@ export default function DashboardPage() {
                           <ListChecks className="h-6 w-6 text-green-600" />
                       </div>
                       <div>
-                        <CardTitle>Actualizar Avance</CardTitle>
+                        <CardTitle>Registrar Avance por Cantidad</CardTitle>
                         <CardDescription>Registra cantidades ejecutadas por actividad.</CardDescription>
                       </div>
                     </CardHeader>
