@@ -1,14 +1,13 @@
 // src/app/page.tsx
 "use client";
 
-import { useEffect, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { motion, useInView, useAnimation } from 'framer-motion';
+import { motion, useInView, useAnimation, animate } from 'framer-motion';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { ArrowRight, Building, CheckCircle, ChevronRight, DollarSign, GanttChartSquare, HardHat, PieChart, ShieldCheck, Users, Zap } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import React from 'react';
 
 
 const NavLink = ({ href, children }: { href: string; children: React.ReactNode }) => (
@@ -90,7 +89,7 @@ const AnimatedMetric = ({ value, suffix, text }: { value: number; suffix: string
         y: 0,
         transition: { duration: 0.5 }
       });
-      const animation = motion.animate(0, value, {
+      const animation = animate(0, value, {
         duration: 2,
         ease: "easeOut",
         onUpdate: (latest) => {
