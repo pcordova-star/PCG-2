@@ -12,6 +12,8 @@ import Link from 'next/link';
 import { Loader2 } from "lucide-react";
 import TermsAcceptance from "@/components/auth/TermsAcceptance";
 
+const TERMS_ACCEPTANCE_KEY = "pcg_terms_accepted";
+
 export default function UsuarioLoginPage() {
   const { login, user, loading, customClaims } = useAuth();
   const router = useRouter();
@@ -20,6 +22,13 @@ export default function UsuarioLoginPage() {
   const [error, setError] = useState<string | null>(null);
   const [isLoggingIn, setIsLoggingIn] = useState(false);
   const [acceptedTerms, setAcceptedTerms] = useState(false);
+
+  useEffect(() => {
+    // Comprobar si los términos ya fueron aceptados en este navegador
+    if (localStorage.getItem(TERMS_ACCEPTANCE_KEY) === "true") {
+      setAcceptedTerms(true);
+    }
+  }, []);
 
   useEffect(() => {
     if (!loading && user) {
@@ -42,6 +51,8 @@ export default function UsuarioLoginPage() {
     setIsLoggingIn(true);
     try {
       await login(email, password);
+      // Guardar la aceptación de términos en localStorage después de un login exitoso
+      localStorage.setItem(TERMS_ACCEPTANCE_KEY, "true");
       // La redirección se maneja con el useEffect
     } catch (err) {
       console.error(err);
@@ -49,6 +60,18 @@ export default function UsuarioLoginPage() {
       setIsLoggingIn(false);
     }
   }
+
+  const handleTermsChange = (accepted: boolean) => {
+    setAcceptedTerms(accepted);
+    if (accepted) {
+      localStorage.setItem(TERMS_ACCEPTANCE_KEY, "true");
+    } else {
+      // Si el usuario desmarca la casilla, eliminamos la clave.
+      // Esto es útil si necesitan re-aceptar en el futuro por un cambio de términos.
+      localStorage.removeItem(TERMS_ACCEPTANCE_KEY);
+    }
+  };
+
 
   if (loading || user) {
     return (
@@ -83,7 +106,7 @@ export default function UsuarioLoginPage() {
                         <Input id="password" type="password" value={password} onChange={(e) => setPassword(e.target.value)} required />
                     </div>
 
-                    <TermsAcceptance acceptedTerms={acceptedTerms} onAcceptedTermsChange={setAcceptedTerms} />
+                    <TermsAcceptance acceptedTerms={acceptedTerms} onAcceptedTermsChange={handleTermsChange} />
 
                     {error && <p className="text-sm font-medium text-destructive text-center pt-2">{error}</p>}
 
