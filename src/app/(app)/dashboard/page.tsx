@@ -8,6 +8,7 @@ import {
   CardDescription,
   CardHeader,
   CardTitle,
+  CardFooter,
 } from '@/components/ui/card';
 import {
   HardHat,
@@ -16,18 +17,16 @@ import {
   Building2,
   ListChecks,
   AlertTriangle,
-  Camera,
-  Users,
-  Info
+  BookCopy,
+  GanttChartSquare,
+  Award,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { useEffect, useState } from 'react';
-import { collection, getDocs, query, where, collectionGroup } from 'firebase/firestore';
+import { collection, getDocs, query, collectionGroup, where } from 'firebase/firestore';
 import { firebaseDb } from '@/lib/firebaseClient';
 import { Skeleton } from '@/components/ui/skeleton';
-import TourOnboarding from '@/components/onboarding/TourOnboarding';
-
+import { OnboardingSteps } from '@/components/dashboard/OnboardingSteps';
 
 type SummaryData = {
   obrasActivas: number | null;
@@ -35,27 +34,41 @@ type SummaryData = {
   alertasSeguridad: number | null;
 };
 
-const modules = [
+const mainModules = [
   {
-    id: 'tour-step-modulo-obras',
     title: 'Obras',
-    description: 'Crea y gestiona tus proyectos de construcción. Asigna presupuestos, personal y lleva el control de la programación y los avances.',
+    description: 'Crea y gestiona tus proyectos. Asigna datos básicos, clientes y responsables para cada faena.',
     href: '/obras',
     icon: HardHat,
+    linkText: 'Gestionar Obras'
   },
   {
-    id: 'tour-step-modulo-operaciones',
-    title: 'Operaciones',
-    description: 'Controla el día a día: programación de actividades, registro de avances, estados de pago y gestión de personal en terreno.',
-    href: '/operaciones',
-    icon: Activity,
+    title: 'Presupuestos',
+    description: 'Administra tu catálogo de ítems y precios. Crea y duplica presupuestos detallados por obra.',
+    href: '/operaciones/presupuestos',
+    icon: BookCopy,
+    linkText: 'Ir a Presupuestos'
   },
   {
-    id: 'tour-step-modulo-prevencion',
+    title: 'Programación',
+    description: 'Define actividades, plazos y recursos. Registra avances y visualiza la Curva S del proyecto.',
+    href: '/operaciones/programacion',
+    icon: GanttChartSquare,
+    linkText: 'Ir a Programación'
+  },
+   {
+    title: 'Calidad',
+    description: 'Controla inspecciones, protocolos y no conformidades para asegurar los estándares del proyecto.',
+    href: '#',
+    icon: Award,
+    linkText: 'Próximamente'
+  },
+  {
     title: 'Prevención de Riesgos',
-    description: 'Gestiona la seguridad en obra con auditorías, registro de hallazgos, investigación de incidentes y control documental (DS44).',
+    description: 'Gestiona la seguridad: IPER, incidentes, charlas, DS44 y control documental de contratistas.',
     href: '/prevencion',
     icon: ShieldCheck,
+    linkText: 'Ir a Prevención'
   },
 ];
 
@@ -68,19 +81,11 @@ export default function DashboardPage() {
   });
   const [loading, setLoading] = useState(false);
 
-  const [startTour, setStartTour] = useState(false);
-
   useEffect(() => {
-    // Iniciar tour automáticamente si no se ha completado antes
-    const tourDone = localStorage.getItem('pcg-tour-done');
-    if (tourDone !== 'true') {
-      setStartTour(true);
-    }
-
     setLoading(true);
     async function fetchSummaryData() {
       try {
-        const obrasQuery = query(collection(firebaseDb, 'obras'));
+        const obrasQuery = query(collection(firebaseDb, 'obras'), where('estado', '==', 'Activa'));
         const obrasSnap = await getDocs(obrasQuery);
         const obrasActivas = obrasSnap.size;
 
@@ -113,11 +118,6 @@ export default function DashboardPage() {
     fetchSummaryData();
   }, []);
   
-  const handleTourComplete = () => {
-    localStorage.setItem('pcg-tour-done', 'true');
-    setStartTour(false);
-  }
-
   const summaryCards = [
     {
       id: 'tour-step-obras-activas',
@@ -146,137 +146,72 @@ export default function DashboardPage() {
   ];
 
   return (
-    <div className="flex flex-1 flex-col gap-4 md:gap-8">
-      <TourOnboarding 
-        run={startTour}
-        onComplete={handleTourComplete}
-      />
-      <header className='flex justify-between items-center'>
+    <div className="min-h-screen bg-slate-50">
+      <div className="flex flex-col gap-4 md:gap-6 p-4 md:p-6">
+        {/* Sección de bienvenida */}
+        <header className='text-center md:text-left'>
+            <h1 className="text-3xl font-bold tracking-tight text-primary">Bienvenido a PCG</h1>
+            <p className="text-lg text-muted-foreground mt-1">Plataforma de Control y Gestión de Obras</p>
+            <p className="text-sm text-muted-foreground mt-2 max-w-2xl mx-auto md:mx-0">
+                Administra tus obras, presupuestos, programación, calidad y prevención desde un solo lugar.
+            </p>
+        </header>
+
+        {/* Componente de Onboarding */}
+        <OnboardingSteps />
+
+        {/* Accesos rápidos a módulos */}
         <div>
-          <h2 className="text-3xl font-bold tracking-tight">
-            Hola, Bienvenido de vuelta!
-          </h2>
-          <p className="text-muted-foreground">
-            Aquí tienes un resumen de la actividad reciente en tus obras.
-          </p>
+            <h2 className="text-xl font-semibold mb-4">Accesos Rápidos</h2>
+            <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4 md:gap-6">
+                {mainModules.map((mod) => (
+                    <Card key={mod.title} className="rounded-xl border bg-white shadow-sm md:hover:shadow-md transition-shadow flex flex-col">
+                        <CardHeader>
+                            <div className="flex items-center gap-4 mb-2">
+                                <div className="p-3 bg-primary/10 rounded-full w-fit">
+                                    <mod.icon className="h-6 w-6 text-primary" />
+                                </div>
+                                <CardTitle className="font-headline text-xl">{mod.title}</CardTitle>
+                            </div>
+                            <CardDescription className="pt-2">{mod.description}</CardDescription>
+                        </CardHeader>
+                        <CardFooter className="mt-auto">
+                            <Button asChild className="w-full" variant={mod.linkText === 'Próximamente' ? 'secondary' : 'default'} disabled={mod.linkText === 'Próximamente'}>
+                                <Link href={mod.href}>{mod.linkText}</Link>
+                            </Button>
+                        </CardFooter>
+                    </Card>
+                ))}
+            </div>
         </div>
-        <Button variant="outline" onClick={() => setStartTour(true)}>
-          <Info className="mr-2 h-4 w-4" />
-          Ver Tour / Guía de Inicio
-        </Button>
-      </header>
-      
-      {/* Summary Cards */}
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-        {summaryCards.map((card) => (
-          <Card key={card.title} id={card.id}>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">{card.title}</CardTitle>
-              <div className={cn('p-2 rounded-full', card.bgColor)}>
-                <card.icon className={cn('h-4 w-4', card.iconColor)} />
-              </div>
-            </CardHeader>
-            <CardContent>
-              {loading ? (
-                <Skeleton className="h-8 w-1/3" />
-              ) : (
-                <div className="text-2xl font-bold">{card.value ?? 0}</div>
-              )}
-              <p className="text-xs text-muted-foreground">
-                Datos actualizados en tiempo real.
-              </p>
-            </CardContent>
-          </Card>
-        ))}
-      </div>
 
-      {/* Quick Action Cards */}
-      <div id="tour-step-acceso-rapido">
-        <h3 className="text-xl font-semibold mb-4">Acceso Rápido para Terreno</h3>
-        <TooltipProvider>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Link href="/operaciones/registro-fotografico">
-                  <Card className="group transition-all duration-300 hover:shadow-lg hover:border-primary/30 hover:-translate-y-1">
-                    <CardHeader className="flex-row items-center gap-4">
-                      <div className="p-3 bg-blue-100 rounded-full">
-                          <Camera className="h-6 w-6 text-blue-600" />
-                      </div>
-                      <div>
-                        <CardTitle>Fotografiar Hito / Avance</CardTitle>
-                        <CardDescription>Registra solo fotos y comentarios desde terreno.</CardDescription>
-                      </div>
-                    </CardHeader>
-                  </Card>
-                </Link>
-              </TooltipTrigger>
-              <TooltipContent>
-                <p className="max-w-xs">
-                  Registra solo fotos y comentarios del estado de la obra. 
-                  No modifica el % de avance ni la Curva S. Ideal para dejar evidencia en terreno.
-                </p>
-              </TooltipContent>
-            </Tooltip>
-
-            <Tooltip>
-              <TooltipTrigger asChild>
-                 <Link href="/operaciones/avance-en-terreno">
-                  <Card className="group transition-all duration-300 hover:shadow-lg hover:border-primary/30 hover:-translate-y-1">
-                    <CardHeader className="flex-row items-center gap-4">
-                      <div className="p-3 bg-green-100 rounded-full">
-                          <ListChecks className="h-6 w-6 text-green-600" />
-                      </div>
-                      <div>
-                        <CardTitle>Registrar Avance por Cantidad</CardTitle>
-                        <CardDescription>Registra cantidades ejecutadas por actividad.</CardDescription>
-                      </div>
-                    </CardHeader>
-                  </Card>
-                </Link>
-              </TooltipTrigger>
-              <TooltipContent>
-                <p className="max-w-xs">
-                  Registra la cantidad ejecutada por actividad. 
-                  Actualiza el % de avance real y la Curva S del contrato.
-                </p>
-              </TooltipContent>
-            </Tooltip>
-
-          </div>
-        </TooltipProvider>
-      </div>
-
-
-      {/* Module Cards */}
-      <div>
-         <h3 className="text-xl font-semibold mb-4">Acceso a Módulos</h3>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {modules.map((mod) => (
-            <Card
-              key={mod.title}
-              id={mod.id}
-              className="flex flex-col transition-all duration-300 hover:shadow-lg hover:-translate-y-1"
-            >
-              <CardHeader>
-                 <div className="mb-4">
-                  <div className="p-3 bg-accent/10 rounded-full w-fit">
-                    <mod.icon className="h-6 w-6 text-accent" />
+        {/* Sección de estadísticas */}
+        <div>
+            <h2 className="text-xl font-semibold mb-4">Estadísticas Generales</h2>
+            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+            {summaryCards.map((card) => (
+              <Card key={card.title} id={card.id} className="rounded-xl border bg-white shadow-sm md:hover:shadow-md transition-shadow">
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <CardTitle className="text-sm font-medium">{card.title}</CardTitle>
+                  <div className={cn('p-2 rounded-full', card.bgColor)}>
+                    <card.icon className={cn('h-4 w-4', card.iconColor)} />
                   </div>
-                </div>
-                <CardTitle className="font-headline text-xl">{mod.title}</CardTitle>
-                <CardDescription className="pt-2">{mod.description}</CardDescription>
-              </CardHeader>
-              <CardContent className="flex-grow"></CardContent>
-              <div className="p-6 pt-0">
-                <Button asChild className="w-full">
-                  <Link href={mod.href}>Acceder al módulo</Link>
-                </Button>
-              </div>
-            </Card>
-          ))}
+                </CardHeader>
+                <CardContent>
+                  {loading ? (
+                    <Skeleton className="h-8 w-1/3" />
+                  ) : (
+                    <div className="text-2xl font-bold">{card.value ?? 0}</div>
+                  )}
+                  <p className="text-xs text-muted-foreground">
+                    Datos actualizados en tiempo real.
+                  </p>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
         </div>
+
       </div>
     </div>
   );
