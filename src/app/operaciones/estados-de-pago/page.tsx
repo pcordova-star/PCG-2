@@ -4,10 +4,10 @@
 import React, { useEffect, useState, useMemo, Suspense } from "react";
 import { useAuth } from "@/context/AuthContext";
 import { useRouter, useSearchParams } from 'next/navigation';
-import { collection, getDocs, query, orderBy, addDoc, doc, deleteDoc, serverTimestamp } from "firebase/firestore";
+import { collection, getDocs, query, orderBy, addDoc, doc, deleteDoc, serverTimestamp, writeBatch, getDoc } from "firebase/firestore";
 import { firebaseDb } from "@/lib/firebaseClient";
 import { useActividadAvance } from "@/app/operaciones/programacion/hooks/useActividadAvance";
-import { ActividadProgramada, AvanceDiario, Obra } from "@/app/operaciones/programacion/page";
+import { ActividadProgramada, AvanceDiario } from "@/app/operaciones/programacion/page";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -20,6 +20,12 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import Link from "next/link";
 import { useToast } from "@/hooks/use-toast";
 
+
+type Obra = {
+  id: string;
+  nombreFaena: string;
+  [key: string]: any;
+};
 
 type EstadoDePago = {
   id: string;
@@ -73,7 +79,7 @@ function EstadosDePagoPageInner() {
         const snapshot = await getDocs(colRef);
         const data: Obra[] = snapshot.docs.map((doc) => ({
           id: doc.id,
-          nombreFaena: doc.data().nombreFaena ?? "",
+          ...doc.data(),
         }));
         setObras(data);
         const obraIdFromQuery = searchParams.get("obraId");

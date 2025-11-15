@@ -1,4 +1,4 @@
-
+// src/app/operaciones/programacion/page.tsx
 
 "use client";
 
@@ -116,17 +116,6 @@ export type AvanceDiario = {
     displayName: string;
   };
   tipoRegistro?: 'CANTIDAD' | 'FOTOGRAFICO';
-};
-
-type EstadoDePago = {
-  id: string;
-  correlativo: number;
-  fechaGeneracion: string;
-  fechaDeCorte: string;
-  subtotal: number;
-  iva: number;
-  total: number;
-  obraId: string;
 };
 
 type CurvaSDataPoint = {
@@ -258,23 +247,17 @@ function ProgramacionPageInner() {
   const [obraSeleccionadaId, setObraSeleccionadaId] = useState<string>("");
 
   const [actividades, setActividades] = useState<ActividadProgramada[]>([]);
-  const [estadosDePago, setEstadosDePago] = useState<EstadoDePago[]>([]);
   const { avances, loading: cargandoAvances, refetchAvances, calcularAvanceParaActividades } = useActividadAvance(obraSeleccionadaId);
   
   const avancesPorActividad = useMemo(() => calcularAvanceParaActividades(actividades), [actividades, calcularAvanceParaActividades]);
 
   const [cargandoActividades, setCargandoActividades] = useState(true);
-  const [cargandoEdp, setCargandoEdp] = useState(true);
-  const [generandoEdp, setGenerandoEdp] = useState(false);
   
   const [error, setError] = useState<string | null>(null);
 
   const [dialogOpen, setDialogOpen] = useState(false);
   const [currentActividad, setCurrentActividad] = useState<Partial<ActividadProgramada> | null>(null);
   
-  const [dialogEdpOpen, setDialogEdpOpen] = useState(false);
-  const [fechaCorteEdp, setFechaCorteEdp] = useState(new Date().toISOString().slice(0, 10));
-
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
 
   const montoTotalContrato = useMemo(() => {
@@ -364,7 +347,6 @@ function ProgramacionPageInner() {
   const cargarDatosDeObra = async (obraId: string) => {
     if (!obraId || !user) {
         setActividades([]);
-        setEstadosDePago([]);
         return;
     };
     
@@ -384,19 +366,6 @@ function ProgramacionPageInner() {
     }
     
     refetchAvances();
-
-    setCargandoEdp(true);
-    try {
-        const edpColRef = collection(firebaseDb, "obras", obraId, "estadosDePago");
-        const qEdp = query(edpColRef, orderBy("correlativo", "desc"));
-        const snapshotEdp = await getDocs(qEdp);
-        const dataEdp: EstadoDePago[] = snapshotEdp.docs.map((d) => ({ ...d.data(), id: d.id } as EstadoDePago));
-        setEstadosDePago(dataEdp);
-    } catch(err) {
-        console.error("Error cargando estados de pago:", err);
-    } finally {
-        setCargandoEdp(false);
-    }
   }
 
   useEffect(() => {
@@ -500,86 +469,6 @@ function ProgramacionPageInner() {
     }
   }
 
-  const handleGenerarEstadoDePago = async () => {
-    if (!obraSeleccionadaId) return;
-
-    setGenerandoEdp(true);
-    setError(null);
-
-    try {
-      const ultimoCorrelativo = estadosDePago.reduce((max, edp) => Math.max(max, edp.correlativo), 0);
-      const nuevoCorrelativo = ultimoCorrelativo + 1;
-      
-      const avancesCalculados = calcularAvanceParaActividades(actividades);
-      
-      const actividadesConAvance = actividades.map(act => {
-        const avanceInfo = avancesCalculados[act.id];
-        const porcentajeAvance = avanceInfo?.porcentajeAcumulado ?? 0;
-        const montoProyectado = (act.cantidad || 0) * act.precioContrato * (porcentajeAvance / 100);
-        
-        return { 
-            id: act.id, 
-            nombreActividad: act.nombreActividad, 
-            precioContrato: act.precioContrato,
-            cantidad: act.cantidad,
-            unidad: act.unidad,
-            porcentajeAvance, 
-            montoProyectado 
-        };
-      });
-      
-      const subtotal = actividadesConAvance.reduce((sum, act) => sum + act.montoProyectado, 0);
-      const iva = subtotal * 0.19;
-      const total = subtotal + iva;
-
-      const edpColRef = collection(firebaseDb, "obras", obraSeleccionadaId, "estadosDePago");
-      const nuevoEdpDoc = {
-        obraId: obraSeleccionadaId,
-        correlativo: nuevoCorrelativo,
-        fechaGeneracion: new Date().toISOString().slice(0, 10),
-        fechaDeCorte: fechaCorteEdp,
-        subtotal,
-        iva,
-        total,
-        actividades: actividadesConAvance.map(({ id, nombreActividad, precioContrato, cantidad, unidad, porcentajeAvance, montoProyectado }) => ({
-            actividadId: id,
-            nombre: nombreActividad,
-            precioContrato,
-            cantidad,
-            unidad,
-            porcentajeAvance,
-            montoProyectado
-        })),
-        creadoEn: new Date().toISOString(),
-      };
-      
-      const docRef = await addDoc(edpColRef, nuevoEdpDoc);
-      
-      setEstadosDePago(prev => [{...nuevoEdpDoc, id: docRef.id } as EstadoDePago, ...prev]);
-      setDialogEdpOpen(false);
-      router.push(`/operaciones/programacion/estado-pago/${obraSeleccionadaId}?edpId=${docRef.id}&fechaCorte=${fechaCorteEdp}`);
-
-    } catch (err) {
-      console.error("Error generando estado de pago:", err);
-      setError("No se pudo generar el estado de pago. Inténtelo de nuevo.");
-    } finally {
-      setGenerandoEdp(false);
-    }
-  }
-
-  const handleEliminarEstadoDePago = async (edpId: string) => {
-    if (!obraSeleccionadaId) return;
-
-    try {
-        const docRef = doc(firebaseDb, "obras", obraSeleccionadaId, "estadosDePago", edpId);
-        await deleteDoc(docRef);
-        setEstadosDePago(prev => prev.filter(edp => edp.id !== edpId));
-    } catch(err) {
-        console.error("Error eliminando estado de pago:", err);
-        setError("No se pudo eliminar el estado de pago.");
-    }
-  }
-
   const handleDeleteAvance = async (avance: AvanceDiario) => {
     if (!avance || !avance.id) return;
 
@@ -622,7 +511,7 @@ function ProgramacionPageInner() {
   return (
     <div className="space-y-8">
       <header>
-        <h1 className="text-4xl font-bold font-headline tracking-tight">Programación de Obras v3.0</h1>
+        <h1 className="text-4xl font-bold font-headline tracking-tight">Programación de Obras</h1>
         <p className="mt-2 text-lg text-muted-foreground">
           Gestione actividades por cantidad y precio, registre avances diarios por cantidad ejecutada y genere estados de pago.
         </p>
@@ -903,106 +792,6 @@ function ProgramacionPageInner() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-
-
-      <Card>
-        <CardHeader>
-          <CardTitle>Estados de Pago</CardTitle>
-          <CardDescription>Genere y revise los estados de pago de la obra. Cada estado de pago es una foto del avance en un momento determinado.</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <Button onClick={() => setDialogEdpOpen(true)}>
-            <FilePlus2 className="mr-2 h-4 w-4" />
-            Generar Nuevo Estado de Pago
-          </Button>
-
-          <Dialog open={dialogEdpOpen} onOpenChange={setDialogEdpOpen}>
-            <DialogContent className="sm:max-w-[425px]">
-                <DialogHeader>
-                  <DialogTitle>Generar Estado de Pago</DialogTitle>
-                  <DialogDescription>
-                    Seleccione la fecha de corte para calcular el avance y generar el informe.
-                  </DialogDescription>
-                </DialogHeader>
-                <div className="grid gap-4 py-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="fecha-corte-edp">Fecha de corte del informe</Label>
-                    <Input id="fecha-corte-edp" type="date" value={fechaCorteEdp} onChange={(e) => setFechaCorteEdp(e.target.value)} />
-                  </div>
-                </div>
-                <DialogFooter>
-                  <Button onClick={handleGenerarEstadoDePago} disabled={generandoEdp}>
-                    {generandoEdp ? "Generando..." : "Confirmar y Generar"}
-                  </Button>
-                </DialogFooter>
-            </DialogContent>
-          </Dialog>
-
-          <div className="mt-4 space-y-2">
-            <h4 className="text-sm font-semibold">Historial de Estados de Pago</h4>
-            {cargandoEdp ? <p className="text-xs text-muted-foreground">Cargando historial...</p> :
-            estadosDePago.length === 0 ? <p className="text-xs text-muted-foreground">No se han generado estados de pago para esta obra.</p> : (
-              <div className="border rounded-md">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Correlativo</TableHead>
-                      <TableHead>Fecha</TableHead>
-                      <TableHead className="text-right">Total</TableHead>
-                      <TableHead className="text-right">Acciones</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {estadosDePago.map(edp => (
-                      <TableRow key={edp.id}>
-                        <TableCell className="font-medium">EDP-{edp.correlativo.toString().padStart(3, '0')}</TableCell>
-                        <TableCell>{edp.fechaGeneracion}</TableCell>
-                        <TableCell className="text-right">{new Intl.NumberFormat('es-CL', { style: 'currency', currency: 'CLP' }).format(edp.total)}</TableCell>
-                        <TableCell className="text-right">
-                          <div className="flex justify-end gap-2">
-                            <Button asChild variant="outline" size="sm">
-                                <Link href={`/operaciones/programacion/estado-pago/${obraSeleccionadaId}?edpId=${edp.id}&fechaCorte=${edp.fechaDeCorte}`} target="_blank">
-                                <FileText className="mr-2 h-3 w-3" />
-                                Ver
-                                </Link>
-                            </Button>
-                            <AlertDialog>
-                                <AlertDialogTrigger asChild>
-                                    <Button variant="destructive" size="sm">
-                                        <Trash2 className="mr-2 h-3 w-3"/>
-                                        Eliminar
-                                    </Button>
-                                </AlertDialogTrigger>
-                                <AlertDialogContent>
-                                    <AlertDialogHeader>
-                                    <AlertDialogTitle>¿Está seguro de que desea eliminar este estado de pago?</AlertDialogTitle>
-                                    <AlertDialogDescription>
-                                        Esta acción no se puede deshacer. Se eliminará el registro EDP-{edp.correlativo.toString().padStart(3, '0')}} y el correlativo quedará libre.
-                                    </AlertDialogDescription>
-                                    </AlertDialogHeader>
-                                    <AlertDialogFooter>
-                                    <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                                    <AlertDialogAction
-                                        onClick={() => handleEliminarEstadoDePago(edp.id)}
-                                        className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                                    >
-                                        Eliminar
-                                    </AlertDialogAction>
-                                    </AlertDialogFooter>
-                                </AlertDialogContent>
-                            </AlertDialog>
-                          </div>
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              </div>
-            )}
-          </div>
-        </CardContent>
-      </Card>
-
     </div>
   );
 }
@@ -1024,4 +813,3 @@ export default function ProgramacionPage() {
     </Suspense>
   );
 }
-
