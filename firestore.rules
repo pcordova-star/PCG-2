@@ -1,0 +1,134 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // --- Funciones de Ayuda (Helpers) ---
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function getRole() {
+      return isSignedIn() ? request.auth.token.role : null;
+    }
+
+    function getAuthCompanyId() {
+      return isSignedIn() ? request.auth.token.companyId : null;
+    }
+
+    function isSuperAdmin() {
+      return getRole() == "SUPER_ADMIN";
+    }
+
+    // Valida si el usuario pertenece a la empresa y tiene un rol válido de empresa.
+    function isCompanyMember(companyId) {
+      return isSignedIn()
+        && getAuthCompanyId() == companyId
+        && getRole() in ["EMPRESA_ADMIN", "JEFE_OBRA", "PREVENCIONISTA", "LECTOR_CLIENTE"];
+    }
+
+    // Valida si el usuario tiene permisos de escritura sobre una obra.
+    function canWriteToObra(companyId) {
+      return isSignedIn()
+        && getAuthCompanyId() == companyId
+        && getRole() in ["EMPRESA_ADMIN", "JEFE_OBRA", "PREVENCIONISTA"];
+    }
+
+    // --- Colección Global 'users' ---
+
+    match /users/{uid} {
+      // Un usuario puede leer y actualizar su propio perfil.
+      allow read, update: if isSignedIn() && request.auth.uid == uid;
+      // El SUPER_ADMIN puede leer y escribir cualquier perfil.
+      allow read, write: if isSuperAdmin();
+    }
+
+
+    // --- Colección 'companies' y sus subcolecciones ---
+
+    match /companies/{companyId} {
+      // El doc de la empresa puede ser leído por sus miembros o por el SUPER_ADMIN.
+      // Solo el SUPER_ADMIN puede crear/editar/borrar empresas.
+      allow read: if isSuperAdmin() || isCompanyMember(companyId);
+      allow write: if isSuperAdmin();
+
+      // Subcolección de usuarios dentro de una empresa.
+      match /users/{companyUserId} {
+        // Los usuarios de la empresa pueden ver quién más está en la empresa.
+        // Solo el SUPER_ADMIN puede agregar/editar/quitar usuarios de una empresa.
+        allow read: if isSuperAdmin() || isCompanyMember(companyId);
+        allow write: if isSuperAdmin();
+      }
+
+      // Subcolección de obras dentro de una empresa.
+      match /obras/{obraId} {
+        // Los miembros de la empresa pueden leer las obras.
+        // Ciertos roles de la empresa (y el SUPER_ADMIN) pueden escribir en ellas.
+        allow read: if isSuperAdmin() || isCompanyMember(companyId);
+        allow write: if isSuperAdmin() || canWriteToObra(companyId);
+
+        // Regla genérica para TODAS las subcolecciones de una obra (avancesDiarios, presupuestos, etc.)
+        match /{subcollection}/{docId} {
+          // Hereda los mismos permisos de la obra padre.
+          allow read: if isSuperAdmin() || isCompanyMember(companyId);
+          allow write: if isSuperAdmin() || canWriteToObra(companyId);
+        }
+      }
+    }
+    
+    // --- Colecciones del Módulo de Presupuestos (a nivel raíz) ---
+
+    match /catalogoItems/{itemId} {
+      // Cualquiera autenticado puede leer el catálogo. Solo admins pueden modificarlo.
+      allow read: if isSignedIn();
+      allow write: if isSuperAdmin();
+    }
+
+    match /historialPrecios/{historialId} {
+      allow read: if isSignedIn();
+      allow write: if isSuperAdmin();
+    }
+    
+    match /presupuestos/{presupuestoId} {
+        // Para leer un presupuesto, debes ser SUPER_ADMIN o miembro de la empresa a la que pertenece el presupuesto.
+        allow read: if isSuperAdmin() || (isCompanyMember(resource.data.obraId));
+        // Para crear, actualizar o borrar un presupuesto, debes tener permisos de escritura en la obra.
+        allow write: if isSuperAdmin() || (
+            // Para creación: el companyId del token debe coincidir con el del recurso a crear.
+            (request.resource.data.obraId == getAuthCompanyId() && canWriteToObra(request.resource.data.obraId)) ||
+            // Para actualización/borrado: el companyId del token debe coincidir con el del recurso existente.
+            (resource.data.obraId == getAuthCompanyId() && canWriteToObra(resource.data.obraId))
+        );
+    }
+    
+    // --- Colecciones del Módulo de Prevención (a nivel raíz) ---
+    
+    match /iperRegistros/{iperId} {
+        allow read, write: if isSignedIn(); // Abierto por ahora para desarrollo
+    }
+    
+    match /investigacionesIncidentes/{incidenteId} {
+        allow read, write: if isSignedIn(); // Abierto por ahora para desarrollo
+    }
+    
+    match /planesAccion/{planId} {
+        allow read, write: if isSignedIn(); // Abierto por ahora para desarrollo
+    }
+    
+    match /empresasContratistas/{empresaId} {
+        allow read, write: if isSignedIn(); // Abierto por ahora para desarrollo
+    }
+
+    match /induccionesAccesoFaena/{induccionId} {
+      // Cualquiera puede crear un registro (para el acceso público con QR)
+      allow create: if true;
+      // Solo usuarios autenticados pueden leer o actualizar registros.
+      allow read, update: if isSignedIn();
+    }
+    
+    // --- Colección para envío de correos ---
+    match /mail/{mailId} {
+        allow create: if isSignedIn(); // Permite a cualquier usuario autenticado crear un documento para enviar un correo.
+    }
+  }
+}
