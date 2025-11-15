@@ -4,14 +4,14 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { ArrowLeft, Trash2, Loader2, Save } from 'lucide-react';
-import { collection, doc, getDoc, setDoc, addDoc, serverTimestamp, query, orderBy, onSnapshot } from 'firebase/firestore';
+import { collection, doc, getDoc, setDoc, addDoc, serverTimestamp, query, orderBy, getDocs } from 'firebase/firestore';
 import { firebaseDb } from '@/lib/firebaseClient';
 import { useToast } from "@/hooks/use-toast";
 import { Timestamp } from 'firebase/firestore';
