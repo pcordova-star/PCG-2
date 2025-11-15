@@ -50,7 +50,7 @@ const adminNavItems = [
 ];
 
 
-const publicPaths = ['/login/usuario', '/login/cliente', '/public/induccion'];
+const publicPaths = ['/login/usuario', '/login/cliente', '/public/induccion', '/terminos'];
 
 function MainLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
@@ -373,3 +373,5 @@ export default function RootLayout({
     </html>
   );
 }
+
+    
