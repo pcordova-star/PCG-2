@@ -18,6 +18,7 @@ import {
   FileText,
   LifeBuoy,
   ShieldAlert,
+  Building,
 } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import {
@@ -42,13 +43,19 @@ const navItems = [
   { href: '/prevencion', label: 'Prevención', icon: ShieldCheck },
 ];
 
+const adminNavItems = [
+    { href: '/admin/empresas', label: 'Gestión de Empresas', icon: Building },
+    { href: '/admin/obras', label: 'Panel Global de Obras', icon: HardHat },
+];
+
+
 const publicPaths = ['/login/usuario', '/login/cliente', '/public/induccion'];
 
 function MainLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const [isCollapsed, setIsCollapsed] = useState(false);
   const timerRef = useRef<NodeJS.Timeout | null>(null);
-  const { customClaims } = useAuth();
+  const { customClaims, loading: authLoading } = useAuth();
 
   const isSuperAdmin = customClaims?.role === 'SUPER_ADMIN';
 
@@ -89,21 +96,29 @@ function MainLayout({ children }: { children: React.ReactNode }) {
     };
   }, [pathname]);
 
-  const isPublicPage = pathname === '/' || publicPaths.some(path => pathname.startsWith(path)) || pathname.startsWith('/cliente') || pathname.startsWith('/admin');
-
+  const isPublicPage = pathname === '/' || publicPaths.some(path => pathname.startsWith(path)) || pathname.startsWith('/cliente');
+  const isAdminPage = pathname.startsWith('/admin');
+  
   if (isPublicPage) {
-    if (pathname.startsWith('/admin')) {
-      if (!isSuperAdmin) {
-        return (
+    return <>{children}</>;
+  }
+
+  if (isAdminPage) {
+    if (authLoading) {
+      return (
+          <div className="flex flex-col items-center justify-center min-h-screen">
+             <h1 className="text-2xl font-bold">Verificando permisos...</h1>
+          </div>
+        )
+    }
+    if (!isSuperAdmin) {
+       return (
           <div className="flex flex-col items-center justify-center min-h-screen">
              <h1 className="text-2xl font-bold">Acceso Denegado</h1>
              <p className="text-muted-foreground">No tienes permisos para acceder a esta sección.</p>
              <Button asChild variant="link" className="mt-4"><Link href="/dashboard">Volver al Dashboard</Link></Button>
           </div>
         )
-      }
-    } else {
-        return <>{children}</>;
     }
   }
 
@@ -139,17 +154,24 @@ function MainLayout({ children }: { children: React.ReactNode }) {
         <div className="flex-1 overflow-y-auto">
           <nav className="grid items-start px-2 text-sm font-medium lg:px-4">
             {isSuperAdmin && (
-               <Link
-                  href="/admin/empresas"
-                  className={cn(
-                    "flex items-center gap-3 rounded-lg px-3 py-3 text-muted-foreground transition-all hover:text-primary hover:bg-muted",
-                    isActive("/admin") && "bg-muted text-primary",
-                    isCollapsed && "justify-center"
-                  )}
-                >
-                  <ShieldAlert className="h-5 w-5 shrink-0" />
-                  <span className={cn("truncate", isCollapsed && "hidden")}>Panel Super Admin</span>
-                </Link>
+              <div className="my-2">
+                <p className={cn("px-3 py-2 text-xs font-semibold text-muted-foreground transition-opacity", isCollapsed && "opacity-0 hidden")}>SUPER ADMIN</p>
+                 {adminNavItems.map((item) => (
+                  <Link
+                    key={item.label}
+                    href={item.href}
+                    className={cn(
+                      "flex items-center gap-3 rounded-lg px-3 py-3 text-muted-foreground transition-all hover:text-primary hover:bg-muted",
+                      isActive(item.href) && "bg-muted text-primary",
+                      isCollapsed && "justify-center"
+                    )}
+                  >
+                    <item.icon className="h-5 w-5 shrink-0" />
+                    <span className={cn("truncate", isCollapsed && "hidden")}>{item.label}</span>
+                  </Link>
+                ))}
+                 <div className="my-2 border-t -mx-2"></div>
+              </div>
             )}
             {navItems.map((item) => (
               <Link
@@ -232,16 +254,23 @@ function MainLayout({ children }: { children: React.ReactNode }) {
                   <span>PCG 2.0</span>
                 </Link>
                 {isSuperAdmin && (
-                  <Link
-                      href="/admin/empresas"
-                      className={cn(
-                        "mx-[-0.65rem] flex items-center gap-4 rounded-xl px-3 py-2 text-muted-foreground hover:text-foreground",
-                        isActive("/admin") && "bg-muted text-foreground"
-                      )}
-                    >
-                      <ShieldAlert className="h-5 w-5" />
-                      Panel Super Admin
-                  </Link>
+                  <>
+                    <p className="px-3 py-2 text-sm font-semibold text-muted-foreground">SUPER ADMIN</p>
+                    {adminNavItems.map((item) => (
+                      <Link
+                          key={item.label}
+                          href={item.href}
+                          className={cn(
+                            "mx-[-0.65rem] flex items-center gap-4 rounded-xl px-3 py-2 text-muted-foreground hover:text-foreground",
+                            isActive(item.href) && "bg-muted text-foreground"
+                          )}
+                        >
+                          <item.icon className="h-5 w-5" />
+                          {item.label}
+                      </Link>
+                    ))}
+                     <div className="my-2 border-t -mx-3"></div>
+                  </>
                 )}
                 {navItems.map((item) => (
                   <Link
