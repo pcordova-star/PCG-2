@@ -1,5 +1,4 @@
-
-
+// src/app/operaciones/programacion/estado-pago/[obraId]/page.tsx
 "use client";
 
 import { useEffect, useState, Suspense } from 'react';
@@ -24,10 +23,11 @@ type ItemEstadoPago = {
 };
 
 type Obra = {
-  nombre: string;
-  cliente?: string;
+  nombreFaena: string;
+  clienteEmail?: string;
   direccion?: string;
-  codigo?: string;
+  id: string;
+  mandante?: string;
 };
 
 type EstadoDePagoCompleto = {
@@ -46,7 +46,6 @@ function EstadoDePagoPageInner() {
   const searchParams = useSearchParams();
   const router = useRouter();
   const edpId = searchParams.get('edpId');
-  const fechaCorteParam = searchParams.get('fechaCorte');
 
   const [obra, setObra] = useState<Obra | null>(null);
   const [estadoDePago, setEstadoDePago] = useState<EstadoDePagoCompleto | null>(null);
@@ -78,10 +77,11 @@ function EstadoDePagoPageInner() {
 
         const obraData = obraSnap.data() as any;
         setObra({
-          nombre: obraData.nombreFaena ?? 'Obra sin nombre',
-          cliente: obraData.clienteEmail ?? '',
+          id: obraSnap.id,
+          nombreFaena: obraData.nombreFaena ?? 'Obra sin nombre',
+          clienteEmail: obraData.clienteEmail ?? '',
           direccion: obraData.direccion ?? '',
-          codigo: obraId,
+          mandante: obraData.mandante ?? ''
         });
 
         // 2) Datos del Estado de Pago guardado
@@ -141,13 +141,13 @@ function EstadoDePagoPageInner() {
         <div className="flex justify-between items-start">
             <div>
                  <h1 className="text-2xl font-semibold">
-                    Estado de Pago – {obra.nombre}
+                    Estado de Pago – {obra.nombreFaena}
                 </h1>
                 <p className="text-sm text-gray-600">
-                Código obra: {obra.codigo}
+                Código obra: {obra.id}
                 </p>
-                {obra.cliente && (
-                <p className="text-sm text-gray-600">Cliente: {obra.cliente}</p>
+                {obra.clienteEmail && (
+                <p className="text-sm text-gray-600">Cliente: {obra.clienteEmail}</p>
                 )}
                 {obra.direccion && (
                 <p className="text-sm text-gray-600">Dirección: {obra.direccion}</p>
@@ -163,7 +163,7 @@ function EstadoDePagoPageInner() {
                  </Button>
                 <Button
                 onClick={handlePrint}
-                className="mt-4 px-4 py-2 rounded-md bg-blue-600 text-white text-sm hover:bg-blue-700 print:hidden"
+                className="mt-4 px-4 py-2 rounded-md bg-primary text-primary-foreground hover:bg-primary/90 print:hidden"
                 >
                 Imprimir / Exportar a PDF
                 </Button>

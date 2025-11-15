@@ -114,7 +114,7 @@
     print-color-adjust: exact;
   }
   /* Oculta elementos no deseados */
-  .no-print {
+  .no-print, .no-print * {
     display: none !important;
   }
   main {
