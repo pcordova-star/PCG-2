@@ -69,7 +69,7 @@ export default function AdminEmpresaUsuariosPage() {
             }
         };
 
-        const unsubUsers = onSnapshot(query(collection(firebaseDb, "users"), where("empresaId", "==", companyId), where("eliminado", "==", false)), (snapshot) => {
+        const unsubUsers = onSnapshot(query(collection(firebaseDb, "users"), where("empresaId", "==", companyId), where("eliminado", "!=", true)), (snapshot) => {
             const usersData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as AppUser));
             usersData.sort((a, b) => (a.nombre || '').localeCompare(b.nombre || ''));
             setUsers(usersData);
@@ -316,17 +316,19 @@ export default function AdminEmpresaUsuariosPage() {
                             <TableRow>
                                 <TableHead>Email Invitado</TableHead>
                                 <TableHead>Rol Asignado</TableHead>
+                                <TableHead>Estado</TableHead>
                                 <TableHead>Fecha</TableHead>
                                 <TableHead className="text-right">Acciones</TableHead>
                             </TableRow>
                         </TableHeader>
                         <TableBody>
                             {invitations.length === 0 ? (
-                                <TableRow><TableCell colSpan={4} className="text-center h-24">No hay invitaciones pendientes.</TableCell></TableRow>
+                                <TableRow><TableCell colSpan={5} className="text-center h-24">No hay invitaciones pendientes.</TableCell></TableRow>
                             ) : invitations.map((inv) => (
                                 <TableRow key={inv.id}>
                                     <TableCell className="font-medium">{inv.email}</TableCell>
                                     <TableCell><Badge variant="outline">{inv.roleDeseado}</Badge></TableCell>
+                                    <TableCell><Badge variant="secondary">{inv.estado}</Badge></TableCell>
                                     <TableCell>{inv.createdAt ? new Date(inv.createdAt).toLocaleDateString() : 'N/A'}</TableCell>
                                     <TableCell className="text-right">
                                       <div className="flex gap-1 justify-end">
