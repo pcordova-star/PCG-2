@@ -150,7 +150,7 @@ function MainLayout({ children }: { children: React.ReactNode }) {
                   href="/dashboard"
                   className="flex items-center gap-2 font-semibold text-primary"
                 >
-                  <PcgLogo size={32} />
+                  <PcgLogo size={40} />
                 </Link>
                  <DropdownMenu>
                   <DropdownMenuTrigger asChild>
@@ -261,7 +261,7 @@ function MainLayout({ children }: { children: React.ReactNode }) {
                       href="/dashboard"
                       className="flex items-center gap-2 text-lg font-semibold text-primary mb-4"
                     >
-                      <PcgLogo size={32} />
+                      <PcgLogo size={40} />
                     </Link>
                     {isSuperAdmin && (
                       <>
@@ -317,7 +317,7 @@ function MainLayout({ children }: { children: React.ReactNode }) {
                 </SheetContent>
               </Sheet>
                <div className="flex-1">
-                 <PcgLogo size={28} />
+                 <PcgLogo size={36} />
               </div>
                <DropdownMenu>
                 <DropdownMenuTrigger asChild>

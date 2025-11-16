@@ -4,9 +4,9 @@ interface PcgLogoProps {
   size?: number;
 }
 
-export function PcgLogo({ size = 40 }: PcgLogoProps) {
+export function PcgLogo({ size = 60 }: PcgLogoProps) {
   return (
-    <div className="flex items-center gap-2">
+    <div className="flex items-center justify-center">
        <Image
         src="/logo.png"
         alt="PCG - Plataforma de Control y Gestión"
@@ -14,9 +14,6 @@ export function PcgLogo({ size = 40 }: PcgLogoProps) {
         height={size}
         priority
       />
-      <span className="font-semibold tracking-wide text-slate-800 text-lg">
-        PCG
-      </span>
     </div>
   );
 }

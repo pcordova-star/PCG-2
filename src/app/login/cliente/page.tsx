@@ -88,7 +88,7 @@ export default function ClienteLoginPage() {
         <Card className="w-full max-w-md mx-4">
             <CardHeader className="text-center space-y-4">
                 <div className="mx-auto">
-                    <PcgLogo size={50} />
+                    <PcgLogo />
                 </div>
                 <CardTitle className="text-2xl">Portal de Clientes</CardTitle>
                 <CardDescription>
