@@ -24,15 +24,13 @@ export async function invitarUsuario({
     createdAt: serverTimestamp(),
   });
 
-  const appUrl =
-    process.env.NEXT_PUBLIC_APP_URL ?? "https://pcg-2-8bf1b.web.app";
+  const appUrl = process.env.NEXT_PUBLIC_APP_URL!;
   const baseUrl = appUrl.replace(/\/+$/, "");
   const logoUrl = `${baseUrl}/logo.png`;
   const invitationId = invitacionRef.id;
 
-  // Ajuste del link para apuntar a la nueva página de aceptación
-  const url = `${baseUrl}/aceptar-invitacion?invId=${invitationId}&email=${encodeURIComponent(emailLower)}`;
-
+  const url = `${baseUrl}/accept-invite?invId=${invitationId}&email=${encodeURIComponent(emailLower)}`;
+  
   const subject = `Has sido invitado a PCG – La nueva forma de gestionar obras`;
 
   const text = `Hola,
