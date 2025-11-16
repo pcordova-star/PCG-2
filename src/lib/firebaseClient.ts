@@ -6,12 +6,12 @@ import { getStorage } from "firebase/storage";
 import { getFunctions } from "firebase/functions";
 
 const firebaseConfig = {
-  apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY!,
-  authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN!,
-  projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID!,
-  storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET!,
-  messagingSenderId: process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID!,
-  appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID!,
+  apiKey: "AIzaSyA889p_w6kZ7A4s7R6c8d7e6f5g4h3i2j1k0",
+  authDomain: "pcg-2-8bf1b.firebaseapp.com",
+  projectId: "pcg-2-8bf1b",
+  storageBucket: "pcg-2-8bf1b.appspot.com",
+  messagingSenderId: "106794103353",
+  appId: "1:106794103353:web:9b8f1c2d3e4f5a6b7c8d9e",
 };
 
 // Evita la reinicialización en el lado del cliente con HMR de Next.js
