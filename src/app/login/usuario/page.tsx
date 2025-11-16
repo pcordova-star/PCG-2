@@ -95,7 +95,7 @@ export default function UsuarioLoginPage() {
         <Card className="w-full max-w-sm mx-4">
             <CardHeader className="text-center space-y-4">
                 <div className="mx-auto">
-                    <PcgLogo size={50}/>
+                    <PcgLogo />
                 </div>
                 <CardTitle>Acceso a Plataforma</CardTitle>
                 <CardDescription>

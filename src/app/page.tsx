@@ -15,6 +15,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { firebaseDb } from '@/lib/firebaseClient';
 import { addDoc, collection, serverTimestamp } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
+import { PcgLogo } from '@/components/branding/PcgLogo';
 
 
 const NavLink = ({ href, children }: { href: string; children: React.ReactNode }) => (
@@ -260,7 +261,9 @@ export default function WelcomePage() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex h-16 items-center justify-between">
             <div className="flex items-center gap-6">
-              <Link href="#" className="font-bold text-lg text-primary">PCG</Link>
+              <Link href="#" className="font-bold text-lg text-primary">
+                <PcgLogo size={30} />
+              </Link>
               <nav className="hidden md:flex gap-6">
                 <NavLink href="#">Producto</NavLink>
                 <NavLink href="#">Módulos</NavLink>
