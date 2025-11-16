@@ -59,6 +59,8 @@ export default function UsuarioLoginPage() {
       console.error(err);
       if (err.code === 'auth/invalid-credential') {
         setError("Credenciales inválidas. Por favor, revisa tu correo y contraseña.");
+      } else if (err.code === 'auth/too-many-requests') {
+        setError("Demasiados intentos fallidos. Por seguridad, el acceso desde este dispositivo ha sido bloqueado temporalmente. Inténtalo de nuevo más tarde.");
       } else {
         setError("Error al iniciar sesión. Intenta nuevamente más tarde.");
       }
