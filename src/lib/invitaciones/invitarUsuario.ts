@@ -27,7 +27,7 @@ export async function invitarUsuario({
   const appUrl =
     process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:9002/login";
   const baseUrl = appUrl.replace(/\/+$/, "");
-  const logoUrl = `${baseUrl}/pcg-logo.png`;
+  const logoUrl = `${baseUrl}/logo.png`;
   const url = appUrl;
   const invitationId = invitacionRef.id;
 
@@ -43,7 +43,7 @@ Incluye:
 📅 Planificación y seguimiento de obra
 📊 Control de presupuesto y avances
 🦺 Prevención de riesgos e IPER digital
-📁 …entre otros módulos.
+📁 …entre otros módulos clave para la operación diaria.
 
 Tu rol asignado: ${roleDeseado}
 
