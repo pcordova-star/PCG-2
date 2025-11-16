@@ -34,7 +34,7 @@ export default function UsuarioLoginPage() {
   useEffect(() => {
     if (!loading && user && role !== 'none') {
         if(role === 'superadmin'){
-            router.replace('/admin/empresas');
+            router.replace('/admin/dashboard');
         } else {
             router.replace('/dashboard');
         }
@@ -136,3 +136,5 @@ export default function UsuarioLoginPage() {
     </div>
   );
 }
+
+    

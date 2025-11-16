@@ -46,6 +46,7 @@ const navItems = [
 ];
 
 const adminNavItems = [
+    { href: '/admin/dashboard', label: 'Dashboard', icon: Home },
     { href: '/admin/empresas', label: 'Gestión de Empresas', icon: Building },
     { href: '/admin/obras', label: 'Panel Global de Obras', icon: HardHat },
 ];
@@ -109,7 +110,7 @@ function MainLayout({ children }: { children: React.ReactNode }) {
   }
 
   const isActive = (href: string) => {
-    if (href === '/dashboard') return pathname === '/dashboard';
+    if (href === '/dashboard' || href === '/admin/dashboard') return pathname === href;
     if (href === '/operaciones') return pathname === '/operaciones' && !pathname.startsWith('/operaciones/estados-de-pago');
     return pathname.startsWith(href);
   };
@@ -372,3 +373,5 @@ export default function RootLayout({
     </html>
   );
 }
+
+    
