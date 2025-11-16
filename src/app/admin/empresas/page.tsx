@@ -5,24 +5,44 @@ import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Badge } from '@/components/ui/badge';
-import { PlusCircle, Edit } from 'lucide-react';
+import { PlusCircle, Edit, Trash2 } from 'lucide-react';
 import Link from 'next/link';
-import { collection, addDoc, getDocs, doc, updateDoc, serverTimestamp, query, orderBy } from 'firebase/firestore';
+import { collection, addDoc, getDocs, doc, updateDoc, deleteDoc, serverTimestamp, query, orderBy, writeBatch } from 'firebase/firestore';
 import { firebaseDb } from '@/lib/firebaseClient';
 import { Company } from '@/types/pcg';
 import { useAuth } from '@/context/AuthContext';
+import { useToast } from '@/hooks/use-toast';
+
+async function deleteSubcollection(db: any, collectionPath: string) {
+    const collectionRef = collection(db, collectionPath);
+    const q = query(collectionRef);
+    const snapshot = await getDocs(q);
+
+    if (snapshot.empty) {
+        return;
+    }
+
+    const batch = writeBatch(db);
+    snapshot.docs.forEach(doc => {
+        batch.delete(doc.ref);
+    });
+
+    await batch.commit();
+}
 
 
 export default function AdminEmpresasPage() {
     const { role, loading: authLoading } = useAuth();
     const isSuperAdmin = role === 'superadmin';
     const router = useRouter();
+    const { toast } = useToast();
 
     const [empresas, setEmpresas] = useState<Company[]>([]);
     const [loading, setLoading] = useState(true);
@@ -119,6 +139,43 @@ export default function AdminEmpresasPage() {
         }
     };
 
+    const handleDelete = async (companyId: string) => {
+        if (!isSuperAdmin) {
+            toast({ variant: 'destructive', title: 'Error', description: 'No tienes permisos para eliminar empresas.' });
+            return;
+        }
+
+        try {
+            // Borrar subcolecciones de usuarios y de invitaciones (aunque invitaciones no es subcolección)
+            await deleteSubcollection(firebaseDb, `companies/${companyId}/users`);
+            // Nota: las invitaciones se pueden dejar o borrar con una query aparte si es necesario.
+
+            // Borrar subcolección de obras y sus subcolecciones anidadas
+            const obrasRef = collection(firebaseDb, `companies/${companyId}/obras`);
+            const obrasSnap = await getDocs(obrasRef);
+            for (const obraDoc of obrasSnap.docs) {
+                const obraId = obraDoc.id;
+                // Borrar subcolecciones de cada obra
+                await deleteSubcollection(firebaseDb, `companies/${companyId}/obras/${obraId}/actividades`);
+                await deleteSubcollection(firebaseDb, `companies/${companyId}/obras/${obraId}/avancesDiarios`);
+                // Añadir aquí otras subcolecciones de obra si existen
+                
+                // Borrar el documento de la obra
+                await deleteDoc(doc(firebaseDb, `companies/${companyId}/obras`, obraId));
+            }
+
+            // Finalmente, borrar el documento principal de la empresa
+            await deleteDoc(doc(firebaseDb, "companies", companyId));
+            
+            setEmpresas(prev => prev.filter(emp => emp.id !== companyId));
+            toast({ title: 'Empresa Eliminada', description: 'La empresa y todos sus datos asociados han sido eliminados.' });
+
+        } catch (err) {
+            console.error("Error deleting company and its subcollections:", err);
+            toast({ variant: 'destructive', title: 'Error', description: 'No se pudo eliminar la empresa. Revisa la consola para más detalles.' });
+        }
+    };
+
     if (authLoading || (!isSuperAdmin && !loading)) {
         return <div className="p-8 text-center text-muted-foreground">Verificando permisos...</div>;
     }
@@ -176,6 +233,27 @@ export default function AdminEmpresasPage() {
                                             <Button variant="ghost" size="icon" onClick={() => handleOpenDialog(emp)}>
                                                 <Edit className="h-4 w-4" />
                                             </Button>
+                                            <AlertDialog>
+                                                <AlertDialogTrigger asChild>
+                                                    <Button variant="ghost" size="icon" className="text-destructive hover:text-destructive">
+                                                        <Trash2 className="h-4 w-4" />
+                                                    </Button>
+                                                </AlertDialogTrigger>
+                                                <AlertDialogContent>
+                                                    <AlertDialogHeader>
+                                                        <AlertDialogTitle>¿Eliminar empresa?</AlertDialogTitle>
+                                                        <AlertDialogDescription>
+                                                            Esta acción no se puede deshacer. Se eliminará permanentemente la empresa "{emp.nombre}" y todos sus datos asociados (usuarios, obras, etc.).
+                                                        </AlertDialogDescription>
+                                                    </AlertDialogHeader>
+                                                    <AlertDialogFooter>
+                                                        <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                                                        <AlertDialogAction onClick={() => handleDelete(emp.id!)} className="bg-destructive hover:bg-destructive/90">
+                                                            Eliminar Permanentemente
+                                                        </AlertDialogAction>
+                                                    </AlertDialogFooter>
+                                                </AlertDialogContent>
+                                            </AlertDialog>
                                         </div>
                                     </TableCell>
                                 </TableRow>
