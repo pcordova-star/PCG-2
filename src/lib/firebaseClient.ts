@@ -14,7 +14,6 @@ const firebaseConfig = {
   appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID!,
 };
 
-
 // Evita la reinicialización en el lado del cliente con HMR de Next.js
 const app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
 
