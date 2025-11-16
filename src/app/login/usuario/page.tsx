@@ -11,6 +11,7 @@ import { Label } from "@/components/ui/label";
 import Link from 'next/link';
 import { Loader2 } from "lucide-react";
 import TermsAcceptance from "@/components/auth/TermsAcceptance";
+import { PcgLogo } from "@/components/branding/PcgLogo";
 
 const TERMS_ACCEPTANCE_KEY = "pcg_terms_accepted";
 
@@ -54,10 +55,15 @@ export default function UsuarioLoginPage() {
       // Guardar la aceptación de términos en localStorage después de un login exitoso
       localStorage.setItem(TERMS_ACCEPTANCE_KEY, "true");
       // La redirección se maneja con el useEffect
-    } catch (err) {
+    } catch (err: any) {
       console.error(err);
-      setError("Error al iniciar sesión. Revisa tu correo y contraseña.");
-      setIsLoggingIn(false);
+      if (err.code === 'auth/invalid-credential') {
+        setError("Credenciales inválidas. Por favor, revisa tu correo y contraseña.");
+      } else {
+        setError("Error al iniciar sesión. Intenta nuevamente más tarde.");
+      }
+    } finally {
+        setIsLoggingIn(false);
     }
   }
 
@@ -85,7 +91,10 @@ export default function UsuarioLoginPage() {
   return (
     <div className="flex items-center justify-center min-h-screen bg-muted/40">
         <Card className="w-full max-w-sm mx-4">
-            <CardHeader className="text-center">
+            <CardHeader className="text-center space-y-4">
+                <div className="mx-auto">
+                    <PcgLogo size={50}/>
+                </div>
                 <CardTitle>Acceso a Plataforma</CardTitle>
                 <CardDescription>
                     Ingresa con tu correo y contraseña de la empresa.
