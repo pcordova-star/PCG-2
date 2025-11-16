@@ -269,7 +269,7 @@ export default function AdminEmpresasPage() {
                         <DialogHeader>
                             <DialogTitle>{currentCompany?.id ? "Editar Empresa" : "Crear Nueva Empresa"}</DialogTitle>
                         </DialogHeader>
-                        <div className="py-4 grid gap-4">
+                        <div className="grid gap-4 py-4">
                             <div className="space-y-2">
                                 <Label htmlFor="nombre">Nombre*</Label>
                                 <Input id="nombre" name="nombre" value={currentCompany?.nombre || ''} onChange={handleFormChange} />
