@@ -1,24 +1,27 @@
+// src/app/admin/empresas/[companyId]/usuarios/page.tsx
 "use client";
 
 import React, { useState, useEffect, FormEvent } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
-import { PlusCircle, ArrowLeft, Loader2, Trash2 } from 'lucide-react';
+import { PlusCircle, ArrowLeft, Loader2, Trash2, Edit, UserX, UserCheck, RefreshCw } from 'lucide-react';
 import Link from 'next/link';
-import { collection, doc, getDoc, query, orderBy, where, addDoc, serverTimestamp, updateDoc, onSnapshot } from 'firebase/firestore';
+import { collection, doc, getDoc, query, orderBy, where, addDoc, serverTimestamp, updateDoc, onSnapshot, writeBatch } from 'firebase/firestore';
 import { firebaseDb } from '@/lib/firebaseClient';
-import { Company, CompanyUser, UserInvitation, RolInvitado } from '@/types/pcg';
+import { Company, CompanyUser, UserInvitation, RolInvitado, AppUser } from '@/types/pcg';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/context/AuthContext';
 import { invitarUsuario } from '@/lib/invitaciones/invitarUsuario';
+import { Switch } from '@/components/ui/switch';
+import { cn } from '@/lib/utils';
 
 
 export default function AdminEmpresaUsuariosPage() {
@@ -29,15 +32,14 @@ export default function AdminEmpresaUsuariosPage() {
     const { toast } = useToast();
 
     const [company, setCompany] = useState<Company | null>(null);
-    const [users, setUsers] = useState<CompanyUser[]>([]);
+    const [users, setUsers] = useState<AppUser[]>([]);
     const [invitations, setInvitations] = useState<UserInvitation[]>([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
 
     const [dialogOpen, setDialogOpen] = useState(false);
-    const [newInvitation, setNewInvitation] = useState<{ email: string, roleDeseado: RolInvitado }>({ email: '', roleDeseado: 'cliente' });
+    const [currentUser, setCurrentUser] = useState<Partial<AppUser> & { isInvitation?: boolean } | null>(null);
     const [isSaving, setIsSaving] = useState(false);
-    const [formError, setFormError] = useState<string | null>(null);
 
     const isSuperAdmin = role === "superadmin";
 
@@ -67,13 +69,13 @@ export default function AdminEmpresaUsuariosPage() {
             }
         };
 
-        const unsubUsers = onSnapshot(query(collection(firebaseDb, "users"), where("empresaId", "==", companyId)), (snapshot) => {
-            const usersData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as CompanyUser));
+        const unsubUsers = onSnapshot(query(collection(firebaseDb, "users"), where("empresaId", "==", companyId), where("eliminado", "==", false)), (snapshot) => {
+            const usersData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as AppUser));
             usersData.sort((a, b) => (a.nombre || '').localeCompare(b.nombre || ''));
             setUsers(usersData);
         });
 
-        const unsubInvitations = onSnapshot(query(collection(firebaseDb, "invitacionesUsuarios"), where("empresaId", "==", companyId), orderBy("empresaId", "desc")), (snapshot) => {
+        const unsubInvitations = onSnapshot(query(collection(firebaseDb, "invitacionesUsuarios"), where("empresaId", "==", companyId), orderBy("createdAt", "desc")), (snapshot) => {
             const invitationsData = snapshot.docs.map(doc => {
                 const data = doc.data();
                 return {
@@ -82,7 +84,7 @@ export default function AdminEmpresaUsuariosPage() {
                     createdAt: data.createdAt?.toDate(),
                 } as UserInvitation;
             });
-            setInvitations(invitationsData);
+            setInvitations(invitationsData.filter(inv => inv.estado === 'pendiente'));
         });
         
         Promise.all([fetchCompanyData()]).finally(() => setLoading(false));
@@ -93,60 +95,87 @@ export default function AdminEmpresaUsuariosPage() {
         };
     }, [isSuperAdmin, companyId]);
 
-    const handleOpenDialog = () => {
-        setNewInvitation({ email: '', roleDeseado: 'cliente' });
+    const handleOpenDialog = (data: Partial<AppUser> | Partial<UserInvitation> | null = null, isInvitation: boolean = false) => {
+        if (data) {
+            setCurrentUser({ ...data, isInvitation });
+        } else {
+            setCurrentUser({
+                email: '',
+                role: 'cliente',
+                nombre: '',
+                isInvitation: true
+            });
+        }
         setDialogOpen(true);
-        setFormError(null);
     };
 
-    const handleFormChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-        const { name, value } = e.target;
-        setNewInvitation({ ...newInvitation, [name]: value });
-    };
-    
-    const handleSelectChange = (value: RolInvitado) => {
-        setNewInvitation({ ...newInvitation, roleDeseado: value });
-    };
-
-    const handleInviteSubmit = async (e: FormEvent) => {
+    const handleFormSubmit = async (e: FormEvent) => {
         e.preventDefault();
-        if (!user || !isSuperAdmin) {
-            setFormError("No tienes permisos para realizar esta acción.");
-            return;
-        }
-        if (!company) {
-            setFormError("No se ha cargado la información de la empresa.");
-            return;
-        }
-        if (!newInvitation.email) {
-            setFormError("El email es obligatorio.");
+        if (!user || !isSuperAdmin || !currentUser) {
+            setError("No tienes permisos para realizar esta acción.");
             return;
         }
 
         setIsSaving(true);
-        setFormError(null);
+        setError(null);
 
         try {
-            await invitarUsuario({
-              email: newInvitation.email,
-              empresaId: company.id,
-              empresaNombre: company.nombre,
-              roleDeseado: newInvitation.roleDeseado,
-            });
-
-            toast({
-                title: "Invitación Enviada",
-                description: `Se ha enviado una invitación por correo a ${newInvitation.email}.`
-            });
-
+            if (currentUser.isInvitation && !currentUser.id) { // Es una nueva invitación
+                if (!company) throw new Error("No se ha cargado la empresa");
+                if (!currentUser.email) throw new Error("El email es obligatorio.");
+                await invitarUsuario({
+                    email: currentUser.email!,
+                    empresaId: company.id,
+                    empresaNombre: company.nombre,
+                    roleDeseado: currentUser.role as RolInvitado,
+                });
+                toast({ title: "Invitación Enviada", description: `Se ha enviado una invitación por correo a ${currentUser.email}.` });
+            } else if (currentUser.isInvitation && currentUser.id) { // Editando una invitación pendiente
+                 const batch = writeBatch(firebaseDb);
+                 const invRef = doc(firebaseDb, "invitacionesUsuarios", currentUser.id);
+                 batch.update(invRef, { email: currentUser.email, roleDeseado: currentUser.role });
+                 await batch.commit();
+                 toast({ title: "Invitación Actualizada", description: "Los datos de la invitación han sido actualizados." });
+            } else { // Editando un usuario existente
+                if (!currentUser.id) throw new Error("ID de usuario no encontrado.");
+                const userRef = doc(firebaseDb, "users", currentUser.id);
+                await updateDoc(userRef, {
+                    nombre: currentUser.nombre,
+                    role: currentUser.role,
+                    activo: currentUser.activo,
+                });
+                toast({ title: "Usuario Actualizado", description: `Los datos de ${currentUser.nombre} han sido actualizados.` });
+            }
             setDialogOpen(false);
         } catch (err: any) {
-            console.error("Error sending invitation:", err);
-            setFormError(err.message || "No se pudo enviar la invitación. Intente de nuevo.");
+            console.error("Error al guardar:", err);
+            setError(err.message || "No se pudo guardar la información.");
         } finally {
             setIsSaving(false);
         }
     };
+    
+    const handleToggleActivo = async (userToUpdate: AppUser) => {
+        try {
+            const userRef = doc(firebaseDb, "users", userToUpdate.id!);
+            await updateDoc(userRef, { activo: !userToUpdate.activo });
+            toast({ title: `Usuario ${userToUpdate.activo ? 'Desactivado' : 'Activado'}`, description: `${userToUpdate.nombre} ha sido ${userToUpdate.activo ? 'desactivado' : 'activado'}.` });
+        } catch(err) {
+            console.error("Error toggling user status:", err);
+            toast({ variant: 'destructive', title: "Error", description: "No se pudo cambiar el estado del usuario." });
+        }
+    }
+    
+    const handleDeleteUser = async (userToDelete: AppUser) => {
+        try {
+            const userRef = doc(firebaseDb, "users", userToDelete.id!);
+            await updateDoc(userRef, { eliminado: true, eliminadoAt: serverTimestamp() });
+            toast({ title: "Usuario Eliminado", description: `${userToDelete.nombre} ha sido marcado como eliminado.` });
+        } catch(err) {
+            console.error("Error deleting user:", err);
+            toast({ variant: 'destructive', title: "Error", description: "No se pudo eliminar el usuario." });
+        }
+    }
 
     const handleRevokeInvitation = async (invitationId: string) => {
         try {
@@ -156,6 +185,21 @@ export default function AdminEmpresaUsuariosPage() {
         } catch (err) {
             console.error("Error revoking invitation:", err);
             toast({ variant: 'destructive', title: "Error", description: "No se pudo revocar la invitación." });
+        }
+    }
+    
+    const handleResendInvitation = async (inv: UserInvitation) => {
+        if (!company) return;
+        try {
+            await invitarUsuario({
+                email: inv.email,
+                empresaId: company.id,
+                empresaNombre: company.nombre,
+                roleDeseado: inv.roleDeseado,
+            });
+            toast({ title: "Invitación Reenviada", description: `Se ha reenviado la invitación a ${inv.email}.` });
+        } catch (err: any) {
+             toast({ variant: 'destructive', title: "Error", description: "No se pudo reenviar la invitación." });
         }
     }
     
@@ -181,7 +225,7 @@ export default function AdminEmpresaUsuariosPage() {
                     <h1 className="text-2xl font-bold">Usuarios de {company?.nombre}</h1>
                     <p className="text-muted-foreground">Administra los usuarios e invitaciones para esta empresa.</p>
                 </div>
-                <Button onClick={handleOpenDialog}>
+                <Button onClick={() => handleOpenDialog(null, true)}>
                     <PlusCircle className="mr-2 h-4 w-4" />
                     Invitar Usuario
                 </Button>
@@ -198,19 +242,59 @@ export default function AdminEmpresaUsuariosPage() {
                                 <TableHead>Nombre</TableHead>
                                 <TableHead>Email</TableHead>
                                 <TableHead>Rol</TableHead>
+                                <TableHead>Estado</TableHead>
                                 <TableHead className="text-right">Acciones</TableHead>
                             </TableRow>
                         </TableHeader>
                         <TableBody>
                             {users.length === 0 ? (
-                                <TableRow><TableCell colSpan={4} className="text-center h-24">No hay usuarios activos en esta empresa.</TableCell></TableRow>
-                            ) : users.map((user) => (
-                                <TableRow key={user.id}>
-                                    <TableCell className="font-medium">{user.nombre}</TableCell>
-                                    <TableCell>{user.email}</TableCell>
-                                    <TableCell><Badge variant="secondary">{user.role}</Badge></TableCell>
+                                <TableRow><TableCell colSpan={5} className="text-center h-24">No hay usuarios activos en esta empresa.</TableCell></TableRow>
+                            ) : users.map((u) => (
+                                <TableRow key={u.id} className={cn(!u.activo && "text-muted-foreground opacity-60")}>
+                                    <TableCell className="font-medium">{u.nombre}</TableCell>
+                                    <TableCell>{u.email}</TableCell>
+                                    <TableCell><Badge variant="secondary">{u.role}</Badge></TableCell>
+                                    <TableCell><Badge variant={u.activo ? 'default' : 'destructive'}>{u.activo ? 'Activo' : 'Inactivo'}</Badge></TableCell>
                                     <TableCell className="text-right">
-                                        {/* Botones de Editar/Eliminar irían aquí */}
+                                       <div className="flex gap-1 justify-end">
+                                            <Button variant="ghost" size="icon" onClick={() => handleOpenDialog(u, false)}><Edit className="h-4 w-4" /></Button>
+                                            <AlertDialog>
+                                                <AlertDialogTrigger asChild>
+                                                    <Button variant="ghost" size="icon" className={cn(u.activo ? 'text-yellow-600' : 'text-green-600')}>
+                                                        {u.activo ? <UserX className="h-4 w-4" /> : <UserCheck className="h-4 w-4" />}
+                                                    </Button>
+                                                </AlertDialogTrigger>
+                                                <AlertDialogContent>
+                                                    <AlertDialogHeader>
+                                                        <AlertDialogTitle>¿{u.activo ? 'Desactivar' : 'Reactivar'} usuario?</AlertDialogTitle>
+                                                        <AlertDialogDescription>
+                                                            Al {u.activo ? 'desactivar' : 'reactivar'} a {u.nombre}, {u.activo ? 'no podrá' : 'podrá'} iniciar sesión.
+                                                        </AlertDialogDescription>
+                                                    </AlertDialogHeader>
+                                                    <AlertDialogFooter>
+                                                        <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                                                        <AlertDialogAction onClick={() => handleToggleActivo(u)}>{u.activo ? 'Desactivar' : 'Reactivar'}</AlertDialogAction>
+                                                    </AlertDialogFooter>
+                                                </AlertDialogContent>
+                                            </AlertDialog>
+                                            <AlertDialog>
+                                                <AlertDialogTrigger asChild>
+                                                    <Button variant="ghost" size="icon" className="text-destructive"><Trash2 className="h-4 w-4" /></Button>
+                                                </AlertDialogTrigger>
+                                                <AlertDialogContent>
+                                                    <AlertDialogHeader>
+                                                        <AlertDialogTitle>¿Eliminar usuario?</AlertDialogTitle>
+                                                        <AlertDialogDescription>
+                                                            Esta acción marcará al usuario {u.nombre} como eliminado y no aparecerá en las listas. No se puede deshacer.
+                                                        </AlertDialogDescription>
+                                                    </AlertDialogHeader>
+                                                    <AlertDialogFooter>
+                                                        <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                                                        <AlertDialogAction onClick={() => handleDeleteUser(u)} className="bg-destructive hover:bg-destructive/90">Eliminar</AlertDialogAction>
+                                                    </AlertDialogFooter>
+                                                </AlertDialogContent>
+                                            </AlertDialog>
+                                       </div>
                                     </TableCell>
                                 </TableRow>
                             ))}
@@ -221,7 +305,7 @@ export default function AdminEmpresaUsuariosPage() {
 
             <Card>
                 <CardHeader>
-                    <CardTitle>Invitaciones Enviadas</CardTitle>
+                    <CardTitle>Invitaciones Pendientes</CardTitle>
                 </CardHeader>
                 <CardContent>
                     <Table>
@@ -229,48 +313,40 @@ export default function AdminEmpresaUsuariosPage() {
                             <TableRow>
                                 <TableHead>Email Invitado</TableHead>
                                 <TableHead>Rol Asignado</TableHead>
-                                <TableHead>Estado</TableHead>
                                 <TableHead>Fecha</TableHead>
                                 <TableHead className="text-right">Acciones</TableHead>
                             </TableRow>
                         </TableHeader>
                         <TableBody>
                             {invitations.length === 0 ? (
-                                <TableRow><TableCell colSpan={5} className="text-center h-24">No hay invitaciones para esta empresa.</TableCell></TableRow>
+                                <TableRow><TableCell colSpan={4} className="text-center h-24">No hay invitaciones pendientes.</TableCell></TableRow>
                             ) : invitations.map((inv) => (
                                 <TableRow key={inv.id}>
                                     <TableCell className="font-medium">{inv.email}</TableCell>
                                     <TableCell><Badge variant="outline">{inv.roleDeseado}</Badge></TableCell>
-                                    <TableCell>
-                                        <Badge variant={inv.estado === 'pendiente' ? 'default' : inv.estado === 'aceptada' ? 'secondary' : 'destructive'}>
-                                            {inv.estado}
-                                        </Badge>
-                                    </TableCell>
                                     <TableCell>{inv.createdAt ? new Date(inv.createdAt).toLocaleDateString() : 'N/A'}</TableCell>
                                     <TableCell className="text-right">
-                                        {inv.estado === 'pendiente' && (
-                                            <AlertDialog>
-                                                <AlertDialogTrigger asChild>
-                                                    <Button variant="ghost" size="sm" className="text-destructive">
-                                                        <Trash2 className="mr-2 h-4 w-4" /> Revocar
-                                                    </Button>
-                                                </AlertDialogTrigger>
-                                                <AlertDialogContent>
-                                                    <AlertDialogHeader>
-                                                        <AlertDialogTitle>¿Revocar invitación?</AlertDialogTitle>
-                                                        <AlertDialogDescription>
-                                                            La invitación para {inv.email} será invalidada y no podrá ser usada para registrarse.
-                                                        </AlertDialogDescription>
-                                                    </AlertDialogHeader>
-                                                    <AlertDialogFooter>
-                                                        <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                                                        <AlertDialogAction onClick={() => handleRevokeInvitation(inv.id!)} className="bg-destructive hover:bg-destructive/90">
-                                                            Revocar
-                                                        </AlertDialogAction>
-                                                    </AlertDialogFooter>
-                                                </AlertDialogContent>
-                                            </AlertDialog>
-                                        )}
+                                      <div className="flex gap-1 justify-end">
+                                        <Button variant="ghost" size="icon" onClick={() => handleOpenDialog(inv, true)}><Edit className="h-4 w-4" /></Button>
+                                        <Button variant="ghost" size="icon" onClick={() => handleResendInvitation(inv)}><RefreshCw className="h-4 w-4" /></Button>
+                                        <AlertDialog>
+                                            <AlertDialogTrigger asChild>
+                                                <Button variant="ghost" size="icon" className="text-destructive">
+                                                    <Trash2 className="h-4 w-4" />
+                                                </Button>
+                                            </AlertDialogTrigger>
+                                            <AlertDialogContent>
+                                                <AlertDialogHeader>
+                                                    <AlertDialogTitle>¿Revocar invitación?</AlertDialogTitle>
+                                                    <AlertDialogDescription>La invitación para {inv.email} será invalidada y no podrá ser usada.</AlertDialogDescription>
+                                                </AlertDialogHeader>
+                                                <AlertDialogFooter>
+                                                    <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                                                    <AlertDialogAction onClick={() => handleRevokeInvitation(inv.id!)} className="bg-destructive hover:bg-destructive/90">Revocar</AlertDialogAction>
+                                                </AlertDialogFooter>
+                                            </AlertDialogContent>
+                                        </AlertDialog>
+                                      </div>
                                     </TableCell>
                                 </TableRow>
                             ))}
@@ -281,21 +357,29 @@ export default function AdminEmpresaUsuariosPage() {
 
             <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
                 <DialogContent>
-                    <form onSubmit={handleInviteSubmit}>
+                    <form onSubmit={handleFormSubmit}>
                         <DialogHeader>
-                            <DialogTitle>Invitar Usuario a {company?.nombre}</DialogTitle>
+                            <DialogTitle>{currentUser?.id ? "Editar Usuario / Invitación" : "Invitar Nuevo Usuario"}</DialogTitle>
+                             <DialogDescription>
+                                {currentUser?.isInvitation ? "Completa los datos para enviar o modificar una invitación." : "Modifica los datos del usuario."}
+                            </DialogDescription>
                         </DialogHeader>
                         <div className="py-4 grid gap-4">
                              <div className="space-y-2">
-                                <Label htmlFor="email">Email del invitado*</Label>
-                                <Input id="email" name="email" type="email" value={newInvitation.email || ''} onChange={handleFormChange} />
+                                <Label htmlFor="email">Email del usuario*</Label>
+                                <Input id="email" name="email" type="email" value={currentUser?.email || ''} onChange={e => setCurrentUser(prev => ({...prev, email: e.target.value}))} disabled={!currentUser?.isInvitation} />
+                                {!currentUser?.isInvitation && <p className='text-xs text-muted-foreground'>El email no se puede cambiar para usuarios existentes.</p>}
                             </div>
+                             {!currentUser?.isInvitation && (
+                                <div className="space-y-2">
+                                    <Label htmlFor="nombre">Nombre*</Label>
+                                    <Input id="nombre" name="nombre" value={currentUser?.nombre || ''} onChange={e => setCurrentUser(prev => ({...prev, nombre: e.target.value}))} />
+                                </div>
+                            )}
                             <div className="space-y-2">
-                                <Label htmlFor="roleDeseado">Rol en la Empresa</Label>
-                                <Select value={newInvitation.roleDeseado || 'cliente'} onValueChange={handleSelectChange}>
-                                    <SelectTrigger id="roleDeseado">
-                                        <SelectValue placeholder="Seleccione un rol" />
-                                    </SelectTrigger>
+                                <Label htmlFor="role">Rol en la Empresa</Label>
+                                <Select value={currentUser?.role || 'cliente'} onValueChange={v => setCurrentUser(prev => ({...prev, role: v as RolInvitado}))}>
+                                    <SelectTrigger id="role"><SelectValue placeholder="Seleccione un rol" /></SelectTrigger>
                                     <SelectContent>
                                         <SelectItem value="admin_empresa">Admin Empresa</SelectItem>
                                         <SelectItem value="jefe_obra">Jefe de Obra</SelectItem>
@@ -304,13 +388,19 @@ export default function AdminEmpresaUsuariosPage() {
                                     </SelectContent>
                                 </Select>
                             </div>
-                            {formError && <p className="text-sm font-medium text-destructive">{formError}</p>}
+                             {!currentUser?.isInvitation && (
+                                 <div className="flex items-center space-x-2 pt-2">
+                                    <Switch id="activo" checked={currentUser?.activo ?? true} onCheckedChange={c => setCurrentUser(prev => ({...prev, activo: c}))}/>
+                                    <Label htmlFor="activo">Usuario Activo</Label>
+                                 </div>
+                             )}
+                            {error && <p className="text-sm font-medium text-destructive">{error}</p>}
                         </div>
                         <DialogFooter>
                             <Button type="button" variant="ghost" onClick={() => setDialogOpen(false)}>Cancelar</Button>
                             <Button type="submit" disabled={isSaving}>
                                 {isSaving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                                {isSaving ? "Enviando..." : "Enviar Invitación"}
+                                {isSaving ? "Guardando..." : "Guardar Cambios"}
                             </Button>
                         </DialogFooter>
                     </form>

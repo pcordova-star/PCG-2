@@ -44,6 +44,9 @@ export interface AppUser {
   role: UserRole | "none";
   empresaId: string | null;
   createdAt: Date | Timestamp;
+  activo?: boolean;
+  eliminado?: boolean;
+  eliminadoAt?: Date | Timestamp;
 }
 
 
