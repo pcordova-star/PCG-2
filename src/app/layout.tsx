@@ -34,6 +34,7 @@ import { Input } from '@/components/ui/input';
 import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
 import React, { useState, useEffect, useRef } from 'react';
 import { cn } from '@/lib/utils';
+import { PcgLogo } from '@/components/branding/PcgLogo';
 
 
 const navItems = [
@@ -50,7 +51,7 @@ const adminNavItems = [
 ];
 
 
-const publicPaths = ['/login/usuario', '/login/cliente', '/public/induccion', '/terminos'];
+const publicPaths = ['/login/usuario', '/login/cliente', '/public/induccion', '/terminos', '/accept-invite'];
 
 function MainLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
@@ -149,8 +150,7 @@ function MainLayout({ children }: { children: React.ReactNode }) {
                   href="/dashboard"
                   className="flex items-center gap-2 font-semibold text-primary"
                 >
-                  <HardHat className="h-6 w-6 shrink-0" />
-                  <span className={cn("transition-opacity", isCollapsed && "opacity-0 hidden")}>PCG 2.0</span>
+                  <PcgLogo size={32} />
                 </Link>
                  <DropdownMenu>
                   <DropdownMenuTrigger asChild>
@@ -261,8 +261,7 @@ function MainLayout({ children }: { children: React.ReactNode }) {
                       href="/dashboard"
                       className="flex items-center gap-2 text-lg font-semibold text-primary mb-4"
                     >
-                      <HardHat className="h-6 w-6" />
-                      <span>PCG 2.0</span>
+                      <PcgLogo size={32} />
                     </Link>
                     {isSuperAdmin && (
                       <>
@@ -318,7 +317,7 @@ function MainLayout({ children }: { children: React.ReactNode }) {
                 </SheetContent>
               </Sheet>
                <div className="flex-1">
-                <h1 className="text-lg font-semibold text-muted-foreground">PCG 2.0</h1>
+                 <PcgLogo size={28} />
               </div>
                <DropdownMenu>
                 <DropdownMenuTrigger asChild>
