@@ -25,7 +25,7 @@ export async function invitarUsuario({
   });
 
   const appUrl =
-    process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:9002";
+    process.env.NEXT_PUBLIC_APP_URL ?? "https://pcg-2-8bf1b.web.app";
   const baseUrl = appUrl.replace(/\/+$/, "");
   const logoUrl = `${baseUrl}/logo.png`;
   const invitationId = invitacionRef.id;
