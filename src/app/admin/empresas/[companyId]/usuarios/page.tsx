@@ -75,7 +75,7 @@ export default function AdminEmpresaUsuariosPage() {
             setUsers(usersData);
         });
 
-        const unsubInvitations = onSnapshot(query(collection(firebaseDb, "invitacionesUsuarios"), where("empresaId", "==", companyId), orderBy("createdAt", "desc")), (snapshot) => {
+        const unsubInvitations = onSnapshot(query(collection(firebaseDb, "invitacionesUsuarios"), where("empresaId", "==", companyId)), (snapshot) => {
             const invitationsData = snapshot.docs.map(doc => {
                 const data = doc.data();
                 return {
@@ -84,7 +84,10 @@ export default function AdminEmpresaUsuariosPage() {
                     createdAt: data.createdAt?.toDate(),
                 } as UserInvitation;
             });
-            setInvitations(invitationsData.filter(inv => inv.estado === 'pendiente'));
+            const sortedInvitations = invitationsData
+              .filter(inv => inv.estado === 'pendiente')
+              .sort((a, b) => (b.createdAt?.getTime() || 0) - (a.createdAt?.getTime() || 0));
+            setInvitations(sortedInvitations);
         });
         
         Promise.all([fetchCompanyData()]).finally(() => setLoading(false));
