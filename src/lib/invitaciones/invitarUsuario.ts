@@ -25,11 +25,13 @@ export async function invitarUsuario({
   });
 
   const appUrl =
-    process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:9002/login";
+    process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:9002";
   const baseUrl = appUrl.replace(/\/+$/, "");
   const logoUrl = `${baseUrl}/logo.png`;
-  const url = appUrl;
   const invitationId = invitacionRef.id;
+
+  // Ajuste del link para apuntar a la nueva página de aceptación
+  const url = `${baseUrl}/aceptar-invitacion?invId=${invitationId}&email=${encodeURIComponent(emailLower)}`;
 
   const subject = `Has sido invitado a PCG – La nueva forma de gestionar obras`;
 
@@ -37,13 +39,13 @@ export async function invitarUsuario({
 
 Has sido invitado a unirte a PCG por la empresa ${empresaNombre}.
 
-PCG es una plataforma diseñada para gestionar la obra de forma simple, segura y trazable.
+PCG es una plataforma diseñada para gestionar la obra de forma simple, segura y trazable. 
 Incluye:
 
 📅 Planificación y seguimiento de obra
 📊 Control de presupuesto y avances
 🦺 Prevención de riesgos e IPER digital
-📁 …entre otros módulos clave para la operación diaria.
+📁 …entre otros módulos.
 
 Tu rol asignado: ${roleDeseado}
 
@@ -90,7 +92,7 @@ Bienvenido a PCG.`;
     <a href="${url}" 
        style="background:#1e88e5; color:white; padding:12px 22px; 
               border-radius:6px; text-decoration:none; font-weight:bold; display:inline-block;">
-      Entrar a PCG
+      Aceptar invitación y crear cuenta
     </a>
   </p>
 
