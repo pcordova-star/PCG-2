@@ -5,7 +5,7 @@ import { useParams } from 'next/navigation';
 import { doc, getDoc } from 'firebase/firestore';
 import { firebaseDb } from '@/lib/firebaseClient';
 import { Button } from '@/components/ui/button';
-import { InduccionAccesoFaena } from '@/lib/induccionAccesoFaena';
+import { InduccionAccesoFaena } from '@/lib/prevencionEventos';
 
 // Interfaz para los datos de la obra (ajusta según tu modelo de datos)
 interface Obra {
