@@ -14,16 +14,15 @@ import { Badge } from '@/components/ui/badge';
 import { PlusCircle, ArrowLeft, Loader2, Trash2 } from 'lucide-react';
 import Link from 'next/link';
 import { collection, doc, getDoc, query, orderBy, where, addDoc, serverTimestamp, updateDoc, onSnapshot } from 'firebase/firestore';
-import { firebaseAuth, firebaseDb } from '@/lib/firebaseClient';
-import { Company, CompanyUser, UserInvitation } from '@/types/pcg';
+import { firebaseDb } from '@/lib/firebaseClient';
+import { Company, CompanyUser, UserInvitation, RolInvitado } from '@/types/pcg';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/context/AuthContext';
-import { sendSignInLinkToEmail } from 'firebase/auth';
+import { invitarUsuario } from '@/lib/invitaciones/invitarUsuario';
 
 
 export default function AdminEmpresaUsuariosPage() {
     const { user, role, loading: authLoading } = useAuth();
-    const isSuperAdmin = role === 'superadmin';
     const router = useRouter();
     const params = useParams();
     const companyId = params.companyId as string;
@@ -36,9 +35,11 @@ export default function AdminEmpresaUsuariosPage() {
     const [error, setError] = useState<string | null>(null);
 
     const [dialogOpen, setDialogOpen] = useState(false);
-    const [newInvitation, setNewInvitation] = useState<{ email: string, roleDeseado: "admin_empresa" | "jefe_obra" | "prevencionista" | "cliente" }>({ email: '', roleDeseado: 'cliente' });
+    const [newInvitation, setNewInvitation] = useState<{ email: string, roleDeseado: RolInvitado }>({ email: '', roleDeseado: 'cliente' });
     const [isSaving, setIsSaving] = useState(false);
     const [formError, setFormError] = useState<string | null>(null);
+
+    const isSuperAdmin = role === "superadmin";
 
     useEffect(() => {
         if (!authLoading && !isSuperAdmin) {
@@ -103,7 +104,7 @@ export default function AdminEmpresaUsuariosPage() {
         setNewInvitation({ ...newInvitation, [name]: value });
     };
     
-    const handleSelectChange = (value: "admin_empresa" | "jefe_obra" | "prevencionista" | "cliente") => {
+    const handleSelectChange = (value: RolInvitado) => {
         setNewInvitation({ ...newInvitation, roleDeseado: value });
     };
 
@@ -111,6 +112,10 @@ export default function AdminEmpresaUsuariosPage() {
         e.preventDefault();
         if (!user || !isSuperAdmin) {
             setFormError("No tienes permisos para realizar esta acción.");
+            return;
+        }
+        if (!company) {
+            setFormError("No se ha cargado la información de la empresa.");
             return;
         }
         if (!newInvitation.email) {
@@ -122,34 +127,16 @@ export default function AdminEmpresaUsuariosPage() {
         setFormError(null);
 
         try {
-            const email = newInvitation.email.toLowerCase().trim();
-            // 1. Guardar la invitación en Firestore
-            const invitationsRef = collection(firebaseDb, "invitacionesUsuarios");
-            const invitationDocRef = await addDoc(invitationsRef, {
-                email: email,
-                empresaId: companyId,
-                roleDeseado: newInvitation.roleDeseado,
-                estado: "pendiente",
-                creadoPorUid: user.uid,
-                createdAt: serverTimestamp(),
+            await invitarUsuario({
+              email: newInvitation.email,
+              empresaId: company.id,
+              empresaNombre: company.nombre,
+              roleDeseado: newInvitation.roleDeseado,
             });
-
-            // 2. Enviar el correo de invitación con Firebase Auth
-            const actionCodeSettings = {
-              // La URL que el usuario abrirá después de hacer clic en el enlace de correo.
-              // Debe incluir el ID de la invitación para poder procesarla.
-              url: `${window.location.origin}/accept-invite?invId=${invitationDocRef.id}`,
-              handleCodeInApp: true,
-            };
-
-            await sendSignInLinkToEmail(firebaseAuth, email, actionCodeSettings);
-
-            // Guardar el correo en localStorage para el flujo de UX en el mismo navegador
-            window.localStorage.setItem('emailForSignIn', email);
 
             toast({
                 title: "Invitación Enviada",
-                description: `Se ha enviado una invitación por correo a ${email} usando Firebase Auth.`
+                description: `Se ha enviado una invitación por correo a ${newInvitation.email}.`
             });
 
             setDialogOpen(false);

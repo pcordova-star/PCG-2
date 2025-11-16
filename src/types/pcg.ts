@@ -46,6 +46,8 @@ export interface AppUser {
   createdAt: Date | Timestamp;
 }
 
+
+export type RolInvitado = "admin_empresa" | "jefe_obra" | "prevencionista" | "cliente";
 /**
  * Representa una invitación para unirse a una empresa.
  * Almacenada en la colección `invitacionesUsuarios`.
@@ -54,7 +56,8 @@ export interface UserInvitation {
     id?: string;
     email: string;
     empresaId: string;
-    roleDeseado: "admin_empresa" | "jefe_obra" | "prevencionista" | "cliente";
+    empresaNombre: string;
+    roleDeseado: RolInvitado;
     estado: "pendiente" | "aceptada" | "revocada";
     creadoPorUid: string;
     createdAt: Date | Timestamp;
