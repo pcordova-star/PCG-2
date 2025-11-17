@@ -1,0 +1,25 @@
+// src/app/api/public/obra/[shareId]/route.ts
+import { getPublicObraByShareId } from "@/server/queries/publicObra";
+import { NextResponse } from "next/server";
+
+// Nota: Esta ruta de API es incompatible con `output: 'export'`
+// porque necesita un entorno de servidor para ejecutarse.
+// Se ha renombrado a .disabled para permitir que el build estático funcione.
+
+// export const dynamic = "force-dynamic";
+
+export async function GET(
+  request: Request,
+  { params }: { params: { shareId: string } }
+) {
+  const shareId = params.shareId;
+  const obra = await getPublicObraByShareId(shareId);
+
+  if (!obra) {
+    return NextResponse.json({ error: "Obra no encontrada." }, { status: 404 });
+  }
+
+  // Aquí podrías filtrar y devolver solo los datos que quieres que sean públicos.
+  // Por ahora, devolvemos el objeto completo como ejemplo.
+  return NextResponse.json(obra);
+}
