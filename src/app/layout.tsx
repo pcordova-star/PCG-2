@@ -20,6 +20,7 @@ import {
   ShieldAlert,
   Building,
   LogOut,
+  MailQuestion,
 } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import {
@@ -48,6 +49,7 @@ const navItems = [
 const adminNavItems = [
     { href: '/admin/dashboard', label: 'Dashboard', icon: Home },
     { href: '/admin/empresas', label: 'Gestión de Empresas', icon: Building },
+    { href: '/admin/invitaciones', label: 'Gestión de Invitaciones', icon: MailQuestion },
     { href: '/admin/obras', label: 'Panel Global de Obras', icon: HardHat },
 ];
 
@@ -373,5 +375,3 @@ export default function RootLayout({
     </html>
   );
 }
-
-    
