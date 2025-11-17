@@ -5,3 +5,8 @@ runConfig:
   # Increase this value if you'd like to automatically spin up
   # more instances in response to increased traffic.
   maxInstances: 1
+serveConfig:
+  # All paths will be served from the backend
+  - path: /
+    # The 'id' of a backend must match a 'backend.id' in 'firebase.json'
+    backendId: next-framework
