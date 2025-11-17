@@ -7,7 +7,6 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { ArrowRight, CheckCircle, DollarSign, GanttChartSquare, HardHat, ShieldCheck, Users, Layers, Loader2 } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import Image from 'next/image';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -130,7 +129,7 @@ const AnimatedPlatformMockup = () => {
             <motion.div key="scene3" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="w-full h-full p-2 md:p-4">
                  <div className="w-full h-full rounded-lg bg-slate-800/80 p-2 md:p-4 flex flex-col md:flex-row gap-2 md:gap-4">
                     <motion.div initial={{ scale: 0.8, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} transition={{ delay: 0.2 }} className="w-full md:w-1/2 h-1/2 md:h-full rounded-md overflow-hidden relative">
-                         <Image src="/WhatsApp Image 2025-10-15 at 11.13.21 PM (2).jpeg" alt="Foto de obra" fill className="object-cover" data-ai-hint="construction site" />
+                         <img src="/WhatsApp Image 2025-10-15 at 11.13.21 PM (2).jpeg" alt="Foto de obra" className="absolute inset-0 w-full h-full object-cover" data-ai-hint="construction site" />
                     </motion.div>
                     <div className="flex-1 flex flex-col">
                         <h4 className="text-xs md:text-sm font-bold text-white">Reporte de Avance</h4>
