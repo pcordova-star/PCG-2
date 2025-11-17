@@ -1,3 +1,4 @@
+// src/context/AuthContext.tsx
 "use client";
 
 import {
@@ -15,7 +16,7 @@ import {
   ReactNode,
   useCallback,
 } from "react";
-import { firebaseAuth, firebaseDb } from "@/lib/firebaseClient";
+import { firebaseAuth, firebaseDb } from "@/lib/firebaseClient"; // Se importa firebaseAuth directamente
 import { useRouter } from "next/navigation";
 import { doc, getDoc, setDoc, serverTimestamp, collection, query, where, getDocs, writeBatch } from "firebase/firestore";
 import { resolveRole, UserRole } from "@/lib/roles";
