@@ -1,13 +1,18 @@
 "use strict";
+// src/functions/src/index.ts
 Object.defineProperty(exports, "__esModule", { value: true });
+exports.registrarAvanceRapido = exports.setSuperAdminClaim = exports.createCompanyUser = void 0;
+/**
+ * Este archivo es el punto de entrada para todas las Cloud Functions.
+ * Cada función se importa desde su propio archivo y se exporta para que Firebase la despliegue.
+ */
 const app_1 = require("firebase-admin/app");
-if (!(0, app_1.getApps)().length) {
+// Inicializa Firebase Admin SDK solo si no se ha hecho antes.
+if ((0, app_1.getApps)().length === 0) {
     (0, app_1.initializeApp)();
 }
-// Exportar la función principal de Next.js
-var next_server_1 = require("./next-server");
-Object.defineProperty(exports, "nextFramework", { enumerable: true, get: function () { return next_server_1.nextFramework; } });
-// Exportar las funciones Callable
+// Exporta las funciones callable para que estén disponibles en el backend.
+// El nombre de la propiedad del objeto exportado será el nombre de la función en Firebase.
 var createCompanyUser_1 = require("./createCompanyUser");
 Object.defineProperty(exports, "createCompanyUser", { enumerable: true, get: function () { return createCompanyUser_1.createCompanyUser; } });
 var setSuperAdmin_1 = require("./setSuperAdmin");
