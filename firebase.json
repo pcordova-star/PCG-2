@@ -4,16 +4,12 @@
     "runtime": "nodejs20"
   },
   "hosting": {
-    "source": ".",
+    "public": "out",
     "ignore": [
       "firebase.json",
       "**/.*",
-      "**/node_modules/**"
-    ],
-    "frameworksBackend": {
-      "region": "southamerica-west1",
-      "maxInstances": 2,
-      "timeoutSeconds": 300
-    }
+      "**/node_modules/**",
+      "functions/**"
+    ]
   }
 }
