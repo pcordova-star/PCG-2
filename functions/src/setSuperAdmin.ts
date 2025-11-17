@@ -11,7 +11,7 @@ if (!admin.apps.length) {
  * por un desarrollador con acceso a la consola de Firebase.
  */
 export const setSuperAdminClaim = onCall(
-  { region: "southamerica-west1" },
+  { region: "southamerica-west1", cors: true },
   async (request) => {
     // Nota: Para esta función específica, no se valida el rol del invocador,
     // ya que está diseñada para la configuración inicial.
@@ -36,8 +36,7 @@ export const setSuperAdminClaim = onCall(
 
       // 2. Asignar los custom claims
       await auth.setCustomUserClaims(uid, {
-        role: "SUPER_ADMIN",
-        companyId: null,
+        role: "SUPER_ADMIN"
       });
 
       // 3. Actualizar el documento del usuario en Firestore
