@@ -6,7 +6,7 @@ if (!admin.apps.length) {
 }
 
 export const createCompanyUser = onCall(
-  { region: "southamerica-west1" },
+  { region: "southamerica-west1", cors: true },
   async (request) => {
     const auth = admin.auth();
     const db = admin.firestore();
@@ -19,8 +19,8 @@ export const createCompanyUser = onCall(
     }
 
     // 2. Validar que el usuario es SUPER_ADMIN vía customClaims
-    const requesterRole = ctx.token.role;
-    if (requesterRole !== "SUPER_ADMIN") {
+    const requesterClaims = await auth.getUser(ctx.uid);
+    if (requesterClaims.customClaims?.role !== "SUPER_ADMIN") {
       throw new HttpsError(
         "permission-denied",
         "Solo SUPER_ADMIN puede crear usuarios."
@@ -34,8 +34,6 @@ export const createCompanyUser = onCall(
       password?: string;
       nombre: string;
       role: "EMPRESA_ADMIN" | "JEFE_OBRA" | "PREVENCIONISTA" | "LECTOR_CLIENTE";
-      phone?: string;
-      obrasAsignadas?: string[];
     };
 
     if (!data.companyId || !data.email || !data.nombre || !data.role) {
@@ -59,14 +57,7 @@ export const createCompanyUser = onCall(
     if (!companySnap.exists) {
       throw new HttpsError("not-found", "La empresa no existe.");
     }
-
-    const companyData = companySnap.data() as { activa?: boolean };
-    if (companyData.activa === false) {
-      throw new HttpsError(
-        "failed-precondition",
-        "La empresa está inactiva; no se pueden crear usuarios."
-      );
-    }
+    const companyData = companySnap.data();
 
     // 5. Crear usuario en Firebase Auth
     let userRecord;
@@ -75,9 +66,8 @@ export const createCompanyUser = onCall(
         email: data.email,
         password: data.password,
         displayName: data.nombre,
-        emailVerified: false,
+        emailVerified: false, 
         disabled: false,
-        phoneNumber: data.phone || undefined,
       });
     } catch (error: any) {
       if (error.code === "auth/email-already-exists") {
@@ -97,42 +87,56 @@ export const createCompanyUser = onCall(
       companyId: data.companyId,
     });
 
-    // 7. Escribir en Firestore (users y companies/{companyId}/users)
     const now = admin.firestore.FieldValue.serverTimestamp();
+    
+    // 7. Guardar perfil de usuario en /users
+    const userProfileRef = db.collection("users").doc(uid);
+    await userProfileRef.set({
+      nombre: data.nombre,
+      email: data.email,
+      role: data.role,
+      companyIdPrincipal: data.companyId,
+      activo: true,
+      createdAt: now,
+      updatedAt: now,
+    }, { merge: true });
+    
+    // 8. Crear una invitación para registro y trazabilidad
+    const invitationRef = db.collection("invitacionesUsuarios").doc();
+    const invitationId = invitationRef.id;
+    await invitationRef.set({
+        email: data.email,
+        empresaId: data.companyId,
+        empresaNombre: companyData?.nombre || '',
+        roleDeseado: data.role,
+        estado: 'pendiente', // Se crea pendiente y se manda el correo
+        createdAt: now,
+        creadoPorUid: ctx.uid,
+    });
+    
+    // 9. Enviar correo de invitación
+    const appBaseUrl = process.env.APP_BASE_URL || "https://pcg2-0--pcg-2-8bf1b.us-central1.hosted.app";
+    const acceptInviteUrl = `${appBaseUrl.replace(/\/+$/, "")}/accept-invite?invId=${invitationId}&email=${encodeURIComponent(data.email)}`;
 
-    const appUserRef = db.collection("users").doc(uid);
-    const companyUserRef = companyRef.collection("users").doc(uid);
-
-    await db.runTransaction(async (tx) => {
-      tx.set(
-        appUserRef,
-        {
-          nombre: data.nombre,
-          email: data.email,
-          phone: data.phone || null,
-          isSuperAdmin: false,
-          companyIdPrincipal: data.companyId,
-          createdAt: now,
-        },
-        { merge: true }
-      );
-
-      tx.set(
-        companyUserRef,
-        {
-          uid,
-          email: data.email,
-          nombre: data.nombre,
-          role: data.role,
-          obrasAsignadas: data.obrasAsignadas || [],
-          activo: true,
-          createdAt: now,
-        },
-        { merge: true }
-      );
+    await db.collection("mail").add({
+      to: [data.email],
+      message: {
+        subject: `Bienvenido a PCG - Acceso para ${companyData?.nombre}`,
+        html: `
+            <p>Hola ${data.nombre},</p>
+            <p>Has sido registrado en la plataforma PCG para la empresa <strong>${companyData?.nombre}</strong>.</p>
+            <p>Tu rol asignado es: <strong>${data.role}</strong>.</p>
+            <p>Para completar tu registro y acceder a la plataforma, por favor haz clic en el siguiente enlace. Se te pedirá que establezcas una nueva contraseña si es tu primer ingreso.</p>
+            <p><a href="${acceptInviteUrl}">Activar mi cuenta y acceder a PCG</a></p>
+            <p>Si el botón no funciona, copia y pega esta URL en tu navegador:</p>
+            <p><a href="${acceptInviteUrl}">${acceptInviteUrl}</a></p>
+            <p>Tu contraseña temporal es: <strong>${data.password}</strong></p>
+            <p>Gracias,<br>El equipo de PCG</p>`,
+      },
     });
 
-    // 8. Respuesta a frontend
+
+    // 10. Respuesta a frontend
     return {
       uid,
       email: data.email,
