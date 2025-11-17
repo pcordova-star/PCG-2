@@ -45,8 +45,9 @@ export default function AdminDashboardPage() {
   }, [isSuperAdmin, authLoading, router]);
 
   useEffect(() => {
-    const fetchAllData = async () => {
-      if (!isSuperAdmin) return;
+    if (!isSuperAdmin) return;
+    
+    async function fetchAllData() {
       setLoading(true);
       setError(null);
       try {
@@ -66,23 +67,28 @@ export default function AdminDashboardPage() {
         const companyMap = new Map(companiesSnap.docs.map(doc => [doc.id, doc.data().nombre]));
         
         const obrasData = obrasSnap.docs.map(doc => {
-            const companyId = doc.ref.parent.parent!.id;
+            const companyId = doc.ref.parent.parent?.id; // Safely access parent.parent
+            if (!companyId) return null; // If no companyId, this record is invalid for this view
             return {
                 id: doc.id,
                 companyId: companyId,
                 companyName: companyMap.get(companyId) || 'Empresa Desconocida',
                 ...doc.data()
             } as Obra;
-        });
+        }).filter(Boolean) as Obra[]; // Filter out any null entries
+
         setRecentObras(obrasData);
         
       } catch (err) {
         console.error("Error fetching admin dashboard data:", err);
-        setError("No se pudieron cargar los datos. Revisa la consola para más detalles.");
+        // Set error only if it's a real fetch problem, not just empty data
+        if (err instanceof Error) {
+            setError("No se pudieron cargar algunos datos. Revisa la consola para más detalles.");
+        }
       } finally {
         setLoading(false);
       }
-    };
+    }
 
     fetchAllData();
   }, [isSuperAdmin]);
