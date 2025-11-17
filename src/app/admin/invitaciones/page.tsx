@@ -1,0 +1,304 @@
+"use client";
+
+import React, { useState, useEffect, useMemo, FormEvent } from 'react';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Badge } from '@/components/ui/badge';
+import { PlusCircle, Loader2, Trash2, RefreshCw } from 'lucide-react';
+import { collection, doc, query, orderBy, onSnapshot, updateDoc, writeBatch, getDocs } from 'firebase/firestore';
+import { firebaseDb } from '@/lib/firebaseClient';
+import { Company, UserInvitation, RolInvitado } from '@/types/pcg';
+import { useToast } from '@/hooks/use-toast';
+import { useAuth } from '@/context/AuthContext';
+import { invitarUsuario } from '@/lib/invitaciones/invitarUsuario';
+import { useRouter } from 'next/navigation';
+
+export default function AdminInvitacionesPage() {
+    const { role, loading: authLoading } = useAuth();
+    const router = useRouter();
+    const { toast } = useToast();
+
+    const [companies, setCompanies] = useState<Company[]>([]);
+    const [invitations, setInvitations] = useState<UserInvitation[]>([]);
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState<string | null>(null);
+
+    // Filtros
+    const [filtroEmpresa, setFiltroEmpresa] = useState('all');
+    const [filtroEstado, setFiltroEstado] = useState('all');
+
+    // Dialog para nueva invitación
+    const [dialogOpen, setDialogOpen] = useState(false);
+    const [isSaving, setIsSaving] = useState(false);
+    const [newInvitation, setNewInvitation] = useState<{
+        email: string;
+        companyId: string;
+        role: RolInvitado;
+    }>({ email: '', companyId: '', role: 'jefe_obra' });
+
+    useEffect(() => {
+        if (!authLoading && role !== 'superadmin') {
+            router.replace('/dashboard');
+        }
+    }, [authLoading, role, router]);
+
+    useEffect(() => {
+        if (role !== 'superadmin') return;
+
+        setLoading(true);
+
+        const fetchCompanies = async () => {
+            const companiesRef = collection(firebaseDb, "companies");
+            const companiesSnap = await getDocs(query(companiesRef, orderBy("nombre")));
+            const companiesData = companiesSnap.docs.map(doc => ({ id: doc.id, ...doc.data() } as Company));
+            setCompanies(companiesData);
+        };
+
+        const unsubInvitations = onSnapshot(
+            query(collection(firebaseDb, "invitacionesUsuarios"), orderBy("createdAt", "desc")),
+            (snapshot) => {
+                const invitationsData = snapshot.docs.map(doc => ({
+                    id: doc.id,
+                    ...doc.data(),
+                    createdAt: doc.data().createdAt?.toDate(),
+                } as UserInvitation));
+                setInvitations(invitationsData);
+                setLoading(false);
+            },
+            (err) => {
+                console.error("Error fetching invitations:", err);
+                setError("No se pudieron cargar las invitaciones.");
+                setLoading(false);
+            }
+        );
+
+        fetchCompanies();
+
+        return () => {
+            unsubInvitations();
+        };
+    }, [role]);
+
+    const filteredInvitations = useMemo(() => {
+        return invitations.filter(inv => {
+            const matchCompany = filtroEmpresa === 'all' || inv.empresaId === filtroEmpresa;
+            const matchStatus = filtroEstado === 'all' || inv.estado === filtroEstado;
+            return matchCompany && matchStatus;
+        });
+    }, [invitations, filtroEmpresa, filtroEstado]);
+
+    const handleCreateInvitation = async (e: FormEvent) => {
+        e.preventDefault();
+        if (!newInvitation.email || !newInvitation.companyId || !newInvitation.role) {
+            toast({ variant: "destructive", title: "Error", description: "Todos los campos son obligatorios." });
+            return;
+        }
+
+        setIsSaving(true);
+        const targetCompany = companies.find(c => c.id === newInvitation.companyId);
+        if (!targetCompany) {
+            toast({ variant: "destructive", title: "Error", description: "La empresa seleccionada no es válida." });
+            setIsSaving(false);
+            return;
+        }
+
+        try {
+            await invitarUsuario({
+                email: newInvitation.email,
+                empresaId: targetCompany.id,
+                empresaNombre: targetCompany.nombre,
+                roleDeseado: newInvitation.role,
+            });
+            toast({ title: "Invitación Enviada", description: `Se ha enviado una invitación a ${newInvitation.email}.` });
+            setDialogOpen(false);
+            setNewInvitation({ email: '', companyId: '', role: 'jefe_obra' });
+        } catch (err: any) {
+            console.error("Error creating invitation:", err);
+            toast({ variant: "destructive", title: "Error al invitar", description: err.message || "No se pudo enviar la invitación." });
+        } finally {
+            setIsSaving(false);
+        }
+    };
+
+    const handleResendInvitation = async (inv: UserInvitation) => {
+        try {
+            await invitarUsuario({
+                email: inv.email,
+                empresaId: inv.empresaId,
+                empresaNombre: inv.empresaNombre,
+                roleDeseado: inv.roleDeseado,
+            });
+            toast({ title: "Invitación Reenviada" });
+        } catch (err) {
+            toast({ variant: 'destructive', title: "Error", description: "No se pudo reenviar la invitación." });
+        }
+    };
+
+    const handleRevokeInvitation = async (invitationId: string) => {
+        try {
+            const invitationRef = doc(firebaseDb, "invitacionesUsuarios", invitationId);
+            await updateDoc(invitationRef, { estado: 'revocada' });
+            toast({ title: "Invitación Revocada" });
+        } catch (err) {
+            toast({ variant: 'destructive', title: "Error", description: "No se pudo revocar la invitación." });
+        }
+    };
+
+    if (loading) {
+        return <div className="p-8 text-center"><Loader2 className="animate-spin" /> Cargando invitaciones...</div>;
+    }
+
+    if (error) {
+        return <div className="p-8 text-center text-destructive">{error}</div>;
+    }
+
+    return (
+        <div className="space-y-6">
+            <header className="flex items-center justify-between">
+                <div>
+                    <h1 className="text-2xl font-bold">Gestión de Invitaciones</h1>
+                    <p className="text-muted-foreground">Supervisa y gestiona todas las invitaciones de la plataforma.</p>
+                </div>
+                <Button onClick={() => setDialogOpen(true)}>
+                    <PlusCircle className="mr-2 h-4 w-4" />
+                    Invitar Usuario
+                </Button>
+            </header>
+
+            <Card>
+                <CardHeader>
+                    <CardTitle>Filtros</CardTitle>
+                </CardHeader>
+                <CardContent className="flex flex-col md:flex-row gap-4">
+                    <div className="flex-1 space-y-2">
+                        <Label>Filtrar por Empresa</Label>
+                        <Select value={filtroEmpresa} onValueChange={setFiltroEmpresa}>
+                            <SelectTrigger><SelectValue /></SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="all">Todas las empresas</SelectItem>
+                                {companies.map(c => <SelectItem key={c.id} value={c.id}>{c.nombre}</SelectItem>)}
+                            </SelectContent>
+                        </Select>
+                    </div>
+                    <div className="flex-1 space-y-2">
+                        <Label>Filtrar por Estado</Label>
+                        <Select value={filtroEstado} onValueChange={setFiltroEstado}>
+                            <SelectTrigger><SelectValue /></SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="all">Todos los estados</SelectItem>
+                                <SelectItem value="pendiente">Pendiente</SelectItem>
+                                <SelectItem value="aceptada">Aceptada</SelectItem>
+                                <SelectItem value="revocada">Revocada</SelectItem>
+                            </SelectContent>
+                        </Select>
+                    </div>
+                </CardContent>
+            </Card>
+
+            <Card>
+                <CardHeader>
+                    <CardTitle>Listado Global de Invitaciones</CardTitle>
+                    <CardDescription>Mostrando {filteredInvitations.length} de {invitations.length} invitaciones totales.</CardDescription>
+                </CardHeader>
+                <CardContent>
+                    <Table>
+                        <TableHeader>
+                            <TableRow>
+                                <TableHead>Email</TableHead>
+                                <TableHead>Empresa</TableHead>
+                                <TableHead>Rol Asignado</TableHead>
+                                <TableHead>Estado</TableHead>
+                                <TableHead>Fecha</TableHead>
+                                <TableHead className="text-right">Acciones</TableHead>
+                            </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                            {filteredInvitations.length === 0 ? (
+                                <TableRow><TableCell colSpan={6} className="text-center h-24">No hay invitaciones que coincidan con los filtros.</TableCell></TableRow>
+                            ) : filteredInvitations.map((inv) => (
+                                <TableRow key={inv.id}>
+                                    <TableCell className="font-medium">{inv.email}</TableCell>
+                                    <TableCell>{inv.empresaNombre}</TableCell>
+                                    <TableCell><Badge variant="outline">{inv.roleDeseado}</Badge></TableCell>
+                                    <TableCell><Badge variant={inv.estado === 'pendiente' ? 'secondary' : 'default'}>{inv.estado}</Badge></TableCell>
+                                    <TableCell>{inv.createdAt ? new Date(inv.createdAt).toLocaleDateString() : 'N/A'}</TableCell>
+                                    <TableCell className="text-right">
+                                        {inv.estado === 'pendiente' && (
+                                            <div className="flex gap-1 justify-end">
+                                                <Button variant="ghost" size="icon" onClick={() => handleResendInvitation(inv)}><RefreshCw className="h-4 w-4" /></Button>
+                                                <AlertDialog>
+                                                    <AlertDialogTrigger asChild>
+                                                        <Button variant="ghost" size="icon" className="text-destructive"><Trash2 className="h-4 w-4" /></Button>
+                                                    </AlertDialogTrigger>
+                                                    <AlertDialogContent>
+                                                        <AlertDialogHeader>
+                                                            <AlertDialogTitle>¿Revocar invitación?</AlertDialogTitle>
+                                                            <AlertDialogDescription>La invitación para {inv.email} será invalidada.</AlertDialogDescription>
+                                                        </AlertDialogHeader>
+                                                        <AlertDialogFooter>
+                                                            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                                                            <AlertDialogAction onClick={() => handleRevokeInvitation(inv.id!)} className="bg-destructive hover:bg-destructive/90">Revocar</AlertDialogAction>
+                                                        </AlertDialogFooter>
+                                                    </AlertDialogContent>
+                                                </AlertDialog>
+                                            </div>
+                                        )}
+                                    </TableCell>
+                                </TableRow>
+                            ))}
+                        </TableBody>
+                    </Table>
+                </CardContent>
+            </Card>
+
+            <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+                <DialogContent>
+                    <form onSubmit={handleCreateInvitation}>
+                        <DialogHeader>
+                            <DialogTitle>Invitar Nuevo Usuario</DialogTitle>
+                            <DialogDescription>Seleccione la empresa, el rol e ingrese el email del nuevo usuario.</DialogDescription>
+                        </DialogHeader>
+                        <div className="py-4 grid gap-4">
+                            <div className="space-y-2">
+                                <Label htmlFor="new-inv-company">Empresa*</Label>
+                                <Select value={newInvitation.companyId} onValueChange={v => setNewInvitation(p => ({ ...p, companyId: v }))}>
+                                    <SelectTrigger id="new-inv-company"><SelectValue placeholder="Seleccione una empresa" /></SelectTrigger>
+                                    <SelectContent>{companies.map(c => <SelectItem key={c.id} value={c.id}>{c.nombre}</SelectItem>)}</SelectContent>
+                                </Select>
+                            </div>
+                            <div className="space-y-2">
+                                <Label htmlFor="new-inv-email">Email del usuario*</Label>
+                                <Input id="new-inv-email" type="email" value={newInvitation.email} onChange={e => setNewInvitation(p => ({ ...p, email: e.target.value }))} />
+                            </div>
+                            <div className="space-y-2">
+                                <Label htmlFor="new-inv-role">Rol en la Empresa*</Label>
+                                <Select value={newInvitation.role} onValueChange={v => setNewInvitation(p => ({ ...p, role: v as RolInvitado }))}>
+                                    <SelectTrigger id="new-inv-role"><SelectValue placeholder="Seleccione un rol" /></SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="admin_empresa">Admin Empresa</SelectItem>
+                                        <SelectItem value="jefe_obra">Jefe de Obra</SelectItem>
+                                        <SelectItem value="prevencionista">Prevencionista</SelectItem>
+                                        <SelectItem value="lector_cliente">Cliente (Solo lectura)</SelectItem>
+                                    </SelectContent>
+                                </Select>
+                            </div>
+                        </div>
+                        <DialogFooter>
+                            <Button type="button" variant="ghost" onClick={() => setDialogOpen(false)}>Cancelar</Button>
+                            <Button type="submit" disabled={isSaving}>
+                                {isSaving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                                {isSaving ? "Enviando..." : "Enviar Invitación"}
+                            </Button>
+                        </DialogFooter>
+                    </form>
+                </DialogContent>
+            </Dialog>
+        </div>
+    );
+}

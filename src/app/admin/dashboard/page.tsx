@@ -7,7 +7,7 @@ import { collection, getDocs, query, collectionGroup, orderBy, limit } from 'fir
 import { firebaseDb } from '@/lib/firebaseClient';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Building, HardHat, Users, Loader2 } from 'lucide-react';
+import { Building, HardHat, Users, Loader2, MailQuestion } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
@@ -111,13 +111,14 @@ export default function AdminDashboardPage() {
       {error && <p className="text-sm font-medium text-destructive">{error}</p>}
 
       {loading ? (
-        <div className="grid gap-4 md:grid-cols-3">
+        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
           <Card><CardHeader><CardTitle>Total Empresas</CardTitle></CardHeader><CardContent><Loader2 className="animate-spin"/></CardContent></Card>
           <Card><CardHeader><CardTitle>Total Obras</CardTitle></CardHeader><CardContent><Loader2 className="animate-spin"/></CardContent></Card>
           <Card><CardHeader><CardTitle>Total Usuarios</CardTitle></CardHeader><CardContent><Loader2 className="animate-spin"/></CardContent></Card>
+           <Card><CardHeader><CardTitle>Invitaciones</CardTitle></CardHeader><CardContent><Loader2 className="animate-spin"/></CardContent></Card>
         </div>
       ) : summary && (
-        <div className="grid gap-4 md:grid-cols-3">
+        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium">Total Empresas</CardTitle>
@@ -145,6 +146,19 @@ export default function AdminDashboardPage() {
               <div className="text-2xl font-bold">{summary.totalUsuarios}</div>
             </CardContent>
           </Card>
+           <Card>
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                    <CardTitle className="text-sm font-medium">Gestión de Invitaciones</CardTitle>
+                    <MailQuestion className="h-4 w-4 text-muted-foreground" />
+                </CardHeader>
+                <CardContent>
+                    <Button asChild className="w-full" variant="outline">
+                        <Link href="/admin/invitaciones">
+                            Ver y Crear Invitaciones
+                        </Link>
+                    </Button>
+                </CardContent>
+            </Card>
         </div>
       )}
 
