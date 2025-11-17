@@ -1,62 +1,28 @@
+// src/app/api/public/obra/[shareId]/route.ts
+
+import { getPublicObraByShareId } from "@/server/queries/publicObra";
 import { NextResponse } from "next/server";
-import { getAdminDb } from "@/lib/firebaseAdmin";
-
-export const runtime = "nodejs";
-export const dynamic = "force-dynamic";
-
-type ObraPublica = {
-  id: string;
-  nombre: string;
-  cliente?: string;
-  direccion?: string;
-  estado?: string;
-};
 
 export async function GET(
-  _req: Request,
-  context: { params: { shareId: string } }
+  request: Request,
+  { params }: { params: { shareId: string } }
 ) {
-  const { shareId } = context.params;
+  const shareId = params.shareId;
 
   if (!shareId) {
-    return NextResponse.json(
-      { ok: false, error: "MISSING_SHARE_ID" },
-      { status: 400 }
-    );
+    return NextResponse.json({ error: "No se proporcionó ID" }, { status: 400 });
   }
 
   try {
-    const db = getAdminDb();
-
-    const snap = await db
-      .collection("obras")
-      .where("shareId", "==", shareId)
-      .limit(1)
-      .get();
-
-    if (snap.empty) {
-      return NextResponse.json(
-        { ok: false, error: "OBRA_NOT_FOUND" },
-        { status: 404 }
-      );
+    const obra = await getPublicObraByShareId(shareId);
+    if (!obra) {
+      return NextResponse.json({ error: "Obra no encontrada" }, { status: 404 });
     }
-
-    const doc = snap.docs[0];
-    const data = doc.data() as any;
-
-    const obra: ObraPublica = {
-      id: doc.id,
-      nombre: data.nombre ?? "",
-      cliente: data.cliente ?? "",
-      direccion: data.direccion ?? "",
-      estado: data.estado ?? "",
-    };
-
-    return NextResponse.json({ ok: true, obra }, { status: 200 });
-  } catch (err: any) {
-    console.error("[API public/obra] INTERNAL_ERROR:", err);
+    return NextResponse.json(obra);
+  } catch (error) {
+    console.error(`[API] Error al obtener obra ${shareId}:`, error);
     return NextResponse.json(
-      { ok: false, error: "INTERNAL_ERROR", details: err?.message ?? String(err) },
+      { error: "Error interno del servidor" },
       { status: 500 }
     );
   }
