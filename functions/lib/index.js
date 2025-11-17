@@ -1,8 +1,10 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.registrarAvanceRapido = void 0;
 const app_1 = require("firebase-admin/app");
-(0, app_1.initializeApp)();
-var registrarAvanceRapido_1 = require("./registrarAvanceRapido");
-Object.defineProperty(exports, "registrarAvanceRapido", { enumerable: true, get: function () { return registrarAvanceRapido_1.registrarAvanceRapido; } });
+if (!(0, app_1.getApps)().length) {
+    (0, app_1.initializeApp)();
+}
+// Las funciones callable ahora se manejan a través del servidor de Next.js o como funciones individuales
+// export { createCompanyUser } from './createCompanyUser';
+// export { setSuperAdminClaim } from './setSuperAdmin';
 //# sourceMappingURL=index.js.map
