@@ -1,24 +1,19 @@
 {
+  "functions": {
+    "source": "functions",
+    "runtime": "nodejs20"
+  },
   "hosting": {
-    "public": "out",
+    "source": ".",
     "ignore": [
       "firebase.json",
       "**/.*",
       "**/node_modules/**"
     ],
-    "rewrites": [
-      {
-        "source": "/accept-invite",
-        "destination": "/accept-invite/index.html"
-      },
-      {
-        "source": "/accept-invite/**",
-        "destination": "/accept-invite/index.html"
-      },
-      {
-        "source": "**",
-        "destination": "/index.html"
-      }
-    ]
+    "frameworksBackend": {
+      "region": "southamerica-west1",
+      "maxInstances": 2,
+      "timeoutSeconds": 300
+    }
   }
 }
