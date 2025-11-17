@@ -61,14 +61,15 @@ export default function AdminGlobalObrasPage() {
         const obrasQuery = query(collectionGroup(firebaseDb, 'obras'), orderBy('creadoEn', 'desc'));
         const obrasSnapshot = await getDocs(obrasQuery);
         const obrasData = obrasSnapshot.docs.map(doc => {
-          const companyId = doc.ref.parent.parent!.id;
+          const companyId = doc.ref.parent.parent?.id;
+          if (!companyId) return null;
           return {
             id: doc.id,
             companyId: companyId,
             companyName: companyMap.get(companyId) || 'Empresa Desconocida',
             ...doc.data()
           } as Obra;
-        });
+        }).filter(Boolean) as Obra[]; // Filtramos los posibles nulos y hacemos type assertion
         setObras(obrasData);
       } catch (err) {
         console.error("Error fetching global obras:", err);
