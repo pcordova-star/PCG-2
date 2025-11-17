@@ -1,14 +1,13 @@
 {
-  "functions": {
-    "source": "functions",
-    "runtime": "nodejs20"
-  },
-  "apphosting": {
-    "backends": [
-      {
-        "id": "next-framework",
-        "region": "us-central1"
-      }
-    ]
+  "hosting": {
+    "source": ".",
+    "ignore": [
+      "firebase.json",
+      "**/.*",
+      "**/node_modules/**"
+    ],
+    "frameworksBackend": {
+      "region": "southamerica-west1"
+    }
   }
 }
