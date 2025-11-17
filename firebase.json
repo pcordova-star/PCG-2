@@ -1,13 +1,24 @@
 {
   "hosting": {
-    "source": ".",
+    "public": "out",
     "ignore": [
       "firebase.json",
       "**/.*",
       "**/node_modules/**"
     ],
-    "frameworksBackend": {
-      "region": "southamerica-west1"
-    }
+    "rewrites": [
+      {
+        "source": "/accept-invite",
+        "destination": "/accept-invite/index.html"
+      },
+      {
+        "source": "/accept-invite/**",
+        "destination": "/accept-invite/index.html"
+      },
+      {
+        "source": "**",
+        "destination": "/index.html"
+      }
+    ]
   }
 }
