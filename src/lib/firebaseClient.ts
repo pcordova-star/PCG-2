@@ -6,18 +6,19 @@ import { getStorage } from "firebase/storage";
 import { getFunctions } from "firebase/functions";
 
 const firebaseConfig = {
-  apiKey: "AIzaSyA889p_w6kZ7A4s7R6c8d7e6f5g4h3i2j1k0",
+  apiKey: "AIzaSyBFMp_dH9XhFSXEeMxY-Cdy8MDRIGtWxrR0",
   authDomain: "pcg-2-8bf1b.firebaseapp.com",
   projectId: "pcg-2-8bf1b",
-  storageBucket: "pcg-2-8bf1b.appspot.com",
-  messagingSenderId: "106794103353",
-  appId: "1:106794103353:web:9b8f1c2d3e4f5a6b7c8d9e",
+  storageBucket: "pcg-2-8bf1b.firebasestorage.app",
+  messagingSenderId: "133669944318",
+  appId: "1:133669944318:web:0f6189b924324b6f3e1eaf",
 };
 
 // Evita la reinicialización en el lado del cliente con HMR de Next.js
-const app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
+const app = getApps().length ? getApp() : initializeApp(firebaseConfig);
 
 export const firebaseAuth = getAuth(app);
 export const firebaseDb = getFirestore(app);
 export const firebaseStorage = getStorage(app);
 export const firebaseFunctions = getFunctions(app, "southamerica-west1");
+    
