@@ -115,7 +115,8 @@ export const createCompanyUser = onCall(
     });
     
     // 9. Enviar correo de invitación
-    const appBaseUrl = process.env.APP_BASE_URL || "https://pcg2-0--pcg-2-8bf1b.us-central1.hosted.app";
+    // APP_BASE_URL es una variable de entorno de la función, debe apuntar a https://pcg-2-8bf1b.web.app
+    const appBaseUrl = process.env.APP_BASE_URL ?? "https://pcg-2-8bf1b.web.app";
     const acceptInviteUrl = `${appBaseUrl.replace(/\/+$/, "")}/accept-invite?invId=${invitationId}&email=${encodeURIComponent(data.email)}`;
 
     await db.collection("mail").add({
