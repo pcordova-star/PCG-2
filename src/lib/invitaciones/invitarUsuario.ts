@@ -35,10 +35,9 @@ export async function invitarUsuario(params: InvitarUsuarioParams): Promise<void
 
   // La extensión de Firebase "Trigger Email" debería estar escuchando la colección 'mail'.
   // Al crear un documento aquí, se disparará el envío del correo.
-  // La URL base para el enlace se construirá en el backend (Cloud Function o plantilla de email).
-  const appBaseUrl = process.env.NEXT_PUBLIC_APP_URL || (typeof window !== "undefined" ? window.location.origin : "");
-  const acceptInviteUrl = `${appBaseUrl.replace(/\/+$/, "")}/accept-invite?invId=${newInvitationRef.id}&email=${encodeURIComponent(params.email)}`;
-  const logoUrl = `${appBaseUrl.replace(/\/+$/, "")}/logo.png`;
+  const appBaseUrl = (process.env.NEXT_PUBLIC_APP_URL || (typeof window !== "undefined" ? window.location.origin : "")).replace(/\/+$/, "");
+  const acceptInviteUrl = `${appBaseUrl}/accept-invite?invId=${newInvitationRef.id}&email=${encodeURIComponent(params.email)}`;
+  const logoUrl = `${appBaseUrl}/logo.png`;
 
 
   const mailRef = collection(firebaseDb, "mail");
