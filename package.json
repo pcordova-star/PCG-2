@@ -3,14 +3,11 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "dotenv -e .env -- next dev --turbopack",
-    "genkit:dev": "genkit start -- tsx src/ai/dev.ts",
-    "genkit:watch": "genkit start -- tsx --watch src/ai/dev.ts",
-    "build": "next build",
-    "postbuild": "cd functions && npm install",
-    "start": "next start",
-    "lint": "next lint",
-    "typecheck": "tsc --noEmit"
+  "dev": "next dev",
+  "build": "next build",
+  "export": "next build && next export",
+  "start": "next start",
+  "lint": "next lint"
   },
   "dependencies": {
     "@genkit-ai/google-genai": "^1.20.0",
