@@ -115,8 +115,9 @@ exports.createCompanyUser = (0, https_1.onCall)({ region: "southamerica-west1", 
         creadoPorUid: ctx.uid,
     });
     // 9. Enviar correo de invitación
-    const appBaseUrl = "https://pcg-2-8bf1b.web.app";
-    const acceptInviteUrl = `${appBaseUrl.replace(/\/+$/, "")}/accept-invite?invId=${invitationId}&email=${encodeURIComponent(data.email)}`;
+    // APP_BASE_URL debe apuntar a https://pcg-2-8bf1b.web.app en producción
+    const appBaseUrl = (process.env.APP_BASE_URL ?? "https://pcg-2-8bf1b.web.app").replace(/\/+$/, "");
+    const acceptInviteUrl = `${appBaseUrl}/accept-invite?invId=${invitationId}&email=${encodeURIComponent(data.email)}`;
     await db.collection("mail").add({
         to: [data.email],
         message: {
