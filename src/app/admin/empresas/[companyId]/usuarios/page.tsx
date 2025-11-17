@@ -104,7 +104,7 @@ export default function AdminEmpresaUsuariosPage() {
         } else {
             setCurrentUser({
                 email: '',
-                role: 'cliente',
+                role: 'jefe_obra',
                 nombre: '',
                 isInvitation: true
             });
@@ -153,6 +153,7 @@ export default function AdminEmpresaUsuariosPage() {
         } catch (err: any) {
             console.error("Error al guardar:", err);
             setError(err.message || "No se pudo guardar la información.");
+            toast({ variant: "destructive", title: "Error al guardar", description: err.message || "Ocurrió un problema al procesar la solicitud." });
         } finally {
             setIsSaving(false);
         }
@@ -383,13 +384,13 @@ export default function AdminEmpresaUsuariosPage() {
                             )}
                             <div className="space-y-2">
                                 <Label htmlFor="role">Rol en la Empresa</Label>
-                                <Select value={currentUser?.role || 'cliente'} onValueChange={v => setCurrentUser(prev => ({...prev, role: v as RolInvitado}))}>
+                                <Select value={currentUser?.role || 'jefe_obra'} onValueChange={v => setCurrentUser(prev => ({...prev, role: v as RolInvitado}))}>
                                     <SelectTrigger id="role"><SelectValue placeholder="Seleccione un rol" /></SelectTrigger>
                                     <SelectContent>
-                                        <SelectItem value="admin_empresa">Admin Empresa</SelectItem>
-                                        <SelectItem value="jefe_obra">Jefe de Obra</SelectItem>
-                                        <SelectItem value="prevencionista">Prevencionista</SelectItem>
-                                        <SelectItem value="cliente">Cliente (Solo lectura)</SelectItem>
+                                        <SelectItem value="EMPRESA_ADMIN">Admin Empresa</SelectItem>
+                                        <SelectItem value="JEFE_OBRA">Jefe de Obra</SelectItem>
+                                        <SelectItem value="PREVENCIONISTA">Prevencionista</SelectItem>
+                                        <SelectItem value="LECTOR_CLIENTE">Cliente (Solo lectura)</SelectItem>
                                     </SelectContent>
                                 </Select>
                             </div>
