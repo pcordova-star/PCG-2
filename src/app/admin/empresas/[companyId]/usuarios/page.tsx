@@ -1,3 +1,4 @@
+
 // src/app/admin/empresas/[companyId]/usuarios/page.tsx
 "use client";
 
@@ -387,10 +388,10 @@ export default function AdminEmpresaUsuariosPage() {
                                 <Select value={currentUser?.role || 'jefe_obra'} onValueChange={v => setCurrentUser(prev => ({...prev, role: v as RolInvitado}))}>
                                     <SelectTrigger id="role"><SelectValue placeholder="Seleccione un rol" /></SelectTrigger>
                                     <SelectContent>
-                                        <SelectItem value="EMPRESA_ADMIN">Admin Empresa</SelectItem>
-                                        <SelectItem value="JEFE_OBRA">Jefe de Obra</SelectItem>
-                                        <SelectItem value="PREVENCIONISTA">Prevencionista</SelectItem>
-                                        <SelectItem value="LECTOR_CLIENTE">Cliente (Solo lectura)</SelectItem>
+                                        <SelectItem value="admin_empresa">Admin Empresa</SelectItem>
+                                        <SelectItem value="jefe_obra">Jefe de Obra</SelectItem>
+                                        <SelectItem value="prevencionista">Prevencionista</SelectItem>
+                                        <SelectItem value="lector_cliente">Cliente (Solo lectura)</SelectItem>
                                     </SelectContent>
                                 </Select>
                             </div>
