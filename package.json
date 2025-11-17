@@ -6,7 +6,8 @@
     "dev": "dotenv -e .env -- next dev --turbopack",
     "genkit:dev": "genkit start -- tsx src/ai/dev.ts",
     "genkit:watch": "genkit start -- tsx --watch src/ai/dev.ts",
-    "build": "cd functions && npm install && npm run build && cd .. && NODE_ENV=production next build",
+    "build": "next build",
+    "postbuild": "cd functions && npm install",
     "start": "next start",
     "lint": "next lint",
     "typecheck": "tsc --noEmit"
