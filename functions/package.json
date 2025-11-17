@@ -1,7 +1,8 @@
 {
   "name": "functions",
   "scripts": {
-    "build": "echo \"skip ts build\"",
+    "build": "npm run build:ts",
+    "build:ts": "tsc",
     "serve": "npm run build && firebase emulators:start --only functions",
     "shell": "npm run build && firebase functions:shell",
     "start": "npm run shell",
