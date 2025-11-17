@@ -10,7 +10,7 @@ import { Label } from '@/components/ui/label';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
-import { PlusCircle, Loader2, Trash2, RefreshCw } from 'lucide-react';
+import { PlusCircle, Loader2, Trash2, RefreshCw, ArrowLeft } from 'lucide-react';
 import { collection, doc, query, orderBy, onSnapshot, updateDoc, writeBatch, getDocs } from 'firebase/firestore';
 import { firebaseDb } from '@/lib/firebaseClient';
 import { Company, UserInvitation, RolInvitado } from '@/types/pcg';
@@ -18,6 +18,7 @@ import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/context/AuthContext';
 import { invitarUsuario } from '@/lib/invitaciones/invitarUsuario';
 import { useRouter } from 'next/navigation';
+import Link from 'next/link';
 
 export default function AdminInvitacionesPage() {
     const { role, loading: authLoading } = useAuth();
@@ -161,9 +162,14 @@ export default function AdminInvitacionesPage() {
     return (
         <div className="space-y-6">
             <header className="flex items-center justify-between">
-                <div>
-                    <h1 className="text-2xl font-bold">Gestión de Invitaciones</h1>
-                    <p className="text-muted-foreground">Supervisa y gestiona todas las invitaciones de la plataforma.</p>
+                <div className="space-y-4">
+                     <Button variant="outline" size="sm" asChild>
+                        <Link href="/admin/dashboard"><ArrowLeft className="mr-2 h-4 w-4" />Volver al Dashboard</Link>
+                    </Button>
+                    <div>
+                        <h1 className="text-2xl font-bold">Gestión de Invitaciones</h1>
+                        <p className="text-muted-foreground">Supervisa y gestiona todas las invitaciones de la plataforma.</p>
+                    </div>
                 </div>
                 <Button onClick={() => setDialogOpen(true)}>
                     <PlusCircle className="mr-2 h-4 w-4" />
