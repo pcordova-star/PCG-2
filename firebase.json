@@ -3,17 +3,11 @@
     "source": "functions",
     "runtime": "nodejs20"
   },
-  "hosting": {
-    "source": ".",
-    "ignore": [
-      "firebase.json",
-      "**/.*",
-      "**/node_modules/**"
-    ],
-    "rewrites": [
+  "apphosting": {
+    "backends": [
       {
-        "source": "**",
-        "function": "nextFramework"
+        "id": "next-framework",
+        "region": "us-central1"
       }
     ]
   }

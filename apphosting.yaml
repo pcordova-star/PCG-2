@@ -1,0 +1,12 @@
+# The name of the backend that will host your app
+backendId: next-framework
+# The region your backend will be hosted in
+region: us-central1
+# The entrypoint for your server
+entrypoint: node server.js
+# The command to build your app
+buildCommand: npm run build
+# Configuration for your server
+serveConfig:
+  - path: /
+    backendId: next-framework
