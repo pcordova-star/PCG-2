@@ -16,3 +16,4 @@ if (getApps().length === 0) {
 // El nombre de la propiedad del objeto exportado será el nombre de la función en Firebase.
 export { createCompanyUser } from "./createCompanyUser";
 export { setSuperAdminClaim } from "./setSuperAdmin";
+export { registrarAvanceRapido } from "./registrarAvanceRapido";
