@@ -107,7 +107,7 @@ export const createCompanyUser = onCall(
     await invitationRef.set({
         email: data.email,
         empresaId: data.companyId,
-        empresaNombre: companyData?.nombre || '',
+        empresaNombre: companyData?.nombreFantasia || companyData?.razonSocial || '',
         roleDeseado: data.role,
         estado: 'pendiente', // Se crea pendiente y se manda el correo
         createdAt: now,

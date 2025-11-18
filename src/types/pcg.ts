@@ -8,14 +8,22 @@ import { Timestamp } from "firebase/firestore";
  */
 export interface Company {
   id: string;
-  nombre: string;
+  nombreFantasia: string;
+  razonSocial: string;
   rut: string;
-  plan: "basic" | "pro" | "enterprise";
+  giro?: string;
+  direccion?: string;
+  comuna?: string;
+  ciudad?: string;
+  telefonoContacto?: string;
+  emailContacto?: string;
+  baseMensual: number;
+  valorPorUsuario: number;
   activa: boolean;
   createdAt: Date | Timestamp;
   updatedAt?: Date | Timestamp;
-  ownerUid?: string;
 }
+
 
 /**
  * Representa un usuario dentro del contexto de una empresa específica.
