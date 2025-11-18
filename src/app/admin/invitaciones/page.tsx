@@ -68,15 +68,25 @@ export default function AdminInvitacionesPage() {
                  setError("No se pudieron cargar las empresas.");
             }
         };
-
+        
+        // Se quita el orderBy('createdAt') para evitar el error de índice compuesto en Firestore.
+        // El ordenamiento se hará en el cliente.
         const unsubInvitations = onSnapshot(
-            query(collection(firebaseDb, "invitacionesUsuarios"), orderBy("createdAt", "desc")),
+            query(collection(firebaseDb, "invitacionesUsuarios")),
             (snapshot) => {
                 const invitationsData = snapshot.docs.map(doc => ({
                     id: doc.id,
                     ...doc.data(),
                     createdAt: doc.data().createdAt?.toDate(),
                 } as UserInvitation));
+                
+                // Ordenar en el cliente
+                invitationsData.sort((a, b) => {
+                    const dateA = a.createdAt instanceof Date ? a.createdAt.getTime() : 0;
+                    const dateB = b.createdAt instanceof Date ? b.createdAt.getTime() : 0;
+                    return dateB - dateA;
+                });
+
                 setInvitations(invitationsData);
                 setLoading(false);
             },
