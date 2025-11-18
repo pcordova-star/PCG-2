@@ -7,7 +7,7 @@ import { collection, getDocs, query, collectionGroup, orderBy, limit } from 'fir
 import { firebaseDb } from '@/lib/firebaseClient';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Building, HardHat, Users, Loader2, MailQuestion } from 'lucide-react';
+import { Building, HardHat, Users, Loader2, DollarSign } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
@@ -26,6 +26,12 @@ type SummaryData = {
   totalObras: number;
   totalUsuarios: number;
 };
+
+const adminCards = [
+    { title: "Empresas", href: "/admin/empresas", icon: Building, description: "Crear, editar y gestionar empresas." },
+    { title: "Usuarios", href: "/admin/usuarios", icon: Users, description: "Invitar y administrar usuarios por empresa." },
+    { title: "Facturación", href: "/admin/facturacion", icon: DollarSign, description: "Calcular facturación por empresa." }
+]
 
 export default function AdminDashboardPage() {
   const { role, loading: authLoading } = useAuth();
@@ -51,7 +57,6 @@ export default function AdminDashboardPage() {
       setLoading(true);
       setError(null);
       try {
-        // Fetch companies, obras, and users in parallel
         const [companiesSnap, obrasSnap, usersSnap] = await Promise.all([
           getDocs(collection(firebaseDb, 'companies')),
           getDocs(query(collectionGroup(firebaseDb, 'obras'), orderBy('creadoEn', 'desc'), limit(10))),
@@ -64,24 +69,23 @@ export default function AdminDashboardPage() {
 
         setSummary({ totalEmpresas, totalObras, totalUsuarios });
 
-        const companyMap = new Map(companiesSnap.docs.map(doc => [doc.id, doc.data().nombre]));
+        const companyMap = new Map(companiesSnap.docs.map(doc => [doc.id, doc.data().nombreFantasia || doc.data().nombre]));
         
         const obrasData = obrasSnap.docs.map(doc => {
-            const companyId = doc.ref.parent.parent?.id; // Safely access parent.parent
-            if (!companyId) return null; // If no companyId, this record is invalid for this view
+            const companyId = doc.ref.parent.parent?.id;
+            if (!companyId) return null;
             return {
                 id: doc.id,
                 companyId: companyId,
                 companyName: companyMap.get(companyId) || 'Empresa Desconocida',
                 ...doc.data()
             } as Obra;
-        }).filter(Boolean) as Obra[]; // Filter out any null entries
+        }).filter(Boolean) as Obra[];
 
         setRecentObras(obrasData);
         
       } catch (err) {
         console.error("Error fetching admin dashboard data:", err);
-        // Set error only if it's a real fetch problem, not just empty data
         if (err instanceof Error) {
             setError("No se pudieron cargar algunos datos. Revisa la consola para más detalles.");
         }
@@ -110,22 +114,33 @@ export default function AdminDashboardPage() {
 
       {error && <p className="text-sm font-medium text-destructive">{error}</p>}
 
-      {loading ? (
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-          <Card><CardHeader><CardTitle>Total Empresas</CardTitle></CardHeader><CardContent><Loader2 className="animate-spin"/></CardContent></Card>
-          <Card><CardHeader><CardTitle>Total Obras</CardTitle></CardHeader><CardContent><Loader2 className="animate-spin"/></CardContent></Card>
-          <Card><CardHeader><CardTitle>Total Usuarios</CardTitle></CardHeader><CardContent><Loader2 className="animate-spin"/></CardContent></Card>
-           <Card><CardHeader><CardTitle>Invitaciones</CardTitle></CardHeader><CardContent><Loader2 className="animate-spin"/></CardContent></Card>
-        </div>
-      ) : summary && (
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+      <div className="grid gap-4 md:grid-cols-3">
+        {adminCards.map(card => (
+             <Card key={card.title}>
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                    <CardTitle className="text-sm font-medium">{card.title}</CardTitle>
+                    <card.icon className="h-4 w-4 text-muted-foreground" />
+                </CardHeader>
+                <CardContent>
+                    <p className='text-xs text-muted-foreground h-10'>{card.description}</p>
+                    <Button asChild className="w-full mt-2" variant="outline">
+                        <Link href={card.href}>
+                            Gestionar {card.title}
+                        </Link>
+                    </Button>
+                </CardContent>
+            </Card>
+        ))}
+      </div>
+
+      <div className="grid gap-4 md:grid-cols-3">
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium">Total Empresas</CardTitle>
               <Building className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{summary.totalEmpresas}</div>
+              <div className="text-2xl font-bold">{summary?.totalEmpresas ?? <Loader2 className='animate-spin h-6'/>}</div>
             </CardContent>
           </Card>
            <Card>
@@ -134,7 +149,7 @@ export default function AdminDashboardPage() {
               <HardHat className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{summary.totalObras}</div>
+              <div className="text-2xl font-bold">{summary?.totalObras ?? <Loader2 className='animate-spin h-6'/>}</div>
             </CardContent>
           </Card>
            <Card>
@@ -143,24 +158,10 @@ export default function AdminDashboardPage() {
               <Users className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{summary.totalUsuarios}</div>
+              <div className="text-2xl font-bold">{summary?.totalUsuarios ?? <Loader2 className='animate-spin h-6'/>}</div>
             </CardContent>
           </Card>
-           <Card>
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                    <CardTitle className="text-sm font-medium">Gestión de Invitaciones</CardTitle>
-                    <MailQuestion className="h-4 w-4 text-muted-foreground" />
-                </CardHeader>
-                <CardContent>
-                    <Button asChild className="w-full" variant="outline">
-                        <Link href="/admin/invitaciones">
-                            Ver y Crear Invitaciones
-                        </Link>
-                    </Button>
-                </CardContent>
-            </Card>
         </div>
-      )}
 
       <Card>
         <CardHeader className='flex-row justify-between items-center'>
