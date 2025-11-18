@@ -1,3 +1,4 @@
+
 "use client";
 
 import React, { useState, useEffect, FormEvent } from 'react';
@@ -13,7 +14,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Badge } from '@/components/ui/badge';
 import { PlusCircle, ArrowLeft, Loader2, Trash2, Edit, UserX, UserCheck, RefreshCw } from 'lucide-react';
 import Link from 'next/link';
-import { collection, doc, getDoc, query, orderBy, where, onSnapshot, updateDoc, writeBatch, serverTimestamp, getDocs } from 'firebase/firestore';
+import { collection, doc, getDoc, query, orderBy, where, onSnapshot, updateDoc, serverTimestamp } from 'firebase/firestore';
 import { firebaseDb } from '@/lib/firebaseClient';
 import { Company, AppUser, UserInvitation, RolInvitado } from '@/types/pcg';
 import { useToast } from '@/hooks/use-toast';
@@ -21,8 +22,6 @@ import { useAuth } from '@/context/AuthContext';
 import { invitarUsuario } from '@/lib/invitaciones/invitarUsuario';
 import { Switch } from '@/components/ui/switch';
 import { cn } from '@/lib/utils';
-import { httpsCallable } from 'firebase/functions';
-import { firebaseFunctions } from '@/lib/firebaseClient';
 
 // Definición de roles para el formulario, alineado con los custom claims
 const rolesDisponibles: { value: RolInvitado, label: string }[] = [
@@ -46,7 +45,7 @@ export default function AdminEmpresaUsuariosPage() {
     const [error, setError] = useState<string | null>(null);
 
     const [dialogOpen, setDialogOpen] = useState(false);
-    const [currentUser, setCurrentUser] = useState<Partial<AppUser> & { isInvitation?: boolean, password?: string, role: RolInvitado } | null>(null);
+    const [currentUser, setCurrentUser] = useState<Partial<AppUser> & { isInvitation?: boolean, role: RolInvitado } | null>(null);
     const [isSaving, setIsSaving] = useState(false);
 
     const isSuperAdmin = role === "superadmin";
@@ -113,7 +112,6 @@ export default function AdminEmpresaUsuariosPage() {
                 email: '',
                 nombre: '',
                 role: 'jefe_obra',
-                password: ''
             });
         }
         setDialogOpen(true);
@@ -129,8 +127,6 @@ export default function AdminEmpresaUsuariosPage() {
         setIsSaving(true);
         setError(null);
         
-        const createCompanyUserFn = httpsCallable(firebaseFunctions, 'createCompanyUser');
-
         try {
             if (currentUser.id) { // Editando usuario existente
                  const userRef = doc(firebaseDb, "users", currentUser.id);
@@ -141,27 +137,27 @@ export default function AdminEmpresaUsuariosPage() {
                     // El rol no se puede cambiar desde aquí por ahora, se maneja con claims
                 });
                 toast({ title: "Usuario Actualizado", description: `Los datos de ${currentUser.nombre} han sido actualizados.` });
-            } else { // Creando nuevo usuario
+            } else { // Creando nueva invitación
                 if (!company) throw new Error("No se ha cargado la empresa");
-                if (!currentUser.email || !currentUser.nombre || !currentUser.role || !currentUser.password) {
-                    throw new Error("Email, nombre, rol y contraseña son obligatorios.");
+                if (!currentUser.email || !currentUser.nombre || !currentUser.role) {
+                    throw new Error("Email, nombre y rol son obligatorios.");
                 }
 
-                await createCompanyUserFn({
-                    companyId: company.id,
+                await invitarUsuario({
+                    empresaId: company.id,
+                    empresaNombre: company.nombreFantasia || company.razonSocial,
                     email: currentUser.email,
-                    password: currentUser.password,
-                    nombre: currentUser.nombre,
-                    role: currentUser.role,
+                    roleDeseado: currentUser.role,
+                    creadoPorUid: user.uid,
                 });
                 
-                toast({ title: "Usuario Creado e Invitado", description: `Se ha enviado un correo a ${currentUser.email} para que acceda.` });
+                toast({ title: "Invitación Enviada", description: `Se ha enviado una invitación por correo a ${currentUser.email}.` });
             }
             
             setDialogOpen(false);
         } catch (err: any) {
             console.error("Error al guardar:", err);
-            const errorMessage = err.details?.message || err.message || "Ocurrió un problema.";
+            const errorMessage = err.message || "Ocurrió un problema.";
             setError(errorMessage);
             toast({ variant: "destructive", title: "Error al guardar", description: errorMessage });
         } finally {
@@ -208,7 +204,7 @@ export default function AdminEmpresaUsuariosPage() {
             await invitarUsuario({
                 email: inv.email,
                 empresaId: inv.empresaId,
-                empresaNombre: company.nombre,
+                empresaNombre: company.nombreFantasia || company.razonSocial,
                 roleDeseado: inv.roleDeseado,
             });
             toast({ title: "Invitación Reenviada" });
@@ -236,12 +232,12 @@ export default function AdminEmpresaUsuariosPage() {
                      <Button variant="outline" size="sm" asChild className="mb-4">
                         <Link href="/admin/empresas"><ArrowLeft className="mr-2 h-4 w-4" />Volver a Empresas</Link>
                     </Button>
-                    <h1 className="text-2xl font-bold">Usuarios de {company?.nombre}</h1>
+                    <h1 className="text-2xl font-bold">Usuarios de {company?.nombreFantasia}</h1>
                     <p className="text-muted-foreground">Administra los usuarios e invitaciones para esta empresa.</p>
                 </div>
                 <Button onClick={() => handleOpenDialog()}>
                     <PlusCircle className="mr-2 h-4 w-4" />
-                    Crear Usuario
+                    Invitar Usuario
                 </Button>
             </header>
             
@@ -319,7 +315,7 @@ export default function AdminEmpresaUsuariosPage() {
 
             <Card>
                 <CardHeader>
-                    <CardTitle>Invitaciones</CardTitle>
+                    <CardTitle>Invitaciones Pendientes</CardTitle>
                 </CardHeader>
                 <CardContent>
                     <Table>
@@ -378,9 +374,9 @@ export default function AdminEmpresaUsuariosPage() {
                 <DialogContent>
                     <form onSubmit={handleFormSubmit}>
                         <DialogHeader>
-                            <DialogTitle>{currentUser?.id ? "Editar Usuario" : "Crear Nuevo Usuario"}</DialogTitle>
+                            <DialogTitle>{currentUser?.id ? "Editar Usuario" : "Invitar Nuevo Usuario"}</DialogTitle>
                              <DialogDescription>
-                                {currentUser?.id ? "Modifica los datos del usuario." : "Completa los datos para crear un nuevo usuario y enviarle una invitación por correo."}
+                                {currentUser?.id ? "Modifica los datos del usuario." : "Completa los datos para enviar una invitación por correo."}
                             </DialogDescription>
                         </DialogHeader>
                         <div className="py-4 grid gap-4">
@@ -392,13 +388,7 @@ export default function AdminEmpresaUsuariosPage() {
                                 <Label htmlFor="nombre">Nombre*</Label>
                                 <Input id="nombre" name="nombre" value={currentUser?.nombre || ''} onChange={e => setCurrentUser(prev => prev ? ({...prev, nombre: e.target.value}) : null)} />
                             </div>
-                            {!currentUser?.id && (
-                                <div className="space-y-2">
-                                    <Label htmlFor="password">Contraseña Temporal*</Label>
-                                    <Input id="password" name="password" type="password" value={currentUser?.password || ''} onChange={e => setCurrentUser(prev => prev ? ({...prev, password: e.target.value}) : null)} />
-                                    <p className='text-xs text-muted-foreground'>El usuario deberá cambiarla en su primer inicio de sesión.</p>
-                                </div>
-                            )}
+                           
                             <div className="space-y-2">
                                 <Label htmlFor="role">Rol en la Empresa</Label>
                                 <Select value={currentUser?.role || 'jefe_obra'} onValueChange={v => setCurrentUser(prev => prev ? ({...prev, role: v as RolInvitado}) : null)}>
@@ -431,3 +421,4 @@ export default function AdminEmpresaUsuariosPage() {
         </div>
     );
 }
+
