@@ -57,9 +57,14 @@ export default function AdminUsuariosPage() {
 
         const fetchCompanies = async () => {
             const companiesRef = collection(firebaseDb, "companies");
-            const companiesSnap = await getDocs(query(companiesRef, orderBy("nombreFantasia")));
-            const companiesData = companiesSnap.docs.map(doc => ({ id: doc.id, ...doc.data() } as Company));
-            setCompanies(companiesData);
+            try {
+                const companiesSnap = await getDocs(query(companiesRef, orderBy("nombreFantasia")));
+                const companiesData = companiesSnap.docs.map(doc => ({ id: doc.id, ...doc.data() } as Company));
+                setCompanies(companiesData);
+            } catch (err) {
+                 console.error("Error fetching companies:", err);
+                 setError("No se pudieron cargar las empresas.");
+            }
         };
 
         const unsubInvitations = onSnapshot(

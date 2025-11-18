@@ -53,6 +53,7 @@ async function ensureUserDocForAuthUser(user: User, invitation?: UserInvitation 
             empresaId: invitation.empresaId,
             role: invitation.roleDeseado,
             createdAt: serverTimestamp(),
+            activo: true,
         };
 
         const batch = writeBatch(firebaseDb);
@@ -84,6 +85,7 @@ async function ensureUserDocForAuthUser(user: User, invitation?: UserInvitation 
             empresaId: invitationData.empresaId,
             role: invitationData.roleDeseado,
             createdAt: serverTimestamp(),
+            activo: true,
         };
 
         const batch = writeBatch(firebaseDb);
@@ -102,6 +104,7 @@ async function ensureUserDocForAuthUser(user: User, invitation?: UserInvitation 
             empresaId: null,
             role: "none",
             createdAt: serverTimestamp(),
+            activo: true,
         };
         await setDoc(userDocRef, newUserProfile);
         return { id: user.uid, ...newUserProfile } as AppUser;

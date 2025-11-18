@@ -4,7 +4,7 @@
 import { useEffect, useState, Suspense, FormEvent } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { createUserWithEmailAndPassword } from 'firebase/auth';
-import { doc, getDoc, writeBatch } from 'firebase/firestore';
+import { doc, getDoc, writeBatch, serverTimestamp } from 'firebase/firestore';
 import { firebaseAuth, firebaseDb } from '@/lib/firebaseClient';
 import { Loader2, CheckCircle, ShieldX } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -91,10 +91,10 @@ function AcceptInvitePageInner() {
       const newUserProfile = {
         email: email.toLowerCase(),
         empresaId: invitation.empresaId,
-        empresaNombre: invitation.empresaNombre,
         role: invitation.roleDeseado,
-        createdAt: new Date(),
         nombre: user.displayName || email.split('@')[0],
+        createdAt: serverTimestamp(),
+        activo: true,
       };
       
       // 3. Marcar la invitación como aceptada
@@ -102,7 +102,7 @@ function AcceptInvitePageInner() {
 
       // 4. Usar un batch para asegurar atomicidad
       const batch = writeBatch(firebaseDb);
-      batch.set(userDocRef, newUserProfile);
+      batch.set(userDocRef, newUserProfile, { merge: true });
       batch.update(invitationRef, { estado: "aceptada" });
       await batch.commit();
 
