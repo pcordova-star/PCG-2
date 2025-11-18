@@ -1,7 +1,6 @@
 // src/types/pcg.ts
 
 import { Timestamp } from "firebase/firestore";
-import { UserRole } from "@/lib/roles";
 
 /**
  * Representa una empresa en la plataforma.
@@ -27,7 +26,7 @@ export interface CompanyUser {
   uid: string;
   email: string;
   nombre: string;
-  role: UserRole;
+  role: RolInvitado;
   obrasAsignadas: string[];
   activo: boolean;
 }
@@ -41,7 +40,7 @@ export interface AppUser {
   nombre: string;
   email: string;
   phone?: string;
-  role: UserRole | "none";
+  role: RolInvitado | 'superadmin' | 'none';
   empresaId: string | null;
   createdAt: Date | Timestamp;
   activo?: boolean;

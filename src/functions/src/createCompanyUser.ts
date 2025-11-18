@@ -1,4 +1,3 @@
-
 import { onCall, HttpsError } from "firebase-functions/v2/https";
 import * as admin from "firebase-admin";
 
@@ -21,7 +20,7 @@ export const createCompanyUser = onCall(
 
     // 2. Validar que el usuario es SUPER_ADMIN vía customClaims
     const requesterClaims = await auth.getUser(ctx.uid);
-    if (requesterClaims.customClaims?.role !== "SUPER_ADMIN") {
+    if (requesterClaims.customClaims?.role !== "superadmin") {
       throw new HttpsError(
         "permission-denied",
         "Solo SUPER_ADMIN puede crear usuarios."
@@ -34,7 +33,7 @@ export const createCompanyUser = onCall(
       email: string;
       password?: string;
       nombre: string;
-      role: "EMPRESA_ADMIN" | "JEFE_OBRA" | "PREVENCIONISTA" | "LECTOR_CLIENTE";
+      role: "admin_empresa" | "jefe_obra" | "prevencionista" | "cliente";
     };
 
     if (!data.companyId || !data.email || !data.nombre || !data.role) {
@@ -96,7 +95,7 @@ export const createCompanyUser = onCall(
       nombre: data.nombre,
       email: data.email,
       role: data.role,
-      companyIdPrincipal: data.companyId,
+      empresaId: data.companyId,
       activo: true,
       createdAt: now,
       updatedAt: now,
