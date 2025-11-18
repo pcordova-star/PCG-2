@@ -44,7 +44,7 @@ export default function AdminFacturacionPage() {
   useEffect(() => {
     if (!isSuperAdmin) return;
     
-    async function fetchData() {
+    async function fetchAllData() {
       setLoading(true);
       setError(null);
       try {
