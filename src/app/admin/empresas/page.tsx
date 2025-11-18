@@ -9,7 +9,6 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Badge } from '@/components/ui/badge';
 import { PlusCircle, Edit, Trash2 } from 'lucide-react';
@@ -82,7 +81,7 @@ export default function AdminEmpresasPage() {
     }, [isSuperAdmin]);
 
     const handleOpenDialog = (company: Partial<Company> | null = null) => {
-        setCurrentCompany(company || { nombre: '', rut: '', plan: 'basic', activa: true });
+        setCurrentCompany(company || { nombreFantasia: '', razonSocial: '', rut: '', activa: true, baseMensual: 100000, valorPorUsuario: 35000 });
         setDialogOpen(true);
         setError(null);
     };
@@ -90,42 +89,41 @@ export default function AdminEmpresasPage() {
     const handleFormChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         if (currentCompany) {
             const { name, value, type, checked } = e.target;
-            setCurrentCompany({ ...currentCompany, [name]: type === 'checkbox' ? checked : value });
+            const finalValue = type === 'checkbox' ? checked : (type === 'number' ? Number(value) : value);
+            setCurrentCompany({ ...currentCompany, [name]: finalValue });
         }
     };
     
-    const handleSelectChange = (name: keyof Company, value: any) => {
-         if (currentCompany) {
-            setCurrentCompany({ ...currentCompany, [name]: value });
-        }
-    }
-
     const handleSubmit = async (e: FormEvent) => {
         e.preventDefault();
-        if (!currentCompany || !currentCompany.nombre || !currentCompany.rut) {
-            setError("Nombre y RUT son obligatorios.");
+        if (!currentCompany || !currentCompany.nombreFantasia || !currentCompany.razonSocial || !currentCompany.rut) {
+            setError("Nombre de fantasía, Razón Social y RUT son obligatorios.");
             return;
         }
 
         setIsSaving(true);
         setError(null);
+        
+        const dataToSave = {
+            ...currentCompany,
+            baseMensual: currentCompany.baseMensual || 100000,
+            valorPorUsuario: currentCompany.valorPorUsuario || 35000,
+        };
 
         try {
             if (currentCompany.id) {
-                // Actualizar empresa existente
                 const docRef = doc(firebaseDb, "companies", currentCompany.id);
-                await updateDoc(docRef, { ...currentCompany, updatedAt: serverTimestamp() });
-                setEmpresas(empresas.map(emp => emp.id === currentCompany!.id ? { ...emp, ...currentCompany } as Company : emp));
+                await updateDoc(docRef, { ...dataToSave, updatedAt: serverTimestamp() });
+                setEmpresas(empresas.map(emp => emp.id === currentCompany!.id ? { ...emp, ...dataToSave } as Company : emp));
             } else {
-                // Crear nueva empresa
                 const docRef = await addDoc(collection(firebaseDb, "companies"), {
-                    ...currentCompany,
+                    ...dataToSave,
                     createdAt: serverTimestamp(),
                     updatedAt: serverTimestamp(),
                 });
                 const nuevaEmpresa: Company = {
                     id: docRef.id,
-                    ...currentCompany,
+                    ...dataToSave,
                     createdAt: new Date(),
                 } as Company;
                 setEmpresas([nuevaEmpresa, ...empresas]);
@@ -146,25 +144,15 @@ export default function AdminEmpresasPage() {
         }
 
         try {
-            // Borrar subcolecciones de usuarios y de invitaciones (aunque invitaciones no es subcolección)
             await deleteSubcollection(firebaseDb, `companies/${companyId}/users`);
-            // Nota: las invitaciones se pueden dejar o borrar con una query aparte si es necesario.
-
-            // Borrar subcolección de obras y sus subcolecciones anidadas
             const obrasRef = collection(firebaseDb, `companies/${companyId}/obras`);
             const obrasSnap = await getDocs(obrasRef);
             for (const obraDoc of obrasSnap.docs) {
                 const obraId = obraDoc.id;
-                // Borrar subcolecciones de cada obra
                 await deleteSubcollection(firebaseDb, `companies/${companyId}/obras/${obraId}/actividades`);
                 await deleteSubcollection(firebaseDb, `companies/${companyId}/obras/${obraId}/avancesDiarios`);
-                // Añadir aquí otras subcolecciones de obra si existen
-                
-                // Borrar el documento de la obra
                 await deleteDoc(doc(firebaseDb, `companies/${companyId}/obras`, obraId));
             }
-
-            // Finalmente, borrar el documento principal de la empresa
             await deleteDoc(doc(firebaseDb, "companies", companyId));
             
             setEmpresas(prev => prev.filter(emp => emp.id !== companyId));
@@ -193,7 +181,7 @@ export default function AdminEmpresasPage() {
                 </Button>
             </header>
 
-            {error && <p className="text-sm font-medium text-destructive">{error}</p>}
+            {error && !dialogOpen && <p className="text-sm font-medium text-destructive">{error}</p>}
             
             <Card>
                 <CardHeader>
@@ -203,21 +191,19 @@ export default function AdminEmpresasPage() {
                     <Table>
                         <TableHeader>
                             <TableRow>
-                                <TableHead>Nombre</TableHead>
+                                <TableHead>Nombre Fantasía</TableHead>
                                 <TableHead>RUT</TableHead>
-                                <TableHead>Plan</TableHead>
                                 <TableHead>Estado</TableHead>
                                 <TableHead className="text-right">Acciones</TableHead>
                             </TableRow>
                         </TableHeader>
                         <TableBody>
                             {loading ? (
-                                <TableRow><TableCell colSpan={5} className="text-center h-24">Cargando empresas...</TableCell></TableRow>
+                                <TableRow><TableCell colSpan={4} className="text-center h-24">Cargando empresas...</TableCell></TableRow>
                             ) : empresas.map((emp) => (
                                 <TableRow key={emp.id}>
-                                    <TableCell className="font-medium">{emp.nombre}</TableCell>
+                                    <TableCell className="font-medium">{emp.nombreFantasia}</TableCell>
                                     <TableCell>{emp.rut}</TableCell>
-                                    <TableCell><Badge variant="outline">{emp.plan}</Badge></TableCell>
                                     <TableCell>
                                         <Badge variant={emp.activa ? 'default' : 'secondary'}>
                                             {emp.activa ? 'Activa' : 'Inactiva'}
@@ -243,7 +229,7 @@ export default function AdminEmpresasPage() {
                                                     <AlertDialogHeader>
                                                         <AlertDialogTitle>¿Eliminar empresa?</AlertDialogTitle>
                                                         <AlertDialogDescription>
-                                                            Esta acción no se puede deshacer. Se eliminará permanentemente la empresa "{emp.nombre}" y todos sus datos asociados (usuarios, obras, etc.).
+                                                            Esta acción no se puede deshacer. Se eliminará permanentemente la empresa "{emp.nombreFantasia}" y todos sus datos asociados (usuarios, obras, etc.).
                                                         </AlertDialogDescription>
                                                     </AlertDialogHeader>
                                                     <AlertDialogFooter>
@@ -264,38 +250,32 @@ export default function AdminEmpresasPage() {
             </Card>
 
             <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-                <DialogContent>
+                <DialogContent className="sm:max-w-2xl">
                     <form onSubmit={handleSubmit}>
                         <DialogHeader>
                             <DialogTitle>{currentCompany?.id ? "Editar Empresa" : "Crear Nueva Empresa"}</DialogTitle>
                         </DialogHeader>
-                        <div className="grid gap-4 py-4">
-                            <div className="space-y-2">
-                                <Label htmlFor="nombre">Nombre*</Label>
-                                <Input id="nombre" name="nombre" value={currentCompany?.nombre || ''} onChange={handleFormChange} />
+                        <div className="grid gap-4 py-4 md:grid-cols-2">
+                            <div className="space-y-2"><Label>Nombre Fantasía*</Label><Input name="nombreFantasia" value={currentCompany?.nombreFantasia || ''} onChange={handleFormChange} /></div>
+                            <div className="space-y-2"><Label>Razón Social*</Label><Input name="razonSocial" value={currentCompany?.razonSocial || ''} onChange={handleFormChange} /></div>
+                            <div className="space-y-2"><Label>RUT*</Label><Input name="rut" value={currentCompany?.rut || ''} onChange={handleFormChange} /></div>
+                            <div className="space-y-2"><Label>Giro</Label><Input name="giro" value={currentCompany?.giro || ''} onChange={handleFormChange} /></div>
+                            <div className="space-y-2 col-span-2"><Label>Dirección</Label><Input name="direccion" value={currentCompany?.direccion || ''} onChange={handleFormChange} /></div>
+                            <div className="space-y-2"><Label>Comuna</Label><Input name="comuna" value={currentCompany?.comuna || ''} onChange={handleFormChange} /></div>
+                            <div className="space-y-2"><Label>Ciudad</Label><Input name="ciudad" value={currentCompany?.ciudad || ''} onChange={handleFormChange} /></div>
+                            <div className="space-y-2"><Label>Teléfono Contacto</Label><Input name="telefonoContacto" value={currentCompany?.telefonoContacto || ''} onChange={handleFormChange} /></div>
+                            <div className="space-y-2"><Label>Email Contacto</Label><Input name="emailContacto" type="email" value={currentCompany?.emailContacto || ''} onChange={handleFormChange} /></div>
+                            
+                            <div className="col-span-2 border-t pt-4 mt-2 grid md:grid-cols-2 gap-4">
+                                <div className="space-y-2"><Label>Monto Base Mensual</Label><Input name="baseMensual" type="number" value={currentCompany?.baseMensual || 100000} onChange={handleFormChange} /></div>
+                                <div className="space-y-2"><Label>Valor por Usuario</Label><Input name="valorPorUsuario" type="number" value={currentCompany?.valorPorUsuario || 35000} onChange={handleFormChange} /></div>
                             </div>
-                            <div className="space-y-2">
-                                <Label htmlFor="rut">RUT*</Label>
-                                <Input id="rut" name="rut" value={currentCompany?.rut || ''} onChange={handleFormChange} />
-                            </div>
-                            <div className="space-y-2">
-                                <Label htmlFor="plan">Plan</Label>
-                                <Select value={currentCompany?.plan || 'basic'} onValueChange={(value) => handleSelectChange('plan', value)}>
-                                    <SelectTrigger id="plan">
-                                        <SelectValue placeholder="Seleccione un plan" />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                        <SelectItem value="basic">Basic</SelectItem>
-                                        <SelectItem value="pro">Pro</SelectItem>
-                                        <SelectItem value="enterprise">Enterprise</SelectItem>
-                                    </SelectContent>
-                                </Select>
-                            </div>
-                             <div className="flex items-center space-x-2">
-                                <Checkbox id="activa" name="activa" checked={currentCompany?.activa} onCheckedChange={(checked) => handleSelectChange('activa', !!checked)} />
+
+                             <div className="flex items-center space-x-2 col-span-2">
+                                <Checkbox id="activa" name="activa" checked={currentCompany?.activa} onCheckedChange={(checked) => handleFormChange({ target: { name: 'activa', value: checked, type: 'checkbox', checked: !!checked } } as any)} />
                                 <Label htmlFor="activa">Empresa activa</Label>
                             </div>
-                            {error && <p className="text-sm font-medium text-destructive">{error}</p>}
+                            {error && <p className="text-sm font-medium text-destructive col-span-2">{error}</p>}
                         </div>
                         <DialogFooter>
                             <Button type="button" variant="ghost" onClick={() => setDialogOpen(false)}>Cancelar</Button>
