@@ -11,7 +11,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
 import { PlusCircle, Loader2, Trash2, RefreshCw, ArrowLeft } from 'lucide-react';
-import { collection, doc, query, orderBy, onSnapshot, updateDoc, writeBatch, getDocs } from 'firebase/firestore';
+import { collection, doc, query, orderBy, onSnapshot, updateDoc, writeBatch, getDocs, deleteDoc } from 'firebase/firestore';
 import { firebaseDb } from '@/lib/firebaseClient';
 import { Company, UserInvitation, RolInvitado } from '@/types/pcg';
 import { useToast } from '@/hooks/use-toast';
@@ -150,6 +150,16 @@ export default function AdminInvitacionesPage() {
             toast({ variant: 'destructive', title: "Error", description: "No se pudo revocar la invitación." });
         }
     };
+    
+    const handleDeleteInvitation = async (invitationId: string) => {
+        try {
+            const invitationRef = doc(firebaseDb, "invitacionesUsuarios", invitationId);
+            await deleteDoc(invitationRef);
+            toast({ title: "Invitación Eliminada" });
+        } catch (err) {
+            toast({ variant: 'destructive', title: "Error", description: "No se pudo eliminar la invitación." });
+        }
+    };
 
     if (loading) {
         return <div className="p-8 text-center"><Loader2 className="animate-spin" /> Cargando invitaciones...</div>;
@@ -235,26 +245,51 @@ export default function AdminInvitacionesPage() {
                                     <TableCell><Badge variant={inv.estado === 'pendiente' ? 'secondary' : 'default'}>{inv.estado}</Badge></TableCell>
                                     <TableCell>{inv.createdAt ? new Date(inv.createdAt).toLocaleDateString() : 'N/A'}</TableCell>
                                     <TableCell className="text-right">
-                                        {inv.estado === 'pendiente' && (
-                                            <div className="flex gap-1 justify-end">
-                                                <Button variant="ghost" size="icon" onClick={() => handleResendInvitation(inv)}><RefreshCw className="h-4 w-4" /></Button>
+                                        <div className="flex gap-1 justify-end">
+                                            {inv.estado === 'pendiente' && (
+                                                <>
+                                                    <Button variant="ghost" size="icon" onClick={() => handleResendInvitation(inv)} title="Reenviar invitación"><RefreshCw className="h-4 w-4" /></Button>
+                                                    <AlertDialog>
+                                                        <AlertDialogTrigger asChild>
+                                                            <Button variant="ghost" size="icon" className="text-destructive" title="Revocar invitación"><Trash2 className="h-4 w-4" /></Button>
+                                                        </AlertDialogTrigger>
+                                                        <AlertDialogContent>
+                                                            <AlertDialogHeader>
+                                                                <AlertDialogTitle>¿Revocar invitación?</AlertDialogTitle>
+                                                                <AlertDialogDescription>La invitación para {inv.email} será invalidada.</AlertDialogDescription>
+                                                            </AlertDialogHeader>
+                                                            <AlertDialogFooter>
+                                                                <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                                                                <AlertDialogAction onClick={() => handleRevokeInvitation(inv.id!)} className="bg-destructive hover:bg-destructive/90">Revocar</AlertDialogAction>
+                                                            </AlertDialogFooter>
+                                                        </AlertDialogContent>
+                                                    </AlertDialog>
+                                                </>
+                                            )}
+                                            {inv.estado === 'revocada' && (
                                                 <AlertDialog>
                                                     <AlertDialogTrigger asChild>
-                                                        <Button variant="ghost" size="icon" className="text-destructive"><Trash2 className="h-4 w-4" /></Button>
+                                                        <Button variant="ghost" size="icon" className="text-destructive" title="Eliminar invitación">
+                                                            <Trash2 className="h-4 w-4" />
+                                                        </Button>
                                                     </AlertDialogTrigger>
                                                     <AlertDialogContent>
                                                         <AlertDialogHeader>
-                                                            <AlertDialogTitle>¿Revocar invitación?</AlertDialogTitle>
-                                                            <AlertDialogDescription>La invitación para {inv.email} será invalidada.</AlertDialogDescription>
+                                                            <AlertDialogTitle>¿Eliminar invitación permanentemente?</AlertDialogTitle>
+                                                            <AlertDialogDescription>
+                                                                Esta acción eliminará el registro de la invitación para {inv.email}. No se puede deshacer.
+                                                            </AlertDialogDescription>
                                                         </AlertDialogHeader>
                                                         <AlertDialogFooter>
                                                             <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                                                            <AlertDialogAction onClick={() => handleRevokeInvitation(inv.id!)} className="bg-destructive hover:bg-destructive/90">Revocar</AlertDialogAction>
+                                                            <AlertDialogAction onClick={() => handleDeleteInvitation(inv.id!)} className="bg-destructive hover:bg-destructive/90">
+                                                                Eliminar Permanentemente
+                                                            </AlertDialogAction>
                                                         </AlertDialogFooter>
                                                     </AlertDialogContent>
                                                 </AlertDialog>
-                                            </div>
-                                        )}
+                                            )}
+                                        </div>
                                     </TableCell>
                                 </TableRow>
                             ))}
