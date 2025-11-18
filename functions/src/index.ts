@@ -14,6 +14,5 @@ if (getApps().length === 0) {
 
 // Exporta las funciones callable para que estén disponibles en el backend.
 // El nombre de la propiedad del objeto exportado será el nombre de la función en Firebase.
-export { createCompanyUser } from "./createCompanyUser";
 export { setSuperAdminClaim } from "./setSuperAdmin";
 export { registrarAvanceRapido } from "./registrarAvanceRapido";
