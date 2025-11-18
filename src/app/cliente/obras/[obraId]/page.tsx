@@ -2,7 +2,7 @@
 "use client";
 
 import React, { Suspense, useEffect, useState } from 'react';
-import { notFound, useParams, useRouter } from 'next/navigation';
+import { notFound, useParams, useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -56,15 +56,18 @@ function formatCL(iso?: string | null) {
   }
 }
 
-export default function ClienteObraPage() {
+function ClienteObraPageInner() {
     const params = useParams();
     const router = useRouter();
+    const searchParams = useSearchParams();
     const { user, loading: authLoading } = useAuth();
     const obraId = params.obraId as string;
     
     const [data, setData] = useState<PublicObraData | null>(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
+
+    const isPreview = searchParams.get('preview') === 'true';
     
     useEffect(() => {
         if (!authLoading && !user) {
@@ -85,7 +88,8 @@ export default function ClienteObraPage() {
                 const obraData = obraDoc.data() as Obra;
                 
                 // Security check: ensure the logged-in user is the client for this project
-                if (obraData.clienteEmail !== user.email) {
+                // UNLESS it's a preview from an internal user.
+                if (!isPreview && obraData.clienteEmail.toLowerCase() !== user.email?.toLowerCase()) {
                     setError("No tienes permiso para ver esta obra.");
                     return null;
                 }
@@ -144,14 +148,18 @@ export default function ClienteObraPage() {
             setLoading(false);
         });
 
-    }, [obraId, user]);
+    }, [obraId, user, isPreview]);
 
   if (loading || authLoading) {
       return <div className="text-center p-8">Cargando datos de la obra...</div>
   }
   
-  if (error || !data) {
-      return notFound();
+  if (error && !data) {
+      return <div className="p-8 text-center text-destructive">{error}</div>;
+  }
+  
+  if (!data) {
+    return notFound();
   }
 
   const {
@@ -267,4 +275,12 @@ export default function ClienteObraPage() {
       </section>
     </div>
   );
+}
+
+export default function ClienteObraPage() {
+    return (
+        <Suspense fallback={<div className="text-center p-8">Cargando...</div>}>
+            <ClienteObraPageInner />
+        </Suspense>
+    );
 }
