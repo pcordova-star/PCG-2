@@ -1,4 +1,3 @@
-
 "use client";
 
 import React, { useState, useEffect, useMemo, FormEvent } from 'react';
@@ -12,7 +11,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
 import { PlusCircle, Loader2, Trash2, RefreshCw, ArrowLeft } from 'lucide-react';
-import { collection, doc, query, orderBy, onSnapshot, updateDoc, writeBatch, getDocs, deleteDoc } from 'firebase/firestore';
+import { collection, doc, query, orderBy, onSnapshot, updateDoc, writeBatch, getDocs } from 'firebase/firestore';
 import { firebaseDb } from '@/lib/firebaseClient';
 import { Company, UserInvitation, RolInvitado } from '@/types/pcg';
 import { useToast } from '@/hooks/use-toast';
@@ -20,7 +19,6 @@ import { useAuth } from '@/context/AuthContext';
 import { invitarUsuario } from '@/lib/invitaciones/invitarUsuario';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { Checkbox } from '@/components/ui/checkbox';
 
 export default function AdminInvitacionesPage() {
     const { role, loading: authLoading } = useAuth();
@@ -35,9 +33,6 @@ export default function AdminInvitacionesPage() {
     // Filtros
     const [filtroEmpresa, setFiltroEmpresa] = useState('all');
     const [filtroEstado, setFiltroEstado] = useState('all');
-
-    // Selección múltiple
-    const [selectedInvitations, setSelectedInvitations] = useState<string[]>([]);
 
     // Dialog para nueva invitación
     const [dialogOpen, setDialogOpen] = useState(false);
@@ -99,11 +94,6 @@ export default function AdminInvitacionesPage() {
         });
     }, [invitations, filtroEmpresa, filtroEstado]);
 
-    useEffect(() => {
-        // Limpiar selección si los filtros cambian
-        setSelectedInvitations([]);
-    }, [filtroEmpresa, filtroEstado]);
-
     const handleCreateInvitation = async (e: FormEvent) => {
         e.preventDefault();
         if (!newInvitation.email || !newInvitation.companyId || !newInvitation.role) {
@@ -158,22 +148,6 @@ export default function AdminInvitacionesPage() {
             toast({ title: "Invitación Revocada" });
         } catch (err) {
             toast({ variant: 'destructive', title: "Error", description: "No se pudo revocar la invitación." });
-        }
-    };
-    
-    const handleDeleteInvitations = async (invitationIds: string[]) => {
-        if (invitationIds.length === 0) return;
-        try {
-            const batch = writeBatch(firebaseDb);
-            invitationIds.forEach(id => {
-                const invitationRef = doc(firebaseDb, "invitacionesUsuarios", id);
-                batch.delete(invitationRef);
-            });
-            await batch.commit();
-            toast({ title: `Se eliminaron ${invitationIds.length} invitaciones.` });
-            setSelectedInvitations([]); // Limpiar selección después de eliminar
-        } catch (err) {
-            toast({ variant: 'destructive', title: "Error", description: "No se pudieron eliminar las invitaciones seleccionadas." });
         }
     };
 
@@ -235,57 +209,13 @@ export default function AdminInvitacionesPage() {
 
             <Card>
                 <CardHeader>
-                    <div className="flex justify-between items-center">
-                        <div>
-                            <CardTitle>Listado Global de Invitaciones</CardTitle>
-                            <CardDescription>Mostrando {filteredInvitations.length} de {invitations.length} invitaciones totales.</CardDescription>
-                        </div>
-                         {selectedInvitations.length > 0 && (
-                            <AlertDialog>
-                                <AlertDialogTrigger asChild>
-                                    <Button variant="destructive">
-                                        <Trash2 className="mr-2 h-4 w-4" />
-                                        Eliminar ({selectedInvitations.length})
-                                    </Button>
-                                </AlertDialogTrigger>
-                                <AlertDialogContent>
-                                    <AlertDialogHeader>
-                                        <AlertDialogTitle>¿Eliminar {selectedInvitations.length} invitaciones?</AlertDialogTitle>
-                                        <AlertDialogDescription>
-                                            Esta acción no se puede deshacer. Se eliminarán permanentemente los registros seleccionados.
-                                        </AlertDialogDescription>
-                                    </AlertDialogHeader>
-                                    <AlertDialogFooter>
-                                        <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                                        <AlertDialogAction
-                                            onClick={() => handleDeleteInvitations(selectedInvitations)}
-                                            className="bg-destructive hover:bg-destructive/90"
-                                        >
-                                            Eliminar Permanentemente
-                                        </AlertDialogAction>
-                                    </AlertDialogFooter>
-                                </AlertDialogContent>
-                            </AlertDialog>
-                        )}
-                    </div>
+                    <CardTitle>Listado Global de Invitaciones</CardTitle>
+                    <CardDescription>Mostrando {filteredInvitations.length} de {invitations.length} invitaciones totales.</CardDescription>
                 </CardHeader>
                 <CardContent>
                     <Table>
                         <TableHeader>
                             <TableRow>
-                                <TableHead className="w-[40px]">
-                                    <Checkbox
-                                        checked={filteredInvitations.length > 0 && selectedInvitations.length === filteredInvitations.length}
-                                        onCheckedChange={(checked) => {
-                                            if (checked) {
-                                                setSelectedInvitations(filteredInvitations.map(inv => inv.id!));
-                                            } else {
-                                                setSelectedInvitations([]);
-                                            }
-                                        }}
-                                        aria-label="Seleccionar todas"
-                                    />
-                                </TableHead>
                                 <TableHead>Email</TableHead>
                                 <TableHead>Empresa</TableHead>
                                 <TableHead>Rol Asignado</TableHead>
@@ -296,22 +226,9 @@ export default function AdminInvitacionesPage() {
                         </TableHeader>
                         <TableBody>
                             {filteredInvitations.length === 0 ? (
-                                <TableRow><TableCell colSpan={7} className="text-center h-24">No hay invitaciones que coincidan con los filtros.</TableCell></TableRow>
+                                <TableRow><TableCell colSpan={6} className="text-center h-24">No hay invitaciones que coincidan con los filtros.</TableCell></TableRow>
                             ) : filteredInvitations.map((inv) => (
-                                <TableRow key={inv.id} data-state={selectedInvitations.includes(inv.id!) && "selected"}>
-                                    <TableCell>
-                                        <Checkbox
-                                            checked={selectedInvitations.includes(inv.id!)}
-                                            onCheckedChange={(checked) => {
-                                                setSelectedInvitations(prev => 
-                                                    checked 
-                                                        ? [...prev, inv.id!]
-                                                        : prev.filter(id => id !== inv.id!)
-                                                );
-                                            }}
-                                            aria-label="Seleccionar fila"
-                                        />
-                                    </TableCell>
+                                <TableRow key={inv.id}>
                                     <TableCell className="font-medium">{inv.email}</TableCell>
                                     <TableCell>{inv.empresaNombre}</TableCell>
                                     <TableCell><Badge variant="outline">{inv.roleDeseado}</Badge></TableCell>
@@ -338,29 +255,6 @@ export default function AdminInvitacionesPage() {
                                                         </AlertDialogContent>
                                                     </AlertDialog>
                                                 </>
-                                            )}
-                                            {inv.estado === 'revocada' && (
-                                                <AlertDialog>
-                                                    <AlertDialogTrigger asChild>
-                                                        <Button variant="ghost" size="icon" className="text-destructive" title="Eliminar invitación">
-                                                            <Trash2 className="h-4 w-4" />
-                                                        </Button>
-                                                    </AlertDialogTrigger>
-                                                    <AlertDialogContent>
-                                                        <AlertDialogHeader>
-                                                            <AlertDialogTitle>¿Eliminar invitación permanentemente?</AlertDialogTitle>
-                                                            <AlertDialogDescription>
-                                                                Esta acción eliminará el registro de la invitación para {inv.email}. No se puede deshacer.
-                                                            </AlertDialogDescription>
-                                                        </AlertDialogHeader>
-                                                        <AlertDialogFooter>
-                                                            <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                                                            <AlertDialogAction onClick={() => handleDeleteInvitations([inv.id!])} className="bg-destructive hover:bg-destructive/90">
-                                                                Eliminar Permanentemente
-                                                            </AlertDialogAction>
-                                                        </AlertDialogFooter>
-                                                    </AlertDialogContent>
-                                                </AlertDialog>
                                             )}
                                         </div>
                                     </TableCell>
@@ -398,7 +292,7 @@ export default function AdminInvitacionesPage() {
                                         <SelectItem value="admin_empresa">Admin Empresa</SelectItem>
                                         <SelectItem value="jefe_obra">Jefe de Obra</SelectItem>
                                         <SelectItem value="prevencionista">Prevencionista</SelectItem>
-                                        <SelectItem value="lector_cliente">Cliente (Solo lectura)</SelectItem>
+                                        <SelectItem value="cliente">Cliente (Solo lectura)</SelectItem>
                                     </SelectContent>
                                 </Select>
                             </div>
