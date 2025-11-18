@@ -35,11 +35,7 @@ export async function invitarUsuario(params: InvitarUsuarioParams): Promise<void
 
   // La extensión de Firebase "Trigger Email" debería estar escuchando la colección 'mail'.
   // Al crear un documento aquí, se disparará el envío del correo.
-  const appBaseUrl = (process.env.NEXT_PUBLIC_APP_URL || "").replace(/\/+$/, "");
-  if (!appBaseUrl) {
-    console.error("Error: NEXT_PUBLIC_APP_URL no está definida en las variables de entorno.");
-    throw new Error("La URL base de la aplicación no está configurada.");
-  }
+  const appBaseUrl = (process.env.NEXT_PUBLIC_APP_URL || "https://pcg2-0--pcg-2-8bf1b.us-central1.hosted.app").replace(/\/+$/, "");
   const acceptInviteUrl = `${appBaseUrl}/accept-invite?invId=${newInvitationRef.id}&email=${encodeURIComponent(params.email)}`;
   const logoUrl = `${appBaseUrl}/logo.png`;
 
