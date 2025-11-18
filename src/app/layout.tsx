@@ -62,7 +62,7 @@ function MainLayout({ children }: { children: React.ReactNode }) {
   const timerRef = useRef<NodeJS.Timeout | null>(null);
   const { user, role, loading: authLoading, logout } = useAuth();
   
-  const isPublicPage = pathname === '/' || publicPaths.some(path => pathname.startsWith(path)) || pathname.startsWith('/cliente');
+  const isPublicPage = pathname === '/' || publicPaths.some(path => pathname.startsWith(path)) || pathname.startsWith('/cliente/');
   const isAdminPage = pathname.startsWith('/admin');
   const isSuperAdmin = role === 'superadmin';
 
