@@ -269,7 +269,7 @@ export default function ObrasPage() {
                       <TableCell className="text-right">
                         <div className="flex justify-end gap-2">
                            <Button variant="outline" size="sm" asChild>
-                            <Link href={`/cliente/obras/${obra.id}`} target="_blank">
+                            <Link href={`/cliente/obras/${obra.id}?preview=true`} target="_blank">
                               <LinkIcon className="mr-2 h-3 w-3" />
                               Ver Panel Cliente
                             </Link>
