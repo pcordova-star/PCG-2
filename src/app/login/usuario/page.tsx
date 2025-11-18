@@ -33,8 +33,10 @@ export default function UsuarioLoginPage() {
 
   useEffect(() => {
     if (!loading && user && role !== 'none') {
-        if(role === 'superadmin'){
+        if (role === 'superadmin') {
             router.replace('/admin/dashboard');
+        } else if (role === 'cliente') {
+            router.replace('/cliente');
         } else {
             router.replace('/dashboard');
         }
