@@ -4,27 +4,38 @@
 import React, { useEffect, useState, useMemo, Suspense } from "react";
 import { useAuth } from "@/context/AuthContext";
 import { useRouter, useSearchParams } from 'next/navigation';
-import { collection, getDocs, query, orderBy, addDoc, doc, deleteDoc, serverTimestamp, writeBatch, getDoc } from "firebase/firestore";
+import { collection, getDocs, query, orderBy, addDoc, doc, deleteDoc, serverTimestamp, getDoc, onSnapshot } from "firebase/firestore";
 import { firebaseDb } from "@/lib/firebaseClient";
 import { useActividadAvance } from "@/app/operaciones/programacion/hooks/useActividadAvance";
-import { ActividadProgramada, AvanceDiario } from "@/app/operaciones/programacion/page";
+import { ActividadProgramada } from "@/app/operaciones/programacion/page";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
-import { DollarSign, Percent, TrendingUp, ArrowLeft, FilePlus2, FileText, Trash2 } from "lucide-react";
+import { DollarSign, Percent, TrendingUp, ArrowLeft, FilePlus2, FileText, Trash2, Loader2 } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
-import Link from "next/link";
 import { useToast } from "@/hooks/use-toast";
+import { generarEstadoDePagoPdf } from "@/lib/pdf/generarEstadoDePagoPdf";
+import { Company } from "@/types/pcg";
 
 
 type Obra = {
   id: string;
   nombreFaena: string;
   [key: string]: any;
+};
+
+type ItemEstadoPago = {
+  actividadId: string;
+  nombre: string;
+  precioContrato: number;
+  cantidad: number;
+  unidad: string;
+  porcentajeAvance: number;
+  montoProyectado: number;
 };
 
 type EstadoDePago = {
@@ -36,6 +47,7 @@ type EstadoDePago = {
   iva: number;
   total: number;
   obraId: string;
+  actividades: ItemEstadoPago[];
 };
 
 
@@ -44,17 +56,18 @@ function formatCurrency(value: number) {
 }
 
 function EstadosDePagoPageInner() {
-  const { user, loading: loadingAuth } = useAuth();
+  const { user, companyId, loading: loadingAuth } = useAuth();
   const router = useRouter();
   const searchParams = useSearchParams();
   const { toast } = useToast();
 
   const [obras, setObras] = useState<Obra[]>([]);
+  const [company, setCompany] = useState<Company | null>(null);
   const [obraSeleccionadaId, setObraSeleccionadaId] = useState<string>("");
   const [actividades, setActividades] = useState<ActividadProgramada[]>([]);
   const [estadosDePago, setEstadosDePago] = useState<EstadoDePago[]>([]);
   
-  const { avances, calcularAvanceParaActividades } = useActividadAvance(obraSeleccionadaId);
+  const { avancesPorActividad } = useActividadAvance(obraSeleccionadaId, actividades);
   const [cargandoActividades, setCargandoActividades] = useState(true);
   const [cargandoEdp, setCargandoEdp] = useState(true);
   const [generandoEdp, setGenerandoEdp] = useState(false);
@@ -66,7 +79,7 @@ function EstadosDePagoPageInner() {
 
   useEffect(() => {
     if (!loadingAuth && !user) {
-      router.replace("/login");
+      router.replace("/login/usuario");
     }
   }, [loadingAuth, user, router]);
 
@@ -88,45 +101,68 @@ function EstadosDePagoPageInner() {
         } else if (data.length > 0) {
           setObraSeleccionadaId(data[0].id);
         }
-      } catch (err) {
+      } catch (err: any) {
         console.error(err);
         setError("No se pudieron cargar las obras.");
       }
     }
-    cargarObras();
-  }, [user, searchParams]);
-
-  useEffect(() => {
-    if (!obraSeleccionadaId || !user) return;
-
-    const cargarDatosObra = async () => {
-        setCargandoActividades(true);
-        setCargandoEdp(true);
+    
+    async function cargarEmpresa() {
+        if (!companyId) return;
         try {
-            const actColRef = collection(firebaseDb, "obras", obraSeleccionadaId, "actividades");
-            const qAct = query(actColRef, orderBy("fechaInicio", "asc"));
-            const snapshotAct = await getDocs(qAct);
-            const dataAct: ActividadProgramada[] = snapshotAct.docs.map((d) => ({ ...d.data(), id: d.id } as ActividadProgramada));
-            setActividades(dataAct);
-
-            const edpColRef = collection(firebaseDb, "obras", obraSeleccionadaId, "estadosDePago");
-            const qEdp = query(edpColRef, orderBy("correlativo", "desc"));
-            const snapshotEdp = await getDocs(qEdp);
-            const dataEdp: EstadoDePago[] = snapshotEdp.docs.map((d) => ({ ...d.data(), id: d.id } as EstadoDePago));
-            setEstadosDePago(dataEdp);
-
-        } catch (err) {
-            console.error("Error cargando datos:", err);
-            setError("No se pudieron cargar los datos de la obra.");
-        } finally {
-            setCargandoActividades(false);
-            setCargandoEdp(false);
+            const companyRef = doc(firebaseDb, "companies", companyId);
+            const companySnap = await getDoc(companyRef);
+            if (companySnap.exists()) {
+                setCompany(companySnap.data() as Company);
+            }
+        } catch (error) {
+            console.error("Error al cargar datos de la empresa:", error);
         }
     }
-    cargarDatosObra();
-  }, [obraSeleccionadaId, user]);
 
-  const avancesPorActividad = useMemo(() => calcularAvanceParaActividades(actividades), [actividades, calcularAvanceParaActividades]);
+    cargarObras();
+    cargarEmpresa();
+  }, [user, searchParams, companyId]);
+
+  useEffect(() => {
+    if (!obraSeleccionadaId || !user) {
+        setActividades([]);
+        setEstadosDePago([]);
+        return;
+    };
+
+    setCargandoActividades(true);
+    const actColRef = collection(firebaseDb, "obras", obraSeleccionadaId, "actividades");
+    const qAct = query(actColRef, orderBy("fechaInicio", "asc"));
+    const unsubActividades = onSnapshot(qAct, (snapshot) => {
+        const dataAct: ActividadProgramada[] = snapshot.docs.map((d) => ({ ...d.data(), id: d.id } as ActividadProgramada));
+        setActividades(dataAct);
+        setCargandoActividades(false);
+    }, (err) => {
+        console.error("Error cargando actividades:", err);
+        setError("No se pudieron cargar las actividades de la obra.");
+        setCargandoActividades(false);
+    });
+
+    setCargandoEdp(true);
+    const edpColRef = collection(firebaseDb, "obras", obraSeleccionadaId, "estadosDePago");
+    const qEdp = query(edpColRef, orderBy("correlativo", "desc"));
+    const unsubEdp = onSnapshot(qEdp, (snapshot) => {
+        const dataEdp: EstadoDePago[] = snapshot.docs.map((d) => ({ ...d.data(), id: d.id } as EstadoDePago));
+        setEstadosDePago(dataEdp);
+        setCargandoEdp(false);
+    }, (err) => {
+        console.error("Error cargando estados de pago:", err);
+        setError("No se pudo cargar el historial de estados de pago.");
+        setCargandoEdp(false);
+    });
+
+    return () => {
+        unsubActividades();
+        unsubEdp();
+    };
+}, [obraSeleccionadaId, user]);
+
 
   const resumenEconomico = useMemo(() => {
     const montoTotalContrato = actividades.reduce((sum, act) => sum + ((act.cantidad || 0) * (act.precioContrato || 0)), 0);
@@ -159,10 +195,8 @@ function EstadosDePagoPageInner() {
       const ultimoCorrelativo = estadosDePago.reduce((max, edp) => Math.max(max, edp.correlativo), 0);
       const nuevoCorrelativo = ultimoCorrelativo + 1;
       
-      const avancesCalculados = calcularAvanceParaActividades(actividades, fechaCorteEdp);
-      
       const items = actividades.map(act => {
-        const avanceInfo = avancesCalculados[act.id];
+        const avanceInfo = avancesPorActividad[act.id];
         const porcentajeAvance = avanceInfo?.porcentajeAcumulado ?? 0;
         const montoProyectado = (act.cantidad || 0) * act.precioContrato * (porcentajeAvance / 100);
         
@@ -194,19 +228,16 @@ function EstadosDePagoPageInner() {
         creadoEn: serverTimestamp(),
       };
       
-      const docRef = await addDoc(edpColRef, nuevoEdpDoc);
-      
-      setEstadosDePago(prev => [{...nuevoEdpDoc, id: docRef.id, creadoEn: new Date().toISOString() } as EstadoDePago, ...prev].sort((a,b) => b.correlativo - a.correlativo));
+      await addDoc(edpColRef, nuevoEdpDoc);
+            
       setDialogEdpOpen(false);
       
       toast({
         title: "Estado de Pago Generado",
-        description: `Se ha creado el EDP-${nuevoCorrelativo.toString().padStart(3, '0')}. Redirigiendo a la vista de impresión...`
+        description: `Se ha creado el EDP-${nuevoCorrelativo.toString().padStart(3, '0')}.`
       });
 
-      router.push(`/operaciones/programacion/estado-pago/${obraSeleccionadaId}?edpId=${docRef.id}`);
-
-    } catch (err) {
+    } catch (err: any) {
       console.error("Error generando estado de pago:", err);
       setError("No se pudo generar el estado de pago. Inténtelo de nuevo.");
       toast({ variant: "destructive", title: "Error", description: "No se pudo generar el estado de pago." });
@@ -221,13 +252,25 @@ function EstadosDePagoPageInner() {
     try {
         const docRef = doc(firebaseDb, "obras", obraSeleccionadaId, "estadosDePago", edpId);
         await deleteDoc(docRef);
-        setEstadosDePago(prev => prev.filter(edp => edp.id !== edpId));
         toast({ title: "Estado de Pago Eliminado", description: "El registro ha sido eliminado correctamente." });
-    } catch(err) {
+    } catch(err: any) {
         console.error("Error eliminando estado de pago:", err);
         setError("No se pudo eliminar el estado de pago.");
         toast({ variant: "destructive", title: "Error", description: "No se pudo eliminar el estado de pago." });
     }
+  }
+
+  const handleDownloadPdf = (edp: EstadoDePago) => {
+    const obra = obras.find(o => o.id === edp.obraId);
+    if (!obra) {
+        toast({variant: 'destructive', title: 'Error', description: 'No se encontraron los datos de la obra para generar el PDF.'});
+        return;
+    }
+     if (!company) {
+        toast({variant: 'destructive', title: 'Error', description: 'No se encontraron los datos de la empresa para generar el PDF.'});
+        return;
+    }
+    generarEstadoDePagoPdf(company, obra, edp);
   }
 
 
@@ -348,11 +391,9 @@ function EstadosDePagoPageInner() {
                             <TableCell className="text-right">{formatCurrency(edp.total)}</TableCell>
                             <TableCell className="text-right">
                               <div className="flex justify-end gap-2">
-                                <Button asChild variant="outline" size="sm">
-                                    <Link href={`/operaciones/programacion/estado-pago/${obraSeleccionadaId}?edpId=${edp.id}`} target="_blank">
+                                <Button onClick={() => handleDownloadPdf(edp)} variant="outline" size="sm">
                                     <FileText className="mr-2 h-3 w-3" />
-                                    Ver
-                                    </Link>
+                                    Ver PDF
                                 </Button>
                                 <AlertDialog>
                                     <AlertDialogTrigger asChild>
@@ -406,6 +447,7 @@ function EstadosDePagoPageInner() {
                 </div>
                 <DialogFooter>
                   <Button onClick={handleGenerarEstadoDePago} disabled={generandoEdp}>
+                    {generandoEdp && <Loader2 className="animate-spin mr-2"/>}
                     {generandoEdp ? "Generando..." : "Confirmar y Generar"}
                   </Button>
                 </DialogFooter>

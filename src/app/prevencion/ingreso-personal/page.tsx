@@ -13,7 +13,7 @@ import { Separator } from '@/components/ui/separator';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
-import { X, FileText, UserCheck, Shield, MessageSquare } from 'lucide-react';
+import { X, FileText, UserCheck, Shield, MessageSquare, ArrowLeft } from 'lucide-react';
 import { Progress } from '@/components/ui/progress';
 import { Checkbox } from '@/components/ui/checkbox';
 import { firebaseDb } from "@/lib/firebaseClient";
@@ -37,6 +37,7 @@ type Obra = {
 
 // Se importa desde el otro módulo para consistencia
 import { EmpresaContratista, TipoEmpresaPrevencion } from '../empresas-contratistas/page';
+import { useRouter } from 'next/navigation';
 
 
 type TipoRelacionPersonal = "Empresa" | "Subcontrato";
@@ -226,6 +227,7 @@ export default function IngresoPersonalPage() {
   const [ingresos, setIngresos] = useState<IngresoPersonal[]>([]);
   const [trabajadorSeleccionadoId, setTrabajadorSeleccionadoId] = useState<string | null>(null);
   const [pasoActivo, setPasoActivo] = useState<PasoDS44>(null);
+  const router = useRouter();
   
   // Lista de empresas contratistas cargadas desde Firestore
   const [empresasContratistas, setEmpresasContratistas] = useState<EmpresaContratista[]>([]);
@@ -437,7 +439,7 @@ export default function IngresoPersonalPage() {
     setIngresos(prev => prev.map(ingreso => {
       if (ingreso.id !== trabajadorSeleccionadoId) return ingreso;
 
-      let updatedIngreso = { ...ingreso };
+      const updatedIngreso = { ...ingreso };
 
       switch (pasoActivo) {
         case 'Reglamento':
@@ -538,13 +540,18 @@ export default function IngresoPersonalPage() {
 
   return (
     <div className="space-y-8">
-      <div>
-        <h1 className="text-4xl font-bold font-headline tracking-tight">Ingreso de Personal – DS44</h1>
-        <p className="mt-2 text-lg text-muted-foreground">
-          Este módulo registra el ingreso de trabajadores a la obra, tanto propios del mandante como de subcontratos, y gestiona los pasos de cumplimiento documental.
-        </p>
-      </div>
-
+      <header className="flex items-center gap-4">
+        <Button variant="outline" size="icon" onClick={() => router.push('/prevencion')}>
+            <ArrowLeft />
+        </Button>
+        <div className="space-y-1">
+            <h1 className="text-4xl font-bold font-headline tracking-tight">Ingreso de Personal – DS44</h1>
+            <p className="mt-2 text-lg text-muted-foreground">
+              Este módulo registra el ingreso de trabajadores a la obra, tanto propios del mandante como de subcontratos, y gestiona los pasos de cumplimiento documental.
+            </p>
+        </div>
+      </header>
+      
       <Card>
         <CardHeader><CardTitle>Filtros</CardTitle></CardHeader>
         <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -1927,5 +1934,3 @@ export default function IngresoPersonalPage() {
     </div>
   );
 }
-
-    

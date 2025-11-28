@@ -1,18 +1,54 @@
 "use strict";
+var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    var desc = Object.getOwnPropertyDescriptor(m, k);
+    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
+      desc = { enumerable: true, get: function() { return m[k]; } };
+    }
+    Object.defineProperty(o, k2, desc);
+}) : (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    o[k2] = m[k];
+}));
+var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
+    Object.defineProperty(o, "default", { enumerable: true, value: v });
+}) : function(o, v) {
+    o["default"] = v;
+});
+var __importStar = (this && this.__importStar) || (function () {
+    var ownKeys = function(o) {
+        ownKeys = Object.getOwnPropertyNames || function (o) {
+            var ar = [];
+            for (var k in o) if (Object.prototype.hasOwnProperty.call(o, k)) ar[ar.length] = k;
+            return ar;
+        };
+        return ownKeys(o);
+    };
+    return function (mod) {
+        if (mod && mod.__esModule) return mod;
+        var result = {};
+        if (mod != null) for (var k = ownKeys(mod), i = 0; i < k.length; i++) if (k[i] !== "default") __createBinding(result, mod, k[i]);
+        __setModuleDefault(result, mod);
+        return result;
+    };
+})();
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.registrarAvanceRapido = void 0;
 const https_1 = require("firebase-functions/v2/https");
-const logger = require("firebase-functions/logger");
+const logger = __importStar(require("firebase-functions/logger"));
 const firestore_1 = require("firebase-admin/firestore");
 const zod_1 = require("zod");
 const AvanceSchema = zod_1.z.object({
     obraId: zod_1.z.string().min(1),
     actividadId: zod_1.z.string().nullable().optional(),
-    porcentaje: zod_1.z.number().min(0).max(100),
+    porcentaje: zod_1.z.coerce.number().min(0).max(100),
     comentario: zod_1.z.string().optional().default(""),
-    fotos: zod_1.z.array(zod_1.z.string().url()).max(5).optional().default([]),
-    visibleCliente: zod_1.z.boolean().optional().default(true),
+    fotos: zod_1.z.array(zod_1.z.string()).max(5).optional().default([]),
+    visibleCliente: zod_1.z.coerce.boolean().optional().default(true),
 });
+function escapeHtml(s) {
+    return s.replace(/[&<>"']/g, (m) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[m]));
+}
 exports.registrarAvanceRapido = (0, https_1.onCall)({ region: "southamerica-west1", cors: true }, async (request) => {
     if (!request.auth) {
         throw new https_1.HttpsError("unauthenticated", "El usuario no está autenticado.");
@@ -38,23 +74,33 @@ exports.registrarAvanceRapido = (0, https_1.onCall)({ region: "southamerica-west
                 obraId,
                 actividadId: actividadId || null,
                 porcentajeAvance: porcentaje,
-                comentario,
+                comentario: escapeHtml(comentario),
                 fotos,
                 visibleCliente,
                 fecha: firestore_1.FieldValue.serverTimestamp(),
-                creadoPor: { uid, displayName },
+                creadoPor: { uid, displayName: escapeHtml(displayName) },
             };
             tx.set(nuevoAvanceRef, avanceData);
             if (porcentaje > 0) {
                 const currentData = obraSnap.data() || {};
                 const avancePrevio = Number(currentData.avanceAcumulado || 0);
-                const totalActividades = Number(currentData.totalActividades || 10); // Fallback a 10 si no existe
-                const avancePonderadoDelDia = porcentaje / totalActividades;
-                const nuevoAvanceAcumulado = Math.min(100, avancePrevio + avancePonderadoDelDia);
-                tx.update(obraRef, {
-                    ultimaActualizacion: firestore_1.FieldValue.serverTimestamp(),
-                    avanceAcumulado: nuevoAvanceAcumulado,
-                });
+                const totalActividades = Number(currentData.totalActividades || 1); // Evitar división por cero
+                if (totalActividades > 0) {
+                    const avancePonderadoDelDia = porcentaje / totalActividades;
+                    if (!isNaN(avancePonderadoDelDia) && avancePonderadoDelDia > 0) {
+                        const nuevoAvanceAcumulado = Math.min(100, avancePrevio + avancePonderadoDelDia);
+                        tx.update(obraRef, {
+                            ultimaActualizacion: firestore_1.FieldValue.serverTimestamp(),
+                            avanceAcumulado: nuevoAvanceAcumulado,
+                        });
+                    }
+                    else {
+                        tx.update(obraRef, { ultimaActualizacion: firestore_1.FieldValue.serverTimestamp() });
+                    }
+                }
+                else {
+                    tx.update(obraRef, { ultimaActualizacion: firestore_1.FieldValue.serverTimestamp() });
+                }
             }
             else {
                 tx.update(obraRef, { ultimaActualizacion: firestore_1.FieldValue.serverTimestamp() });

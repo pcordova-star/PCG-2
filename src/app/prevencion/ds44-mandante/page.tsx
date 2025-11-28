@@ -12,6 +12,8 @@ import { Separator } from '@/components/ui/separator';
 import { firebaseDb } from '@/lib/firebaseClient';
 import { doc, getDoc, setDoc, serverTimestamp, Timestamp, collection, getDocs, onSnapshot } from 'firebase/firestore';
 import Link from 'next/link';
+import { ArrowLeft } from 'lucide-react';
+import { useRouter } from 'next/navigation';
 
 type Obra = {
   id: string;
@@ -50,6 +52,7 @@ type FichaDs44MandanteObra = {
 
 
 export default function DS44MandanteObraPage() {
+  const router = useRouter();
   const [obras, setObras] = useState<Obra[]>([]);
   const [obraSeleccionadaId, setObraSeleccionadaId] = useState<string>("");
   
@@ -218,11 +221,16 @@ export default function DS44MandanteObraPage() {
   
   return (
     <div className="space-y-8">
-      <header className="space-y-2">
-        <h1 className="text-3xl font-bold font-headline tracking-tight">DS44 – Mandante / Obra</h1>
-        <p className="text-lg text-muted-foreground">
-          Ficha global de cumplimiento de la obligación de coordinar las actividades preventivas en la obra, desde la perspectiva del mandante (DS44, Art. 3).
-        </p>
+      <header className="flex items-center gap-4">
+        <Button variant="outline" size="icon" onClick={() => router.push('/prevencion')}>
+            <ArrowLeft />
+        </Button>
+        <div className="space-y-1">
+            <h1 className="text-3xl font-bold font-headline tracking-tight">DS44 – Mandante / Obra</h1>
+            <p className="text-lg text-muted-foreground">
+              Ficha global de cumplimiento de la obligación de coordinar las actividades preventivas en la obra, desde la perspectiva del mandante (DS44, Art. 3).
+            </p>
+        </div>
       </header>
 
       <Card>

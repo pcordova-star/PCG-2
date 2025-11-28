@@ -1,6 +1,8 @@
+
+// src/app/prevencion/formularios-generales/page.tsx
 "use client";
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, FormEvent, useMemo } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -15,9 +17,24 @@ import {
   where,
   orderBy,
   serverTimestamp,
+  doc,
+  updateDoc,
+  deleteDoc,
+  Timestamp,
+  onSnapshot,
 } from "firebase/firestore";
 import { firebaseDb } from "@/lib/firebaseClient";
 import Link from 'next/link';
+import { useRouter, useSearchParams } from 'next/navigation';
+import { ArrowLeft, Edit, FileDown, Search, Trash2, Zap } from 'lucide-react';
+import { IperForm, IperFormValues } from './components/IperGeneroRow';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
+import { Separator } from '@/components/ui/separator';
+import { Table, TableBody, TableCell, TableRow, TableHead, TableHeader } from '@/components/ui/table';
+import { Dialog, DialogClose, DialogFooter, DialogHeader, DialogTitle, DialogContent, DialogDescription } from '@/components/ui/dialog';
+import { Badge } from '@/components/ui/badge';
+import { useToast } from "@/hooks/use-toast";
+import { useAuth } from '@/context/AuthContext';
 
 
 // --- Tipos y Datos para IPER ---
@@ -26,18 +43,37 @@ type ObraPrevencion = {
   nombreFaena: string;
 };
 
-type IPERRegistro = {
+export type IPERRegistro = {
   id: string;
+  correlativo?: number;
   obraId: string;
   obraNombre?: string;
-  area: string;              
-  actividad: string;         
-  peligro: string;           
-  descripcionRiesgo: string; 
-  consecuencias: string;     
-  probabilidad: "Baja" | "Media" | "Alta";
-  severidad: "Leve" | "Grave" | "Fatal";
-  nivelRiesgo: "Tolerable" | "Importante" | "Intolerable";
+  // Identificación
+  tarea: string;
+  zona: string;
+  peligro: string;
+  riesgo: string;
+  categoriaPeligro: string;
+  // Evaluación Inherente (con género)
+  probabilidad_hombre: number;
+  consecuencia_hombre: number;
+  nivel_riesgo_hombre: number;
+  probabilidad_mujer: number;
+  consecuencia_mujer: number;
+  nivel_riesgo_mujer: number;
+  // Controles
+  jerarquiaControl: string; 
+  control_especifico_genero: string;
+  responsable: string; 
+  plazo: string; 
+  // Seguimiento
+  estadoControl: string; 
+  // Riesgo Residual
+  probabilidad_residual: number; 
+  consecuencia_residual: number; 
+  nivel_riesgo_residual: number; 
+  // Meta
+  usa_componente_genero?: boolean;
   medidasControlExistentes: string;
   medidasControlPropuestas: string;
   responsableImplementacion: string;
@@ -46,11 +82,39 @@ type IPERRegistro = {
   createdAt?: any;
 };
 
-const OBRAS_IPER: ObraPrevencion[] = [
-  { id: "obra-1", nombreFaena: "Edificio Los Álamos" },
-  { id: "obra-2", nombreFaena: "Condominio Cuatro Vientos" },
-  { id: "obra-3", nombreFaena: "Mejoramiento Vial Ruta 5" },
-];
+// --- Tipos y Datos para Charlas ---
+type CharlaEstado = "borrador" | "realizada" | "programada" | "cancelada";
+
+type Charla = {
+    id: string;
+    obraId: string;
+    obraNombre: string;
+    iperId: string;
+    titulo: string;
+    tipo: "charla_iper" | "charla_induccion";
+    fechaCreacion: Timestamp;
+    creadaPorUid: string;
+    generadaAutomaticamente: boolean;
+    tarea: string;
+    zonaSector?: string;
+    peligro: string;
+    riesgo: string;
+    probHombres: number;
+    consHombres: number;
+    nivelHombres: number;
+    probMujeres: number;
+    consMujeres: number;
+    nivelMujeres: number;
+    controlGenero: string;
+    estado: CharlaEstado;
+    contenido: string;
+    // Campos de la Etapa 4
+    fechaRealizacion?: Timestamp;
+    duracionMinutos?: number;
+    participantesTexto?: string;
+    observaciones?: string;
+};
+
 
 // --- Tipos y Datos para Investigación de Incidentes ---
 type TipoIncidente =
@@ -85,15 +149,16 @@ type RegistroIncidente = {
 };
 
 // --- Tipos y Datos para Plan de Acción ---
-type OrigenAccion =
+export type OrigenAccion =
   | "IPER"
   | "INCIDENTE"
   | "OBSERVACION"
+  | "hallazgo"
   | "OTRO";
 
-type EstadoAccion = "Pendiente" | "En progreso" | "Cerrada";
+export type EstadoAccion = "Pendiente" | "En progreso" | "Cerrada";
 
-type RegistroPlanAccion = {
+export type RegistroPlanAccion = {
   id: string;
   obraId: string;
   obraNombre?: string;
@@ -108,15 +173,17 @@ type RegistroPlanAccion = {
   fechaCreacion: string;
   creadoPor: string;
   createdAt?: any;
+  hallazgoId?: string;
 };
 
 // Tipo para el "prefill"
-type PlanAccionPrefill = {
+export type PlanAccionPrefill = {
   obraId: string;
   origen: OrigenAccion;
   referencia: string;
   descripcionSugerida?: string;
 } | null;
+
 
 // --- Componente IPER ---
 type IPERFormSectionProps = {
@@ -127,40 +194,299 @@ type IPERFormSectionProps = {
   }) => void;
 };
 
-function IPERFormSection({ onCrearAccionDesdeIPER }: IPERFormSectionProps) {
-  const [obras, setObras] = useState<ObraPrevencion[]>(OBRAS_IPER);
-  const [obraSeleccionadaId, setObraSeleccionadaId] = useState<string>(
-    OBRAS_IPER[0]?.id ?? ""
+const initialFormIperState: IperFormValues = {
+  tarea: "",
+  zona: "",
+  peligro: "",
+  riesgo: "",
+  categoriaPeligro: "",
+  probabilidadHombre: 3,
+  consecuenciaHombre: 3,
+  probabilidadMujer: 3,
+  consecuenciaMujer: 3,
+  jerarquiaControl: "",
+  controlEspecificoGenero: "",
+  responsable: "",
+  plazo: "",
+  estadoControl: "PENDIENTE",
+  probabilidadResidual: 1,
+  consecuenciaResidual: 1,
+};
+
+type CharlaPreviewModalProps = {
+  isOpen: boolean;
+  onClose: () => void;
+  onContinue: (iper: IPERRegistro) => void;
+  iper: IPERRegistro | null;
+  charlaContent: string;
+}
+
+type CharlaAsistenciaModalProps = {
+  isOpen: boolean;
+  onClose: () => void;
+  onSave: (updatedData: {
+    fechaRealizacion: string;
+    duracionMinutos: number;
+    participantesTexto: string;
+    observaciones: string;
+  }) => Promise<void>;
+  charla: Charla | null;
+};
+
+
+function buildCharlaContentFromIper(iper: IPERRegistro): string {
+  const nivelH = iper.nivel_riesgo_hombre;
+  const nivelM = iper.nivel_riesgo_mujer;
+
+  return `Charla de Seguridad – ${iper.riesgo}
+
+1. Contexto de la tarea
+La tarea que realizamos es: ${iper.tarea}, en el sector: ${iper.zona}.
+En esta actividad se ha identificado el peligro: ${iper.peligro}, cuyo riesgo principal es: ${iper.riesgo}.
+
+2. Evaluación del riesgo
+De acuerdo con la matriz IPER de la obra:
+- Nivel de riesgo para HOMBRES: ${nivelH}.
+- Nivel de riesgo para MUJERES: ${nivelM}.
+
+Esta diferencia responde al enfoque de género exigido por el DS 44, considerando características físicas, ergonómicas y de exposición diferenciadas.
+
+3. Medidas de control
+Las medidas de control definidas para este riesgo son:
+${iper.control_especifico_genero ? "- " + iper.control_especifico_genero : "- Aplicar las medidas de control establecidas en la IPER de la obra."}
+
+Además, deben respetarse todas las instrucciones del procedimiento de trabajo seguro asociado y utilizar correctamente los EPP indicados.
+
+4. Compromiso de seguridad
+Cada trabajador y trabajadora debe:
+- Reconocer este riesgo en su puesto de trabajo.
+- Aplicar las medidas de control indicadas.
+- Informar de inmediato cualquier condición insegura o desvío.
+
+5. Enfoque de género (DS 44)
+Recordamos que esta charla incorpora el enfoque de género, por lo que se consideran diferencias en la exposición y en la respuesta al riesgo entre hombres y mujeres, así como situaciones especiales como embarazo y lactancia.
+  `.trim();
+}
+
+
+function CharlaPreviewModal({ isOpen, onClose, iper, onContinue, charlaContent }: CharlaPreviewModalProps) {
+  if (!iper) return null;
+
+  return (
+    <Dialog open={isOpen} onOpenChange={onClose}>
+      <DialogContent className="max-w-2xl max-h-[90vh] flex flex-col">
+        <DialogHeader>
+          <DialogTitle>Previsualización de Charla de Seguridad</DialogTitle>
+          <DialogDescription>Esta es la información que se usará como base para generar la charla automática.</DialogDescription>
+        </DialogHeader>
+        <div className="space-y-4 py-4 overflow-y-auto pr-6 -mr-6">
+          <Card>
+            <CardHeader>
+              <CardTitle>{iper.tarea}</CardTitle>
+              <CardDescription>
+                <strong>Zona/Sector:</strong> {iper.zona || 'No especificado'} | <strong>Obra:</strong> {iper.obraNombre || 'No especificada'}
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-2">
+              <div>
+                <p className="text-sm font-semibold">Peligro Identificado</p>
+                <p className="text-sm text-muted-foreground">{iper.peligro}</p>
+              </div>
+              <div>
+                <p className="text-sm font-semibold">Riesgo Asociado</p>
+                <p className="text-sm text-muted-foreground">{iper.riesgo}</p>
+              </div>
+            </CardContent>
+          </Card>
+          
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+             <Card>
+              <CardHeader>
+                <CardTitle className="text-base">Evaluación para Hombres</CardTitle>
+              </CardHeader>
+              <CardContent className="text-center">
+                <p className="text-3xl font-bold">{iper.nivel_riesgo_hombre}</p>
+                <p className="text-xs text-muted-foreground">({iper.probabilidad_hombre} Prob. x {iper.consecuencia_hombre} Cons.)</p>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-base">Evaluación para Mujeres</CardTitle>
+              </CardHeader>
+              <CardContent className="text-center">
+                 <p className="text-3xl font-bold">{iper.nivel_riesgo_mujer}</p>
+                <p className="text-xs text-muted-foreground">({iper.probabilidad_mujer} Prob. x {iper.consecuencia_mujer} Cons.)</p>
+              </CardContent>
+            </Card>
+          </div>
+
+          <Card>
+             <CardHeader>
+               <div className="flex justify-between items-center">
+                  <CardTitle className="text-base">Controles Específicos de Género</CardTitle>
+                  <Badge variant="secondary">DS 44 – Enfoque de Género</Badge>
+               </div>
+              </CardHeader>
+              <CardContent>
+                <p className="text-sm text-muted-foreground">{iper.control_especifico_genero || 'No se especifican controles adicionales.'}</p>
+              </CardContent>
+          </Card>
+
+          <Card>
+              <CardHeader>
+                <CardTitle className="text-base">Contenido Sugerido de la Charla</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <pre className="text-xs bg-muted rounded-md p-3 whitespace-pre-wrap font-sans max-h-60 overflow-y-auto">{charlaContent}</pre>
+              </CardContent>
+          </Card>
+
+        </div>
+        <DialogFooter className="flex-shrink-0">
+          <Button variant="ghost" onClick={onClose}>Cerrar</Button>
+          <Button onClick={() => onContinue(iper)}>Continuar</Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
+}
+
+function CharlaAsistenciaModal({ isOpen, onClose, onSave, charla }: CharlaAsistenciaModalProps) {
+  const [fecha, setFecha] = useState(new Date().toISOString().slice(0, 10));
+  const [duracion, setDuracion] = useState(15);
+  const [participantes, setParticipantes] = useState('');
+  const [observaciones, setObservaciones] = useState('');
+
+  useEffect(() => {
+    if (charla) {
+        setFecha(charla.fechaRealizacion ? charla.fechaRealizacion.toDate().toISOString().slice(0, 10) : new Date().toISOString().slice(0, 10));
+        setDuracion(charla.duracionMinutos || 15);
+        setParticipantes(charla.participantesTexto || '');
+        setObservaciones(charla.observaciones || '');
+    }
+  }, [charla]);
+
+
+  if (!charla) return null;
+
+  const handleSave = () => {
+    onSave({
+      fechaRealizacion: fecha,
+      duracionMinutos: duracion,
+      participantesTexto: participantes,
+      observaciones: observaciones,
+    });
+  };
+
+  return (
+    <Dialog open={isOpen} onOpenChange={onClose}>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Registrar Asistencia y Realización de Charla</DialogTitle>
+          <DialogDescription>{charla.titulo}</DialogDescription>
+        </DialogHeader>
+        <div className="py-4 space-y-4">
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label htmlFor="fecha-realizacion">Fecha de Realización</Label>
+              <Input id="fecha-realizacion" type="date" value={fecha} onChange={e => setFecha(e.target.value)} />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="duracion">Duración (minutos)</Label>
+              <Input id="duracion" type="number" value={duracion} onChange={e => setDuracion(Number(e.target.value))} />
+            </div>
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="participantes">Participantes (un nombre/RUT por línea)</Label>
+            <Textarea id="participantes" value={participantes} onChange={e => setParticipantes(e.target.value)} rows={5} />
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="observaciones-charla">Observaciones</Label>
+            <Textarea id="observaciones-charla" value={observaciones} onChange={e => setObservaciones(e.target.value)} rows={3} />
+          </div>
+        </div>
+        <DialogFooter>
+          <Button variant="ghost" onClick={onClose}>Cancelar</Button>
+          <Button onClick={handleSave}>Guardar y Marcar como Realizada</Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+
+function IPERFormSection({ onCrearAccionDesdeIPER }: IPERFormSectionProps) {
+  const [obras, setObras] = useState<ObraPrevencion[]>([]);
+  const [obraSeleccionadaId, setObraSeleccionadaId] = useState<string>("");
   const [iperRegistros, setIperRegistros] = useState<IPERRegistro[]>([]);
   const [cargandoIper, setCargandoIper] = useState(false);
   const [errorForm, setErrorForm] = useState<string | null>(null);
+  
+  const [formIPER, setFormIPER] = useState<IperFormValues>(initialFormIperState);
+  const [editingIperId, setEditingIperId] = useState<string | null>(null);
+  
+  const [isCharlaModalOpen, setIsCharlaModalOpen] = useState(false);
+  const [selectedIperForCharla, setSelectedIperForCharla] = useState<IPERRegistro | null>(null);
+  const [generatedCharlaContent, setGeneratedCharlaContent] = useState('');
+  
+  const [charlas, setCharlas] = useState<Charla[]>([]);
+  const [cargandoCharlas, setCargandoCharlas] = useState(false);
+  const [selectedCharla, setSelectedCharla] = useState<Charla | null>(null);
+  const [isAsistenciaModalOpen, setIsAsistenciaModalOpen] = useState(false);
+  const [filtroCharlas, setFiltroCharlas] = useState('todos');
 
-  const [formIPER, setFormIPER] = useState<{
-    area: string;
-    actividad: string;
-    peligro: string;
-    descripcionRiesgo: string;
-    consecuencias: string;
-    probabilidad: "Baja" | "Media" | "Alta";
-    severidad: "Leve" | "Grave" | "Fatal";
-    medidasControlExistentes: string;
-    medidasControlPropuestas: string;
-    responsableImplementacion: string;
-    plazoImplementacion: string;
-  }>({
-    area: "",
-    actividad: "",
-    peligro: "",
-    descripcionRiesgo: "",
-    consecuencias: "",
-    probabilidad: "Media",
-    severidad: "Grave",
-    medidasControlExistentes: "",
-    medidasControlPropuestas: "",
-    responsableImplementacion: "",
-    plazoImplementacion: "",
-  });
+  const { toast } = useToast();
+  const { user } = useAuth();
+  
+  const handleOpenCharlaModal = (iper: IPERRegistro) => {
+    setSelectedIperForCharla(iper);
+    setGeneratedCharlaContent(buildCharlaContentFromIper(iper));
+    setIsCharlaModalOpen(true);
+  };
+  
+  const handleCreateCharla = async (iper: IPERRegistro) => {
+    if (!user) {
+        toast({ variant: 'destructive', title: 'Error', description: 'Debes estar autenticado para crear una charla.' });
+        return;
+    }
+    const charlaData = {
+        obraId: iper.obraId,
+        obraNombre: iper.obraNombre || 'N/A',
+        iperId: iper.id,
+        titulo: `Charla de Seguridad: ${iper.riesgo}`,
+        tipo: "charla_iper" as const,
+        fechaCreacion: Timestamp.now(),
+        creadaPorUid: user.uid,
+        generadaAutomaticamente: true,
+
+        tarea: iper.tarea,
+        zonaSector: iper.zona,
+        peligro: iper.peligro,
+        riesgo: iper.riesgo,
+
+        probHombres: iper.probabilidad_hombre,
+        consHombres: iper.consecuencia_hombre,
+        nivelHombres: iper.nivel_riesgo_hombre,
+        probMujeres: iper.probabilidad_mujer,
+        consMujeres: iper.consecuencia_mujer,
+        nivelMujeres: iper.nivel_riesgo_mujer,
+
+        controlGenero: iper.control_especifico_genero,
+        
+        contenido: generatedCharlaContent,
+
+        estado: "borrador" as const,
+    };
+
+    try {
+        await addDoc(collection(firebaseDb, 'charlas'), charlaData);
+        setIsCharlaModalOpen(false);
+        toast({ title: 'Éxito', description: 'Charla creada como borrador correctamente.' });
+    } catch (error) {
+        console.error("Error creating charla:", error);
+        toast({ variant: 'destructive', title: 'Error', description: 'No se pudo crear el borrador de la charla.' });
+    }
+  };
 
   const cargarObras = async () => {
      try {
@@ -187,8 +513,7 @@ function IPERFormSection({ onCrearAccionDesdeIPER }: IPERFormSectionProps) {
     setCargandoIper(true);
     try {
         const q = query(
-            collection(firebaseDb, "iperRegistros"),
-            where("obraId", "==", obraId),
+            collection(firebaseDb, "obras", obraId, "iper"),
             orderBy("createdAt", "desc")
         );
         const querySnapshot = await getDocs(q);
@@ -212,31 +537,52 @@ function IPERFormSection({ onCrearAccionDesdeIPER }: IPERFormSectionProps) {
   useEffect(() => {
     if (obraSeleccionadaId) {
       cargarIperDeObra(obraSeleccionadaId);
+      
+      setCargandoCharlas(true);
+      const qCharlas = query(collection(firebaseDb, "charlas"), where("obraId", "==", obraSeleccionadaId), orderBy("fechaCreacion", "desc"));
+      const unsubscribe = onSnapshot(qCharlas, (snapshot) => {
+        const charlasData = snapshot.docs.map(doc => ({id: doc.id, ...doc.data()} as Charla));
+        setCharlas(charlasData);
+        setCargandoCharlas(false);
+      }, (error) => {
+        console.error("Error fetching charlas:", error);
+        setCargandoCharlas(false);
+      });
+
+      return () => unsubscribe();
     }
   }, [obraSeleccionadaId]);
-
-  function calcularNivelRiesgo(
-    prob: "Baja" | "Media" | "Alta",
-    sev: "Leve" | "Grave" | "Fatal"
-  ): "Tolerable" | "Importante" | "Intolerable" {
-    if (prob === "Alta" && (sev === "Grave" || sev === "Fatal")) {
-      return "Intolerable";
+  
+  const handleSaveAsistencia = async (data: { fechaRealizacion: string, duracionMinutos: number, participantesTexto: string, observaciones: string }) => {
+    if (!selectedCharla) return;
+    try {
+      const charlaRef = doc(firebaseDb, "charlas", selectedCharla.id);
+      await updateDoc(charlaRef, {
+        estado: "realizada",
+        fechaRealizacion: Timestamp.fromDate(new Date(data.fechaRealizacion)),
+        duracionMinutos: data.duracionMinutos,
+        participantesTexto: data.participantesTexto,
+        observaciones: data.observaciones,
+      });
+      toast({ title: "Éxito", description: "Charla registrada como realizada." });
+      setIsAsistenciaModalOpen(false);
+      setSelectedCharla(null);
+    } catch (error) {
+      console.error("Error updating charla:", error);
+      toast({ variant: 'destructive', title: "Error", description: "No se pudo actualizar la charla." });
     }
-    if (prob === "Media" && sev === "Fatal") {
-      return "Intolerable";
-    }
-    if (prob === "Media" && sev === "Grave") {
-      return "Importante";
-    }
-    if (prob === "Alta" && sev === "Leve") {
-      return "Importante";
-    }
-    return "Tolerable";
-  }
-
-  const handleInputChange = <K extends keyof typeof formIPER>(campo: K, valor: (typeof formIPER)[K]) => {
-    setFormIPER(prev => ({ ...prev, [campo]: valor }));
   };
+
+  const handleDeleteCharla = async (charlaId: string) => {
+    try {
+        await deleteDoc(doc(firebaseDb, "charlas", charlaId));
+        toast({ title: 'Charla eliminada', description: 'El borrador de la charla ha sido eliminado.' });
+    } catch (error) {
+        console.error("Error deleting charla:", error);
+        toast({ variant: 'destructive', title: 'Error', description: 'No se pudo eliminar la charla.' });
+    }
+  };
+
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -246,172 +592,305 @@ function IPERFormSection({ onCrearAccionDesdeIPER }: IPERFormSectionProps) {
       setErrorForm("Debe seleccionar una obra.");
       return;
     }
-    if (!formIPER.area.trim() || !formIPER.actividad.trim() || !formIPER.peligro.trim()) {
-      setErrorForm("Los campos 'Área', 'Actividad' y 'Peligro' son obligatorios.");
+    if (!formIPER.tarea.trim() || !formIPER.peligro.trim() || !formIPER.riesgo.trim() || !formIPER.zona.trim()) {
+      setErrorForm("Los campos 'Tarea', 'Peligro', 'Riesgo' y 'Zona' son obligatorios.");
       return;
     }
+    
+    const obraSeleccionada = obras.find(o => o.id === obraSeleccionadaId);
+    const dataToSave = {
+        obraId: obraSeleccionadaId,
+        obraNombre: obraSeleccionada?.nombreFaena ?? "N/A",
+        tarea: formIPER.tarea,
+        zona: formIPER.zona,
+        peligro: formIPER.peligro === 'Otro' ? formIPER.peligroOtro || '' : formIPER.peligro,
+        riesgo: formIPER.riesgo === 'Otro' ? formIPER.riesgoOtro || '' : formIPER.riesgo,
+        categoriaPeligro: formIPER.categoriaPeligro,
+        probabilidad_hombre: formIPER.probabilidadHombre,
+        consecuencia_hombre: formIPER.consecuenciaHombre,
+        nivel_riesgo_hombre: formIPER.probabilidadHombre * formIPER.consecuenciaHombre,
+        probabilidad_mujer: formIPER.probabilidadMujer,
+        consecuencia_mujer: formIPER.consecuenciaMujer,
+        nivel_riesgo_mujer: formIPER.probabilidadMujer * formIPER.consecuenciaMujer,
+        jerarquiaControl: formIPER.jerarquiaControl,
+        control_especifico_genero: formIPER.controlEspecificoGenero === 'Otro' ? formIPER.controlEspecificoGeneroOtro || '' : formIPER.controlEspecificoGenero,
+        responsable: formIPER.responsable,
+        plazo: formIPER.plazo,
+        estadoControl: formIPER.estadoControl,
+        probabilidad_residual: formIPER.probabilidadResidual,
+        consecuencia_residual: formIPER.consecuenciaResidual,
+        nivel_riesgo_residual: formIPER.probabilidadResidual * formIPER.consecuenciaResidual,
+        usa_componente_genero: true,
+        medidasControlExistentes: '',
+        medidasControlPropuestas: '',
+        responsableImplementacion: '',
+        plazoImplementacion: '',
+    };
+
 
     try {
-        const nivelRiesgo = calcularNivelRiesgo(formIPER.probabilidad, formIPER.severidad);
-        const obraSeleccionada = obras.find(o => o.id === obraSeleccionadaId);
+      if (editingIperId) {
+        const docRef = doc(firebaseDb, "obras", obraSeleccionadaId, "iper", editingIperId);
+        await updateDoc(docRef, {...dataToSave, updatedAt: serverTimestamp()});
+        setIperRegistros(prev => prev.map(iper => iper.id === editingIperId ? { ...iper, ...dataToSave } : iper));
+      } else {
+        const maxCorrelativo = iperRegistros.reduce((max, iper) => Math.max(iper.correlativo || 0, max), 0);
+        const nuevoCorrelativo = maxCorrelativo + 1;
         
-        await addDoc(collection(firebaseDb, "iperRegistros"), {
-            ...formIPER,
-            nivelRiesgo,
-            obraId: obraSeleccionadaId,
-            obraNombre: obraSeleccionada?.nombreFaena ?? "N/A",
-            createdAt: serverTimestamp(),
-            updatedAt: serverTimestamp(),
-            fecha: new Date().toISOString().slice(0, 10),
-        });
+        const colRef = collection(firebaseDb, "obras", obraSeleccionadaId, "iper");
+        await addDoc(colRef, { ...dataToSave, correlativo: nuevoCorrelativo, createdAt: serverTimestamp() });
+        cargarIperDeObra(obraSeleccionadaId); 
+      }
         
-        setFormIPER({
-            area: "",
-            actividad: "",
-            peligro: "",
-            descripcionRiesgo: "",
-            consecuencias: "",
-            probabilidad: "Media",
-            severidad: "Grave",
-            medidasControlExistentes: "",
-            medidasControlPropuestas: "",
-            responsableImplementacion: "",
-            plazoImplementacion: "",
-        });
-        
-        cargarIperDeObra(obraSeleccionadaId);
-
+      setFormIPER(initialFormIperState);
+      setEditingIperId(null);
+      
     } catch (error) {
         console.error("Error al guardar el registro IPER:", error);
         setErrorForm("No se pudo guardar el registro. Intente de nuevo.");
     }
   };
+  
+  const handleEditIper = (iper: IPERRegistro) => {
+    setEditingIperId(iper.id);
+    setFormIPER({
+        tarea: iper.tarea,
+        zona: iper.zona || '',
+        peligro: iper.peligro,
+        riesgo: iper.riesgo,
+        categoriaPeligro: iper.categoriaPeligro || '',
+        probabilidadHombre: iper.probabilidad_hombre,
+        consecuenciaHombre: iper.consecuencia_hombre,
+        probabilidadMujer: iper.probabilidad_mujer,
+        consecuenciaMujer: iper.consecuencia_mujer,
+        jerarquiaControl: iper.jerarquiaControl || '',
+        controlEspecificoGenero: iper.control_especifico_genero,
+        responsable: iper.responsable || '',
+        plazo: iper.plazo || '',
+        estadoControl: iper.estadoControl || 'PENDIENTE',
+        probabilidadResidual: iper.probabilidad_residual || 1,
+        consecuenciaResidual: iper.consecuencia_residual || 1,
+    });
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+  
+  const handleDeleteIper = async (iperId: string) => {
+    if (!obraSeleccionadaId) return;
+    try {
+      const docRef = doc(firebaseDb, "obras", obraSeleccionadaId, "iper", iperId);
+      await deleteDoc(docRef);
+      setIperRegistros(prev => prev.filter(iper => iper.id !== iperId));
+    } catch (error) {
+      console.error("Error al eliminar el registro IPER:", error);
+      setErrorForm("No se pudo eliminar el registro. Intente de nuevo.");
+    }
+  };
+
+  const charlasFiltradas = useMemo(() => {
+    return charlas.filter(charla => {
+        if (filtroCharlas === 'todos') return true;
+        return charla.estado === filtroCharlas;
+    });
+  }, [charlas, filtroCharlas]);
 
   return (
-    <Card className="mt-6">
-      <CardHeader>
-        <CardTitle>IPER / Matriz de Riesgos por Actividad</CardTitle>
-        <CardDescription>
-          Identifique peligros, evalúe riesgos y proponga medidas de control para las actividades de la obra.
-        </CardDescription>
-      </CardHeader>
-      <CardContent className="space-y-6">
-        <div className="max-w-xs space-y-2">
-            <Label htmlFor="obra-select-iper">Obra / Faena</Label>
-            <Select value={obraSeleccionadaId} onValueChange={setObraSeleccionadaId}>
-              <SelectTrigger id="obra-select-iper">
-                <SelectValue placeholder="Seleccione una obra" />
-              </SelectTrigger>
-              <SelectContent>
-                {obras.map((obra) => (
-                  <SelectItem key={obra.id} value={obra.id}>
-                    {obra.nombreFaena}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-        </div>
-
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-          <form onSubmit={handleSubmit} className="space-y-4">
-            <h3 className="text-lg font-semibold border-b pb-2">Agregar Nuevo Registro IPER</h3>
-            {errorForm && <p className="text-sm font-medium text-destructive">{errorForm}</p>}
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="space-y-2"><Label>Área/Frente de Trabajo*</Label><Input value={formIPER.area} onChange={e => handleInputChange('area', e.target.value)} /></div>
-                <div className="space-y-2"><Label>Actividad*</Label><Input value={formIPER.actividad} onChange={e => handleInputChange('actividad', e.target.value)} /></div>
-            </div>
-            
-            <div className="space-y-2"><Label>Peligro Identificado*</Label><Input value={formIPER.peligro} onChange={e => handleInputChange('peligro', e.target.value)} /></div>
-            <div className="space-y-2"><Label>Descripción del Riesgo</Label><Textarea value={formIPER.descripcionRiesgo} onChange={e => handleInputChange('descripcionRiesgo', e.target.value)} rows={2}/></div>
-            <div className="space-y-2"><Label>Consecuencias Potenciales</Label><Input value={formIPER.consecuencias} onChange={e => handleInputChange('consecuencias', e.target.value)} /></div>
-            
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 pt-2">
-                <div className="space-y-2">
-                    <Label>Probabilidad</Label>
-                    <Select value={formIPER.probabilidad} onValueChange={v => handleInputChange('probabilidad', v as any)}>
-                        <SelectTrigger><SelectValue/></SelectTrigger>
-                        <SelectContent><SelectItem value="Baja">Baja</SelectItem><SelectItem value="Media">Media</SelectItem><SelectItem value="Alta">Alta</SelectItem></SelectContent>
-                    </Select>
-                </div>
-                 <div className="space-y-2">
-                    <Label>Severidad</Label>
-                    <Select value={formIPER.severidad} onValueChange={v => handleInputChange('severidad', v as any)}>
-                        <SelectTrigger><SelectValue/></SelectTrigger>
-                        <SelectContent><SelectItem value="Leve">Leve</SelectItem><SelectItem value="Grave">Grave</SelectItem><SelectItem value="Fatal">Fatal</SelectItem></SelectContent>
-                    </Select>
-                </div>
-                 <div className="space-y-2">
-                    <Label>Nivel de Riesgo (calculado)</Label>
-                    <Input value={calcularNivelRiesgo(formIPER.probabilidad, formIPER.severidad)} readOnly className="font-semibold bg-muted"/>
-                </div>
-            </div>
-
-            <div className="space-y-2"><Label>Medidas de Control Existentes</Label><Textarea value={formIPER.medidasControlExistentes} onChange={e => handleInputChange('medidasControlExistentes', e.target.value)} rows={2}/></div>
-            <div className="space-y-2"><Label>Medidas de Control Propuestas</Label><Textarea value={formIPER.medidasControlPropuestas} onChange={e => handleInputChange('medidasControlPropuestas', e.target.value)} rows={2}/></div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="space-y-2"><Label>Responsable Implementación</Label><Input value={formIPER.responsableImplementacion} onChange={e => handleInputChange('responsableImplementacion', e.target.value)} /></div>
-                <div className="space-y-2"><Label>Plazo Implementación</Label><Input type="date" value={formIPER.plazoImplementacion} onChange={e => handleInputChange('plazoImplementacion', e.target.value)} /></div>
-            </div>
-
-            <Button type="submit" className="w-full sm:w-auto bg-accent text-accent-foreground hover:bg-accent/90">Agregar a Matriz IPER</Button>
-          </form>
-
-          <div className="space-y-2">
-            <h3 className="text-lg font-semibold border-b pb-2">Registros IPER de la Obra</h3>
-            {cargandoIper ? (<p className="text-sm text-muted-foreground pt-4 text-center">Cargando registros IPER...</p>)
-            : iperRegistros.length === 0 ? (
-              <p className="text-sm text-muted-foreground pt-4 text-center">
-                No hay registros IPER para esta obra aún.
-              </p>
-            ) : (
-              <div className="max-h-[600px] overflow-y-auto space-y-3 pr-2">
-                {iperRegistros.map((r) => (
-                  <article key={r.id} className="rounded-lg border bg-card p-4 shadow-sm space-y-2 text-sm">
-                    <p className="font-semibold text-primary">{r.area} – {r.actividad}</p>
-                    <p><strong className="text-muted-foreground">Peligro:</strong> {r.peligro}</p>
-                    <p><strong className="text-muted-foreground">Riesgo:</strong> {r.descripcionRiesgo}</p>
-                    <p><strong className="text-muted-foreground">Consecuencias:</strong> {r.consecuencias}</p>
-                    <div className="p-2 rounded-md bg-muted flex items-center justify-between">
-                      <span>Nivel de Riesgo: <strong className="text-foreground">{r.nivelRiesgo}</strong></span>
-                      <span className="text-xs">(Prob: {r.probabilidad} / Sev: {r.severidad})</span>
-                    </div>
-                    <p className="text-xs"><strong className="text-muted-foreground">Control Existente:</strong> {r.medidasControlExistentes}</p>
-                    <p className="text-xs"><strong className="text-muted-foreground">Control Propuesto:</strong> {r.medidasControlPropuestas}</p>
-                    <div className="text-xs pt-2 border-t mt-2 flex justify-between">
-                        <span><strong className="text-muted-foreground">Responsable:</strong> {r.responsableImplementacion || "No asignado"}</span>
-                        <span><strong className="text-muted-foreground">Plazo:</strong> {r.plazoImplementacion || "Sin plazo"}</span>
-                    </div>
-                    <div className="flex gap-2 mt-2">
-                      <Button
-                        type="button"
-                        onClick={() =>
-                          onCrearAccionDesdeIPER({
-                            obraId: r.obraId,
-                            iperId: r.id,
-                            descripcion: `Acción sobre riesgo: ${r.peligro} – ${r.actividad}`,
-                          })
-                        }
-                        variant="outline"
-                        size="sm"
-                      >
-                        Crear acción desde este riesgo
-                      </Button>
-                      <Button asChild variant="outline" size="sm">
-                        <Link href={`/prevencion/formularios-generales/iper/${r.id}/imprimir`}>
-                          Ver Ficha
-                        </Link>
-                      </Button>
-                    </div>
-                  </article>
-                ))}
-              </div>
-            )}
+    <>
+      <Card className="mt-6 no-print">
+        <CardHeader>
+          <CardTitle>IPER / Matriz de Riesgos por Actividad</CardTitle>
+          <CardDescription>
+            Identifique peligros, evalúe riesgos y proponga medidas de control para las actividades de la obra.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-6">
+          <div className="max-w-xs space-y-2">
+              <Label htmlFor="obra-select-iper">Obra / Faena</Label>
+              <Select value={obraSeleccionadaId} onValueChange={setObraSeleccionadaId}>
+                <SelectTrigger id="obra-select-iper">
+                  <SelectValue placeholder="Seleccione una obra" />
+                </SelectTrigger>
+                <SelectContent>
+                  {obras.map((obra) => (
+                    <SelectItem key={obra.id} value={obra.id}>
+                      {obra.nombreFaena}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
           </div>
-        </div>
-      </CardContent>
-    </Card>
+
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+            <form onSubmit={handleSubmit} className="space-y-4">
+              <h3 className="text-lg font-semibold border-b pb-2">{editingIperId ? "Editando Registro IPER" : "Agregar Nuevo Registro IPER"}</h3>
+              {errorForm && <p className="text-sm font-medium text-destructive">{errorForm}</p>}
+              
+              <IperForm value={formIPER} onChange={setFormIPER} />
+
+              <div className="flex gap-2">
+                <Button type="submit" className="bg-accent text-accent-foreground hover:bg-accent/90">
+                  {editingIperId ? "Actualizar Registro" : "Agregar a Matriz IPER"}
+                </Button>
+                {editingIperId && (
+                  <Button variant="ghost" onClick={() => { setEditingIperId(null); setFormIPER(initialFormIperState); }}>
+                    Cancelar Edición
+                  </Button>
+                )}
+              </div>
+            </form>
+
+            <div className="space-y-2">
+              <h3 className="text-lg font-semibold border-b pb-2">Registros IPER de la Obra</h3>
+              {cargandoIper ? (<p className="text-sm text-muted-foreground pt-4 text-center">Cargando registros IPER...</p>)
+              : (
+                <>
+                  {iperRegistros.length === 0 ? (
+                    <p className="text-sm text-muted-foreground pt-4 text-center">
+                      No hay registros IPER para esta obra aún.
+                    </p>
+                  ) : (
+                    <div className="max-h-[600px] overflow-y-auto space-y-3 pr-2">
+                      {iperRegistros.map((r) => (
+                        <article key={r.id} className="rounded-lg border bg-card p-4 shadow-sm space-y-2 text-sm">
+                          <p className="font-semibold text-primary">{r.correlativo ? `IPER-${String(r.correlativo).padStart(3, '0')}: ` : ''}{r.tarea}</p>
+                          <p className="text-xs"><strong className="text-muted-foreground">Zona:</strong> {r.zona}</p>
+                          <p><strong className="text-muted-foreground">Peligro:</strong> {r.peligro}</p>
+                          <p><strong className="text-muted-foreground">Riesgo:</strong> {r.riesgo}</p>
+                          
+                          <div className="grid grid-cols-2 gap-2 text-xs">
+                              <div className="p-2 rounded bg-blue-50 text-blue-800">
+                                  <strong>Riesgo Hombres:</strong> {r.nivel_riesgo_hombre}
+                              </div>
+                              <div className="p-2 rounded bg-pink-50 text-pink-800">
+                                  <strong>Riesgo Mujeres:</strong> {r.nivel_riesgo_mujer}
+                              </div>
+                          </div>
+                          
+                          <p className="text-xs"><strong className="text-muted-foreground">Control por Género:</strong> {r.control_especifico_genero}</p>
+    
+                          <div className="flex flex-wrap gap-2 mt-2 pt-2 border-t">
+                            <Button type="button" onClick={() => handleOpenCharlaModal(r)} variant="default" size="sm"><Zap className="mr-2 h-4 w-4" />Generar charla</Button>
+                            <Button type="button" onClick={() => onCrearAccionDesdeIPER({ obraId: r.obraId, iperId: r.id, descripcion: `Acción sobre riesgo: ${r.peligro} – ${r.tarea}`})} variant="outline" size="sm">Crear acción</Button>
+                            <Button asChild variant="outline" size="sm" type="button">
+                                <Link href={`/prevencion/formularios-generales/iper/${r.id}/imprimir`} target="_blank">
+                                    Imprimir Ficha
+                                </Link>
+                            </Button>
+                            <Button variant="ghost" size="sm" onClick={() => handleEditIper(r)}><Edit className="h-4 w-4 mr-1"/> Editar</Button>
+                            <AlertDialog>
+                                <AlertDialogTrigger asChild>
+                                    <Button variant="ghost" size="sm" className="text-destructive hover:text-destructive"><Trash2 className="h-4 w-4 mr-1"/> Eliminar</Button>
+                                </AlertDialogTrigger>
+                                <AlertDialogContent>
+                                    <AlertDialogHeader>
+                                        <AlertDialogTitle>¿Confirmar eliminación?</AlertDialogTitle>
+                                        <AlertDialogDescription>Esta acción eliminará permanentemente el registro IPER para la tarea "{r.tarea}". No se puede deshacer.</AlertDialogDescription>
+                                    </AlertDialogHeader>
+                                    <AlertDialogFooter>
+                                        <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                                        <AlertDialogAction onClick={() => handleDeleteIper(r.id)} className="bg-destructive hover:bg-destructive/90">Eliminar</AlertDialogAction>
+                                    </AlertDialogFooter>
+                                </AlertDialogContent>
+                            </AlertDialog>
+                          </div>
+                        </article>
+                      ))}
+                    </div>
+                  )}
+                </>
+              )}
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+      
+      <Card className="mt-6">
+        <CardHeader>
+          <div className="flex justify-between items-center">
+            <div>
+              <CardTitle>Charlas de Seguridad de la Obra</CardTitle>
+              <CardDescription>
+                Listado de charlas generadas. Desde aquí puedes registrar su realización.
+              </CardDescription>
+            </div>
+            <Button variant="outline" asChild>
+                <Link href={`/prevencion/formularios-generales/charlas/imprimir-listado?obraId=${obraSeleccionadaId}&estado=${filtroCharlas}`} target="_blank">
+                    <FileDown className="mr-2 h-4 w-4" />
+                    Exportar Listado
+                </Link>
+            </Button>
+          </div>
+        </CardHeader>
+        <CardContent>
+            <div className="mb-4 max-w-xs">
+                <Label>Filtrar por estado</Label>
+                <Select value={filtroCharlas} onValueChange={setFiltroCharlas}>
+                    <SelectTrigger><SelectValue/></SelectTrigger>
+                    <SelectContent>
+                        <SelectItem value="todos">Todos</SelectItem>
+                        <SelectItem value="borrador">Borrador</SelectItem>
+                        <SelectItem value="realizada">Realizada</SelectItem>
+                    </SelectContent>
+                </Select>
+            </div>
+          {cargandoCharlas ? (
+            <p className="text-sm text-muted-foreground text-center py-4">Cargando charlas...</p>
+          ) : charlas.length === 0 ? (
+            <p className="text-sm text-muted-foreground text-center py-4">No hay charlas generadas para esta obra. Crea una desde un registro IPER.</p>
+          ) : (
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Título de la Charla</TableHead>
+                  <TableHead>Estado</TableHead>
+                  <TableHead>Ref. IPER</TableHead>
+                  <TableHead>Fecha Creación</TableHead>
+                  <TableHead className="text-right">Acciones</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {charlasFiltradas.map(charla => (
+                  <TableRow key={charla.id}>
+                    <TableCell className="font-medium">{charla.titulo}</TableCell>
+                    <TableCell>
+                      <Badge variant={charla.estado === 'borrador' ? 'secondary' : 'default'}>{charla.estado}</Badge>
+                    </TableCell>
+                    <TableCell className="font-mono text-xs">{charla.iperId.substring(0, 8)}...</TableCell>
+                    <TableCell>{charla.fechaCreacion.toDate().toLocaleDateString('es-CL')}</TableCell>
+                    <TableCell className="text-right">
+                       <div className="flex gap-1 justify-end">
+                            <Button size="sm" variant="outline" onClick={() => { setSelectedCharla(charla); setIsAsistenciaModalOpen(true); }}>
+                                {charla.estado === 'borrador' ? 'Registrar Asistencia' : 'Editar Registro'}
+                            </Button>
+                            <AlertDialog>
+                                <AlertDialogTrigger asChild>
+                                    <Button variant="ghost" size="icon" className="text-destructive h-9 w-9">
+                                        <Trash2 className="h-4 w-4"/>
+                                    </Button>
+                                </AlertDialogTrigger>
+                                <AlertDialogContent>
+                                    <AlertDialogHeader>
+                                        <AlertDialogTitle>¿Eliminar esta charla?</AlertDialogTitle>
+                                        <AlertDialogDescription>Esta acción eliminará el registro de la charla "{charla.titulo}".</AlertDialogDescription>
+                                    </AlertDialogHeader>
+                                    <AlertDialogFooter>
+                                        <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                                        <AlertDialogAction onClick={() => handleDeleteCharla(charla.id)} className="bg-destructive hover:bg-destructive/90">Eliminar</AlertDialogAction>
+                                    </AlertDialogFooter>
+                                </AlertDialogContent>
+                            </AlertDialog>
+                       </div>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          )}
+        </CardContent>
+      </Card>
+
+      <CharlaPreviewModal iper={selectedIperForCharla} isOpen={isCharlaModalOpen} onClose={() => setIsCharlaModalOpen(false)} onContinue={handleCreateCharla} charlaContent={generatedCharlaContent} />
+      <CharlaAsistenciaModal charla={selectedCharla} isOpen={isAsistenciaModalOpen} onClose={() => setIsAsistenciaModalOpen(false)} onSave={handleSaveAsistencia} />
+    </>
   );
 }
 
@@ -425,10 +904,8 @@ type InvestigacionIncidenteSectionProps = {
 };
 
 function InvestigacionIncidenteSection({ onCrearAccionDesdeIncidente }: InvestigacionIncidenteSectionProps) {
-  const [obras, setObras] = useState<ObraPrevencion[]>(OBRAS_IPER);
-  const [obraSeleccionadaId, setObraSeleccionadaId] = useState<string>(
-    OBRAS_IPER[0]?.id ?? ""
-  );
+  const [obras, setObras] = useState<ObraPrevencion[]>([]);
+  const [obraSeleccionadaId, setObraSeleccionadaId] = useState<string>("");
 
   const [registrosIncidentes, setRegistrosIncidentes] =
     useState<RegistroIncidente[]>([]);
@@ -733,10 +1210,8 @@ type PlanAccionSectionProps = {
 };
 
 function PlanAccionSection({ prefill, onPrefillConsumido }: PlanAccionSectionProps) {
-    const [obras, setObras] = useState<ObraPrevencion[]>(OBRAS_IPER);
-    const [obraSeleccionadaId, setObraSeleccionadaId] = useState<string>(
-        OBRAS_IPER[0]?.id ?? ""
-    );
+    const [obras, setObras] = useState<ObraPrevencion[]>([]);
+    const [obraSeleccionadaId, setObraSeleccionadaId] = useState<string>("");
 
     const [planesAccion, setPlanesAccion] = useState<RegistroPlanAccion[]>([]);
     const [cargandoPlanes, setCargandoPlanes] = useState(false);
@@ -763,6 +1238,9 @@ function PlanAccionSection({ prefill, onPrefillConsumido }: PlanAccionSectionPro
         observacionesCierre: "",
         creadoPor: "",
     });
+    
+    const router = useRouter();
+    const searchParams = useSearchParams();
 
     const cargarObras = async () => {
       try {
@@ -773,7 +1251,11 @@ function PlanAccionSection({ prefill, onPrefillConsumido }: PlanAccionSectionPro
               nombreFaena: doc.data().nombreFaena
           } as ObraPrevencion));
           setObras(data);
-          if (data.length > 0 && !obraSeleccionadaId) {
+          
+          const obraIdFromQuery = searchParams.get('obraId');
+          if (obraIdFromQuery && data.some(o => o.id === obraIdFromQuery)) {
+            setObraSeleccionadaId(obraIdFromQuery);
+          } else if (data.length > 0 && !obraSeleccionadaId) {
             setObraSeleccionadaId(data[0].id);
           }
       } catch (err) {
@@ -885,7 +1367,7 @@ function PlanAccionSection({ prefill, onPrefillConsumido }: PlanAccionSectionPro
                 <CardTitle>Plan de acción y seguimiento</CardTitle>
                 <CardDescription>
                     Define y gestiona acciones correctivas y preventivas asociadas a IPER,
-                    incidentes u otras observaciones. Datos conectados a Firestore.
+                    incidentes u otras observaciones de seguridad. Datos conectados a Firestore.
                 </CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">
@@ -919,13 +1401,14 @@ function PlanAccionSection({ prefill, onPrefillConsumido }: PlanAccionSectionPro
                                     <SelectContent>
                                         <SelectItem value="IPER">IPER / Matriz de Riesgo</SelectItem>
                                         <SelectItem value="INCIDENTE">Investigación de Incidente</SelectItem>
+                                        <SelectItem value="hallazgo">Hallazgo en Terreno</SelectItem>
                                         <SelectItem value="OBSERVACION">Observación de Seguridad</SelectItem>
                                         <SelectItem value="OTRO">Otro</SelectItem>
                                     </SelectContent>
                                 </Select>
                            </div>
                             <div className="space-y-2">
-                                <Label>Referencia (ID IPER, INC, etc.)</Label>
+                                <Label>Referencia (ID Origen)</Label>
                                 <Input value={formAccion.referencia} onChange={e => setFormAccion(p => ({...p, referencia: e.target.value}))}/>
                             </div>
                         </div>
@@ -1030,24 +1513,65 @@ function PlanAccionSection({ prefill, onPrefillConsumido }: PlanAccionSectionPro
 }
 
 // --- Componente Principal ---
-type FormularioGeneralActivo = "IPER" | "INCIDENTE" | "PLAN_ACCION" | null;
+type FormularioGeneralActivo = "IPER" | "INCIDENTE" | "PLAN_ACCION" | "HALLAZGO" | null;
+
+function HallazgosSection() {
+    const router = useRouter();
+    return (
+        <Card className="mt-6">
+            <CardHeader>
+                <CardTitle>Hallazgos en Terreno</CardTitle>
+                <CardDescription>Módulo para la gestión de hallazgos de seguridad en terreno.</CardDescription>
+            </CardHeader>
+            <CardContent>
+                <div className="space-y-4">
+                    <p>Funcionalidad de hallazgos. Desde aquí se podrán crear, ver y gestionar los hallazgos.</p>
+                    <div className="flex gap-4">
+                        <Button onClick={() => router.push('/prevencion/hallazgos/crear')}>Crear Hallazgo</Button>
+                        <Button onClick={() => router.push('/prevencion/hallazgos/equipo-responsable')} variant="outline">Configurar Equipo</Button>
+                    </div>
+                </div>
+            </CardContent>
+        </Card>
+    );
+}
+
 
 export default function FormulariosGeneralesPrevencionPage() {
   const [activeForm, setActiveForm] = useState<FormularioGeneralActivo>("IPER");
   const [planAccionPrefill, setPlanAccionPrefill] = useState<PlanAccionPrefill>(null);
+  const router = useRouter();
+  const searchParams = useSearchParams();
+
+   useEffect(() => {
+    const prefillOrigen = searchParams.get('prefillOrigen');
+    const prefillObraId = searchParams.get('obraId');
+    const prefillReferencia = searchParams.get('referencia');
+    const prefillDescripcion = searchParams.get('descripcion');
+
+    if (prefillOrigen && prefillObraId && prefillReferencia) {
+        setPlanAccionPrefill({
+            origen: prefillOrigen as OrigenAccion,
+            obraId: prefillObraId,
+            referencia: prefillReferencia,
+            descripcionSugerida: prefillDescripcion || '',
+        });
+        setActiveForm("PLAN_ACCION");
+    }
+  }, [searchParams]);
 
     function handleCrearAccionDesdeIPER(payload: {
         obraId: string;
         iperId: string;
         descripcion?: string;
     }) {
-        setPlanAccionPrefill({
+        const queryParams = new URLSearchParams({
+            prefillOrigen: "IPER",
             obraId: payload.obraId,
-            origen: "IPER",
             referencia: payload.iperId,
-            descripcionSugerida: payload.descripcion,
-        });
-        setActiveForm("PLAN_ACCION");
+            descripcion: payload.descripcion || '',
+        }).toString();
+        router.push(`/prevencion/formularios-generales?${queryParams}`);
     }
 
     function handleCrearAccionDesdeIncidente(payload: {
@@ -1055,90 +1579,49 @@ export default function FormulariosGeneralesPrevencionPage() {
         incidenteId: string;
         descripcion?: string;
     }) {
-        setPlanAccionPrefill({
+        const queryParams = new URLSearchParams({
+            prefillOrigen: "INCIDENTE",
             obraId: payload.obraId,
-            origen: "INCIDENTE",
             referencia: payload.incidenteId,
-            descripcionSugerida: payload.descripcion,
-        });
-        setActiveForm("PLAN_ACCION");
+            descripcion: payload.descripcion || '',
+        }).toString();
+        router.push(`/prevencion/formularios-generales?${queryParams}`);
     }
 
   return (
     <section className="space-y-6">
-      <header className="space-y-2">
-        <h1 className="text-3xl font-bold tracking-tight">
-          Formularios generales DS44
-        </h1>
-        <p className="text-lg text-muted-foreground">
-          Herramientas transversales del sistema de gestión: IPER/matriz de riesgos,
-          investigación de incidentes, planes de acción, etc. MVP con datos simulados.
-        </p>
+      <header className="flex items-center gap-4 no-print">
+        <Button variant="outline" size="icon" onClick={() => router.push('/prevencion')}>
+            <ArrowLeft />
+        </Button>
+        <div className="space-y-2">
+            <h1 className="text-3xl font-bold tracking-tight">
+            Formularios generales DS44
+            </h1>
+            <p className="text-lg text-muted-foreground">
+            Herramientas transversales del sistema de gestión: IPER/matriz de riesgos,
+            investigación de incidentes, planes de acción, etc.
+            </p>
+        </div>
       </header>
 
-      <div className="grid gap-6 md:grid-cols-3">
-        <Card className="flex flex-col justify-between transition-all hover:shadow-lg hover:-translate-y-1">
-          <CardHeader>
-            <CardTitle>IPER / Matriz de riesgos</CardTitle>
-            <CardDescription>
-              Identificación de peligros y evaluación de riesgos por actividad,
-              como exige el DS44 y los sistemas de gestión.
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <Button
-              onClick={() => setActiveForm("IPER")}
-              className="w-full"
-              variant={activeForm === 'IPER' ? 'default' : 'outline'}
-            >
-              Ver IPER / Matriz
-            </Button>
-          </CardContent>
-        </Card>
-
-        <Card className="flex flex-col justify-between transition-all hover:shadow-lg hover:-translate-y-1">
-          <CardHeader>
-            <CardTitle>Investigación de incidentes (Ishikawa)</CardTitle>
-            <CardDescription>
-              Registro estructurado de incidentes y casi accidentes usando enfoque
-              Ishikawa / 5 porqués y plan de acción asociado.
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <Button
-              onClick={() => setActiveForm("INCIDENTE")}
-              className="w-full"
-              variant={activeForm === 'INCIDENTE' ? 'default' : 'outline'}
-            >
-              Ver investigación de incidentes
-            </Button>
-          </CardContent>
-        </Card>
-
-        <Card className="flex flex-col justify-between transition-all hover:shadow-lg hover:-translate-y-1">
-          <CardHeader>
-            <CardTitle>Plan de acción y seguimiento</CardTitle>
-            <CardDescription>
-              Registro de acciones correctivas y preventivas asociadas a IPER,
-              incidentes u otras observaciones de seguridad.
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <Button
-                type="button"
-                onClick={() => setActiveForm("PLAN_ACCION")}
-                className="w-full"
-                variant={activeForm === 'PLAN_ACCION' ? 'default' : 'outline'}
-            >
-                Ver plan de acción
-            </Button>
+      <div className="no-print">
+        <Card>
+          <CardContent className="p-4 flex flex-wrap gap-2">
+            <Button variant={activeForm === 'IPER' ? 'default' : 'outline'} onClick={() => setActiveForm('IPER')}>Ver IPER / Matriz</Button>
+            <Button variant={activeForm === 'INCIDENTE' ? 'default' : 'outline'} onClick={() => setActiveForm('INCIDENTE')}>Ver Investigación de Incidentes</Button>
+            <Button variant={activeForm === 'HALLAZGO' ? 'default' : 'outline'} onClick={() => setActiveForm('HALLAZGO')}><Search className="mr-2 h-4 w-4"/>Ir a Hallazgos</Button>
+            <Button variant={activeForm === 'PLAN_ACCION' ? 'default' : 'outline'} onClick={() => setActiveForm('PLAN_ACCION')}>Ver Plan de Acción</Button>
           </CardContent>
         </Card>
       </div>
 
-      {activeForm === 'IPER' && <IPERFormSection onCrearAccionDesdeIPER={handleCrearAccionDesdeIPER} />}
-      {activeForm === 'INCIDENTE' && <InvestigacionIncidenteSection onCrearAccionDesdeIncidente={handleCrearAccionDesdeIncidente} />}
-      {activeForm === 'PLAN_ACCION' && <PlanAccionSection prefill={planAccionPrefill} onPrefillConsumido={() => setPlanAccionPrefill(null)} />}
+      <div className="no-print">
+        {activeForm === 'IPER' && <IPERFormSection onCrearAccionDesdeIPER={handleCrearAccionDesdeIPER} />}
+        {activeForm === 'INCIDENTE' && <InvestigacionIncidenteSection onCrearAccionDesdeIncidente={handleCrearAccionDesdeIncidente} />}
+        {activeForm === 'HALLAZGO' && <HallazgosSection />}
+        {activeForm === 'PLAN_ACCION' && <PlanAccionSection prefill={planAccionPrefill} onPrefillConsumido={() => setPlanAccionPrefill(null)} />}
+      </div>
 
     </section>
   );

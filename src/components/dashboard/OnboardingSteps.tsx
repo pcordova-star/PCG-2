@@ -24,13 +24,15 @@ export function OnboardingSteps() {
     <div className="rounded-xl border bg-white shadow-sm p-4 md:p-6 flex flex-col gap-4">
       <div className="flex justify-between items-center">
         <h2 className="text-lg font-semibold">Flujo de trabajo PCG</h2>
-        <button
+        <Button
           onClick={handleClose}
-          className="text-xs text-muted-foreground hover:underline flex items-center gap-1"
+          variant="ghost"
+          size="sm"
+          className="text-muted-foreground"
         >
-          <X className="h-3 w-3"/>
+          <X className="h-4 w-4 mr-2"/>
           No volver a mostrar
-        </button>
+        </Button>
       </div>
       <div className="flex flex-col md:flex-row items-stretch md:items-center gap-4 md:gap-6">
         {/* Paso 1 */}

@@ -72,3 +72,185 @@ export interface UserInvitation {
     creadoPorUid: string;
     createdAt: Date | Timestamp;
 }
+
+export interface Obra {
+  id: string;
+  nombreFaena: string;
+  direccion?: string;
+  clienteEmail?: string;
+  mandanteRazonSocial?: string;
+  mandanteRut?: string;
+  jefeObraNombre?: string;
+  prevencionistaNombre?: string;
+  mutualidad?: string;
+  empresaId: string;
+  empresa?: {
+    nombre: string;
+  };
+  fechaInicio?: string;
+  fechaTermino?: string;
+  dotacionProyectada?: number;
+  adminContratoNombre?: string;
+}
+
+export interface IPERRegistro {
+  id: string;
+  correlativo?: number;
+  obraId: string;
+  obraNombre?: string;
+  tarea: string;
+  zona: string;
+  peligro: string;
+  riesgo: string;
+  categoriaPeligro: string;
+  probabilidad_hombre: number;
+  consecuencia_hombre: number;
+  nivel_riesgo_hombre: number;
+  probabilidad_mujer: number;
+  consecuencia_mujer: number;
+  nivel_riesgo_mujer: number;
+  jerarquiaControl: string; 
+  control_especifico_genero: string;
+  responsable: string; plazo: string; 
+  estadoControl: string; 
+  probabilidad_residual: number; 
+  consecuencia_residual: number; 
+  nivel_riesgo_residual: number; 
+  usa_componente_genero?: boolean;
+  medidasControlExistentes: string;
+  medidasControlPropuestas: string;
+  responsableImplementacion: string;
+  plazoImplementacion: string;
+  fecha?: string;
+  createdAt?: any;
+};
+
+export type CharlaEstado = "borrador" | "realizada" | "programada" | "cancelada";
+
+export type Charla = {
+    id: string;
+    obraId: string;
+    obraNombre: string;
+    iperId: string;
+    titulo: string;
+    tipo: "charla_iper" | "charla_induccion";
+    fechaCreacion: Timestamp;
+    creadaPorUid: string;
+    generadaAutomaticamente: boolean;
+    tarea: string;
+    zonaSector?: string;
+    peligro: string;
+    riesgo: string;
+    probHombres: number;
+    consHombres: number;
+    nivelHombres: number;
+    probMujeres: number;
+    consMujeres: number;
+    nivelMujeres: number;
+    controlGenero: string;
+    estado: CharlaEstado;
+    contenido: string;
+    fechaRealizacion?: Timestamp;
+    duracionMinutos?: number;
+    participantesTexto?: string;
+    observaciones?: string;
+};
+
+export type Criticidad = 'baja' | 'media' | 'alta';
+
+export interface Hallazgo {
+  id?: string;
+  obraId: string;
+  createdAt: Timestamp;
+  createdBy: string;
+  tipoRiesgo: string;
+  descripcion: string;
+  tipoHallazgoDetalle?: string;
+  descripcionLibre?: string;
+  accionesInmediatas: string[];
+  responsableId: string;
+  plazo: string;
+  evidenciaUrl: string;
+  criticidad: Criticidad;
+  estado: 'abierto' | 'en_progreso' | 'cerrado';
+  iperActividadId?: string;
+  iperRiesgoId?: string;
+  planAccionId?: string;
+  investigacionId?: string; // Nuevo campo
+  fichaFirmadaUrl?: string;
+  fechaFichaFirmada?: Timestamp;
+}
+
+export interface EquipoResponsable {
+    jefeObra: string;
+    capataz: string;
+    supervisores: string[];
+    especialidades: {
+        electrico: string;
+        izaje: string;
+        excavacion: string;
+        maquinaria: string;
+    };
+    contratistas: string[];
+}
+
+export type OrigenAccion =
+  | "IPER"
+  | "INCIDENTE"
+  | "OBSERVACION"
+  | "hallazgo"
+  | "OTRO";
+
+export type EstadoAccion = "Pendiente" | "En progreso" | "Cerrada";
+
+export type RegistroPlanAccion = {
+  id: string;
+  obraId: string;
+  obraNombre?: string;
+  origen: OrigenAccion;
+  referencia: string; 
+  descripcionAccion: string;
+  responsable: string;
+  plazo: string;
+  estado: EstadoAccion;
+  avance: string;
+  observacionesCierre: string;
+  fechaCreacion: string;
+  creadoPor: string;
+  createdAt?: any;
+  hallazgoId?: string;
+};
+
+export type TipoIncidente =
+  | "Accidente con tiempo perdido"
+  | "Accidente sin tiempo perdido"
+  | "Casi accidente"
+  | "Daño a la propiedad";
+
+export type GravedadIncidente = "Leve" | "Grave" | "Fatal potencial";
+
+export type RegistroIncidente = {
+  id: string;
+  obraId: string;
+  obraNombre?: string;
+  fecha: string; 
+  lugar: string;
+  tipoIncidente: TipoIncidente;
+  gravedad: GravedadIncidente;
+  descripcionHecho: string;
+  lesionPersona: string;
+  actoInseguro: string;
+  condicionInsegura: string;
+  causasInmediatas: string;
+  causasBasicas: string;
+  analisisIshikawa: string;
+  analisis5Porques: string;
+  medidasCorrectivas: string;
+  responsableSeguimiento: string;
+  plazoCierre: string;
+  estadoCierre: "Abierto" | "En seguimiento" | "Cerrado";
+  createdAt?: any;
+  // Campos para vincular
+  origen?: string;
+  hallazgoId?: string;
+};

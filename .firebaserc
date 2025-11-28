@@ -1,7 +1,8 @@
 {
   "projects": {
     "default": "studio-6495872333-f2751",
-    "PCG2.0": "studio-6495872333-f2751"
+    "PCG2.0": "studio-6495872333-f2751",
+    "pcg": "pcg-2-8bf1b"
   },
   "targets": {},
   "etags": {}

@@ -19,7 +19,7 @@ export const SUPERADMIN_EMAILS = ["pauloandrescordova@gmail.com"];
  * @param tokenClaims - Los custom claims del token de ID del usuario.
  * @returns El rol del usuario como un string `UserRole`.
  */
-export function resolveRole(user: User | null, userDoc?: any, tokenClaims?: any): UserRole {
+export function resolveRole(user: User | null, userDoc?: any, tokenClaims?: { [key: string]: any }): UserRole {
   if (!user) {
     return "none";
   }

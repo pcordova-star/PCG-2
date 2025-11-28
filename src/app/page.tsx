@@ -261,7 +261,7 @@ export default function WelcomePage() {
           <div className="flex h-16 items-center justify-between">
             <div className="flex items-center gap-6">
               <Link href="#" className="font-bold text-lg text-primary">
-                <PcgLogo size={30} />
+                <PcgLogo size={100} />
               </Link>
               <nav className="hidden md:flex gap-6">
                 <NavLink href="#">Producto</NavLink>
@@ -285,6 +285,9 @@ export default function WelcomePage() {
         <section className="py-20 md:py-32">
           <div className="max-w-6xl mx-auto px-4 md:px-6 lg:px-8 text-center">
             <div className="max-w-3xl mx-auto">
+                <div className="mb-8 flex justify-center">
+                    <PcgLogo size={156} />
+                </div>
                 <p className="font-semibold text-primary">SOFTWARE PARA CONSTRUCTORAS</p>
                 <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold tracking-tighter">
                    PCG: Una obra bien gestionada, una cadena completa alineada.

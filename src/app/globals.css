@@ -107,29 +107,22 @@
 
 /* Estilos para impresión */
 @media print {
-  body {
-    background: white !important;
-    color: black !important;
-    -webkit-print-color-adjust: exact;
-    print-color-adjust: exact;
+  body * {
+    visibility: hidden;
   }
-  /* Oculta elementos no deseados */
-  .no-print, .no-print * {
+  .print-only, .print-only * {
+    visibility: visible;
+  }
+  .print-only {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 100%;
+    padding: 20px; /* O el margen que necesites */
+    background-color: white;
+    color: black;
+  }
+  .no-print {
     display: none !important;
-  }
-  main {
-    max-width: 100% !important;
-    padding: 0 !important;
-    margin: 0 !important;
-    box-shadow: none !important;
-    border: none !important;
-  }
-  
-  /* Asegura que los colores de fondo de las tarjetas se impriman */
-  .card, .badge {
-    -webkit-print-color-adjust: exact;
-    print-color-adjust: exact;
-    box-shadow: none !important;
-    border: 1px solid #ccc !important;
   }
 }

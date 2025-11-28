@@ -12,10 +12,11 @@ import { Label } from '@/components/ui/label';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
-import { ArrowLeft, PlusCircle, Edit, Trash2, History, Copy } from 'lucide-react';
+import { ArrowLeft, PlusCircle, Edit, Trash2, History, Copy, GanttChartSquare } from 'lucide-react';
 import { collection, addDoc, getDocs, doc, updateDoc, deleteDoc, query, orderBy, serverTimestamp, Timestamp, writeBatch, where, onSnapshot } from 'firebase/firestore';
 import { firebaseDb } from '@/lib/firebaseClient';
 import { useToast } from "@/hooks/use-toast";
+import Link from 'next/link';
 
 // --- Tipos de Datos ---
 type Obra = { id: string; nombreFaena: string; };
@@ -314,6 +315,7 @@ function PresupuestosTab() {
                                     <TableCell>{p.fechaCreacion?.toDate().toLocaleDateString('es-CL')}</TableCell>
                                     <TableCell>{formatCurrency(p.totalPresupuesto || 0)}</TableCell>
                                     <TableCell className="flex gap-2">
+                                        <Button variant="secondary" size="sm" onClick={() => router.push(`/operaciones/programacion?obraId=${p.obraId}`)}><GanttChartSquare className="mr-2 h-3 w-3" />Ir a Programación</Button>
                                         <Button variant="outline" size="sm" onClick={() => router.push(`/operaciones/presupuestos/${p.id}`)}>Ver / Editar</Button>
                                         <Button variant="ghost" size="icon" onClick={() => handleDuplicar(p.id)}><Copy className="h-4 w-4" /></Button>
                                         <AlertDialog>
@@ -353,16 +355,16 @@ export default function PresupuestosPage() {
                     <p className="text-muted-foreground">Administra tu catálogo de ítems y crea presupuestos por obra.</p>
                 </div>
             </header>
-            <Tabs defaultValue="catalogo" className="w-full">
+            <Tabs defaultValue="presupuestos" className="w-full">
                 <TabsList>
-                    <TabsTrigger value="catalogo">Catálogo de Ítems</TabsTrigger>
                     <TabsTrigger value="presupuestos">Presupuestos por Obra</TabsTrigger>
+                    <TabsTrigger value="catalogo">Catálogo de Ítems</TabsTrigger>
                 </TabsList>
-                <TabsContent value="catalogo">
-                    <CatalogoTab />
-                </TabsContent>
                 <TabsContent value="presupuestos">
                     <PresupuestosTab />
+                </TabsContent>
+                <TabsContent value="catalogo">
+                    <CatalogoTab />
                 </TabsContent>
             </Tabs>
         </div>

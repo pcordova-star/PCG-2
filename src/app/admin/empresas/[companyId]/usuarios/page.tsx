@@ -1,10 +1,11 @@
 
+
 "use client";
 
 import React, { useState, useEffect, FormEvent } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { Input } from '@/components/ui/input';
@@ -15,11 +16,11 @@ import { Badge } from '@/components/ui/badge';
 import { PlusCircle, ArrowLeft, Loader2, Trash2, Edit, UserX, UserCheck, RefreshCw } from 'lucide-react';
 import Link from 'next/link';
 import { collection, doc, getDoc, query, orderBy, where, onSnapshot, updateDoc, serverTimestamp } from 'firebase/firestore';
-import { firebaseDb } from '@/lib/firebaseClient';
+import { firebaseDb, firebaseFunctions } from '@/lib/firebaseClient';
 import { Company, AppUser, UserInvitation, RolInvitado } from '@/types/pcg';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/context/AuthContext';
-import { invitarUsuario } from '@/lib/invitaciones/invitarUsuario';
+import { httpsCallable } from 'firebase/functions';
 import { Switch } from '@/components/ui/switch';
 import { cn } from '@/lib/utils';
 
@@ -45,7 +46,7 @@ export default function AdminEmpresaUsuariosPage() {
     const [error, setError] = useState<string | null>(null);
 
     const [dialogOpen, setDialogOpen] = useState(false);
-    const [currentUser, setCurrentUser] = useState<Partial<AppUser> & { isInvitation?: boolean, role: RolInvitado } | null>(null);
+    const [currentUser, setCurrentUser] = useState<{ email: string, nombre: string, role: RolInvitado, password?: string, id?: string } | null>(null);
     const [isSaving, setIsSaving] = useState(false);
 
     const isSuperAdmin = role === "superadmin";
@@ -70,7 +71,7 @@ export default function AdminEmpresaUsuariosPage() {
                 } else {
                     throw new Error("Empresa no encontrada");
                 }
-            } catch (err) {
+            } catch (err: any) {
                 console.error("Error fetching company data:", err);
                 setError("No se pudieron cargar los datos de la empresa.");
             }
@@ -104,14 +105,20 @@ export default function AdminEmpresaUsuariosPage() {
         };
     }, [isSuperAdmin, companyId]);
 
-    const handleOpenDialog = (data: Partial<AppUser> | null = null) => {
-        if (data) {
-            setCurrentUser({...data, role: (data.role as RolInvitado) || 'jefe_obra' });
-        } else {
+    const handleOpenDialog = (data: Partial<AppUser> & { password?: string } | null = null) => {
+        if (data && data.id) { // Editando usuario existente
+            setCurrentUser({
+                id: data.id,
+                email: data.email || '',
+                nombre: data.nombre || '',
+                role: (data.role as RolInvitado) || 'jefe_obra',
+            });
+        } else { // Creando nuevo usuario
              setCurrentUser({
                 email: '',
                 nombre: '',
                 role: 'jefe_obra',
+                password: '',
             });
         }
         setDialogOpen(true);
@@ -129,7 +136,7 @@ export default function AdminEmpresaUsuariosPage() {
         
         try {
             if (currentUser.id) { // Editando usuario existente
-                 const userRef = doc(firebaseDb, "users", currentUser.id);
+                const userRef = doc(firebaseDb, "users", currentUser.id);
                 // Aquí iría la lógica para llamar a una función de actualización si fuera necesario
                 // Por ahora, solo actualizamos en Firestore
                 await updateDoc(userRef, {
@@ -137,21 +144,22 @@ export default function AdminEmpresaUsuariosPage() {
                     // El rol no se puede cambiar desde aquí por ahora, se maneja con claims
                 });
                 toast({ title: "Usuario Actualizado", description: `Los datos de ${currentUser.nombre} han sido actualizados.` });
-            } else { // Creando nueva invitación
+            } else { // Creando nuevo usuario
                 if (!company) throw new Error("No se ha cargado la empresa");
-                if (!currentUser.email || !currentUser.nombre || !currentUser.role) {
-                    throw new Error("Email, nombre y rol son obligatorios.");
+                if (!currentUser.email || !currentUser.nombre || !currentUser.role || !currentUser.password) {
+                    throw new Error("Email, nombre, rol y contraseña son obligatorios.");
                 }
 
-                await invitarUsuario({
-                    empresaId: company.id,
-                    empresaNombre: company.nombreFantasia || company.razonSocial,
+                const createCompanyUser = httpsCallable(firebaseFunctions, 'createCompanyUser');
+                await createCompanyUser({
+                    companyId: company.id,
                     email: currentUser.email,
-                    roleDeseado: currentUser.role,
-                    creadoPorUid: user.uid,
+                    nombre: currentUser.nombre,
+                    role: currentUser.role,
+                    password: currentUser.password,
                 });
                 
-                toast({ title: "Invitación Enviada", description: `Se ha enviado una invitación por correo a ${currentUser.email}.` });
+                toast({ title: "Usuario Creado e Invitado", description: `Se ha enviado una invitación por correo a ${currentUser.email}.` });
             }
             
             setDialogOpen(false);
@@ -199,18 +207,9 @@ export default function AdminEmpresaUsuariosPage() {
     }
     
     const handleResendInvitation = async (inv: UserInvitation) => {
-        if (!company) return;
-        try {
-            await invitarUsuario({
-                email: inv.email,
-                empresaId: inv.empresaId,
-                empresaNombre: company.nombreFantasia || company.razonSocial,
-                roleDeseado: inv.roleDeseado,
-            });
-            toast({ title: "Invitación Reenviada" });
-        } catch (err) {
-            toast({ variant: 'destructive', title: "Error", description: "No se pudo reenviar la invitación." });
-        }
+        // Esta función ahora necesitaría llamar a una cloud function que reenvíe el email.
+        // Por ahora, solo mostraremos un toast.
+        toast({ title: "Función no implementada", description: "La capacidad de reenviar invitaciones aún está en desarrollo." });
     }
     
     if (authLoading || (!isSuperAdmin && !loading)) {
@@ -233,11 +232,11 @@ export default function AdminEmpresaUsuariosPage() {
                         <Link href="/admin/empresas"><ArrowLeft className="mr-2 h-4 w-4" />Volver a Empresas</Link>
                     </Button>
                     <h1 className="text-2xl font-bold">Usuarios de {company?.nombreFantasia}</h1>
-                    <p className="text-muted-foreground">Administra los usuarios e invitaciones para esta empresa.</p>
+                    <p className="text-muted-foreground">Crea, edita y administra los usuarios para esta empresa.</p>
                 </div>
                 <Button onClick={() => handleOpenDialog()}>
                     <PlusCircle className="mr-2 h-4 w-4" />
-                    Invitar Usuario
+                    Crear Nuevo Usuario
                 </Button>
             </header>
             
@@ -313,70 +312,13 @@ export default function AdminEmpresaUsuariosPage() {
                 </CardContent>
             </Card>
 
-            <Card>
-                <CardHeader>
-                    <CardTitle>Invitaciones Pendientes</CardTitle>
-                </CardHeader>
-                <CardContent>
-                    <Table>
-                        <TableHeader>
-                            <TableRow>
-                                <TableHead>Email Invitado</TableHead>
-                                <TableHead>Rol Asignado</TableHead>
-                                <TableHead>Estado</TableHead>
-                                <TableHead>Fecha</TableHead>
-                                <TableHead className="text-right">Acciones</TableHead>
-                            </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                            {invitations.length === 0 ? (
-                                <TableRow><TableCell colSpan={5} className="text-center h-24">No hay invitaciones para esta empresa.</TableCell></TableRow>
-                            ) : invitations.map((inv) => (
-                                <TableRow key={inv.id}>
-                                    <TableCell className="font-medium">{inv.email}</TableCell>
-                                    <TableCell><Badge variant="outline">{inv.roleDeseado}</Badge></TableCell>
-                                    <TableCell><Badge variant={inv.estado === 'pendiente' ? 'secondary' : 'default'}>{inv.estado}</Badge></TableCell>
-                                    <TableCell>{inv.createdAt ? new Date(inv.createdAt).toLocaleDateString() : 'N/A'}</TableCell>
-                                    <TableCell className="text-right">
-                                      <div className="flex gap-1 justify-end">
-                                        {inv.estado === 'pendiente' && (
-                                            <>
-                                                <Button variant="ghost" size="icon" onClick={() => handleResendInvitation(inv)}><RefreshCw className="h-4 w-4" /></Button>
-                                                <AlertDialog>
-                                                    <AlertDialogTrigger asChild>
-                                                        <Button variant="ghost" size="icon" className="text-destructive">
-                                                            <Trash2 className="h-4 w-4" />
-                                                        </Button>
-                                                    </AlertDialogTrigger>
-                                                    <AlertDialogContent>
-                                                        <AlertDialogHeader>
-                                                            <AlertDialogTitle>¿Revocar invitación?</AlertDialogTitle>
-                                                            <AlertDialogDescription>La invitación para {inv.email} será invalidada y no podrá ser usada.</AlertDialogDescription>
-                                                        </AlertDialogHeader>
-                                                        <AlertDialogFooter>
-                                                            <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                                                            <AlertDialogAction onClick={() => handleRevokeInvitation(inv.id!)} className="bg-destructive hover:bg-destructive/90">Revocar</AlertDialogAction>
-                                                        </AlertDialogFooter>
-                                                    </AlertDialogContent>
-                                                </AlertDialog>
-                                            </>
-                                        )}
-                                      </div>
-                                    </TableCell>
-                                </TableRow>
-                            ))}
-                        </TableBody>
-                    </Table>
-                </CardContent>
-            </Card>
-
             <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
                 <DialogContent>
                     <form onSubmit={handleFormSubmit}>
                         <DialogHeader>
-                            <DialogTitle>{currentUser?.id ? "Editar Usuario" : "Invitar Nuevo Usuario"}</DialogTitle>
+                            <DialogTitle>{currentUser?.id ? "Editar Usuario" : "Crear Nuevo Usuario"}</DialogTitle>
                              <DialogDescription>
-                                {currentUser?.id ? "Modifica los datos del usuario." : "Completa los datos para enviar una invitación por correo."}
+                                {currentUser?.id ? "Modifica los datos del usuario." : "Completa los datos para crear una nueva cuenta y enviar una invitación por correo."}
                             </DialogDescription>
                         </DialogHeader>
                         <div className="py-4 grid gap-4">
@@ -389,6 +331,13 @@ export default function AdminEmpresaUsuariosPage() {
                                 <Input id="nombre" name="nombre" value={currentUser?.nombre || ''} onChange={e => setCurrentUser(prev => prev ? ({...prev, nombre: e.target.value}) : null)} />
                             </div>
                            
+                            {!currentUser?.id && (
+                                <div className="space-y-2">
+                                    <Label htmlFor="password">Contraseña Temporal*</Label>
+                                    <Input id="password" name="password" type="text" value={currentUser?.password || ''} onChange={e => setCurrentUser(prev => prev ? ({...prev, password: e.target.value}) : null)} />
+                                </div>
+                            )}
+
                             <div className="space-y-2">
                                 <Label htmlFor="role">Rol en la Empresa</Label>
                                 <Select value={currentUser?.role || 'jefe_obra'} onValueChange={v => setCurrentUser(prev => prev ? ({...prev, role: v as RolInvitado}) : null)}>
@@ -400,12 +349,6 @@ export default function AdminEmpresaUsuariosPage() {
                                     </SelectContent>
                                 </Select>
                             </div>
-                             {currentUser?.id && (
-                                 <div className="flex items-center space-x-2 pt-2">
-                                    <Switch id="activo" checked={currentUser?.activo ?? true} onCheckedChange={c => setCurrentUser(prev => prev ? ({...prev, activo: c}) : null)}/>
-                                    <Label htmlFor="activo">Usuario Activo</Label>
-                                 </div>
-                             )}
                             {error && <p className="text-sm font-medium text-destructive">{error}</p>}
                         </div>
                         <DialogFooter>
@@ -421,4 +364,3 @@ export default function AdminEmpresaUsuariosPage() {
         </div>
     );
 }
-

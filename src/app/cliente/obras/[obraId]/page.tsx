@@ -4,7 +4,7 @@
 import React, { Suspense, useEffect, useState } from 'react';
 import { notFound, useParams, useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { Percent, Calendar, CheckCircle, ArrowLeft } from 'lucide-react';
@@ -60,7 +60,7 @@ function ClienteObraPageInner() {
     const params = useParams();
     const router = useRouter();
     const searchParams = useSearchParams();
-    const { user, loading: authLoading } = useAuth();
+    const { user, role, loading: authLoading } = useAuth();
     const obraId = params.obraId as string;
     
     const [data, setData] = useState<PublicObraData | null>(null);
@@ -71,7 +71,7 @@ function ClienteObraPageInner() {
     
     useEffect(() => {
         if (!authLoading && !user) {
-            router.replace('/login/cliente');
+            router.replace('/login/usuario'); // Redirige al login general si no hay usuario
         }
     }, [user, authLoading, router]);
 
@@ -87,16 +87,19 @@ function ClienteObraPageInner() {
         
                 const obraData = obraDoc.data() as Obra;
                 
-                // Security check: ensure the logged-in user is the client for this project
-                // UNLESS it's a preview from an internal user.
-                if (!isPreview && obraData.clienteEmail.toLowerCase() !== user.email?.toLowerCase()) {
+                // Security check:
+                // If it's NOT a preview, the user MUST be a client and their email must match.
+                if (!isPreview && (role !== 'cliente' || obraData.clienteEmail.toLowerCase() !== user.email?.toLowerCase())) {
                     setError("No tienes permiso para ver esta obra.");
                     return null;
                 }
+                
+                // If it IS a preview, the user can be anyone logged in (admin, etc.),
+                // so we bypass the client-specific check.
 
                 const actsSnap = await getDocs(collection(firebaseDb, "obras", obraId, "actividades"));
-                let programadas = actsSnap.size;
-                let completadas = actsSnap.docs.filter(d => d.data().estado === 'Completada').length;
+                const programadas = actsSnap.size;
+                const completadas = actsSnap.docs.filter(d => d.data().estado === 'Completada').length;
 
                 const avSnap = await getDocs(query(
                     collection(firebaseDb, "obras", obraId, "avancesDiarios"),
@@ -133,7 +136,7 @@ function ClienteObraPageInner() {
                     avancesPublicados,
                 };
 
-            } catch (err) {
+            } catch (err: any) {
                 console.error("Error fetching obra data:", err);
                 return null;
             }
@@ -148,7 +151,7 @@ function ClienteObraPageInner() {
             setLoading(false);
         });
 
-    }, [obraId, user, isPreview]);
+    }, [obraId, user, isPreview, role]);
 
   if (loading || authLoading) {
       return <div className="text-center p-8">Cargando datos de la obra...</div>
@@ -158,6 +161,16 @@ function ClienteObraPageInner() {
       return <div className="p-8 text-center text-destructive">{error}</div>;
   }
   
+  if (!user) {
+    return (
+       <div className="flex flex-col items-center justify-center min-h-screen col-span-full">
+          <h1 className="text-2xl font-bold">No has iniciado sesión</h1>
+          <p className="text-muted-foreground">Serás redirigido al login.</p>
+          <Button asChild variant="link" className="mt-4"><Link href="/">Ir al login ahora</Link></Button>
+      </div>
+    );
+  }
+
   if (!data) {
     return notFound();
   }
@@ -179,7 +192,7 @@ function ClienteObraPageInner() {
       <header className="space-y-2 border-b pb-4 print:border-b-2 print:border-black">
         <div className="flex items-center gap-4">
             <Button asChild variant="outline" size="icon" className="no-print">
-              <Link href="/cliente">
+              <Link href="/obras">
                 <ArrowLeft className="h-4 w-4" />
                 <span className="sr-only">Volver al listado de obras</span>
               </Link>
