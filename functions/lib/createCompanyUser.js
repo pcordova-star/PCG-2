@@ -39,6 +39,17 @@ const admin = __importStar(require("firebase-admin"));
 if (!admin.apps.length) {
     admin.initializeApp();
 }
+function buildAcceptInviteUrl(invId, email) {
+    // SOLUCIÓN DEFINITIVA: Usar directamente la URL correcta para ignorar variables de entorno del servidor.
+    const rawBaseUrl = "https://pcg-2-8bf1b.web.app";
+    if (!rawBaseUrl) {
+        // Este error ya no debería ocurrir.
+        console.error("CRÍTICO: No se pudo determinar la URL base de la aplicación. No se puede crear un enlace de invitación válido.");
+        throw new https_1.HttpsError("internal", "El servidor no está configurado correctamente para enviar invitaciones. Falta la URL base de la aplicación.");
+    }
+    const appBaseUrl = rawBaseUrl.replace(/\/+$/, "");
+    return `${appBaseUrl}/accept-invite?invId=${encodeURIComponent(invId)}&email=${encodeURIComponent(email)}`;
+}
 exports.createCompanyUser = (0, https_1.onCall)({ region: "southamerica-west1", cors: true }, async (request) => {
     const auth = admin.auth();
     const db = admin.firestore();
@@ -49,7 +60,7 @@ exports.createCompanyUser = (0, https_1.onCall)({ region: "southamerica-west1", 
     }
     // 2. Validar que el usuario es SUPER_ADMIN vía customClaims
     const requesterClaims = await auth.getUser(ctx.uid);
-    if (requesterClaims.customClaims?.role !== "SUPER_ADMIN") {
+    if (requesterClaims.customClaims?.role !== "superadmin") {
         throw new https_1.HttpsError("permission-denied", "Solo SUPER_ADMIN puede crear usuarios.");
     }
     // 3. Validar payload de entrada
@@ -97,7 +108,7 @@ exports.createCompanyUser = (0, https_1.onCall)({ region: "southamerica-west1", 
         nombre: data.nombre,
         email: data.email,
         role: data.role,
-        companyIdPrincipal: data.companyId,
+        empresaId: data.companyId,
         activo: true,
         createdAt: now,
         updatedAt: now,
@@ -108,16 +119,14 @@ exports.createCompanyUser = (0, https_1.onCall)({ region: "southamerica-west1", 
     await invitationRef.set({
         email: data.email,
         empresaId: data.companyId,
-        empresaNombre: companyData?.nombre || '',
+        empresaNombre: companyData?.nombreFantasia || companyData?.razonSocial || '',
         roleDeseado: data.role,
         estado: 'pendiente', // Se crea pendiente y se manda el correo
         createdAt: now,
         creadoPorUid: ctx.uid,
     });
     // 9. Enviar correo de invitación
-    // APP_BASE_URL debe apuntar a https://pcg-2-8bf1b.web.app en producción
-    const appBaseUrl = (process.env.APP_BASE_URL ?? "https://pcg-2-8bf1b.web.app").replace(/\/+$/, "");
-    const acceptInviteUrl = `${appBaseUrl}/accept-invite?invId=${invitationId}&email=${encodeURIComponent(data.email)}`;
+    const acceptInviteUrl = buildAcceptInviteUrl(invitationId, data.email);
     await db.collection("mail").add({
         to: [data.email],
         message: {

@@ -1,10 +1,24 @@
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
-import { Users, FileText, Building, ClipboardPlus, BookUser } from 'lucide-react';
+import { Users, Building, ClipboardPlus, BookUser, LayoutDashboard, ShieldAlert, ArrowLeft, Search, Siren } from 'lucide-react';
 
 export default function PrevencionPage() {
   const modules = [
+    {
+      title: "Panel del Prevencionista",
+      description: "Dashboard con alertas, KPIs y tareas diarias para la gestión de riesgos y cumplimiento operativo.",
+      href: "/prevencion/panel",
+      icon: LayoutDashboard,
+      linkText: "Ir al Panel"
+    },
+    {
+      title: "Programa de Prevención de Riesgos",
+      description: "Define, gestiona y genera el PPR de cada obra, integrando IPER, charlas y planes de acción en un solo lugar.",
+      href: "/prevencion/ppr",
+      icon: ShieldAlert,
+      linkText: "Gestionar PPR"
+    },
     {
       title: "Empresas contratistas – DS44",
       description: "Registrar y evaluar el cumplimiento de requisitos DS44 de empresas contratistas y subcontratistas por obra.",
@@ -26,9 +40,16 @@ export default function PrevencionPage() {
       icon: Building,
       linkText: "Ir a DS44 – Mandante / Obra"
     },
+     {
+      title: "Hallazgos en Terreno",
+      description: "Dashboard para visualizar y gestionar los hallazgos de seguridad reportados desde terreno.",
+      href: "/prevencion/hallazgos",
+      icon: Siren,
+      linkText: "Ir a Hallazgos"
+    },
     {
       title: "Formularios generales DS44",
-      description: "IPER, investigación de incidentes, planes de acción y otros formularios del sistema.",
+      description: "IPER, investigación de incidentes, hallazgos, planes de acción y otros formularios del sistema.",
       href: "/prevencion/formularios-generales",
       icon: ClipboardPlus,
       linkText: "Ir a Formularios"
@@ -44,6 +65,10 @@ export default function PrevencionPage() {
 
   return (
     <div className="space-y-8">
+       <Button asChild variant="outline" size="sm">
+          <Link href="/dashboard"><ArrowLeft className="mr-2 h-4 w-4" />Volver al Dashboard</Link>
+      </Button>
+
       <div className="space-y-4 max-w-3xl">
         <h1 className="text-4xl font-bold font-headline tracking-tight">Módulo de Prevención de Riesgos</h1>
         <p className="text-lg text-muted-foreground">

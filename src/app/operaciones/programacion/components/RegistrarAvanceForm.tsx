@@ -1,8 +1,9 @@
+// src/app/operaciones/programacion/components/RegistrarAvanceForm.tsx
 "use client";
 
-import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useAuth } from '@/context/AuthContext';
-import { collection, addDoc, serverTimestamp, writeBatch, doc } from 'firebase/firestore';
+import { collection, writeBatch, doc } from 'firebase/firestore';
 import { firebaseDb, firebaseStorage } from '@/lib/firebaseClient';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { Button } from '@/components/ui/button';
@@ -38,14 +39,14 @@ export default function RegistrarAvanceForm({ obraId: initialObraId, obras = [],
   const [comentarios, setComentarios] = useState<Record<string, string>>({});
   const [fotos, setFotos] = useState<Record<string, File[]>>({});
   
-  const { avancesPorActividad: avancesAcumulados } = useActividadAvance(selectedObraId);
-  
-  const [isSaving, setIsSaving] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-
   const actividadesAMostrar = useMemo(() => {
     return initialActividades.filter(act => act.obraId === selectedObraId);
   }, [initialActividades, selectedObraId]);
+
+  const { avancesPorActividad } = useActividadAvance(selectedObraId, actividadesAMostrar);
+  
+  const [isSaving, setIsSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     if (initialObraId) {
@@ -62,18 +63,43 @@ export default function RegistrarAvanceForm({ obraId: initialObraId, obras = [],
 
   const handleFileChange = (actividadId: string, e: React.ChangeEvent<HTMLInputElement>) => {
     if (!e.target.files) return;
-    const nuevosArchivos = Array.from(e.target.files);
+    const archivosSeleccionados = Array.from(e.target.files);
     
-    setFotos(prev => {
-        const actuales = prev[actividadId] || [];
-        const total = actuales.length + nuevosArchivos.length;
-        if(total > MAX_FOTOS) {
-            setError(`No más de ${MAX_FOTOS} fotos por actividad.`);
-            toast({ variant: 'destructive', title: 'Límite de fotos excedido' });
-            return prev;
-        }
-        return { ...prev, [actividadId]: [...actuales, ...nuevosArchivos] };
-    });
+    const archivosValidos: File[] = [];
+    let heicDetectado = false;
+
+    for (const file of archivosSeleccionados) {
+      const esHeic = file.type.includes('heic') || file.type.includes('heif') || /\.heic$/i.test(file.name) || /\.heif$/i.test(file.name);
+      if (esHeic) {
+        heicDetectado = true;
+      } else {
+        archivosValidos.push(file);
+      }
+    }
+
+    if (heicDetectado) {
+      toast({
+        variant: "destructive",
+        title: "Formato de imagen no compatible",
+        description: "Las fotos en formato HEIC (de iPhone) no son soportadas. Por favor, cambia la configuración de tu cámara a 'Más compatible' (JPG) en Ajustes > Cámara > Formatos.",
+        duration: 8000,
+      });
+      // Limpia el input para que el usuario pueda volver a seleccionar
+      e.target.value = ""; 
+    }
+    
+    if (archivosValidos.length > 0) {
+       setFotos(prev => {
+          const actuales = prev[actividadId] || [];
+          const total = actuales.length + archivosValidos.length;
+          if(total > MAX_FOTOS) {
+              setError(`No más de ${MAX_FOTOS} fotos por actividad.`);
+              toast({ variant: 'destructive', title: 'Límite de fotos excedido' });
+              return prev;
+          }
+          return { ...prev, [actividadId]: [...actuales, ...archivosValidos] };
+      });
+    }
   };
   
   const handleRemoveFile = (actividadId: string, index: number) => {
@@ -100,6 +126,24 @@ export default function RegistrarAvanceForm({ obraId: initialObraId, obras = [],
     setError(null);
 
     try {
+      // Validación antes de subir cualquier archivo o escribir en la BD
+      for (const [actividadId, cantidadHoy] of avancesParaGuardar) {
+        const actividad = actividadesAMostrar.find(a => a.id === actividadId);
+        if (!actividad) continue;
+
+        const cantidadAcumuladaAnterior = avancesPorActividad[actividadId]?.cantidadAcumulada || 0;
+        const maxPermitidaHoy = Math.max(0, actividad.cantidad - cantidadAcumuladaAnterior);
+
+        if (maxPermitidaHoy <= 0) {
+          throw new Error(`La actividad "${actividad.nombreActividad}" ya alcanzó el 100% de avance. No puedes registrar más cantidad.`);
+        }
+
+        if (cantidadHoy > maxPermitidaHoy) {
+          throw new Error(`La cantidad para "${actividad.nombreActividad}" (${cantidadHoy}) excede la disponible (${maxPermitidaHoy.toFixed(2)}).`);
+        }
+      }
+
+      // Si todas las validaciones pasan, se procede a guardar
       const batch = writeBatch(firebaseDb);
       const colRef = collection(firebaseDb, 'obras', selectedObraId, 'avancesDiarios');
 
@@ -109,16 +153,19 @@ export default function RegistrarAvanceForm({ obraId: initialObraId, obras = [],
 
         const urlsFotos: string[] = [];
         if (fotos[actividadId] && fotos[actividadId].length > 0) {
-            for(const file of fotos[actividadId]){
-                const nombreArchivo = `${Date.now()}-${file.name}`;
-                const storageRef = ref(firebaseStorage, `avances/${selectedObraId}/${nombreArchivo}`);
-                await uploadBytes(storageRef, file);
-                const url = await getDownloadURL(storageRef);
-                urlsFotos.push(url);
-            }
+          for (const file of fotos[actividadId]) {
+            console.log("Subiendo imagen...", file.name);
+            const nombreArchivo = `${Date.now()}-${file.name}`;
+            const storageRef = ref(firebaseStorage, `avances/${selectedObraId}/${nombreArchivo}`);
+            await uploadBytes(storageRef, file);
+            const url = await getDownloadURL(storageRef);
+            console.log("Imagen subida, URL:", url);
+            urlsFotos.push(url);
+          }
         }
         
-        const avanceAcumulado = (avancesAcumulados[actividadId]?.cantidadAcumulada || 0) + cantidadHoy;
+        const cantidadAcumuladaAnterior = avancesPorActividad[actividadId]?.cantidadAcumulada || 0;
+        const avanceAcumulado = cantidadAcumuladaAnterior + cantidadHoy;
         const porcentajeAcumulado = actividad.cantidad > 0 ? (avanceAcumulado / actividad.cantidad) * 100 : 0;
 
         const docData = {
@@ -146,9 +193,9 @@ export default function RegistrarAvanceForm({ obraId: initialObraId, obras = [],
       resetFormStates();
 
     } catch (err: any) {
-      console.error(err);
-      setError('No se pudo registrar el avance. ' + err.message);
-      toast({ variant: "destructive", title: "Error al registrar", description: "Ocurrió un problema al guardar el avance."});
+      console.error("Error al registrar el avance:", err);
+      setError(err.message);
+      toast({ variant: "destructive", title: "Error de validación", description: err.message });
     } finally {
       setIsSaving(false);
     }
@@ -202,10 +249,11 @@ export default function RegistrarAvanceForm({ obraId: initialObraId, obras = [],
                   </TableHeader>
                   <TableBody>
                       {actividadesAMostrar.length > 0 ? actividadesAMostrar.map(act => {
-                          const avanceActual = avancesAcumulados[act.id] || { cantidadAcumulada: 0, porcentajeAcumulado: 0 };
+                          const avanceActual = avancesPorActividad[act.id] || { cantidadAcumulada: 0, porcentajeAcumulado: 0 };
                           const cantidadHoy = cantidadesHoy[act.id] || 0;
                           const nuevaCantidadAcumulada = avanceActual.cantidadAcumulada + cantidadHoy;
                           const nuevoPorcentaje = act.cantidad > 0 ? (nuevaCantidadAcumulada / act.cantidad) * 100 : 0;
+                          const maxPermitidaHoy = Math.max(0, act.cantidad - avanceActual.cantidadAcumulada);
 
                           return (
                               <TableRow key={act.id}>
@@ -214,6 +262,7 @@ export default function RegistrarAvanceForm({ obraId: initialObraId, obras = [],
                                   <TableCell className="text-xs font-semibold">{avanceActual.cantidadAcumulada.toFixed(2)} ({avanceActual.porcentajeAcumulado.toFixed(1)}%)</TableCell>
                                   <TableCell>
                                       <Input type="number" placeholder="0" value={cantidadesHoy[act.id] || ''} onChange={(e) => setCantidadesHoy(prev => ({...prev, [act.id]: Number(e.target.value)}))} className="h-8 text-xs" />
+                                       <p className="text-xs text-muted-foreground mt-1">Disponible: {maxPermitidaHoy.toFixed(2)}</p>
                                   </TableCell>
                                   <TableCell className="text-xs font-bold text-primary">{Math.min(100, nuevoPorcentaje).toFixed(1)}%</TableCell>
                                   <TableCell className="w-[250px] space-y-2">
@@ -246,7 +295,7 @@ export default function RegistrarAvanceForm({ obraId: initialObraId, obras = [],
                     {isSaving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                     {isSaving ? 'Guardando...' : 'Registrar Avances del Día'}
                 </Button>
-                <Button type="button" variant="ghost" onClick={() => router.back()}>
+                <Button type="button" variant="ghost" onClick={() => {}}>
                     Cancelar
                 </Button>
              </div>

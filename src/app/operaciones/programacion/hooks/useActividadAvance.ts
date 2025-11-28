@@ -2,17 +2,16 @@
 "use client";
 
 import { useState, useEffect, useCallback, useMemo } from 'react';
-import { collection, query, where, orderBy, onSnapshot, DocumentData } from 'firebase/firestore';
+import { collection, query, orderBy, onSnapshot } from 'firebase/firestore';
 import { firebaseDb } from '@/lib/firebaseClient';
 import { ActividadProgramada, AvanceDiario } from '../page';
-import { isBefore, parseISO } from 'date-fns';
 
 type AvanceInfo = {
     cantidadAcumulada: number;
     porcentajeAcumulado: number;
 };
 
-export function useActividadAvance(obraId: string | null) {
+export function useActividadAvance(obraId: string | null, actividades: ActividadProgramada[] = []) {
     const [avances, setAvances] = useState<AvanceDiario[]>([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
@@ -50,24 +49,11 @@ export function useActividadAvance(obraId: string | null) {
     }, [refetchAvances]);
     
     const avancesPorActividad = useMemo(() => {
-        const resultado: Record<string, AvanceInfo> = {};
-        // Placeholder para un cálculo más complejo si fuera necesario
-        return resultado;
-    }, [avances]);
-
-    const calcularAvanceParaActividades = useCallback((actividades: ActividadProgramada[], fechaCorte?: string) => {
          const resultado: Record<string, AvanceInfo> = {};
+         if (!actividades) return resultado;
+
+         const avancesFiltrados = avances.filter(a => a.tipoRegistro !== 'FOTOGRAFICO' && typeof a.cantidadEjecutada === 'number');
          
-         let avancesFiltrados = avances.filter(a => a.tipoRegistro !== 'FOTOGRAFICO' && typeof a.cantidadEjecutada === 'number');
-
-         if (fechaCorte) {
-             const fechaDeCorte = parseISO(fechaCorte + 'T23:59:59');
-             avancesFiltrados = avancesFiltrados.filter(a => {
-                 const fechaAvance = a.fecha?.toDate();
-                 return fechaAvance && isBefore(fechaAvance, fechaDeCorte);
-             });
-         }
-
          const avancesPorActividadMap: Record<string, number> = {};
 
          for (const avance of avancesFiltrados) {
@@ -89,8 +75,8 @@ export function useActividadAvance(obraId: string | null) {
          }
          return resultado;
 
-    }, [avances]);
+    }, [avances, actividades]);
 
 
-    return { avances, avancesPorActividad: calcularAvanceParaActividades(useMemo(() => [], [])), loading, error, refetchAvances, calcularAvanceParaActividades };
+    return { avances, avancesPorActividad, loading, error, refetchAvances };
 }

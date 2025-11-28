@@ -1,7 +1,6 @@
 "use client";
 
 import React, { useState, useEffect, useMemo } from "react";
-import { useRouter } from 'next/navigation';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -17,7 +16,8 @@ import { firebaseDb } from "@/lib/firebaseClient";
 import { collection, addDoc, Timestamp, getDocs, orderBy, query, where, doc, updateDoc, deleteDoc, serverTimestamp, onSnapshot } from "firebase/firestore";
 import Link from "next/link";
 import { cn } from "@/lib/utils";
-import { FileDown, PlusCircle, Edit, Trash2 } from "lucide-react";
+import { FileDown, PlusCircle, Edit, Trash2, ArrowLeft } from "lucide-react";
+import { useRouter } from "next/navigation";
 
 
 // --- Tipos de Datos ---
@@ -272,7 +272,7 @@ export default function EmpresasContratistasPage() {
       setMostrarForm(false);
       setEmpresaSeleccionadaId(null);
 
-    } catch (err) {
+    } catch (err: any) {
       console.error("Error saving company:", err);
       setErrorForm("No se pudo guardar la ficha de la empresa. Inténtelo de nuevo.");
     }
@@ -287,7 +287,7 @@ export default function EmpresasContratistasPage() {
         setEmpresaSeleccionadaId(null);
         setMostrarForm(false);
       }
-    } catch(err) {
+    } catch(err: any) {
       console.error("Error deleting company:", err);
       setErrorForm("No se pudo eliminar la empresa. Inténtelo de nuevo.");
     }
@@ -299,13 +299,18 @@ export default function EmpresasContratistasPage() {
 
   return (
     <section className="space-y-6">
-      <header className="space-y-1">
-        <h2 className="text-2xl font-semibold text-foreground">
-          Empresas contratistas / subcontratistas – DS44
-        </h2>
-        <p className="text-sm text-muted-foreground">
-          Registro y evaluación de empresas que ingresan a la obra, de acuerdo a las obligaciones de coordinación del DS44.
-        </p>
+      <header className="flex items-center gap-4">
+        <Button variant="outline" size="icon" onClick={() => router.push('/prevencion')}>
+            <ArrowLeft />
+        </Button>
+        <div className="space-y-1">
+            <h2 className="text-2xl font-semibold text-foreground">
+            Empresas contratistas / subcontratistas – DS44
+            </h2>
+            <p className="text-sm text-muted-foreground">
+            Registro y evaluación de empresas que ingresan a la obra, de acuerdo a las obligaciones de coordinación del DS44.
+            </p>
+        </div>
       </header>
       
       {successMessage && <p className="text-sm font-medium text-green-600">{successMessage}</p>}
@@ -404,7 +409,7 @@ export default function EmpresasContratistasPage() {
                                 <AlertDialogHeader>
                                   <AlertDialogTitle>¿Está seguro de que desea eliminar esta empresa?</AlertDialogTitle>
                                   <AlertDialogDescription>
-                                    Esta acción no se puede deshacer. Se eliminará permanentemente la empresa "{emp.razonSocial}" y todos sus datos asociados.
+                                    Esta acción no se puede deshacer. Se eliminará permanentemente la empresa &quot;{emp.razonSocial}&quot; y todos sus datos asociados.
                                   </AlertDialogDescription>
                                 </AlertDialogHeader>
                                 <AlertDialogFooter>
@@ -516,7 +521,7 @@ export default function EmpresasContratistasPage() {
                           <AlertDialogHeader>
                               <AlertDialogTitle>¿Seguro que deseas eliminar esta empresa?</AlertDialogTitle>
                               <AlertDialogDescription>
-                                  Esta acción no se puede deshacer. Se borrará permanentemente la ficha de "{formState.razonSocial}".
+                                  Esta acción no se puede deshacer. Se borrará permanentemente la ficha de &quot;{formState.razonSocial}&quot;.
                               </AlertDialogDescription>
                           </AlertDialogHeader>
                           <AlertDialogFooter>

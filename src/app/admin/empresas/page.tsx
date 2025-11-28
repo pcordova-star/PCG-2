@@ -3,8 +3,8 @@
 import React, { useState, useEffect, FormEvent } from 'react';
 import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -70,7 +70,7 @@ export default function AdminEmpresasPage() {
                     ...doc.data()
                 } as Company));
                 setEmpresas(companiesData);
-            } catch (err) {
+            } catch (err: any) {
                 console.error("Error fetching companies:", err);
                 setError("No se pudieron cargar las empresas.");
             } finally {
@@ -129,7 +129,7 @@ export default function AdminEmpresasPage() {
                 setEmpresas([nuevaEmpresa, ...empresas]);
             }
             setDialogOpen(false);
-        } catch (err) {
+        } catch (err: any) {
             console.error("Error saving company:", err);
             setError("No se pudo guardar la empresa.");
         } finally {
@@ -158,7 +158,7 @@ export default function AdminEmpresasPage() {
             setEmpresas(prev => prev.filter(emp => emp.id !== companyId));
             toast({ title: 'Empresa Eliminada', description: 'La empresa y todos sus datos asociados han sido eliminados.' });
 
-        } catch (err) {
+        } catch (err: any) {
             console.error("Error deleting company and its subcollections:", err);
             toast({ variant: 'destructive', title: 'Error', description: 'No se pudo eliminar la empresa. Revisa la consola para más detalles.' });
         }
@@ -229,7 +229,7 @@ export default function AdminEmpresasPage() {
                                                     <AlertDialogHeader>
                                                         <AlertDialogTitle>¿Eliminar empresa?</AlertDialogTitle>
                                                         <AlertDialogDescription>
-                                                            Esta acción no se puede deshacer. Se eliminará permanentemente la empresa "{emp.nombreFantasia}" y todos sus datos asociados (usuarios, obras, etc.).
+                                                            Esta acción no se puede deshacer. Se eliminará permanentemente la empresa &quot;{emp.nombreFantasia}&quot; y todos sus datos asociados (usuarios, obras, etc.).
                                                         </AlertDialogDescription>
                                                     </AlertDialogHeader>
                                                     <AlertDialogFooter>
@@ -272,7 +272,7 @@ export default function AdminEmpresasPage() {
                             </div>
 
                              <div className="flex items-center space-x-2 col-span-2">
-                                <Checkbox id="activa" name="activa" checked={currentCompany?.activa} onCheckedChange={(checked) => handleFormChange({ target: { name: 'activa', value: checked, type: 'checkbox', checked: !!checked } } as any)} />
+                                <Checkbox id="activa" name="activa" checked={currentCompany?.activa} onCheckedChange={(checked) => handleFormChange({ target: { name: 'activa', value: '', type: 'checkbox', checked: !!checked } } as any)} />
                                 <Label htmlFor="activa">Empresa activa</Label>
                             </div>
                             {error && <p className="text-sm font-medium text-destructive col-span-2">{error}</p>}

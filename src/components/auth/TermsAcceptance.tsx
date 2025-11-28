@@ -5,7 +5,6 @@ import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { TermsAndConditionsContent } from '@/app/terminos/page';
 import { X } from 'lucide-react';
-import Link from 'next/link';
 import { Checkbox } from '../ui/checkbox';
 import { Label } from '../ui/label';
 
