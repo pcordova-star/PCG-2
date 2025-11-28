@@ -62,7 +62,7 @@ import {
 import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
 import Link from "next/link";
-import { FilePlus2, FileText, Trash2, Edit, PlusCircle, Camera, Download, X } from 'lucide-react';
+import { FilePlus2, FileText, Trash2, Edit, PlusCircle, Camera, Download, X, DollarSign, FileDown, ArrowLeft } from 'lucide-react';
 import RegistrarAvanceForm from "./components/RegistrarAvanceForm";
 import RegistroFotograficoForm from "./components/RegistroFotograficoForm";
 import { useActividadAvance } from "./hooks/useActividadAvance";
@@ -81,10 +81,27 @@ import ImageFromStorage from '@/components/client/ImageFromStorage';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
 
+type PresupuestoItem = {
+    id: string; 
+    parentId: string | null;
+    type: "chapter" | "subchapter" | "item";
+    descripcion: string;
+    unidad: string;
+    cantidad: number;
+    precioUnitario: number;
+};
+type Presupuesto = {
+    id: string;
+    nombre: string;
+    fechaCreacion: Timestamp;
+    items: PresupuestoItem[];
+};
+
 
 export type Obra = {
   id: string;
   nombreFaena: string;
+  empresaId: string;
 };
 
 type EstadoActividad = "Pendiente" | "En curso" | "Terminada" | "Atrasada";
@@ -238,7 +255,7 @@ function CurvaSChart({ actividades, avances, montoTotalContrato }: { actividades
 
 
 function ProgramacionPageInner() {
-  const { user, loading: loadingAuth } = useAuth();
+  const { user, role, companyId, loading: loadingAuth } = useAuth();
   const router = useRouter();
   const searchParams = useSearchParams();
   const { toast } = useToast();
@@ -247,9 +264,7 @@ function ProgramacionPageInner() {
   const [obraSeleccionadaId, setObraSeleccionadaId] = useState<string>("");
 
   const [actividades, setActividades] = useState<ActividadProgramada[]>([]);
-  const { avances, loading: cargandoAvances, refetchAvances, calcularAvanceParaActividades } = useActividadAvance(obraSeleccionadaId);
-  
-  const avancesPorActividad = useMemo(() => calcularAvanceParaActividades(actividades), [actividades, calcularAvanceParaActividades]);
+  const { avances, loading: cargandoAvances, refetchAvances, avancesPorActividad } = useActividadAvance(obraSeleccionadaId, actividades);
 
   const [cargandoActividades, setCargandoActividades] = useState(true);
   
@@ -259,6 +274,12 @@ function ProgramacionPageInner() {
   const [currentActividad, setCurrentActividad] = useState<Partial<ActividadProgramada> | null>(null);
   
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
+  
+  const [presupuestosObra, setPresupuestosObra] = useState<Presupuesto[]>([]);
+  const [importDialogOpen, setImportDialogOpen] = useState(false);
+  const [presupuestoSeleccionadoId, setPresupuestoSeleccionadoId] = useState<string>('');
+  const [importando, setImportando] = useState(false);
+
 
   const montoTotalContrato = useMemo(() => {
     return actividades.reduce((sum, act) => sum + ((act.cantidad || 0) * (act.precioContrato || 0)), 0);
@@ -309,27 +330,38 @@ function ProgramacionPageInner() {
     const enCurso = estados.filter(e => e === "En curso").length;
     const completadas = estados.filter(e => e === "Terminada").length;
     const atrasadas = estados.filter(e => e === "Atrasada").length;
-    return { total, pendientes, enCurso, completadas, atrasadas };
+    return { total, total, pendientes, enCurso, completadas, atrasadas };
   }, [actividades, avancesPorActividad]);
 
   useEffect(() => {
     if (!loadingAuth && !user) {
-      router.replace("/login");
+      router.replace("/login/usuario");
     }
   }, [loadingAuth, user, router]);
 
   useEffect(() => {
-    if (!user) return;
+    if (!user || loadingAuth) return;
     async function cargarObras() {
       try {
         setError(null);
         const colRef = collection(firebaseDb, "obras");
-        const snapshot = await getDocs(colRef);
+        let q;
+        if (role === 'superadmin') {
+            q = query(colRef);
+        } else if (companyId) {
+            q = query(colRef, where("empresaId", "==", companyId));
+        } else {
+            setObras([]);
+            return;
+        }
+
+        const snapshot = await getDocs(q);
         const data: Obra[] = snapshot.docs.map((doc) => ({
           id: doc.id,
-          nombreFaena: doc.data().nombreFaena ?? "",
-        }));
+          ...doc.data(),
+        } as Obra));
         setObras(data);
+        
         const obraIdFromQuery = searchParams.get("obraId");
         if (obraIdFromQuery && data.some((o) => o.id === obraIdFromQuery)) {
           setObraSeleccionadaId(obraIdFromQuery);
@@ -342,7 +374,7 @@ function ProgramacionPageInner() {
       }
     }
     cargarObras();
-  }, [user, searchParams]);
+  }, [user, loadingAuth, role, companyId, searchParams]);
 
   const cargarDatosDeObra = async (obraId: string) => {
     if (!obraId || !user) {
@@ -505,16 +537,95 @@ function ProgramacionPageInner() {
     return value.toLocaleString('es-CL', { style: 'currency', currency: 'CLP', maximumFractionDigits: 0 });
   };
   
+    const handleOpenImportDialog = async () => {
+        if (!obraSeleccionadaId) return;
+        try {
+            const q = query(collection(firebaseDb, "presupuestos"), where("obraId", "==", obraSeleccionadaId));
+            const snapshot = await getDocs(q);
+            const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Presupuesto));
+            setPresupuestosObra(data);
+            setImportDialogOpen(true);
+        } catch (error) {
+            console.error("Error fetching budgets for import:", error);
+            toast({ variant: 'destructive', title: 'Error', description: 'No se pudieron cargar los presupuestos de esta obra.' });
+        }
+    };
+    
+    const handleImportarPresupuesto = async () => {
+        if (!presupuestoSeleccionadoId || !obraSeleccionadaId) return;
+        setImportando(true);
+
+        try {
+            const presupuestoAImportar = presupuestosObra.find(p => p.id === presupuestoSeleccionadoId);
+            if (!presupuestoAImportar || !presupuestoAImportar.items) {
+                throw new Error("El presupuesto seleccionado no tiene ítems para importar.");
+            }
+
+            const actividadesActuales = new Set(actividades.map(a => a.nombreActividad.trim().toLowerCase()));
+            const batch = writeBatch(firebaseDb);
+            const actividadesNuevas: ActividadProgramada[] = [];
+
+            for (const item of presupuestoAImportar.items) {
+                if (item.type === 'item') {
+                    if (!actividadesActuales.has(item.descripcion.trim().toLowerCase())) {
+                        const nuevaActividadRef = doc(collection(firebaseDb, "obras", obraSeleccionadaId, "actividades"));
+                        const nuevaActividadData = {
+                            obraId: obraSeleccionadaId,
+                            nombreActividad: item.descripcion,
+                            unidad: item.unidad,
+                            cantidad: item.cantidad,
+                            precioContrato: item.precioUnitario,
+                            fechaInicio: new Date().toISOString().slice(0, 10), // Fecha por defecto
+                            fechaFin: new Date().toISOString().slice(0, 10), // Fecha por defecto
+                        };
+                        batch.set(nuevaActividadRef, nuevaActividadData);
+                        actividadesNuevas.push({ id: nuevaActividadRef.id, ...nuevaActividadData });
+                    }
+                }
+            }
+
+            if (actividadesNuevas.length === 0) {
+                 toast({ title: "Nada que importar", description: "Todas las partidas del presupuesto ya existen en la programación." });
+            } else {
+                await batch.commit();
+                setActividades(prev => [...prev, ...actividadesNuevas]);
+                toast({ title: "Importación exitosa", description: `Se agregaron ${actividadesNuevas.length} nuevas actividades a la programación.` });
+            }
+
+            setImportDialogOpen(false);
+            setPresupuestoSeleccionadoId('');
+        } catch (err) {
+            console.error("Error importing budget:", err);
+            toast({ variant: 'destructive', title: 'Error de importación', description: (err as Error).message });
+        } finally {
+            setImportando(false);
+        }
+    };
+
+  
   if (loadingAuth) return <p className="text-sm text-muted-foreground">Cargando sesión...</p>;
   if (!user) return <p className="text-sm text-muted-foreground">Redirigiendo a login...</p>;
 
   return (
     <div className="space-y-8">
-      <header>
-        <h1 className="text-4xl font-bold font-headline tracking-tight">Programación de Obras</h1>
-        <p className="mt-2 text-lg text-muted-foreground">
-          Gestione actividades por cantidad y precio, registre avances diarios por cantidad ejecutada y genere estados de pago.
-        </p>
+      <header className="flex items-start justify-between">
+        <div className="flex items-center gap-4">
+            <Button variant="outline" size="icon" onClick={() => router.push('/operaciones')}>
+                <ArrowLeft />
+            </Button>
+            <div>
+                <h1 className="text-4xl font-bold font-headline tracking-tight">Programación de Obras</h1>
+                <p className="mt-2 text-lg text-muted-foreground">
+                Gestiona actividades por cantidad y precio, registre avances diarios por cantidad ejecutada y genere estados de pago.
+                </p>
+            </div>
+        </div>
+         {obraSeleccionadaId && (
+            <Button variant="secondary" onClick={() => router.push(`/operaciones/estados-de-pago?obraId=${obraSeleccionadaId}`)}>
+                <DollarSign className="mr-2 h-4 w-4" />
+                Ver Estados de Pago
+            </Button>
+        )}
       </header>
 
       {error && <p className="text-sm font-medium text-destructive">{error}</p>}
@@ -561,15 +672,21 @@ function ProgramacionPageInner() {
       </Card>
 
       <Card>
-        <CardHeader className="flex flex-row items-center justify-between">
+        <CardHeader className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
             <div>
                 <CardTitle>Actividades Programadas</CardTitle>
                 <CardDescription>{cargandoActividades ? "Cargando..." : `Mostrando ${actividades.length} actividades.`}</CardDescription>
             </div>
-            <Button onClick={() => handleOpenDialog()}>
-                <PlusCircle className="mr-2 h-4 w-4" />
-                Nueva Actividad
-            </Button>
+            <div className="flex gap-2">
+                 <Button onClick={handleOpenImportDialog} variant="outline" disabled={!obraSeleccionadaId}>
+                    <FileDown className="mr-2 h-4 w-4" />
+                    Importar desde Presupuesto
+                </Button>
+                <Button onClick={() => handleOpenDialog()}>
+                    <PlusCircle className="mr-2 h-4 w-4" />
+                    Nueva Actividad
+                </Button>
+            </div>
         </CardHeader>
         <CardContent className="p-0">
             <div className="overflow-x-auto">
@@ -677,6 +794,36 @@ function ProgramacionPageInner() {
             </DialogFooter>
           </form>
         </DialogContent>
+      </Dialog>
+      
+      <Dialog open={importDialogOpen} onOpenChange={setImportDialogOpen}>
+          <DialogContent>
+              <DialogHeader>
+                  <DialogTitle>Importar Actividades desde Presupuesto</DialogTitle>
+                  <DialogDescription>
+                      Selecciona un presupuesto de la obra actual. Se importarán todas las partidas que no existan ya en la programación.
+                  </DialogDescription>
+              </DialogHeader>
+              <div className="py-4 space-y-4">
+                  <Label htmlFor="presupuesto-select">Presupuesto a importar</Label>
+                  <Select value={presupuestoSeleccionadoId} onValueChange={setPresupuestoSeleccionadoId}>
+                      <SelectTrigger id="presupuesto-select">
+                          <SelectValue placeholder="Seleccione un presupuesto" />
+                      </SelectTrigger>
+                      <SelectContent>
+                          {presupuestosObra.map(p => (
+                              <SelectItem key={p.id} value={p.id}>{p.nombre} - {p.fechaCreacion.toDate().toLocaleDateString()}</SelectItem>
+                          ))}
+                      </SelectContent>
+                  </Select>
+              </div>
+              <DialogFooter>
+                  <Button variant="ghost" onClick={() => setImportDialogOpen(false)}>Cancelar</Button>
+                  <Button onClick={handleImportarPresupuesto} disabled={importando || !presupuestoSeleccionadoId}>
+                      {importando ? 'Importando...' : 'Importar Partidas'}
+                  </Button>
+              </DialogFooter>
+          </DialogContent>
       </Dialog>
 
       {/* Gráfico Curva S */}

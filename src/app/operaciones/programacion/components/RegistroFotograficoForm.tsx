@@ -1,7 +1,7 @@
 // src/app/operaciones/programacion/components/RegistroFotograficoForm.tsx
 "use client";
 
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useMemo } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
 import { firebaseDb, firebaseStorage } from '@/lib/firebaseClient';
@@ -11,7 +11,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { X, Camera, Loader2 } from 'lucide-react';
+import { X, Loader2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { ActividadProgramada, Obra } from '../page';
 import { Textarea } from '@/components/ui/textarea';
@@ -54,13 +54,38 @@ export default function RegistroFotograficoForm({ obras, actividades, onRegistro
   const handleFileChangeSoloFoto = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (!e.target.files) return;
     const nuevosArchivos = Array.from(e.target.files);
-    const total = fotosSolo.length + nuevosArchivos.length;
-    if (total > MAX_FOTOS) {
-        setError(`No más de ${MAX_FOTOS} fotos por registro.`);
-        toast({ variant: 'destructive', title: 'Límite de fotos excedido' });
-        return;
+    
+    const archivosValidos: File[] = [];
+    let heicDetectado = false;
+
+    for (const file of nuevosArchivos) {
+      const esHeic = file.type.includes('heic') || file.type.includes('heif') || /\.heic$/i.test(file.name) || /\.heif$/i.test(file.name);
+      if (esHeic) {
+        heicDetectado = true;
+      } else {
+        archivosValidos.push(file);
+      }
     }
-    setFotosSolo(prev => [...prev, ...nuevosArchivos]);
+
+    if (heicDetectado) {
+      toast({
+        variant: "destructive",
+        title: "Formato de imagen no compatible",
+        description: "Las fotos en formato HEIC (de iPhone) no son soportadas. Por favor, cambia la configuración de tu cámara a 'Más compatible' (JPG) en Ajustes > Cámara > Formatos.",
+        duration: 8000,
+      });
+      e.target.value = ""; // Limpia el input
+    }
+    
+    if (archivosValidos.length > 0) {
+        const total = fotosSolo.length + archivosValidos.length;
+        if (total > MAX_FOTOS) {
+            setError(`No más de ${MAX_FOTOS} fotos por registro.`);
+            toast({ variant: 'destructive', title: 'Límite de fotos excedido' });
+            return;
+        }
+        setFotosSolo(prev => [...prev, ...archivosValidos]);
+    }
   }
 
   const handleRemoveFileSoloFoto = (index: number) => {
@@ -85,11 +110,13 @@ export default function RegistroFotograficoForm({ obras, actividades, onRegistro
         const urlsFotos: string[] = [];
         if (fotosSolo.length > 0) {
             for(const file of fotosSolo){
+                console.log("Subiendo imagen...", file.name);
                 const nombreArchivo = `${Date.now()}-${file.name}`;
                 const storageRef = ref(firebaseStorage, `avances/${selectedObraId}/${nombreArchivo}`);
-                await uploadBytes(storageRef, file);
-                const url = await getDownloadURL(storageRef);
+                const uploadTask = await uploadBytes(storageRef, file);
+                const url = await getDownloadURL(uploadTask.ref);
                 urlsFotos.push(url);
+                console.log("Imagen subida, URL:", url);
             }
         }
         
@@ -113,9 +140,9 @@ export default function RegistroFotograficoForm({ obras, actividades, onRegistro
         resetFormStates();
 
     } catch(err: any) {
-      console.error(err);
+      console.error("Error guardando registro fotográfico:", err);
       setError('No se pudo guardar el registro fotográfico. ' + err.message);
-      toast({ variant: 'destructive', title: 'Error', description: 'Ocurrió un problema al guardar el registro.' });
+      toast({ variant: 'destructive', title: 'Error', description: 'Ocurrió un problema al guardar el registro. Revisa la consola.' });
     } finally {
       setIsSaving(false);
     }
@@ -136,7 +163,7 @@ export default function RegistroFotograficoForm({ obras, actividades, onRegistro
           <form onSubmit={handleFotoSubmit} className="space-y-6">
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="space-y-1">
-                <Label htmlFor="obra-selector">Obra*</Label>
+                <Label htmlFor="obra-selector" className="font-semibold">Obra*</Label>
                 <Select value={selectedObraId} onValueChange={handleObraSelectionChange} required>
                   <SelectTrigger id="obra-selector"><SelectValue placeholder="Seleccionar obra" /></SelectTrigger>
                   <SelectContent>
@@ -145,13 +172,16 @@ export default function RegistroFotograficoForm({ obras, actividades, onRegistro
                 </Select>
               </div>
               <div className="space-y-1">
-                <Label htmlFor="avance-fecha">Fecha del Registro*</Label>
+                <Label htmlFor="avance-fecha" className="font-semibold">Fecha del Registro*</Label>
                 <Input id="avance-fecha" type="date" value={fechaAvance} onChange={(e) => setFechaAvance(e.target.value)} required />
               </div>
             </div>
             
             <div className="space-y-1">
-                <Label htmlFor="actividad-foto-selector">Actividad Asociada (Opcional)</Label>
+                <Label htmlFor="actividad-foto-selector" className="font-semibold">
+                    Actividad Asociada{' '}
+                    <span className="animate-pulse font-bold text-accent">(Opcional)</span>
+                </Label>
                 <Select value={actividadFotoId} onValueChange={setActividadFotoId}>
                 <SelectTrigger id="actividad-foto-selector"><SelectValue placeholder="Seleccionar actividad" /></SelectTrigger>
                 <SelectContent>
@@ -161,11 +191,11 @@ export default function RegistroFotograficoForm({ obras, actividades, onRegistro
                 </Select>
             </div>
             <div className="space-y-1">
-                <Label htmlFor="comentario-foto">Comentario</Label>
+                <Label htmlFor="comentario-foto" className="font-semibold">Comentario</Label>
                 <Textarea id="comentario-foto" value={comentarioFoto} onChange={(e) => setComentarioFoto(e.target.value)} placeholder="Descripción de la foto o del suceso..." />
             </div>
                 <div className="space-y-1">
-                <Label htmlFor="fotos-solo">Fotos</Label>
+                <Label htmlFor="fotos-solo" className="font-semibold">Fotos</Label>
                 <Input id="fotos-solo" type="file" accept="image/*" capture="environment" multiple onChange={handleFileChangeSoloFoto} />
                     <div className="flex flex-wrap gap-2 mt-2">
                     {fotosSolo.map((file, index) => (
@@ -179,7 +209,7 @@ export default function RegistroFotograficoForm({ obras, actividades, onRegistro
             {error && <p className="text-sm font-medium text-destructive">{error}</p>}
             <div className="flex items-center gap-4">
               <Button type="submit" disabled={isSaving || !selectedObraId} className="w-full sm:w-auto">
-                  <Camera className="mr-2 h-4 w-4" />
+                  {isSaving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                   {isSaving ? 'Guardando...' : 'Guardar Registro Fotográfico'}
               </Button>
                <Button type="button" variant="ghost" onClick={() => router.back()}>

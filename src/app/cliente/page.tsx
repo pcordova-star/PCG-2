@@ -1,15 +1,16 @@
+
 // src/app/cliente/page.tsx
 "use client";
 
 import React, { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/context/AuthContext';
-import { collection, query, where, getDocs, orderBy } from 'firebase/firestore';
+import { collection, query, where, getDocs, doc, getDoc } from 'firebase/firestore';
 import { firebaseDb } from '@/lib/firebaseClient';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
-import { Building, ArrowRight, LogOut } from 'lucide-react';
+import { Building, ArrowRight, LogOut, Loader2 } from 'lucide-react';
 
 type Obra = {
   id: string;
@@ -18,17 +19,33 @@ type Obra = {
   avanceAcumulado?: number;
 };
 
+// Interfaz para los datos de la empresa
+interface Empresa {
+  id: string;
+  nombreFantasia?: string;
+  razonSocial?: string;
+}
+
 export default function ClienteDashboardPage() {
-  const { user, loading, logout } = useAuth();
+  const { user, role, companyId, loading, logout } = useAuth();
   const router = useRouter();
+  
   const [obras, setObras] = useState<Obra[]>([]);
   const [loadingObras, setLoadingObras] = useState(true);
+  
+  const [empresa, setEmpresa] = useState<Empresa | null>(null);
+  const [loadingEmpresa, setLoadingEmpresa] = useState(true);
 
   useEffect(() => {
     if (!loading && !user) {
       router.replace('/login/cliente');
+      return;
     }
-  }, [user, loading, router]);
+    // Protección de ruta por rol: solo 'cliente' y 'superadmin' pueden acceder.
+    if (!loading && user && role !== 'cliente' && role !== 'superadmin') {
+      router.replace('/dashboard');
+    }
+  }, [user, loading, role, router]);
 
   useEffect(() => {
     if (!user) return;
@@ -56,16 +73,48 @@ export default function ClienteDashboardPage() {
     fetchObras();
   }, [user]);
 
-  if (loading || loadingObras) {
+  useEffect(() => {
+    if (!companyId) {
+      setLoadingEmpresa(false);
+      return;
+    };
+
+    const fetchEmpresa = async () => {
+      setLoadingEmpresa(true);
+      try {
+        const empresaRef = doc(firebaseDb, 'companies', companyId);
+        const empresaSnap = await getDoc(empresaRef);
+        if (empresaSnap.exists()) {
+          setEmpresa({ id: empresaSnap.id, ...empresaSnap.data() } as Empresa);
+        } else {
+          setEmpresa(null);
+        }
+      } catch (error) {
+        console.error("Error fetching company data:", error);
+        setEmpresa(null);
+      } finally {
+        setLoadingEmpresa(false);
+      }
+    };
+    
+    fetchEmpresa();
+  }, [companyId]);
+
+  if (loading || loadingObras || loadingEmpresa) {
     return (
       <div className="flex items-center justify-center min-h-screen">
-        <p>Cargando portal del cliente...</p>
+        <Loader2 className="h-8 w-8 animate-spin" />
+        <p className="ml-2">Cargando portal del cliente...</p>
       </div>
     );
   }
   
-  if (!user) {
-      return null;
+  if (!user || (role !== 'cliente' && role !== 'superadmin')) {
+      return (
+        <div className="flex items-center justify-center min-h-screen">
+            <p>No tienes permiso para ver esta página. Redirigiendo...</p>
+        </div>
+      );
   }
 
   return (
@@ -84,10 +133,24 @@ export default function ClienteDashboardPage() {
         </header>
 
         <main className="container mx-auto p-4 md:p-8">
-            <div className="mb-8">
-                <h2 className="text-3xl font-bold">Bienvenido, {user.displayName || user.email?.split('@')[0]}</h2>
-                <p className="text-muted-foreground">Aquí puede ver un resumen de sus obras en curso.</p>
-            </div>
+            <header className="rounded-lg border p-4 bg-card shadow-sm mb-8">
+                <p className="text-sm text-muted-foreground">Dashboard de Cliente</p>
+                <h1 className="text-xl font-semibold">
+                    Hola, {user?.displayName || user?.email}
+                </h1>
+                {empresa && (
+                    <p className="text-sm text-muted-foreground mt-1">
+                    Empresa: <span className="font-medium text-foreground">
+                        {empresa.nombreFantasia || empresa.razonSocial || 'Sin nombre registrado'}
+                    </span>
+                    </p>
+                )}
+                {!empresa && companyId && (
+                    <p className="text-sm text-destructive mt-1">
+                    No se encontró la empresa asociada a tu usuario. Contacta al administrador.
+                    </p>
+                )}
+            </header>
 
             {obras.length === 0 ? (
                 <Card>

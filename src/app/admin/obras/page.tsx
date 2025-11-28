@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { useRouter } from 'next/navigation';
-import { collection, getDocs, doc, updateDoc, collectionGroup, query, where, orderBy } from 'firebase/firestore';
+import { collection, getDocs, doc, updateDoc, query, orderBy } from 'firebase/firestore';
 import { firebaseDb } from '@/lib/firebaseClient';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -20,8 +20,8 @@ type Obra = {
   direccion?: string;
   estado?: 'Activa' | 'Terminada' | 'Pausada' | 'Inactiva';
   creadoEn: { toDate: () => Date };
-  companyId: string;
-  companyName?: string;
+  empresaId: string;
+  companyName?: string; // Campo añadido para mostrar el nombre
 };
 
 export default function AdminGlobalObrasPage() {
@@ -30,7 +30,6 @@ export default function AdminGlobalObrasPage() {
   const isSuperAdmin = role === 'superadmin';
 
   const [obras, setObras] = useState<Obra[]>([]);
-  const [companies, setCompanies] = useState<Company[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -46,6 +45,8 @@ export default function AdminGlobalObrasPage() {
   }, [isSuperAdmin, authLoading, router]);
   
   useEffect(() => {
+    if (!isSuperAdmin) return;
+
     const fetchAllData = async () => {
       setLoading(true);
       setError(null);
@@ -54,24 +55,21 @@ export default function AdminGlobalObrasPage() {
         const companiesQuery = query(collection(firebaseDb, 'companies'));
         const companiesSnapshot = await getDocs(companiesQuery);
         const companiesData = companiesSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Company));
-        setCompanies(companiesData);
-        const companyMap = new Map(companiesData.map(c => [c.id, c.nombre]));
+        const companyMap = new Map(companiesData.map(c => [c.id, c.nombreFantasia || c.razonSocial]));
 
-        // 2. Usar collectionGroup para obtener todas las obras
-        const obrasQuery = query(collectionGroup(firebaseDb, 'obras'), orderBy('creadoEn', 'desc'));
+        // 2. Obtener todas las obras
+        const obrasQuery = query(collection(firebaseDb, 'obras'), orderBy('creadoEn', 'desc'));
         const obrasSnapshot = await getDocs(obrasQuery);
         const obrasData = obrasSnapshot.docs.map(doc => {
-          const companyId = doc.ref.parent.parent?.id;
-          if (!companyId) return null;
+          const data = doc.data();
           return {
             id: doc.id,
-            companyId: companyId,
-            companyName: companyMap.get(companyId) || 'Empresa Desconocida',
-            ...doc.data()
+            ...data,
+            companyName: companyMap.get(data.empresaId) || 'Empresa Desconocida',
           } as Obra;
-        }).filter(Boolean) as Obra[]; // Filtramos los posibles nulos y hacemos type assertion
+        });
         setObras(obrasData);
-      } catch (err) {
+      } catch (err: any) {
         console.error("Error fetching global obras:", err);
         setError("No se pudieron cargar todas las obras. Revisa los permisos de Firestore.");
       } finally {
@@ -79,9 +77,7 @@ export default function AdminGlobalObrasPage() {
       }
     };
     
-    if (isSuperAdmin) {
-        fetchAllData();
-    }
+    fetchAllData();
 
   }, [isSuperAdmin]);
 
@@ -93,12 +89,12 @@ export default function AdminGlobalObrasPage() {
     });
   }, [obras, filtroNombre, filtroEstado]);
 
-  const handleEstadoChange = async (obraId: string, companyId: string, nuevoEstado: Obra['estado']) => {
+  const handleEstadoChange = async (obraId: string, nuevoEstado: Obra['estado']) => {
     try {
-      const obraRef = doc(firebaseDb, "companies", companyId, "obras", obraId);
+      const obraRef = doc(firebaseDb, "obras", obraId);
       await updateDoc(obraRef, { estado: nuevoEstado });
       setObras(prevObras => prevObras.map(o => o.id === obraId ? { ...o, estado: nuevoEstado } : o));
-    } catch (err) {
+    } catch (err: any) {
       console.error("Error updating obra state:", err);
       setError("No se pudo actualizar el estado de la obra.");
     }
@@ -191,16 +187,16 @@ export default function AdminGlobalObrasPage() {
                             {obra.estado || 'No definido'}
                           </Badge>
                       </TableCell>
-                      <TableCell>{obra.creadoEn ? obra.creadoEn.toDate().toLocaleDateString() : 'N/A'}</TableCell>
+                      <TableCell>{obra.creadoEn ? new Date(obra.creadoEn.toDate()).toLocaleDateString() : 'N/A'}</TableCell>
                       <TableCell className="text-right">
                         <div className="flex gap-2 justify-end">
                             <Button variant="outline" size="sm" disabled>Ver Detalle</Button>
                             {obra.estado === 'Activa' ? (
-                                <Button variant="destructive" size="sm" onClick={() => handleEstadoChange(obra.id, obra.companyId, 'Inactiva')}>
+                                <Button variant="destructive" size="sm" onClick={() => handleEstadoChange(obra.id, 'Inactiva')}>
                                     Desactivar
                                 </Button>
                             ) : (
-                                 <Button variant="default" size="sm" onClick={() => handleEstadoChange(obra.id, obra.companyId, 'Activa')}>
+                                 <Button variant="default" size="sm" onClick={() => handleEstadoChange(obra.id, 'Activa')}>
                                     Activar
                                 </Button>
                             )}

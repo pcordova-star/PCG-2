@@ -5,6 +5,24 @@ if (!admin.apps.length) {
   admin.initializeApp();
 }
 
+function buildAcceptInviteUrl(invId: string, email: string): string {
+  // Se prioriza APP_BASE_URL (configurada en el entorno de la función),
+  // luego NEXT_PUBLIC_APP_URL, y si no, se usa la URL pública conocida.
+  const rawBaseUrl = process.env.APP_BASE_URL || process.env.NEXT_PUBLIC_APP_URL || "https://pcg2--pcg-2-8bf1b.us-central1.hosted.app";
+
+  if (!rawBaseUrl) {
+    // Este error solo ocurriría si se quita el fallback, lo cual es improbable.
+    // Sirve como una última capa de seguridad en caso de una mala configuración.
+    console.error("CRÍTICO: No se pudo determinar la URL base de la aplicación. No se puede crear un enlace de invitación válido.");
+    throw new HttpsError("internal", "El servidor no está configurado correctamente para enviar invitaciones. Falta la URL base de la aplicación.");
+  }
+  
+  const appBaseUrl = rawBaseUrl.replace(/\/+$/, "");
+  // CORRECCIÓN: Se usa 'invId' en lugar de 'invld'
+  return `${appBaseUrl}/accept-invite?invId=${encodeURIComponent(invId)}&email=${encodeURIComponent(email)}`;
+}
+
+
 export const createCompanyUser = onCall(
   { region: "southamerica-west1", cors: true },
   async (request) => {
@@ -115,9 +133,8 @@ export const createCompanyUser = onCall(
     });
     
     // 9. Enviar correo de invitación
-    // APP_BASE_URL debe apuntar a https://pcg-2-8bf1b.web.app en producción
-    const appBaseUrl = (process.env.APP_BASE_URL ?? "https://pcg-2-8bf1b.web.app").replace(/\/+$/, "");
-    const acceptInviteUrl = `${appBaseUrl}/accept-invite?invId=${invitationId}&email=${encodeURIComponent(data.email)}`;
+    // La función buildAcceptInviteUrl ahora valida que la URL base exista.
+    const acceptInviteUrl = buildAcceptInviteUrl(invitationId, data.email);
 
     await db.collection("mail").add({
       to: [data.email],

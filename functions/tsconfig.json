@@ -9,7 +9,13 @@
     "target": "es2020",
     "rootDir": "src",
     "esModuleInterop": true,
-    "noImplicitAny": false
+    "noImplicitAny": false,
+    "types": [
+      "node"
+    ],
+    "typeRoots": [
+      "./node_modules/@types"
+    ]
   },
   "compileOnSave": true,
   "include": [

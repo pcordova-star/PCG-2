@@ -6,7 +6,6 @@ import {
   signInWithEmailAndPassword,
   signOut,
   User,
-  IdTokenResult,
 } from "firebase/auth";
 import {
   createContext,
@@ -14,7 +13,6 @@ import {
   useEffect,
   useState,
   ReactNode,
-  useCallback,
 } from "react";
 import { firebaseAuth, firebaseDb } from "@/lib/firebaseClient"; // Se importa firebaseAuth directamente
 import { useRouter } from "next/navigation";
@@ -34,7 +32,7 @@ type AuthContextValue = {
 
 const AuthContext = createContext<AuthContextValue | undefined>(undefined);
 
-async function ensureUserDocForAuthUser(user: User, invitation?: UserInvitation | null): Promise<AppUser | null> {
+async function ensureUserDocForAuthUser(user: User): Promise<AppUser | null> {
     const userDocRef = doc(firebaseDb, "users", user.uid);
     let userDocSnap = await getDoc(userDocRef);
     
@@ -45,33 +43,12 @@ async function ensureUserDocForAuthUser(user: User, invitation?: UserInvitation 
 
     const emailLower = user.email!.toLowerCase().trim();
 
-    // Flujo 1: El usuario viene de un enlace de invitación
-    if (invitation) {
-        const newUserProfile: Omit<AppUser, 'id'> = {
-            email: emailLower,
-            nombre: user.displayName || user.email!.split('@')[0],
-            empresaId: invitation.empresaId,
-            role: invitation.roleDeseado,
-            createdAt: serverTimestamp(),
-            activo: true,
-        };
-
-        const batch = writeBatch(firebaseDb);
-        batch.set(userDocRef, newUserProfile, { merge: true });
-        // Actualizamos la invitación a aceptada
-        const invitationRef = doc(firebaseDb, "invitacionesUsuarios", invitation.id!);
-        batch.update(invitationRef, { estado: "aceptada" });
-        await batch.commit();
-
-        return { id: user.uid, ...newUserProfile } as AppUser;
-    }
-
-    // Flujo 2: El usuario hace login normal, buscamos si hay una invitación para él
+    // Buscamos si hay una invitación aceptada (no pendiente) para este correo.
     const invitationsRef = collection(firebaseDb, "invitacionesUsuarios");
     const q = query(
         invitationsRef,
         where("email", "==", emailLower),
-        where("estado", "==", "pendiente")
+        where("estado", "==", "aceptada") // Importante: solo las aceptadas
     );
     const invitationSnapshot = await getDocs(q);
 
@@ -90,13 +67,18 @@ async function ensureUserDocForAuthUser(user: User, invitation?: UserInvitation 
 
         const batch = writeBatch(firebaseDb);
         batch.set(userDocRef, newUserProfile, { merge: true });
-        batch.update(firstInvitation.ref, { estado: "aceptada" });
+        
+        // Opcional: podríamos cambiar la invitación a 'completada' o borrarla
+        // batch.update(firstInvitation.ref, { estado: "completada" });
+        
         await batch.commit();
 
-        return { id: user.uid, ...newUserProfile } as AppUser;
+        // Volvemos a leer el doc para tener los datos frescos con el serverTimestamp
+        userDocSnap = await getDoc(userDocRef);
+        return { id: user.uid, ...userDocSnap.data() } as AppUser;
     }
 
-    // Flujo 3: Si no hay invitación y el documento no existe, creamos uno básico.
+    // Si no hay invitación y el documento no existe, creamos uno básico.
     if (!userDocSnap.exists()) {
         const newUserProfile: Omit<AppUser, 'id'> = {
             email: emailLower,
@@ -107,14 +89,14 @@ async function ensureUserDocForAuthUser(user: User, invitation?: UserInvitation 
             activo: true,
         };
         await setDoc(userDocRef, newUserProfile);
-        return { id: user.uid, ...newUserProfile } as AppUser;
+        userDocSnap = await getDoc(userDocRef);
+        return { id: user.uid, ...userDocSnap.data() } as AppUser;
     }
 
     // Si el documento existe pero sin empresa (y no hay invitación), lo devolvemos como está.
     return { id: userDocSnap.id, ...userDocSnap.data() } as AppUser;
 }
 
-export { ensureUserDocForAuthUser };
 
 
 export function AuthProvider({ children }: { children: ReactNode }) {
@@ -130,13 +112,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (firebaseUser) {
         setUser(firebaseUser);
         try {
-            // No pasamos invitación aquí, el login normal la busca por sí solo.
             const userDoc = await ensureUserDocForAuthUser(firebaseUser);
-            const idTokenResult = await firebaseUser.getIdTokenResult(true);
+            const idTokenResult = await firebaseUser.getIdTokenResult(true); // Forzar la recarga de claims
             const resolvedUserRole = resolveRole(firebaseUser, userDoc, idTokenResult.claims);
             
             setRole(resolvedUserRole);
-            setCompanyId(userDoc?.empresaId || null);
+            setCompanyId(userDoc?.empresaId || idTokenResult.claims.companyId as string || null);
         } catch (error) {
             console.error("Error al procesar el login del usuario:", error);
             setRole("none");

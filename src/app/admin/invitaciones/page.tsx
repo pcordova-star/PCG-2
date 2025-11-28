@@ -12,7 +12,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
 import { PlusCircle, Loader2, Trash2, RefreshCw, ArrowLeft } from 'lucide-react';
-import { collection, doc, query, orderBy, onSnapshot, updateDoc, writeBatch, getDocs, deleteDoc } from 'firebase/firestore';
+import { collection, doc, query, orderBy, onSnapshot, updateDoc, writeBatch, getDocs } from 'firebase/firestore';
 import { firebaseDb } from '@/lib/firebaseClient';
 import { Company, UserInvitation, RolInvitado } from '@/types/pcg';
 import { useToast } from '@/hooks/use-toast';
@@ -154,7 +154,7 @@ export default function AdminInvitacionesPage() {
                 roleDeseado: inv.roleDeseado,
             });
             toast({ title: "Invitación Reenviada" });
-        } catch (err) {
+        } catch (err: any) {
             toast({ variant: 'destructive', title: "Error", description: "No se pudo reenviar la invitación." });
         }
     };
@@ -164,7 +164,7 @@ export default function AdminInvitacionesPage() {
             const invitationRef = doc(firebaseDb, "invitacionesUsuarios", invitationId);
             await updateDoc(invitationRef, { estado: 'revocada' });
             toast({ title: "Invitación Revocada" });
-        } catch (err) {
+        } catch (err: any) {
             toast({ variant: 'destructive', title: "Error", description: "No se pudo revocar la invitación." });
         }
     };
@@ -180,7 +180,7 @@ export default function AdminInvitacionesPage() {
             await batch.commit();
             toast({ title: "Eliminación exitosa", description: `Se eliminaron ${ids.size} invitaciones.` });
             setSelectedInvitations(new Set());
-        } catch(err) {
+        } catch(err: any) {
             toast({ variant: "destructive", title: "Error al eliminar", description: "No se pudieron eliminar las invitaciones seleccionadas."});
         }
     }

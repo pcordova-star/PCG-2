@@ -4,16 +4,16 @@
 import { useEffect, useState, FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "../../context/AuthContext";
-import { collection, addDoc, getDocs, doc, updateDoc, deleteDoc, query, orderBy, serverTimestamp, Timestamp, writeBatch } from "firebase/firestore";
+import { collection, addDoc, getDocs, doc, updateDoc, deleteDoc, query, orderBy, serverTimestamp, Timestamp, writeBatch, where } from "firebase/firestore";
 import { firebaseDb } from "@/lib/firebaseClient";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Edit, Trash2, PlusCircle, Link as LinkIcon, ClipboardPlus } from "lucide-react";
+import { Edit, Trash2, PlusCircle, Link as LinkIcon, DollarSign } from "lucide-react";
 import Link from "next/link";
 import { useToast } from "@/hooks/use-toast";
 
@@ -29,6 +29,7 @@ type Obra = {
   jefeObraNombre: string;
   prevencionistaNombre: string;
   mutualidad?: string;
+  empresaId: string;
 };
 
 
@@ -52,7 +53,7 @@ async function deleteSubcollection(db: any, collectionPath: string) {
 
 
 export default function ObrasPage() {
-  const { user, loading } = useAuth();
+  const { user, role, companyId, loading } = useAuth();
   const router = useRouter();
   const { toast } = useToast();
 
@@ -63,16 +64,31 @@ export default function ObrasPage() {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [currentObra, setCurrentObra] = useState<Partial<Obra> | null>(null);
   const [isSaving, setIsSaving] = useState(false);
+  
+  const canManageObras = role === 'superadmin' || role === 'admin_empresa' || role === 'prevencionista';
 
 
   useEffect(() => {
     if (!loading && !user) {
-      router.replace("/login");
+      router.replace("/login/usuario");
+      return;
     }
-  }, [loading, user, router]);
+    if (!loading && user && role === 'cliente') {
+        router.replace('/cliente');
+        return;
+    }
+
+  }, [loading, user, role, router]);
 
   useEffect(() => {
-    if (!user) return;
+    if (loading || !user) return; // Esperar a que la autenticación esté lista
+    if (role !== 'superadmin' && !companyId) {
+        setCargandoObras(false);
+        // No mostrar error si simplemente no hay companyId, podría ser un estado válido.
+        // El usuario simplemente no verá obras.
+        return;
+    }
+
 
     async function cargarObras() {
       try {
@@ -80,7 +96,16 @@ export default function ObrasPage() {
         setError(null);
 
         const colRef = collection(firebaseDb, "obras");
-        const q = query(colRef, orderBy("creadoEn", "desc"));
+        let q;
+
+        if (role === 'superadmin') {
+            // Superadmin ve todas las obras
+            q = query(colRef, orderBy("creadoEn", "desc"));
+        } else {
+            // Usuarios de empresa solo ven obras de su empresa
+            q = query(colRef, where("empresaId", "==", companyId), orderBy("creadoEn", "desc"));
+        }
+        
         const snapshot = await getDocs(q);
 
         const data: Obra[] = snapshot.docs.map((doc) => ({
@@ -89,19 +114,23 @@ export default function ObrasPage() {
         } as Obra));
 
         setObras(data);
-      } catch (err) {
+      } catch (err: any) {
         console.error(err);
         setError("No se pudieron cargar las obras desde el servidor.");
-        toast({ variant: "destructive", title: "Error al cargar obras", description: "No se pudieron cargar las obras desde el servidor." });
+        toast({ variant: "destructive", title: "Error al cargar obras", description: "Verifica los permisos de lectura en Firestore." });
       } finally {
         setCargandoObras(false);
       }
     }
 
     cargarObras();
-  }, [user, toast]);
+  }, [user, loading, role, companyId, toast]);
   
   const handleOpenDialog = (obra: Partial<Obra> | null = null) => {
+    if (!companyId && role !== 'superadmin') {
+        toast({ variant: 'destructive', title: 'Error', description: 'No se puede crear una obra sin una empresa asignada.' });
+        return;
+    }
     setCurrentObra(obra || { 
       nombreFaena: "", 
       direccion: "", 
@@ -111,6 +140,7 @@ export default function ObrasPage() {
       jefeObraNombre: "",
       prevencionistaNombre: "",
       mutualidad: "",
+      empresaId: companyId || '',
     });
     setDialogOpen(true);
     setError(null);
@@ -127,8 +157,13 @@ export default function ObrasPage() {
     setError(null);
 
     if (!currentObra || !currentObra.nombreFaena || !currentObra.direccion || !currentObra.clienteEmail) {
-      setError("Todos los campos son obligatorios.");
+      setError("Todos los campos con * son obligatorios.");
       return;
+    }
+    
+    if (!currentObra.empresaId) {
+        setError("La obra debe estar asociada a una empresa.");
+        return;
     }
 
     setIsSaving(true);
@@ -141,6 +176,7 @@ export default function ObrasPage() {
       jefeObraNombre: currentObra.jefeObraNombre || "",
       prevencionistaNombre: currentObra.prevencionistaNombre || "",
       mutualidad: currentObra.mutualidad || "",
+      empresaId: currentObra.empresaId,
     };
 
     try {
@@ -167,10 +203,10 @@ export default function ObrasPage() {
       }
       setDialogOpen(false);
       setCurrentObra(null);
-    } catch (err) {
+    } catch (err: any) {
       console.error(err);
       setError("No se pudo guardar la obra. Intenta nuevamente.");
-      toast({ variant: "destructive", title: "Error al guardar", description: "No se pudo guardar la obra. Intenta nuevamente." });
+      toast({ variant: "destructive", title: "Error al guardar", description: "No se pudo guardar la obra. Revisa los permisos." });
     } finally {
       setIsSaving(false);
     }
@@ -197,10 +233,10 @@ export default function ObrasPage() {
 
       setObras(obras.filter(o => o.id !== obraId));
       toast({ title: "Obra eliminada", description: "La obra y todos sus datos asociados han sido eliminados." });
-    } catch (err) {
+    } catch (err: any) {
       console.error(err);
       setError("No se pudo eliminar la obra y sus datos asociados. Intenta nuevamente.");
-      toast({ variant: "destructive", title: "Error al eliminar", description: "No se pudo eliminar la obra. Intenta nuevamente." });
+      toast({ variant: "destructive", title: "Error al eliminar", description: "No se pudo eliminar la obra. Revisa los permisos." });
     }
   };
 
@@ -208,8 +244,8 @@ export default function ObrasPage() {
     return <p className="text-sm text-muted-foreground">Cargando sesión...</p>;
   }
 
-  if (!user) {
-    return <p className="text-sm text-muted-foreground">Redirigiendo a login...</p>;
+  if (!user || (role !== 'superadmin' && !companyId)) {
+    return <p className="text-sm text-muted-foreground">No tienes permisos para ver este módulo o tu empresa no está configurada.</p>;
   }
 
   return (
@@ -221,10 +257,12 @@ export default function ObrasPage() {
             Crea, edita y gestiona las obras.
           </p>
         </div>
-        <Button onClick={() => handleOpenDialog()}>
-          <PlusCircle className="mr-2 h-4 w-4" />
-          Crear Nueva Obra
-        </Button>
+        {canManageObras && (
+            <Button onClick={() => handleOpenDialog()}>
+              <PlusCircle className="mr-2 h-4 w-4" />
+              Crear Nueva Obra
+            </Button>
+        )}
       </header>
 
       {error && <p className="text-sm font-medium text-destructive">{error}</p>}
@@ -268,36 +306,46 @@ export default function ObrasPage() {
                       <TableCell>{obra.prevencionistaNombre}</TableCell>
                       <TableCell className="text-right">
                         <div className="flex justify-end gap-2">
+                          <Button variant="secondary" size="sm" asChild>
+                            <Link href={`/operaciones/presupuestos/nuevo?obraId=${obra.id}`}>
+                              <DollarSign className="mr-2 h-3 w-3" />
+                              Crear Presupuesto
+                            </Link>
+                          </Button>
                            <Button variant="outline" size="sm" asChild>
                             <Link href={`/cliente/obras/${obra.id}?preview=true`} target="_blank">
                               <LinkIcon className="mr-2 h-3 w-3" />
                               Ver Panel Cliente
                             </Link>
                           </Button>
-                          <Button variant="ghost" size="icon" onClick={() => handleOpenDialog(obra)}>
-                            <Edit className="h-4 w-4" />
-                            <span className="sr-only">Editar</span>
-                          </Button>
-                          <AlertDialog>
-                            <AlertDialogTrigger asChild>
-                              <Button variant="ghost" size="icon" className="text-destructive hover:text-destructive">
-                                <Trash2 className="h-4 w-4" />
-                                <span className="sr-only">Eliminar</span>
+                          {canManageObras && (
+                            <>
+                              <Button variant="ghost" size="icon" onClick={() => handleOpenDialog(obra)}>
+                                <Edit className="h-4 w-4" />
+                                <span className="sr-only">Editar</span>
                               </Button>
-                            </AlertDialogTrigger>
-                            <AlertDialogContent>
-                              <AlertDialogHeader>
-                                <AlertDialogTitle>¿Estás seguro de que deseas eliminar esta obra?</AlertDialogTitle>
-                                <AlertDialogDescription>
-                                  Esta acción no se puede deshacer. Se eliminará permanentemente la obra "{obra.nombreFaena}" y todos sus datos asociados (actividades, avances, etc.).
-                                </AlertDialogDescription>
-                              </AlertDialogHeader>
-                              <AlertDialogFooter>
-                                <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                                <AlertDialogAction onClick={() => handleDelete(obra.id)} className="bg-destructive hover:bg-destructive/90">Eliminar</AlertDialogAction>
-                              </AlertDialogFooter>
-                            </AlertDialogContent>
-                          </AlertDialog>
+                              <AlertDialog>
+                                <AlertDialogTrigger asChild>
+                                  <Button variant="ghost" size="icon" className="text-destructive hover:text-destructive">
+                                    <Trash2 className="h-4 w-4" />
+                                    <span className="sr-only">Eliminar</span>
+                                  </Button>
+                                </AlertDialogTrigger>
+                                <AlertDialogContent>
+                                  <AlertDialogHeader>
+                                    <AlertDialogTitle>¿Estás seguro de que deseas eliminar esta obra?</AlertDialogTitle>
+                                    <AlertDialogDescription>
+                                      Esta acción no se puede deshacer. Se eliminará permanentemente la obra &quot;{obra.nombreFaena}&quot; y todos sus datos asociados (actividades, avances, etc.).
+                                    </AlertDialogDescription>
+                                  </AlertDialogHeader>
+                                  <AlertDialogFooter>
+                                    <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                                    <AlertDialogAction onClick={() => handleDelete(obra.id)} className="bg-destructive hover:bg-destructive/90">Eliminar</AlertDialogAction>
+                                  </AlertDialogFooter>
+                                </AlertDialogContent>
+                              </AlertDialog>
+                            </>
+                          )}
                         </div>
                       </TableCell>
                     </TableRow>
