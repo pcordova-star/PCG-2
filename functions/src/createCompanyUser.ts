@@ -1,3 +1,4 @@
+
 import { onCall, HttpsError } from "firebase-functions/v2/https";
 import * as admin from "firebase-admin";
 
@@ -6,7 +7,7 @@ if (!admin.apps.length) {
 }
 
 function buildAcceptInviteUrl(invId: string, email: string): string {
-  // SOLUCIÓN DEFINITIVA: Usar directamente la URL correcta para ignorar variables de entorno del servidor.
+  // SOLUCIÓN: Usar directamente la URL del frontend y el parámetro correcto 'invId'.
   const rawBaseUrl = "https://pcg-2-8bf1b.web.app";
 
   if (!rawBaseUrl) {
