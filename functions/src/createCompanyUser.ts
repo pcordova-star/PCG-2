@@ -7,8 +7,8 @@ if (!admin.apps.length) {
 }
 
 function buildAcceptInviteUrl(invId: string, email: string): string {
-  // SOLUCIÓN: Usar directamente la URL del frontend y el parámetro correcto 'invId'.
-  const rawBaseUrl = "https://pcg-2-8bf1b.web.app";
+  // SOLUCIÓN: Usar directamente la URL de Cloud Run que es el destino final de la redirección.
+  const rawBaseUrl = "https://pcg2-prod--pcg-2-8bf1b.us-central1.hosted.app";
 
   if (!rawBaseUrl) {
     // Este error ya no debería ocurrir.
