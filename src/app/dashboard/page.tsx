@@ -42,8 +42,9 @@ type SummaryData = {
   alertasSeguridad: number | null;
 };
 
-const mainModules = [
+const allMainModules = [
   {
+    id: 'obras',
     title: 'Obras',
     description: 'Crea y gestiona tus proyectos. Asigna datos básicos, clientes y responsables para cada faena.',
     href: '/obras',
@@ -52,6 +53,7 @@ const mainModules = [
     tooltip: 'Punto de partida. Crea y gestiona tus proyectos aquí.'
   },
   {
+    id: 'presupuestos',
     title: 'Presupuestos',
     description: 'Administra tu catálogo de ítems y precios. Crea y duplica presupuestos detallados por obra.',
     href: '/operaciones/presupuestos',
@@ -60,6 +62,7 @@ const mainModules = [
     tooltip: 'Necesitas crear una obra primero para usar este módulo.'
   },
   {
+    id: 'programacion',
     title: 'Programación',
     description: 'Define actividades, plazos y recursos. Registra avances y visualiza la Curva S del proyecto.',
     href: '/operaciones/programacion',
@@ -67,6 +70,14 @@ const mainModules = [
     linkText: 'Ir a Programación',
     tooltip: 'Necesitas crear una obra primero para usar este módulo.'
   },
+   {
+    id: 'prevencion',
+    title: 'Prevención de Riesgos',
+    description: 'Gestiona la seguridad: IPER, incidentes, charlas, DS44 y control documental de contratistas.',
+    href: '/prevencion',
+    icon: ShieldCheck,
+    linkText: 'Ir a Prevención'
+  }
 ];
 
 const quickAccessModules = [
@@ -119,6 +130,13 @@ export default function DashboardPage() {
   const [quickAccessTarget, setQuickAccessTarget] = useState('');
 
   const isPrevencionista = role === 'prevencionista';
+
+  const mainModules = allMainModules.filter(module => {
+    if (isPrevencionista) {
+        return module.id === 'obras' || module.id === 'prevencion';
+    }
+    return true;
+  });
 
   useEffect(() => {
     async function fetchDashboardData() {
@@ -256,7 +274,7 @@ export default function DashboardPage() {
     },
   ];
 
-  const renderModuleCard = (mod: typeof mainModules[0], index: number) => {
+  const renderModuleCard = (mod: typeof allMainModules[0]) => {
     const isObraCard = mod.title === 'Obras';
     const showTooltip = !isObraCard && !hasObras;
 
@@ -267,7 +285,7 @@ export default function DashboardPage() {
                     <div className="p-3 bg-primary/10 rounded-full w-fit">
                         <mod.icon className="h-8 w-8 text-primary" />
                     </div>
-                    <CardTitle className="font-headline text-2xl">{index + 1}. {mod.title}</CardTitle>
+                    <CardTitle className="font-headline text-2xl">{mod.title}</CardTitle>
                 </div>
                 <CardDescription className="pt-2">{mod.description}</CardDescription>
             </CardHeader>
@@ -354,41 +372,25 @@ export default function DashboardPage() {
         </div>
 
         {/* Accesos a módulos principales */}
-        {!isPrevencionista && (
           <div>
               <h2 className="text-2xl font-semibold mb-4">Módulos Principales</h2>
               <TooltipProvider delayDuration={100}>
                   <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4 md:gap-6">
-                      {mainModules.map((mod, index) => renderModuleCard(mod, index))}
-                      <div className="space-y-4">
-                          <Card className="rounded-xl border bg-white shadow-sm md:hover:shadow-md transition-shadow flex flex-col">
-                              <CardHeader>
-                                  <div className="flex items-center gap-4 mb-2">
-                                      <div className="p-3 bg-primary/10 rounded-full w-fit">
-                                          <ShieldCheck className="h-8 w-8 text-primary" />
-                                      </div>
-                                      <CardTitle className="font-headline text-2xl">4. Prevención de Riesgos</CardTitle>
-                                  </div>
-                                  <CardDescription className="pt-2">Gestiona la seguridad: IPER, incidentes, charlas, DS44 y control documental de contratistas.</CardDescription>
-                              </CardHeader>
-                              <CardFooter className="mt-auto">
-                                  <Button asChild className="w-full" variant="default">
-                                      <Link href="/prevencion">Ir a Prevención</Link>
-                                  </Button>
-                              </CardFooter>
-                          </Card>
-                          <QuickAccessCard
+                      {mainModules.map((mod) => renderModuleCard(mod))}
+                      
+                      {/* Para prevencionistas, la tarjeta de acceso rápido a hallazgos se muestra aquí */}
+                      {isPrevencionista && (
+                         <QuickAccessCard
                               title="Hallazgo de seguridad"
                               description="Registrar condición insegura en terreno"
                               icon={Siren}
                               color="orange"
                               onClick={() => handleQuickAccessClick('/prevencion/hallazgos/crear')}
                           />
-                      </div>
+                      )}
                   </div>
               </TooltipProvider>
           </div>
-        )}
 
         {/* Diario Mural */}
         <Card>
