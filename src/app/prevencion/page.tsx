@@ -1,7 +1,7 @@
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
-import { Users, Building, ClipboardPlus, BookUser, LayoutDashboard, ShieldAlert, ArrowLeft, Search, Siren } from 'lucide-react';
+import { Users, Building, ClipboardPlus, BookUser, LayoutDashboard, ShieldAlert, ArrowLeft, Search, Siren, Settings } from 'lucide-react';
 
 export default function PrevencionPage() {
   const modules = [
@@ -75,6 +75,30 @@ export default function PrevencionPage() {
           Herramientas para gestionar y dar cumplimiento a las normativas de seguridad y salud ocupacional en obra, con especial foco en el DS44.
         </p>
       </div>
+
+       <Card className="bg-green-50 border-green-200">
+        <CardHeader>
+          <div className="flex items-center gap-4">
+            <div className="p-3 bg-green-100 rounded-full">
+              <Settings className="h-6 w-6 text-green-700" />
+            </div>
+            <div>
+              <CardTitle className="text-green-900">Paso Inicial: Configurar Equipo Responsable</CardTitle>
+              <CardDescription className="text-green-800">
+                Define quiénes son los responsables (Jefe de Obra, Supervisores, etc.) para cada obra. Este equipo se usará para asignar hallazgos y acciones.
+              </CardDescription>
+            </div>
+          </div>
+        </CardHeader>
+        <CardFooter>
+          <Button asChild className="bg-green-600 hover:bg-green-700 text-white">
+            <Link href="/prevencion/hallazgos/equipo-responsable">
+              <Users className="mr-2 h-4 w-4" />
+              Configurar Equipo Responsable
+            </Link>
+          </Button>
+        </CardFooter>
+      </Card>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
         {modules.map((mod) => (
