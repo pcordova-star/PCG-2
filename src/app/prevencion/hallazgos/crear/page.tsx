@@ -63,14 +63,16 @@ export default function CrearHallazgoPage() {
     const [equipoResponsable, setEquipoResponsable] = useState<EquipoResponsable | null>(null);
     const [usuariosEquipo, setUsuariosEquipo] = useState<AppUser[]>([]);
 
-    const { user } = useAuth();
+    const { user, companyId } = useAuth();
     const { toast } = useToast();
     const router = useRouter();
 
     // Cargar obras
     useEffect(() => {
+        if (!companyId) return;
+
         const fetchObras = async () => {
-            const q = query(collection(firebaseDb, "obras"));
+            const q = query(collection(firebaseDb, "obras"), where("empresaId", "==", companyId));
             const querySnapshot = await getDocs(q);
             const obrasList = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Obra));
             setObras(obrasList);
@@ -79,7 +81,7 @@ export default function CrearHallazgoPage() {
             }
         };
         fetchObras();
-    }, []);
+    }, [companyId]);
 
     // Cargar hallazgos y equipo responsable cuando cambia la obra
     useEffect(() => {
@@ -116,7 +118,7 @@ export default function CrearHallazgoPage() {
                 if (equipoData.supervisores) equipoData.supervisores.forEach(id => id && uids.add(id));
                 if (equipoData.contratistas) equipoData.contratistas.forEach(id => id && uids.add(id));
                 if (equipoData.especialidades) {
-                    Object.values(equipoData.especialidades).forEach(id => id && uids.add(id));
+                    Object.values(equipoData.especialidades).forEach(id => id && uids.add(id as string));
                 }
                 const uidsArray = Array.from(uids);
 
