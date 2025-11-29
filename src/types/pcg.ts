@@ -181,18 +181,13 @@ export interface Hallazgo {
   fechaFichaFirmada?: Timestamp;
 }
 
-export interface EquipoResponsable {
-    jefeObra: string;
-    capataz: string;
-    supervisores: string[];
-    especialidades: {
-        electrico: string;
-        izaje: string;
-        excavacion: string;
-        maquinaria: string;
-    };
-    contratistas: string[];
+export interface MiembroEquipo {
+    id: string;
+    nombre: string;
+    cargo: 'Supervisor' | 'Administrador de obra' | 'Prevencionista' | 'Capataz' | 'Comité Paritario';
 }
+
+export type EquipoResponsable = MiembroEquipo[];
 
 export type OrigenAccion =
   | "IPER"
