@@ -12,7 +12,7 @@ import { collection, getDocs, query, where, orderBy, onSnapshot } from 'firebase
 import { firebaseDb } from '@/lib/firebaseClient';
 import { Hallazgo, Obra } from '@/types/pcg';
 import Link from 'next/link';
-import { ArrowLeft, FileText, PlusCircle, CheckCircle, AlertTriangle, Clock } from 'lucide-react';
+import { ArrowLeft, FileText, PlusCircle, CheckCircle, AlertTriangle, Clock, Siren } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 
