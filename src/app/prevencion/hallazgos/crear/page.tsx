@@ -15,7 +15,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { ArrowLeft, Loader2, FileText, X, Edit, Trash2 } from 'lucide-react';
-import { Obra, Hallazgo, Criticidad, EquipoResponsable, AppUser } from '@/types/pcg';
+import { Obra, Hallazgo, Criticidad, MiembroEquipo, AppUser } from '@/types/pcg';
 import { Badge } from '@/components/ui/badge';
 import Link from 'next/link';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
@@ -60,8 +60,7 @@ export default function CrearHallazgoPage() {
     const [obraId, setObraId] = useState('');
     const [hallazgos, setHallazgos] = useState<Hallazgo[]>([]);
     const [cargandoHallazgos, setCargandoHallazgos] = useState(false);
-    const [equipoResponsable, setEquipoResponsable] = useState<EquipoResponsable | null>(null);
-    const [usuariosEquipo, setUsuariosEquipo] = useState<AppUser[]>([]);
+    const [equipo, setEquipo] = useState<MiembroEquipo[]>([]);
 
     const { user, companyId } = useAuth();
     const { toast } = useToast();
@@ -87,8 +86,7 @@ export default function CrearHallazgoPage() {
     useEffect(() => {
         if (!obraId) {
             setHallazgos([]);
-            setEquipoResponsable(null);
-            setUsuariosEquipo([]);
+            setEquipo([]);
             return;
         };
 
@@ -108,30 +106,10 @@ export default function CrearHallazgoPage() {
             const equipoRef = doc(firebaseDb, "obras", obraId, "equipoResponsable", "config");
             const equipoSnap = await getDoc(equipoRef);
             if (equipoSnap.exists()) {
-                const equipoData = equipoSnap.data() as EquipoResponsable;
-                setEquipoResponsable(equipoData);
-
-                // Cargar los nombres de los usuarios del equipo
-                const uids = new Set<string>();
-                if (equipoData.jefeObra) uids.add(equipoData.jefeObra);
-                if (equipoData.capataz) uids.add(equipoData.capataz);
-                if (equipoData.supervisores) equipoData.supervisores.forEach(id => id && uids.add(id));
-                if (equipoData.contratistas) equipoData.contratistas.forEach(id => id && uids.add(id));
-                if (equipoData.especialidades) {
-                    Object.values(equipoData.especialidades).forEach(id => id && uids.add(id as string));
-                }
-                const uidsArray = Array.from(uids);
-
-                if (uidsArray.length > 0) {
-                    const usersQuery = query(collection(firebaseDb, 'users'), where('__name__', 'in', uidsArray));
-                    const usersSnap = await getDocs(usersQuery);
-                    setUsuariosEquipo(usersSnap.docs.map(d => ({ id: d.id, ...d.data() } as AppUser)));
-                } else {
-                    setUsuariosEquipo([]);
-                }
+                const equipoData = equipoSnap.data();
+                setEquipo(Array.isArray(equipoData.miembros) ? equipoData.miembros : []);
             } else {
-                setEquipoResponsable(null);
-                setUsuariosEquipo([]);
+                setEquipo([]);
             }
         };
         fetchEquipo();
@@ -141,36 +119,25 @@ export default function CrearHallazgoPage() {
     
     // Sugerir responsable basado en el tipo de riesgo
     useEffect(() => {
-        if (!equipoResponsable) {
+        if (equipo.length === 0) {
             setResponsableId('');
             return;
         }
-        let sugeridoId = equipoResponsable.jefeObra || ''; // Default al jefe de obra
-        if (tipoRiesgo === 'Orden y limpieza') sugeridoId = equipoResponsable.capataz || sugeridoId;
-        if (tipoRiesgo === 'Riesgo eléctrico') sugeridoId = equipoResponsable.especialidades?.electrico || sugeridoId;
-        if (tipoRiesgo === 'Excavación') sugeridoId = equipoResponsable.especialidades?.excavacion || sugeridoId;
         
+        let sugeridoId = equipo.find(m => m.cargo === 'Administrador de obra')?.id || equipo[0]?.id || '';
+
+        if (tipoRiesgo === 'Orden y limpieza') {
+            sugeridoId = equipo.find(m => m.cargo === 'Capataz')?.id || sugeridoId;
+        }
+        // Puedes agregar más lógicas para otros cargos aquí
+
         setResponsableId(sugeridoId);
 
-    }, [tipoRiesgo, equipoResponsable]);
+    }, [tipoRiesgo, equipo]);
 
     const opcionesDetalle = useMemo(() => {
         return descripcionesPorRiesgo[tipoRiesgo] || [];
     }, [tipoRiesgo]);
-    
-    const usuariosDelEquipo = useMemo(() => {
-        if (!equipoResponsable) return [];
-        const uidsSet = new Set<string>();
-        Object.values(equipoResponsable).forEach(val => {
-            if (typeof val === 'string' && val) uidsSet.add(val);
-            else if (Array.isArray(val)) val.forEach(id => id && uidsSet.add(id));
-            else if (typeof val === 'object' && val !== null) {
-                Object.values(val).forEach(id => id && uidsSet.add(id as string));
-            }
-        });
-        return usuariosEquipo.filter(u => u.id && uidsSet.has(u.id));
-    }, [equipoResponsable, usuariosEquipo]);
-
 
     const resetForm = () => {
         setTipoRiesgo('');
@@ -200,6 +167,7 @@ export default function CrearHallazgoPage() {
             const evidenciaUrl = await getDownloadURL(storageRef);
             
             const descripcionFinal = tipoHallazgoDetalle === 'Otro' ? descripcionLibre : tipoHallazgoDetalle;
+            const responsableSeleccionado = equipo.find(m => m.id === responsableId);
 
             await addDoc(collection(firebaseDb, 'hallazgos'), {
                 obraId,
@@ -208,7 +176,8 @@ export default function CrearHallazgoPage() {
                 descripcion: descripcionFinal,
                 descripcionLibre: tipoHallazgoDetalle === 'Otro' ? descripcionLibre : null,
                 criticidad,
-                responsableId,
+                responsableId: responsableSeleccionado?.id,
+                responsableNombre: responsableSeleccionado?.nombre, // Guardamos el nombre para reportes
                 evidenciaUrl,
                 accionesInmediatas: [], // Este campo se llenará después, por ahora vacío
                 plazo: 'Hoy', // Placeholder
@@ -310,8 +279,8 @@ export default function CrearHallazgoPage() {
                              <Select onValueChange={setResponsableId} value={responsableId}>
                                 <SelectTrigger><SelectValue placeholder="Asignar responsable..." /></SelectTrigger>
                                 <SelectContent>
-                                    {usuariosDelEquipo.length > 0 ? (
-                                        usuariosDelEquipo.map(u => <SelectItem key={u.id!} value={u.id!}>{u.nombre} ({u.role})</SelectItem>)
+                                    {equipo.length > 0 ? (
+                                        equipo.map(m => <SelectItem key={m.id} value={m.id}>{m.nombre} ({m.cargo})</SelectItem>)
                                     ) : (
                                         <SelectItem value="no-equipo" disabled>No hay equipo configurado para esta obra</SelectItem>
                                     )}

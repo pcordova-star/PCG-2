@@ -169,6 +169,7 @@ export interface Hallazgo {
   descripcionLibre?: string;
   accionesInmediatas: string[];
   responsableId: string;
+  responsableNombre?: string;
   plazo: string;
   evidenciaUrl: string;
   criticidad: Criticidad;
