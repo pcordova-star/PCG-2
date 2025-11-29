@@ -118,6 +118,8 @@ export default function DashboardPage() {
   const [isObraModalOpen, setIsObraModalOpen] = useState(false);
   const [quickAccessTarget, setQuickAccessTarget] = useState('');
 
+  const isPrevencionista = role === 'prevencionista';
+
   useEffect(() => {
     async function fetchDashboardData() {
         if (!user) {
@@ -352,39 +354,41 @@ export default function DashboardPage() {
         </div>
 
         {/* Accesos a módulos principales */}
-        <div>
-            <h2 className="text-2xl font-semibold mb-4">Módulos Principales</h2>
-            <TooltipProvider delayDuration={100}>
-                <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4 md:gap-6">
-                    {mainModules.map((mod, index) => renderModuleCard(mod, index))}
-                    <div className="space-y-4">
-                        <Card className="rounded-xl border bg-white shadow-sm md:hover:shadow-md transition-shadow flex flex-col">
-                            <CardHeader>
-                                <div className="flex items-center gap-4 mb-2">
-                                    <div className="p-3 bg-primary/10 rounded-full w-fit">
-                                        <ShieldCheck className="h-8 w-8 text-primary" />
-                                    </div>
-                                    <CardTitle className="font-headline text-2xl">4. Prevención de Riesgos</CardTitle>
-                                </div>
-                                <CardDescription className="pt-2">Gestiona la seguridad: IPER, incidentes, charlas, DS44 y control documental de contratistas.</CardDescription>
-                            </CardHeader>
-                            <CardFooter className="mt-auto">
-                                <Button asChild className="w-full" variant="default">
-                                    <Link href="/prevencion">Ir a Prevención</Link>
-                                </Button>
-                            </CardFooter>
-                        </Card>
-                        <QuickAccessCard
-                            title="Hallazgo de seguridad"
-                            description="Registrar condición insegura en terreno"
-                            icon={Siren}
-                            color="orange"
-                            onClick={() => handleQuickAccessClick('/prevencion/hallazgos/crear')}
-                        />
-                    </div>
-                </div>
-            </TooltipProvider>
-        </div>
+        {!isPrevencionista && (
+          <div>
+              <h2 className="text-2xl font-semibold mb-4">Módulos Principales</h2>
+              <TooltipProvider delayDuration={100}>
+                  <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4 md:gap-6">
+                      {mainModules.map((mod, index) => renderModuleCard(mod, index))}
+                      <div className="space-y-4">
+                          <Card className="rounded-xl border bg-white shadow-sm md:hover:shadow-md transition-shadow flex flex-col">
+                              <CardHeader>
+                                  <div className="flex items-center gap-4 mb-2">
+                                      <div className="p-3 bg-primary/10 rounded-full w-fit">
+                                          <ShieldCheck className="h-8 w-8 text-primary" />
+                                      </div>
+                                      <CardTitle className="font-headline text-2xl">4. Prevención de Riesgos</CardTitle>
+                                  </div>
+                                  <CardDescription className="pt-2">Gestiona la seguridad: IPER, incidentes, charlas, DS44 y control documental de contratistas.</CardDescription>
+                              </CardHeader>
+                              <CardFooter className="mt-auto">
+                                  <Button asChild className="w-full" variant="default">
+                                      <Link href="/prevencion">Ir a Prevención</Link>
+                                  </Button>
+                              </CardFooter>
+                          </Card>
+                          <QuickAccessCard
+                              title="Hallazgo de seguridad"
+                              description="Registrar condición insegura en terreno"
+                              icon={Siren}
+                              color="orange"
+                              onClick={() => handleQuickAccessClick('/prevencion/hallazgos/crear')}
+                          />
+                      </div>
+                  </div>
+              </TooltipProvider>
+          </div>
+        )}
 
         {/* Diario Mural */}
         <Card>
