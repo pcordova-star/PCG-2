@@ -36,12 +36,12 @@ import { PcgLogo } from '@/components/branding/PcgLogo';
 import { useSearchParams } from 'next/navigation';
 
 
-const navItems = [
-  { href: '/dashboard', label: 'Dashboard', icon: Home },
-  { href: '/obras', label: 'Obras', icon: HardHat },
-  { href: '/operaciones', label: 'Operaciones', icon: Activity },
-  { href: '/operaciones/estados-de-pago', label: 'Estados de Pago', icon: FileText },
-  { href: '/prevencion', label: 'Prevención', icon: ShieldCheck },
+const navItemsBase = [
+  { href: '/dashboard', label: 'Dashboard', icon: Home, roles: ['superadmin', 'admin_empresa', 'jefe_obra', 'prevencionista'] },
+  { href: '/obras', label: 'Obras', icon: HardHat, roles: ['superadmin', 'admin_empresa', 'jefe_obra', 'prevencionista'] },
+  { href: '/operaciones', label: 'Operaciones', icon: Activity, roles: ['superadmin', 'admin_empresa', 'jefe_obra'] },
+  { href: '/operaciones/estados-de-pago', label: 'Estados de Pago', icon: FileText, roles: ['superadmin', 'admin_empresa', 'jefe_obra'] },
+  { href: '/prevencion', label: 'Prevención', icon: ShieldCheck, roles: ['superadmin', 'admin_empresa', 'jefe_obra', 'prevencionista'] },
 ];
 
 const adminNavItems = [
@@ -61,6 +61,8 @@ function LayoutLogic({ children }: { children: React.ReactNode }) {
     const isPreview = searchParams.get('preview') === 'true';
     const { user, role, loading: authLoading, logout } = useAuth();
     const pathname = usePathname();
+
+    const navItems = navItemsBase.filter(item => item.roles.includes(role));
 
     const isAdminPage = pathname.startsWith('/admin');
     const isSuperAdmin = role === 'superadmin';
