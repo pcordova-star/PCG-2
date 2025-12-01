@@ -13,6 +13,7 @@ import {
   doc,
   serverTimestamp,
   deleteDoc,
+  getDoc,
 } from "firebase/firestore";
 import { firebaseDb } from "@/lib/firebaseClient";
 import { useRouter } from 'next/navigation';
@@ -25,7 +26,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useAuth } from '@/context/AuthContext';
 import { InvestigacionIncidentesTab } from './components/InvestigacionIncidentesTab';
 import { InvestigacionAccidentesTab } from './components/InvestigacionAccidentesTab';
-import { Obra, RegistroIncidente, IPERRegistro, Charla } from '@/types/pcg';
+import { Obra, RegistroIncidente, IPERRegistro, Charla, FirmaAsistente } from '@/types/pcg';
 import { IperForm, IperFormValues } from './components/IperGeneroRow';
 import { useToast } from '@/hooks/use-toast';
 import { Badge } from "@/components/ui/badge";
@@ -44,6 +45,11 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Input } from '@/components/ui/input';
 import { generarIperPdf } from '@/lib/pdf/generarIperPdf';
+import { CharlaPdfButton } from '../charlas/components/CharlaPdfButton';
+import SignaturePad from '../hallazgos/components/SignaturePad';
+import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
+import { firebaseStorage } from '@/lib/firebaseClient';
+import { Textarea } from '@/components/ui/textarea';
 
 
 // --- Estado inicial para el formulario IPER ---
@@ -55,12 +61,37 @@ const initialIperState: IperFormValues = {
   probabilidadResidual: 1, consecuenciaResidual: 1,
 };
 
+const initialCharlaState: Omit<Charla, 'id'> = {
+    obraId: "",
+    obraNombre: "",
+    iperId: "",
+    titulo: "",
+    tipo: "charla_iper",
+    fechaCreacion: serverTimestamp(),
+    creadaPorUid: "",
+    generadaAutomaticamente: false,
+    tarea: "",
+    zonaSector: "",
+    peligro: "",
+    riesgo: "",
+    probHombres: 0,
+    consHombres: 0,
+    nivelHombres: 0,
+    probMujeres: 0,
+    consMujeres: 0,
+    nivelMujeres: 0,
+    controlGenero: "",
+    estado: 'borrador',
+    contenido: "",
+};
+
 
 export default function FormulariosGeneralesPrevencionPage() {
   const [obras, setObras] = useState<Obra[]>([]);
   const [obraSeleccionadaId, setObraSeleccionadaId] = useState<string>("");
   const [investigaciones, setInvestigaciones] = useState<RegistroIncidente[]>([]);
   const [iperRegistros, setIperRegistros] = useState<IPERRegistro[]>([]);
+  const [charlas, setCharlas] = useState<Charla[]>([]); // Nuevo estado para charlas
   const [loading, setLoading] = useState(true);
   const router = useRouter();
   const { user, companyId, role } = useAuth();
@@ -73,6 +104,19 @@ export default function FormulariosGeneralesPrevencionPage() {
   // Estados para filtros de IPER
   const [filtroIperTexto, setFiltroIperTexto] = useState('');
   const [filtroIperEstado, setFiltroIperEstado] = useState('todos');
+
+  // Nuevos estados para controlar el tab activo y la charla seleccionada
+  const [activeTab, setActiveTab] = useState<'iper' | 'incidentes' | 'accidentes' | 'charlas'>('iper');
+  const [selectedCharlaId, setSelectedCharlaId] = useState<string | null>(null);
+  
+  // Estados para el formulario de charla
+  const [charlaForm, setCharlaForm] = useState<Partial<Charla>>(initialCharlaState);
+  const [guardandoCharla, setGuardandoCharla] = useState(false);
+  
+  // Estados para la gestión de asistentes
+  const [isSignatureModalOpen, setIsSignatureModalOpen] = useState(false);
+  const [asistenteParaFirmar, setAsistenteParaFirmar] = useState<FirmaAsistente | null>(null);
+  const [nuevoAsistenteNombre, setNuevoAsistenteNombre] = useState('');
 
 
   useEffect(() => {
@@ -100,41 +144,44 @@ export default function FormulariosGeneralesPrevencionPage() {
     if (!obraSeleccionadaId) {
       setInvestigaciones([]);
       setIperRegistros([]);
+      setCharlas([]);
       setLoading(false);
       return;
     }
 
     setLoading(true);
     setIperSeleccionado(null);
+    setSelectedCharlaId(null);
     
+    const unsubscribes: (() => void)[] = [];
+
     const qInvestigaciones = query(
       collection(firebaseDb, "investigacionesIncidentes"),
       where("obraId", "==", obraSeleccionadaId),
       orderBy("createdAt", "desc")
     );
-    const unsubscribeInvestigaciones = onSnapshot(qInvestigaciones, (snapshot) => {
+    unsubscribes.push(onSnapshot(qInvestigaciones, (snapshot) => {
       const investigacionesList = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as RegistroIncidente));
       setInvestigaciones(investigacionesList);
-    }, (error) => {
-      console.error("Error fetching investigaciones:", error);
-      setLoading(false);
-    });
+    }));
 
     const iperCollectionRef = collection(firebaseDb, "obras", obraSeleccionadaId, "iper");
     const qIper = query(iperCollectionRef, orderBy("createdAt", "desc"));
-    const unsubscribeIper = onSnapshot(qIper, (snapshot) => {
+    unsubscribes.push(onSnapshot(qIper, (snapshot) => {
       const iperList = snapshot.docs.map((doc, index) => ({ id: doc.id, ...doc.data(), correlativo: snapshot.docs.length - index } as IPERRegistro));
       setIperRegistros(iperList);
       setLoading(false);
-    }, (error) => {
-        console.error("Error fetching IPER records:", error);
-        setLoading(false);
-    });
+    }));
+    
+    const qCharlas = query(collection(firebaseDb, "charlas"), where("obraId", "==", obraSeleccionadaId), orderBy("fechaCreacion", "desc"));
+    unsubscribes.push(onSnapshot(qCharlas, (snapshot) => {
+        const charlasList = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Charla));
+        setCharlas(charlasList);
+    }));
 
 
     return () => {
-      unsubscribeInvestigaciones();
-      unsubscribeIper();
+      unsubscribes.forEach(unsub => unsub());
     };
   }, [obraSeleccionadaId]);
 
@@ -268,20 +315,91 @@ export default function FormulariosGeneralesPrevencionPage() {
             contenido: `Esta charla se enfoca en el riesgo de "${iperSeleccionado.riesgo}" durante la tarea de "${iperSeleccionado.tarea}". Se deben aplicar las siguientes medidas de control: ${iperSeleccionado.medidasControlPropuestas || iperSeleccionado.control_especifico_genero}. El nivel de riesgo inherente es ${Math.max(iperSeleccionado.nivel_riesgo_hombre, iperSeleccionado.nivel_riesgo_mujer)}.`,
         };
         
-        await addDoc(collection(firebaseDb, "charlas"), nuevaCharla);
+        const docRef = await addDoc(collection(firebaseDb, "charlas"), nuevaCharla);
         
         toast({
             title: "Charla Generada",
-            description: "Se ha creado una nueva charla en borrador. Puede verla y completarla en el módulo de Charlas.",
+            description: "Se ha creado una nueva charla en borrador.",
         });
         
-        router.push('/prevencion/ppr?tab=charlas');
+        // Cambiar al tab de charlas y seleccionar la nueva
+        setActiveTab('charlas');
+        setSelectedCharlaId(docRef.id);
 
     } catch(err) {
         console.error("Error generando charla desde IPER:", err);
         toast({ variant: 'destructive', title: 'Error', description: 'No se pudo generar la charla.' });
     }
-  }
+  };
+  
+  const charlaSeleccionada = useMemo(() => charlas.find(c => c.id === selectedCharlaId), [charlas, selectedCharlaId]);
+
+  // Lógica para el tab de Charlas
+  const handleGuardarCharla = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!obraSeleccionadaId || !charlaForm.titulo) {
+      toast({ variant: 'destructive', title: 'Error', description: 'La obra y el título son obligatorios.' });
+      return;
+    }
+    setGuardandoCharla(true);
+    try {
+      if (charlaForm.id) {
+        const docRef = doc(firebaseDb, "charlas", charlaForm.id);
+        await updateDoc(docRef, { ...charlaForm, fechaRealizacion: charlaForm.fechaRealizacion ? new Date(charlaForm.fechaRealizacion) : null });
+      } else {
+        const docRef = await addDoc(collection(firebaseDb, "charlas"), {
+          ...charlaForm,
+          obraId: obraSeleccionadaId,
+          fechaCreacion: serverTimestamp(),
+          fechaRealizacion: charlaForm.fechaRealizacion ? new Date(charlaForm.fechaRealizacion) : null
+        });
+        setSelectedCharlaId(docRef.id);
+      }
+      toast({ title: 'Éxito', description: 'Charla guardada correctamente.' });
+      setCharlaForm(initialCharlaState);
+    } catch (error) {
+      console.error(error);
+      toast({ variant: 'destructive', title: 'Error', description: 'No se pudo guardar la charla.' });
+    } finally {
+      setGuardandoCharla(false);
+    }
+  };
+  
+  const handleAgregarAsistente = async () => {
+    if (!selectedCharlaId || !nuevoAsistenteNombre.trim()) return;
+    const nuevoAsistente: FirmaAsistente = { nombre: nuevoAsistenteNombre };
+    const charlaRef = doc(firebaseDb, "charlas", selectedCharlaId);
+    const asistentesActuales = charlaSeleccionada?.asistentes || [];
+    await updateDoc(charlaRef, { asistentes: [...asistentesActuales, nuevoAsistente] });
+    setNuevoAsistenteNombre('');
+  };
+  
+  const handleGuardarFirma = async (firmaUrl: string | null) => {
+    if (!firmaUrl || !asistenteParaFirmar || !selectedCharlaId) return;
+
+    try {
+        // 1. Subir la firma a Storage
+        const blob = await (await fetch(firmaUrl)).blob();
+        const storageRef = ref(firebaseStorage, `charlas/${selectedCharlaId}/firmas/${asistenteParaFirmar.nombre.replace(/ /g, '_')}.png`);
+        await uploadBytes(storageRef, blob, { contentType: 'image/png' });
+        const downloadURL = await getDownloadURL(storageRef);
+
+        // 2. Actualizar el documento de la charla en Firestore
+        const charlaRef = doc(firebaseDb, "charlas", selectedCharlaId);
+        const asistentesActualizados = (charlaSeleccionada?.asistentes || []).map(a => 
+            a.nombre === asistenteParaFirmar.nombre 
+                ? { ...a, firmaUrl: downloadURL, firmadoEn: new Date().toISOString() } 
+                : a
+        );
+        await updateDoc(charlaRef, { asistentes: asistentesActualizados });
+
+        toast({ title: 'Firma guardada' });
+        setIsSignatureModalOpen(false);
+    } catch (error) {
+        console.error("Error guardando firma:", error);
+        toast({ variant: 'destructive', title: 'Error', description: 'No se pudo guardar la firma.' });
+    }
+  };
 
 
   return (
@@ -310,7 +428,7 @@ export default function FormulariosGeneralesPrevencionPage() {
         <CardContent>
           <div className="max-w-md space-y-2">
             <Label htmlFor="obra-select">Obra Activa</Label>
-            <Select value={obraSeleccionadaId} onValueChange={setObraSeleccionadaId}>
+            <Select value={obraSeleccionadaId} onValueChange={setSelectedObraId}>
               <SelectTrigger id="obra-select">
                 <SelectValue placeholder="Seleccione una obra..." />
               </SelectTrigger>
@@ -322,11 +440,12 @@ export default function FormulariosGeneralesPrevencionPage() {
         </CardContent>
       </Card>
       
-      <Tabs defaultValue="iper" className="w-full">
-        <TabsList className="grid w-full grid-cols-3">
+      <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as any)} className="w-full">
+        <TabsList className="grid w-full grid-cols-4">
             <TabsTrigger value="iper">IPER con Enfoque de Género</TabsTrigger>
-            <TabsTrigger value="investigaciones-incidentes">Incidentes (Ishikawa / 5 Porqués)</TabsTrigger>
-            <TabsTrigger value="investigaciones-accidentes">Accidentes (Árbol de Causas)</TabsTrigger>
+            <TabsTrigger value="incidentes">Incidentes (Ishikawa / 5 Porqués)</TabsTrigger>
+            <TabsTrigger value="accidentes">Accidentes (Árbol de Causas)</TabsTrigger>
+            <TabsTrigger value="charlas">Charlas de Seguridad</TabsTrigger>
         </TabsList>
 
         <TabsContent value="iper">
@@ -456,7 +575,7 @@ export default function FormulariosGeneralesPrevencionPage() {
             </div>
         </TabsContent>
 
-        <TabsContent value="investigaciones-incidentes">
+        <TabsContent value="incidentes">
             <InvestigacionIncidentesTab
                 obraId={obraSeleccionadaId}
                 investigaciones={investigaciones.filter(inv => inv.metodoAnalisis !== 'arbol_causas')}
@@ -464,7 +583,7 @@ export default function FormulariosGeneralesPrevencionPage() {
                 onUpdate={() => { /* Lógica para forzar recarga si es necesario */ }}
             />
         </TabsContent>
-        <TabsContent value="investigaciones-accidentes">
+        <TabsContent value="accidentes">
             <InvestigacionAccidentesTab
                 obraId={obraSeleccionadaId}
                 investigaciones={investigaciones.filter(inv => inv.metodoAnalisis === 'arbol_causas')}
@@ -472,8 +591,85 @@ export default function FormulariosGeneralesPrevencionPage() {
                 onUpdate={() => { /* Lógica para forzar recarga si es necesario */ }}
             />
         </TabsContent>
+        <TabsContent value="charlas">
+           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-start">
+               <div className="space-y-6">
+                    <Card>
+                        <CardHeader>
+                            <CardTitle>{charlaSeleccionada ? "Editar Charla" : "Registrar Nueva Charla"}</CardTitle>
+                        </CardHeader>
+                        <CardContent>
+                            <form onSubmit={handleGuardarCharla} className="space-y-4">
+                                <Input value={charlaForm.titulo || ''} onChange={e => setCharlaForm(p => ({...p, titulo: e.target.value}))} placeholder="Título de la charla" />
+                                <Textarea value={charlaForm.contenido || ''} onChange={e => setCharlaForm(p => ({...p, contenido: e.target.value}))} placeholder="Contenido o temas a tratar..." />
+                                <div className="flex gap-4">
+                                  <div className='flex-1'><Label>Fecha Realización</Label><Input type="date" value={charlaForm.fechaRealizacion ? new Date(charlaForm.fechaRealizacion as any).toISOString().slice(0,10) : ''} onChange={e => setCharlaForm(p => ({...p, fechaRealizacion: e.target.value as any}))} /></div>
+                                  <div className='flex-1'><Label>Estado</Label>
+                                    <Select value={charlaForm.estado} onValueChange={(v) => setCharlaForm(p => ({...p, estado: v as CharlaEstado}))}><SelectTrigger><SelectValue/></SelectTrigger>
+                                        <SelectContent><SelectItem value="borrador">Borrador</SelectItem><SelectItem value="realizada">Realizada</SelectItem></SelectContent>
+                                    </Select>
+                                  </div>
+                                </div>
+                                <Button type="submit" disabled={guardandoCharla}>{guardandoCharla ? "Guardando..." : "Guardar Charla"}</Button>
+                            </form>
+                        </CardContent>
+                    </Card>
+                    <Card>
+                        <CardHeader><CardTitle>Listado de Charlas</CardTitle></CardHeader>
+                        <CardContent>
+                            {charlas.map(charla => (
+                                <div key={charla.id} onClick={() => setSelectedCharlaId(charla.id)} className={cn("p-2 rounded-md cursor-pointer", selectedCharlaId === charla.id && 'bg-accent/20')}>
+                                    <p className="font-medium">{charla.titulo}</p>
+                                    <p className="text-xs text-muted-foreground">{charla.fechaCreacion.toDate().toLocaleDateString()}</p>
+                                </div>
+                            ))}
+                        </CardContent>
+                    </Card>
+               </div>
+               <div className="sticky top-24">
+                  {charlaSeleccionada ? (
+                    <Card>
+                        <CardHeader>
+                            <CardTitle>{charlaSeleccionada.titulo}</CardTitle>
+                            <CardDescription>ID: {charlaSeleccionada.id}</CardDescription>
+                        </CardHeader>
+                        <CardContent>
+                           <h4 className="font-semibold mb-2">Asistentes</h4>
+                           <div className="space-y-2 mb-4">
+                                {(charlaSeleccionada.asistentes || []).map((asistente, i) => (
+                                    <div key={i} className="flex justify-between items-center">
+                                        <span>{asistente.nombre}</span>
+                                        {asistente.firmaUrl ? <Badge>Firmado</Badge> : <Button size="sm" variant="outline" onClick={() => { setAsistenteParaFirmar(asistente); setIsSignatureModalOpen(true);}}>Firmar</Button>}
+                                    </div>
+                                ))}
+                           </div>
+                           <div className="flex gap-2">
+                            <Input value={nuevoAsistenteNombre} onChange={e => setNuevoAsistenteNombre(e.target.value)} placeholder="Nombre del asistente"/>
+                            <Button onClick={handleAgregarAsistente}><Plus size={16}/> Agregar</Button>
+                           </div>
+                        </CardContent>
+                        <CardFooter>
+                            <CharlaPdfButton charla={charlaSeleccionada} obra={obras.find(o => o.id === obraSeleccionadaId)} />
+                        </CardFooter>
+                    </Card>
+                  ) : (
+                    <Card className="flex items-center justify-center h-96 border-dashed">
+                        <p className="text-muted-foreground">Seleccione una charla para ver sus detalles.</p>
+                    </Card>
+                  )}
+               </div>
+           </div>
+        </TabsContent>
       </Tabs>
-
+      
+      <Dialog open={isSignatureModalOpen} onOpenChange={setIsSignatureModalOpen}>
+        <DialogContent>
+            <DialogHeader>
+                <DialogTitle>Firmar Asistencia: {asistenteParaFirmar?.nombre}</DialogTitle>
+            </DialogHeader>
+            <SignaturePad onChange={handleGuardarFirma} onClear={() => {}} />
+        </DialogContent>
+      </Dialog>
     </section>
   );
 }
