@@ -22,10 +22,10 @@ import {
   Timestamp,
   onSnapshot,
 } from "firebase/firestore";
-import { firebaseDb } from "@/lib/firebaseClient";
+import { firebaseDb, firebaseStorage } from "@/lib/firebaseClient";
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { ArrowLeft, Edit, FileDown, Search, Trash2, Zap } from 'lucide-react';
+import { ArrowLeft, Edit, FileDown, Search, Trash2, Zap, FileText } from 'lucide-react';
 import { IperForm, IperFormValues } from './components/IperGeneroRow';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import { Separator } from '@/components/ui/separator';
@@ -38,6 +38,7 @@ import { ArbolCausas, MetodoAnalisisIncidente, RegistroIncidente, MedidaCorrecti
 import { ArbolCausasEditor } from './components/ArbolCausasEditor';
 import { PlanAccionEditor } from './components/PlanAccionEditor';
 import { Switch } from '@/components/ui/switch';
+import { generarInvestigacionAccidentePdf } from '@/lib/pdf/generarInvestigacionAccidentePdf';
 
 
 // --- Tipos y Datos para IPER ---
@@ -909,6 +910,7 @@ type InvestigacionIncidenteSectionProps = {
 function InvestigacionIncidenteSection({ onCrearAccionDesdeIncidente }: InvestigacionIncidenteSectionProps) {
   const [obras, setObras] = useState<ObraPrevencion[]>([]);
   const [obraSeleccionadaId, setObraSeleccionadaId] = useState<string>("");
+  const [obraSeleccionada, setObraSeleccionada] = useState<Obra | null>(null);
 
   const [registrosIncidentes, setRegistrosIncidentes] =
     useState<RegistroIncidente[]>([]);
@@ -962,11 +964,11 @@ function InvestigacionIncidenteSection({ onCrearAccionDesdeIncidente }: Investig
             q = query(collection(firebaseDb, "obras"), where("empresaId", "==", companyId), orderBy("nombreFaena"));
         }
         const querySnapshot = await getDocs(q);
-        const data: ObraPrevencion[] = querySnapshot.docs.map(doc => ({
+        const data: Obra[] = querySnapshot.docs.map(doc => ({
             id: doc.id,
-            nombreFaena: doc.data().nombreFaena
-        } as ObraPrevencion));
-        setObras(data);
+            ...doc.data()
+        } as Obra));
+        setObras(data as ObraPrevencion[]);
         if (data.length > 0 && !obraSeleccionadaId) {
           setObraSeleccionadaId(data[0].id);
         }
@@ -1010,8 +1012,10 @@ function InvestigacionIncidenteSection({ onCrearAccionDesdeIncidente }: Investig
   useEffect(() => {
     if (obraSeleccionadaId) {
       cargarIncidentes(obraSeleccionadaId);
+      const obra = obras.find(o => o.id === obraSeleccionadaId)
+      if(obra) setObraSeleccionada(obra as Obra);
     }
-  }, [obraSeleccionadaId]);
+  }, [obraSeleccionadaId, obras]);
   
   const handleInputChange = <K extends keyof typeof formIncidente>(campo: K, valor: (typeof formIncidente)[K]) => {
     setFormIncidente(prev => ({ ...prev, [campo]: valor }));
@@ -1034,11 +1038,11 @@ function InvestigacionIncidenteSection({ onCrearAccionDesdeIncidente }: Investig
       return;
     }
     
-    const obraSeleccionada = obras.find(o => o.id === obraSeleccionadaId);
+    const obra = obras.find(o => o.id === obraSeleccionadaId);
     const dataToSave: Omit<RegistroIncidente, 'id'> & { createdAt: any, updatedAt: any } = {
         ...(formIncidente as Omit<RegistroIncidente, 'id'>),
         obraId: obraSeleccionadaId,
-        obraNombre: obraSeleccionada?.nombreFaena ?? "N/A",
+        obraNombre: obra?.nombreFaena ?? "N/A",
         createdAt: serverTimestamp(),
         updatedAt: serverTimestamp(),
     };
@@ -1228,7 +1232,7 @@ function InvestigacionIncidenteSection({ onCrearAccionDesdeIncidente }: Investig
                     <p className="font-semibold text-primary">
                       {inc.fecha} – {inc.lugar || "Sin lugar"}
                     </p>
-                     <Badge variant="outline">{inc.metodoAnalisis === 'arbol_causas' ? "Árbol de Causas" : "Ishikawa / 5P"}</Badge>
+                    <Badge variant="outline">{inc.metodoAnalisis === 'arbol_causas' ? "Árbol de Causas" : "Ishikawa / 5P"}</Badge>
                   </div>
                   <div className="flex justify-between items-center text-xs">
                       <span>Tipo: {inc.tipoIncidente}</span>
@@ -1250,21 +1254,35 @@ function InvestigacionIncidenteSection({ onCrearAccionDesdeIncidente }: Investig
                         onChange={() => {}} // No-op en modo lectura
                         readOnly 
                     />
-                  <Button
-                    type="button"
-                    onClick={() =>
-                      onCrearAccionDesdeIncidente({
-                        obraId: inc.obraId,
-                        incidenteId: inc.id,
-                        descripcion: `Acción por incidente: ${inc.descripcionHecho}`,
-                      })
-                    }
-                    variant="outline"
-                    size="sm"
-                    className="mt-2"
-                  >
-                    Crear plan de acción
-                  </Button>
+                  <div className="flex gap-2">
+                    {inc.metodoAnalisis === 'arbol_causas' && obraSeleccionada && (
+                        <Button
+                            type="button"
+                            onClick={() => generarInvestigacionAccidentePdf(inc, obraSeleccionada)}
+                            variant="outline"
+                            size="sm"
+                            className="mt-2"
+                        >
+                            <FileText className="h-4 w-4 mr-2" />
+                            Generar Informe PDF
+                        </Button>
+                    )}
+                    <Button
+                      type="button"
+                      onClick={() =>
+                        onCrearAccionDesdeIncidente({
+                          obraId: inc.obraId,
+                          incidenteId: inc.id,
+                          descripcion: `Acción por incidente: ${inc.descripcionHecho}`,
+                        })
+                      }
+                      variant="outline"
+                      size="sm"
+                      className="mt-2"
+                    >
+                      Crear plan de acción
+                    </Button>
+                  </div>
                 </article>
               ))}
             </div>

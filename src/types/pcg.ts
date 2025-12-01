@@ -98,24 +98,30 @@ export interface IPERRegistro {
   correlativo?: number;
   obraId: string;
   obraNombre?: string;
+  // Identificación
   tarea: string;
   zona: string;
   peligro: string;
   riesgo: string;
   categoriaPeligro: string;
+  // Evaluación Inherente (con género)
   probabilidad_hombre: number;
   consecuencia_hombre: number;
   nivel_riesgo_hombre: number;
   probabilidad_mujer: number;
   consecuencia_mujer: number;
   nivel_riesgo_mujer: number;
+  // Controles
   jerarquiaControl: string; 
   control_especifico_genero: string;
   responsable: string; plazo: string; 
+  // Seguimiento
   estadoControl: string; 
+  // Riesgo Residual
   probabilidad_residual: number; 
   consecuencia_residual: number; 
   nivel_riesgo_residual: number; 
+  // Meta
   usa_componente_genero?: boolean;
   medidasControlExistentes: string;
   medidasControlPropuestas: string;
