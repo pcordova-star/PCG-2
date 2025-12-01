@@ -18,7 +18,6 @@ export default function SignaturePad({ onChange, onClear }: SignaturePadProps) {
   useEffect(() => {
     const canvas = canvasRef.current;
     if (canvas) {
-      // Ajustar para pantallas de alta densidad (Retina)
       const ratio = Math.max(window.devicePixelRatio || 1, 1);
       canvas.width = canvas.offsetWidth * ratio;
       canvas.height = canvas.offsetHeight * ratio;
@@ -60,20 +59,23 @@ export default function SignaturePad({ onChange, onClear }: SignaturePadProps) {
     [lastX, lastY] = [x, y];
   };
 
-  const stopDrawing = () => {
+  const stopDrawing = async () => {
     if (!isDrawing) return;
     isDrawing = false;
-    onChange(canvasRef.current!.toDataURL('image/png'));
+    const dataUrl = canvasRef.current!.toDataURL('image/png');
+    
+    // Convert to blob for more efficient upload
+    const blob = await (await fetch(dataUrl)).blob();
+    
+    // Instead of passing blob, pass dataUrl because parent component needs it for fetch.
+    // The parent will handle blob conversion.
+    onChange(dataUrl);
   };
 
   const handleClear = () => {
     const canvas = canvasRef.current!;
     const ctx = canvas.getContext('2d')!;
-    ctx.clearRect(0, 0, canvas.width, canvas.height); // Correcto para borrar
-    // No es necesario rellenar de blanco si el fondo del canvas ya es blanco
-    // Pero si el fondo CSS es diferente, esto es importante:
-    ctx.fillStyle = "#ffffff";
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
     onClear();
   };
 
