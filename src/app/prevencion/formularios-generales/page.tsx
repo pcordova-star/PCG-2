@@ -1,5 +1,3 @@
-
-
 // src/app/prevencion/formularios-generales/page.tsx
 "use client";
 
@@ -1575,6 +1573,7 @@ function HallazgoEstadoBadge({ estado }: { estado: Hallazgo['estado'] }) {
 function HallazgosSection() {
     const router = useRouter();
     const { toast } = useToast();
+    const { companyId, role } = useAuth();
     const [obras, setObras] = useState<ObraPrevencion[]>([]);
     const [obraSeleccionadaId, setObraSeleccionadaId] = useState<string>("");
     const [hallazgos, setHallazgos] = useState<Hallazgo[]>([]);
@@ -1582,16 +1581,30 @@ function HallazgosSection() {
 
     useEffect(() => {
         const fetchObras = async () => {
-            const q = query(collection(firebaseDb, "obras"), orderBy("nombreFaena"));
-            const snapshot = await getDocs(q);
-            const obrasData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as ObraPrevencion));
-            setObras(obrasData);
-            if (obrasData.length > 0) {
-                setObraSeleccionadaId(obrasData[0].id);
+            if (!companyId && role !== 'superadmin') return;
+            setLoading(true);
+            try {
+                let q;
+                if (role === 'superadmin') {
+                    q = query(collection(firebaseDb, "obras"), orderBy("nombreFaena"));
+                } else {
+                    q = query(collection(firebaseDb, "obras"), where("empresaId", "==", companyId), orderBy("nombreFaena"));
+                }
+                const snapshot = await getDocs(q);
+                const obrasData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as ObraPrevencion));
+                setObras(obrasData);
+                if (obrasData.length > 0 && !obraSeleccionadaId) {
+                    setObraSeleccionadaId(obrasData[0].id);
+                }
+            } catch (error) {
+                console.error("Error fetching obras in HallazgosSection:", error);
+                toast({ variant: 'destructive', title: 'Error', description: 'No se pudieron cargar las obras.' });
+            } finally {
+                setLoading(false);
             }
         };
         fetchObras();
-    }, []);
+    }, [companyId, role]);
 
     useEffect(() => {
         if (!obraSeleccionadaId) {
@@ -1605,6 +1618,9 @@ function HallazgosSection() {
         const unsubscribe = onSnapshot(q, (snapshot) => {
             const hallazgosList = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Hallazgo));
             setHallazgos(hallazgosList);
+            setLoading(false);
+        }, (error) => {
+            console.error("Error fetching hallazgos:", error);
             setLoading(false);
         });
 
