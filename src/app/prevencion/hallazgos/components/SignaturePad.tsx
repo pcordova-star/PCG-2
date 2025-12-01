@@ -12,6 +12,8 @@ type SignaturePadProps = {
 export default function SignaturePad({ onChange, onClear }: SignaturePadProps) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   let isDrawing = false;
+  let lastX = 0;
+  let lastY = 0;
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -32,21 +34,25 @@ export default function SignaturePad({ onChange, onClear }: SignaturePadProps) {
   };
 
   const startDrawing = (e: any) => {
+    e.preventDefault();
     isDrawing = true;
-    const ctx = canvasRef.current!.getContext('2d')!;
     const { x, y } = getPos(e);
-    ctx.beginPath();
-    ctx.moveTo(x, y);
+    [lastX, lastY] = [x, y];
   };
 
   const draw = (e: any) => {
+    e.preventDefault();
     if (!isDrawing) return;
     const ctx = canvasRef.current!.getContext('2d')!;
     const { x, y } = getPos(e);
+    ctx.beginPath();
+    ctx.moveTo(lastX, lastY);
     ctx.lineTo(x, y);
     ctx.strokeStyle = '#000000';
     ctx.lineWidth = 2;
+    ctx.lineCap = 'round';
     ctx.stroke();
+    [lastX, lastY] = [x, y];
   };
 
   const stopDrawing = () => {
