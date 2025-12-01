@@ -1,4 +1,5 @@
 
+
 // src/app/prevencion/formularios-generales/page.tsx
 "use client";
 
@@ -220,94 +221,80 @@ export default function FormulariosGeneralesPrevencionPage() {
         </TabsList>
 
         <TabsContent value="iper">
-             <Card>
-                <CardHeader>
-                    <CardTitle>Identificación de Peligros y Evaluación de Riesgos (IPER) con enfoque de género</CardTitle>
-                    <CardDescription>Use este formulario para registrar y evaluar los riesgos de las tareas en la obra.</CardDescription>
-                </CardHeader>
-                <CardContent>
-                    <form onSubmit={handleIperSubmit}>
-                        <IperForm value={iperFormValues} onChange={setIperFormValues} />
-                        <div className="flex gap-4 mt-6">
-                            <Button type="submit" disabled={guardandoIper}>
-                                {guardandoIper ? 'Guardando IPER...' : 'Guardar Registro IPER'}
-                            </Button>
-                            <Button type="button" variant="outline" onClick={() => setIperFormValues(initialIperState)}>
-                                Limpiar Formulario
-                            </Button>
-                        </div>
-                    </form>
-                </CardContent>
-            </Card>
-
-             <Card className="mt-6">
-                <CardHeader>
-                <CardTitle>Historial de IPER Registrados</CardTitle>
-                <CardDescription>
-                    Listado de todos los análisis de riesgo guardados para la obra seleccionada.
-                </CardDescription>
-                </CardHeader>
-                <CardContent>
-                {loading ? (
-                    <p>Cargando historial IPER...</p>
-                ) : iperRegistros.length === 0 ? (
-                    <p className="text-sm text-muted-foreground">No hay registros IPER para esta obra.</p>
-                ) : (
-                    <div className="space-y-2">
-                    {iperRegistros.map(iper => (
-                        <div key={iper.id} className="border p-3 rounded-md text-sm flex justify-between items-center">
-                            <div>
-                                <p className="font-semibold">{iper.tarea}</p>
-                                <p className="text-xs text-muted-foreground">Peligro: {iper.peligro}</p>
-                            </div>
-                            <div className="flex items-center gap-2">
-                                <Badge variant="outline">Riesgo H: {iper.nivel_riesgo_hombre}</Badge>
-                                <Badge variant="outline">Riesgo M: {iper.nivel_riesgo_mujer}</Badge>
-                                <Button asChild variant="secondary" size="sm">
-                                    <Link href={`/prevencion/formularios-generales/iper/${iper.id}/imprimir`} target="_blank">
-                                        <FileText className="mr-2 h-4 w-4" /> Ver Ficha
-                                    </Link>
+            <div className="space-y-6">
+                <Card>
+                    <CardHeader>
+                        <CardTitle>Identificación de Peligros y Evaluación de Riesgos (IPER) con enfoque de género</CardTitle>
+                        <CardDescription>Use este formulario para registrar y evaluar los riesgos de las tareas en la obra.</CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                        <form onSubmit={handleIperSubmit}>
+                            <IperForm value={iperFormValues} onChange={setIperFormValues} />
+                            <div className="flex gap-4 mt-6">
+                                <Button type="submit" disabled={guardandoIper}>
+                                    {guardandoIper ? 'Guardando IPER...' : 'Guardar Registro IPER'}
+                                </Button>
+                                <Button type="button" variant="outline" onClick={() => setIperFormValues(initialIperState)}>
+                                    Limpiar Formulario
                                 </Button>
                             </div>
+                        </form>
+                    </CardContent>
+                </Card>
+
+                <Card>
+                    <CardHeader>
+                    <CardTitle>Historial de IPER Registrados</CardTitle>
+                    <CardDescription>
+                        Listado de todos los análisis de riesgo guardados para la obra seleccionada.
+                    </CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                    {loading ? (
+                        <p>Cargando historial IPER...</p>
+                    ) : iperRegistros.length === 0 ? (
+                        <p className="text-sm text-muted-foreground">No hay registros IPER para esta obra.</p>
+                    ) : (
+                        <div className="space-y-2">
+                        {iperRegistros.map(iper => (
+                            <div key={iper.id} className="border p-3 rounded-md text-sm flex justify-between items-center">
+                                <div>
+                                    <p className="font-semibold">{iper.tarea}</p>
+                                    <p className="text-xs text-muted-foreground">Peligro: {iper.peligro}</p>
+                                </div>
+                                <div className="flex items-center gap-2">
+                                    <Badge variant="outline">Riesgo H: {iper.nivel_riesgo_hombre}</Badge>
+                                    <Badge variant="outline">Riesgo M: {iper.nivel_riesgo_mujer}</Badge>
+                                    <Button asChild variant="secondary" size="sm">
+                                        <Link href={`/prevencion/formularios-generales/iper/${iper.id}/imprimir`} target="_blank">
+                                            <FileText className="mr-2 h-4 w-4" /> Ver Ficha
+                                        </Link>
+                                    </Button>
+                                </div>
+                            </div>
+                        ))}
                         </div>
-                    ))}
-                    </div>
-                )}
-                </CardContent>
-            </Card>
+                    )}
+                    </CardContent>
+                </Card>
+            </div>
         </TabsContent>
 
         <TabsContent value="investigaciones-incidentes">
-            <Card>
-                <CardHeader>
-                    <CardTitle>Investigación de Incidentes / Casi Accidentes</CardTitle>
-                    <CardDescription>Eventos que no generaron lesiones a personas, analizados con métodos como Ishikawa o 5 Porqués.</CardDescription>
-                </CardHeader>
-                <CardContent>
-                    <InvestigacionIncidentesTab
-                        obraId={obraSeleccionadaId}
-                        investigaciones={investigaciones.filter(inv => inv.metodoAnalisis !== 'arbol_causas')}
-                        loading={loading}
-                        onUpdate={() => { /* Lógica para forzar recarga si es necesario */ }}
-                    />
-                </CardContent>
-            </Card>
+            <InvestigacionIncidentesTab
+                obraId={obraSeleccionadaId}
+                investigaciones={investigaciones.filter(inv => inv.metodoAnalisis !== 'arbol_causas')}
+                loading={loading}
+                onUpdate={() => { /* Lógica para forzar recarga si es necesario */ }}
+            />
         </TabsContent>
         <TabsContent value="investigaciones-accidentes">
-            <Card>
-                <CardHeader>
-                    <CardTitle>Investigación de Accidentes (Árbol de Causas)</CardTitle>
-                    <CardDescription>Eventos que generaron (o pudieron generar) lesiones a personas, analizados con el método de Árbol de Causas.</CardDescription>
-                </CardHeader>
-                <CardContent>
-                    <InvestigacionAccidentesTab
-                        obraId={obraSeleccionadaId}
-                        investigaciones={investigaciones.filter(inv => inv.metodoAnalisis === 'arbol_causas')}
-                        loading={loading}
-                        onUpdate={() => { /* Lógica para forzar recarga si es necesario */ }}
-                    />
-                </CardContent>
-            </Card>
+            <InvestigacionAccidentesTab
+                obraId={obraSeleccionadaId}
+                investigaciones={investigaciones.filter(inv => inv.metodoAnalisis === 'arbol_causas')}
+                loading={loading}
+                onUpdate={() => { /* Lógica para forzar recarga si es necesario */ }}
+            />
         </TabsContent>
       </Tabs>
       
