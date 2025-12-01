@@ -2,6 +2,7 @@
 import jsPDF from "jspdf";
 import autoTable from 'jspdf-autotable';
 import { Obra, RegistroIncidente } from "@/types/pcg";
+import { accidentReportTexts } from "./translations/accidentReportTexts";
 
 function addHeader(doc: jsPDF, title: string) {
     doc.setFont("helvetica", "bold");
@@ -12,7 +13,8 @@ function addHeader(doc: jsPDF, title: string) {
     doc.text(title, 15, 26);
 }
 
-function addFooter(doc: jsPDF, obraNombre: string) {
+function addFooter(doc: jsPDF, obraNombre: string, language: 'es' | 'pt') {
+    const texts = accidentReportTexts[language];
     const pageCount = (doc as any).internal.getNumberOfPages();
     for (let i = 1; i <= pageCount; i++) {
         doc.setPage(i);
@@ -21,8 +23,8 @@ function addFooter(doc: jsPDF, obraNombre: string) {
         doc.setTextColor(120);
 
         doc.text(obraNombre, 15, pageHeight - 10);
-        doc.text("Informe de Investigación de Accidente", 105, pageHeight - 10, { align: 'center' });
-        doc.text(`Página ${i} de ${pageCount}`, 195, pageHeight - 10, { align: 'right' });
+        doc.text(texts.footer, 105, pageHeight - 10, { align: 'center' });
+        doc.text(`${texts.page} ${i} / ${pageCount}`, 195, pageHeight - 10, { align: 'right' });
         
         doc.setTextColor(0);
     }
@@ -42,10 +44,12 @@ function addSectionTitle(doc: jsPDF, title: string, y: number): number {
 
 export function generarInvestigacionAccidentePdf(
   incidente: RegistroIncidente,
-  obra: Obra
+  obra: Obra,
+  language: 'es' | 'pt' = 'es'
 ) {
+    const texts = accidentReportTexts[language];
     const doc = new jsPDF("p", "mm", "a4");
-    const headerColor = [226, 232, 240]; // Un gris azulado claro (slate-200)
+    const headerColor = [226, 232, 240]; 
 
     // --- 1. PORTADA ---
     doc.setFont("helvetica", "bold");
@@ -53,40 +57,40 @@ export function generarInvestigacionAccidentePdf(
     doc.text("PCG - Plataforma de Control y Gestión", 105, 60, { align: 'center' });
 
     doc.setFontSize(22);
-    doc.text("Informe de Investigación de Accidente", 105, 100, { align: 'center' });
+    doc.text(texts.title, 105, 100, { align: 'center' });
 
     doc.setFontSize(16);
     doc.text(obra.nombreFaena, 105, 120, { align: 'center' });
 
     doc.setFont("helvetica", "normal");
     doc.setFontSize(12);
-    doc.text(`Fecha del Accidente: ${new Date(incidente.fecha + 'T00:00:00').toLocaleDateString('es-CL')}`, 105, 140, { align: 'center' });
-    doc.text(`Tipo de Suceso: ${incidente.tipoIncidente}`, 105, 148, { align: 'center' });
-    doc.text(`Gravedad: ${incidente.gravedad}`, 105, 156, { align: 'center' });
-    doc.text(`Fecha de Generación: ${new Date().toLocaleDateString('es-CL')}`, 105, 164, { align: 'center' });
+    doc.text(`${texts.fieldFechaAccidente}: ${new Date(incidente.fecha + 'T00:00:00').toLocaleDateString(language === 'pt' ? 'pt-BR' : 'es-CL')}`, 105, 140, { align: 'center' });
+    doc.text(`${texts.fieldType}: ${incidente.tipoIncidente}`, 105, 148, { align: 'center' });
+    doc.text(`${texts.fieldSeverity}: ${incidente.gravedad}`, 105, 156, { align: 'center' });
+    doc.text(`${texts.fieldGenerationDate}: ${new Date().toLocaleDateString(language === 'pt' ? 'pt-BR' : 'es-CL')}`, 105, 164, { align: 'center' });
 
 
     // --- 2. CUERPO DEL INFORME ---
     doc.addPage();
-    addHeader(doc, `Investigación ID: ${incidente.id}`);
+    addHeader(doc, `${texts.headerId}: ${incidente.id}`);
     let cursorY = 40;
 
     // Sección 1: Datos Generales del Accidente
-    cursorY = addSectionTitle(doc, "1. Datos Generales del Accidente", cursorY);
+    cursorY = addSectionTitle(doc, texts.section1, cursorY);
     autoTable(doc, {
         startY: cursorY,
         body: [
-            ['Fecha del Accidente', new Date(incidente.fecha + 'T00:00:00').toLocaleDateString('es-CL')],
-            ['Lugar', incidente.lugar || 'No registrado'],
-            ['Lesión', incidente.lesionDescripcion || 'No registrado'],
-            ['Parte del cuerpo', incidente.parteCuerpoAfectada || 'No registrado'],
-            ['Agente del accidente', incidente.agenteAccidente || 'No registrado'],
-            ['Mecanismo del accidente', incidente.mecanismoAccidente || 'No registrado'],
-            ['Tiempo perdido', incidente.huboTiempoPerdido ? 'Sí' : 'No'],
-            ['Días de reposo', incidente.diasReposoMedico?.toString() || 'No registrado'],
-            ['Accidente grave/fatal', incidente.esAccidenteGraveFatal ? 'Sí' : 'No'],
+            [texts.fieldFechaAccidente, new Date(incidente.fecha + 'T00:00:00').toLocaleDateString(language === 'pt' ? 'pt-BR' : 'es-CL')],
+            [texts.fieldLugar, incidente.lugar || texts.noRegistrado],
+            [texts.fieldLesion, incidente.lesionDescripcion || texts.noRegistrado],
+            [texts.fieldParteCuerpo, incidente.parteCuerpoAfectada || texts.noRegistrado],
+            [texts.fieldAgente, incidente.agenteAccidente || texts.noRegistrado],
+            [texts.fieldMecanismo, incidente.mecanismoAccidente || texts.noRegistrado],
+            [texts.fieldTiempoPerdido, incidente.huboTiempoPerdido ? texts.yes : texts.no],
+            [texts.fieldDiasReposo, incidente.diasReposoMedico?.toString() || texts.noRegistrado],
+            [texts.fieldGraveFatal, incidente.esAccidenteGraveFatal ? texts.yes : texts.no],
         ],
-        head: [['Campo', 'Valor']],
+        head: [[texts.tableDatosHeadCampo, texts.tableDatosHeadValor]],
         theme: 'grid',
         headStyles: { fillColor: headerColor, textColor: 20 },
         columnStyles: { 0: { fontStyle: 'bold' } },
@@ -95,7 +99,7 @@ export function generarInvestigacionAccidentePdf(
     cursorY = (doc as any).lastAutoTable.finalY + 10;
     
     // Sección 2: Descripción del Hecho
-    cursorY = addSectionTitle(doc, "2. Descripción Objetiva del Hecho", cursorY);
+    cursorY = addSectionTitle(doc, texts.section2, cursorY);
     const descLines = doc.splitTextToSize(incidente.descripcionHecho, 180);
     doc.setFontSize(10);
     doc.text(descLines, 15, cursorY);
@@ -103,7 +107,7 @@ export function generarInvestigacionAccidentePdf(
     
     // Sección 3: Árbol de Causas
     if (cursorY > 200) { doc.addPage(); cursorY = 40; }
-    cursorY = addSectionTitle(doc, "3. Análisis de Causas (Árbol de Causas)", cursorY);
+    cursorY = addSectionTitle(doc, texts.section3, cursorY);
     
     if (incidente.arbolCausas && incidente.arbolCausas.nodos && incidente.arbolCausas.raizId) {
         const nodos = Object.values(incidente.arbolCausas.nodos);
@@ -115,25 +119,25 @@ export function generarInvestigacionAccidentePdf(
         if (raiz) {
             arbolBody.push([
                 raiz.tipo.toUpperCase(),
-                raiz.descripcionCorta === 'Nuevo Hecho' ? 'Accidente investigado' : raiz.descripcionCorta,
+                raiz.descripcionCorta === 'Nuevo Hecho' ? texts.rootNodeDefault : raiz.descripcionCorta,
                 raiz.detalle || '-',
-                'Hecho Principal'
+                texts.levelHechoPrincipal
             ]);
         }
         if (causasInmediatas.length > 0) {
-            causasInmediatas.forEach(c => arbolBody.push([c.tipo.toUpperCase(), c.descripcionCorta, c.detalle === raiz?.detalle ? '-' : (c.detalle || '-'), 'Causa Inmediata']));
+            causasInmediatas.forEach(c => arbolBody.push([c.tipo.toUpperCase(), c.descripcionCorta, c.detalle === raiz?.detalle ? '-' : (c.detalle || '-'), texts.levelCausaInmediata]));
         } else {
-             arbolBody.push([{ content: 'No se registraron causas inmediatas.', colSpan: 4, styles: { fontStyle: 'italic', textColor: 120 } }]);
+             arbolBody.push([{ content: texts.noImmediateCauses, colSpan: 4, styles: { fontStyle: 'italic', textColor: 120 } }]);
         }
         if (causasBasicas.length > 0) {
-            causasBasicas.forEach(c => arbolBody.push([c.tipo.toUpperCase(), c.descripcionCorta, c.detalle === raiz?.detalle ? '-' : (c.detalle || '-'), 'Causa Básica']));
+            causasBasicas.forEach(c => arbolBody.push([c.tipo.toUpperCase(), c.descripcionCorta, c.detalle === raiz?.detalle ? '-' : (c.detalle || '-'), texts.levelCausaBasica]));
         } else {
-            arbolBody.push([{ content: 'No se registraron causas básicas.', colSpan: 4, styles: { fontStyle: 'italic', textColor: 120 } }]);
+            arbolBody.push([{ content: texts.noBasicCauses, colSpan: 4, styles: { fontStyle: 'italic', textColor: 120 } }]);
         }
 
         autoTable(doc, {
             startY: cursorY,
-            head: [['Tipo', 'Descripción', 'Detalle', 'Nivel']],
+            head: [[texts.tableCausasHeadTipo, texts.tableCausasHeadDescripcion, texts.tableCausasHeadDetalle, texts.tableCausasHeadNivel]],
             body: arbolBody,
             theme: 'grid',
             headStyles: { fillColor: headerColor, textColor: 20 },
@@ -142,18 +146,18 @@ export function generarInvestigacionAccidentePdf(
         cursorY = (doc as any).lastAutoTable.finalY;
 
     } else {
-        doc.text("No se ha definido un árbol de causas para esta investigación.", 15, cursorY);
+        doc.text(texts.noTree, 15, cursorY);
     }
     
     // Sección 4: Plan de Acción
     if (incidente.medidasCorrectivasDetalladas && incidente.medidasCorrectivasDetalladas.length > 0) {
         if (cursorY > 200) { doc.addPage(); cursorY = 40; } else { cursorY += 10; }
         
-        cursorY = addSectionTitle(doc, "4. Plan de Acción / Medidas Correctivas", cursorY);
+        cursorY = addSectionTitle(doc, texts.section4, cursorY);
         
         autoTable(doc, {
             startY: cursorY,
-            head: [['Acción', 'Causa Asociada', 'Responsable', 'Plazo', 'Estado']],
+            head: [[texts.tablePlanHeadAccion, texts.tablePlanHeadCausa, texts.tablePlanHeadResponsable, texts.tablePlanHeadPlazo, texts.tablePlanHeadEstado]],
             body: incidente.medidasCorrectivasDetalladas.map(m => {
                 const causaNodo = m.causaNodoId ? incidente.arbolCausas?.nodos[m.causaNodoId] : null;
                 const causaTexto = causaNodo ? `[${causaNodo.tipo}] ${causaNodo.descripcionCorta}` : 'General';
@@ -161,7 +165,7 @@ export function generarInvestigacionAccidentePdf(
                     m.descripcionAccion,
                     causaTexto,
                     m.responsable,
-                    m.fechaCompromiso ? new Date(m.fechaCompromiso + 'T00:00:00').toLocaleDateString('es-CL') : 'N/A',
+                    m.fechaCompromiso ? new Date(m.fechaCompromiso + 'T00:00:00').toLocaleDateString(language === 'pt' ? 'pt-BR' : 'es-CL') : 'N/A',
                     m.estado
                 ];
             }),
@@ -174,15 +178,17 @@ export function generarInvestigacionAccidentePdf(
         cursorY = (doc as any).lastAutoTable.finalY;
     } else {
         if (cursorY > 250) { doc.addPage(); cursorY = 40; } else { cursorY += 10; }
-        cursorY = addSectionTitle(doc, "4. Plan de Acción / Medidas Correctivas", cursorY);
-        doc.text("No existen medidas correctivas registradas.", 15, cursorY);
+        cursorY = addSectionTitle(doc, texts.section4, cursorY);
+        doc.text(texts.planAccionSinMedidas, 15, cursorY);
     }
 
 
     // --- PIE DE PÁGINA ---
-    addFooter(doc, obra.nombreFaena);
+    addFooter(doc, obra.nombreFaena, language);
 
     // --- GUARDAR ---
     const fecha = new Date().toISOString().slice(0, 10).replace(/-/g, '');
-    doc.save(`Informe_Accidente_${obra.nombreFaena.replace(/ /g, '_')}_${fecha}.pdf`);
+    const langSuffix = language.toUpperCase();
+    const fileName = `${texts.fileName}_${obra.nombreFaena.replace(/ /g, '_')}_${fecha}_${langSuffix}.pdf`;
+    doc.save(fileName);
 }

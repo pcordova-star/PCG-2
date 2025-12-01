@@ -14,7 +14,7 @@ import { Separator } from '@/components/ui/separator';
 import { ArbolCausasEditor } from './ArbolCausasEditor';
 import { PlanAccionEditor } from './PlanAccionEditor';
 import { firebaseDb } from '@/lib/firebaseClient';
-import { collection, addDoc, serverTimestamp, doc, getDoc } from 'firebase/firestore';
+import { collection, addDoc, serverTimestamp, doc, getDoc, updateDoc } from 'firebase/firestore';
 import { RegistroIncidente, Obra, MedidaCorrectivaDetallada, ArbolCausas } from '@/types/pcg';
 import { InformeAccidentePdfButton } from './InformeAccidentePdfButton';
 
@@ -60,6 +60,7 @@ export function InvestigacionAccidentesTab({ obraId, investigaciones, loading, o
   const [formState, setFormState] = useState(initialFormState);
   const [obra, setObra] = useState<Obra | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [selectedInvestigacion, setSelectedInvestigacion] = useState<RegistroIncidente | null>(null);
 
   useEffect(() => {
     if(obraId) {
@@ -86,22 +87,28 @@ export function InvestigacionAccidentesTab({ obraId, investigaciones, loading, o
     setFormState(prev => ({...prev, medidasCorrectivasDetalladas: medidas}));
   }
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleSave = async () => {
     if (!obraId) {
       setError("Seleccione una obra.");
       return;
     }
     setError(null);
     try {
-      await addDoc(collection(firebaseDb, "investigacionesIncidentes"), {
-        ...formState,
-        obraId,
-        obraNombre: obra?.nombreFaena || "N/A",
-        createdAt: serverTimestamp(),
-        updatedAt: serverTimestamp(),
-        metodoAnalisis: 'arbol_causas',
-      });
+      if (selectedInvestigacion) {
+        // Editar
+        const docRef = doc(firebaseDb, "investigacionesIncidentes", selectedInvestigacion.id);
+        await updateDoc(docRef, { ...formState, updatedAt: serverTimestamp() });
+        setSelectedInvestigacion(null);
+      } else {
+        // Crear
+        await addDoc(collection(firebaseDb, "investigacionesIncidentes"), {
+          ...formState,
+          obraId,
+          obraNombre: obra?.nombreFaena || "N/A",
+          createdAt: serverTimestamp(),
+          updatedAt: serverTimestamp(),
+        });
+      }
       setFormState(initialFormState);
       onUpdate();
     } catch (err) {
@@ -118,7 +125,7 @@ export function InvestigacionAccidentesTab({ obraId, investigaciones, loading, o
           <CardDescription>Utilice este formulario para registrar e investigar accidentes laborales, usando el método de Árbol de Causas.</CardDescription>
         </CardHeader>
         <CardContent>
-          <form onSubmit={handleSubmit} className="space-y-6">
+          <form onSubmit={(e) => { e.preventDefault(); handleSave(); }} className="space-y-6">
             {error && <p className="text-sm font-medium text-destructive">{error}</p>}
             
             <div className="grid grid-cols-2 gap-4">
@@ -186,7 +193,10 @@ export function InvestigacionAccidentesTab({ obraId, investigaciones, loading, o
                     </div>
                     <p className="text-xs text-muted-foreground">{inv.fecha} - {inv.lugar}</p>
                      {obra && inv.metodoAnalisis === 'arbol_causas' && (
-                        <InformeAccidentePdfButton investigacion={inv} obra={obra} />
+                        <div className="flex gap-2 pt-2">
+                          <InformeAccidentePdfButton investigacion={inv} obra={obra} language="es" />
+                          <InformeAccidentePdfButton investigacion={inv} obra={obra} language="pt" />
+                        </div>
                     )}
                 </article>
               ))}
