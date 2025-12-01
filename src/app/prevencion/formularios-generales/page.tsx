@@ -43,6 +43,7 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
+import { Input } from '@/components/ui/input';
 
 
 // --- Estado inicial para el formulario IPER ---
@@ -68,6 +69,10 @@ export default function FormulariosGeneralesPrevencionPage() {
   const [iperFormValues, setIperFormValues] = useState<Partial<IPERRegistro>>(initialIperState);
   const [guardandoIper, setGuardandoIper] = useState(false);
   const [iperSeleccionado, setIperSeleccionado] = useState<IPERRegistro | null>(null);
+
+  // Estados para filtros de IPER
+  const [filtroIperTexto, setFiltroIperTexto] = useState('');
+  const [filtroIperEstado, setFiltroIperEstado] = useState('todos');
 
 
   useEffect(() => {
@@ -132,6 +137,16 @@ export default function FormulariosGeneralesPrevencionPage() {
       unsubscribeIper();
     };
   }, [obraSeleccionadaId]);
+
+  const iperFiltrados = useMemo(() => {
+    return iperRegistros.filter(iper => {
+        const matchTexto = filtroIperTexto.trim() === '' || 
+                            iper.tarea.toLowerCase().includes(filtroIperTexto.toLowerCase()) ||
+                            iper.peligro.toLowerCase().includes(filtroIperTexto.toLowerCase());
+        const matchEstado = filtroIperEstado === 'todos' || iper.estadoControl === filtroIperEstado;
+        return matchTexto && matchEstado;
+    });
+  }, [iperRegistros, filtroIperTexto, filtroIperEstado]);
   
   const handleIperSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -284,16 +299,38 @@ export default function FormulariosGeneralesPrevencionPage() {
                           <CardDescription>Seleccione un registro para ver sus detalles y acciones.</CardDescription>
                       </CardHeader>
                       <CardContent>
+                          <div className="flex flex-col sm:flex-row gap-2 mb-4">
+                            <Input placeholder="Buscar por tarea o peligro..." value={filtroIperTexto} onChange={e => setFiltroIperTexto(e.target.value)} />
+                            <Select value={filtroIperEstado} onValueChange={setFiltroIperEstado}>
+                                <SelectTrigger className="w-full sm:w-[200px]"><SelectValue/></SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="todos">Todos los estados</SelectItem>
+                                    <SelectItem value="PENDIENTE">Pendiente</SelectItem>
+                                    <SelectItem value="EN_EJECUCION">En Ejecución</SelectItem>
+                                    <SelectItem value="IMPLEMENTADO">Implementado</SelectItem>
+                                    <SelectItem value="RECHAZADO">Rechazado</SelectItem>
+                                </SelectContent>
+                            </Select>
+                          </div>
                           {loading ? <p>Cargando...</p> : 
-                           iperRegistros.length === 0 ? <p className="text-sm text-muted-foreground">No hay registros IPER para esta obra.</p> : (
-                            <div className="border rounded-md">
+                           iperFiltrados.length === 0 ? <p className="text-sm text-muted-foreground text-center py-4">No hay registros IPER que coincidan con los filtros.</p> : (
+                            <div className="border rounded-md max-h-96 overflow-y-auto">
                                <Table>
-                                  <TableHeader><TableRow><TableHead>Tarea</TableHead><TableHead>Peligro</TableHead></TableRow></TableHeader>
+                                  <TableHeader>
+                                    <TableRow>
+                                        <TableHead>Fecha</TableHead>
+                                        <TableHead>Tarea</TableHead>
+                                        <TableHead>Riesgo</TableHead>
+                                        <TableHead>Estado</TableHead>
+                                    </TableRow>
+                                </TableHeader>
                                   <TableBody>
-                                      {iperRegistros.map(iper => (
+                                      {iperFiltrados.map(iper => (
                                           <TableRow key={iper.id} onClick={() => setIperSeleccionado(iper)} className={cn("cursor-pointer", iperSeleccionado?.id === iper.id && "bg-accent/20")}>
-                                              <TableCell className="font-medium">{iper.tarea}</TableCell>
-                                              <TableCell>{iper.peligro}</TableCell>
+                                              <TableCell className="text-xs">{iper.createdAt?.toDate().toLocaleDateString('es-CL')}</TableCell>
+                                              <TableCell className="font-medium text-xs">{iper.tarea}</TableCell>
+                                              <TableCell className="text-xs">{Math.max(iper.nivel_riesgo_hombre, iper.nivel_riesgo_mujer)}</TableCell>
+                                              <TableCell className="text-xs">{iper.estadoControl.replace("_", " ")}</TableCell>
                                           </TableRow>
                                       ))}
                                   </TableBody>
@@ -323,6 +360,8 @@ export default function FormulariosGeneralesPrevencionPage() {
                                 <div className="grid grid-cols-2 gap-4">
                                     <div><p className="font-semibold">Riesgo Inherente (H/M)</p><p><span className="font-bold text-blue-600">{iperSeleccionado.nivel_riesgo_hombre}</span> / <span className="font-bold text-pink-600">{iperSeleccionado.nivel_riesgo_mujer}</span></p></div>
                                     <div><p className="font-semibold">Riesgo Residual</p><p className="font-bold text-green-700">{iperSeleccionado.nivel_riesgo_residual}</p></div>
+                                    <div><p className="font-semibold">Fecha de Creación</p><p className="text-muted-foreground">{iperSeleccionado.createdAt?.toDate().toLocaleDateString('es-CL')}</p></div>
+                                    <div><p className="font-semibold">Estado del Control</p><p className="font-bold">{iperSeleccionado.estadoControl}</p></div>
                                 </div>
                                 <div><p className="font-semibold">Control Específico Género</p><p className="text-muted-foreground">{iperSeleccionado.control_especifico_genero || "No especificado"}</p></div>
                                 <div><p className="font-semibold">Responsable</p><p className="text-muted-foreground">{iperSeleccionado.responsable || "No asignado"}</p></div>
