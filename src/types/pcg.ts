@@ -140,6 +140,7 @@ export interface FirmaAsistente {
   cargo?: string;
   firmaUrl?: string;
   firmadoEn?: string; // ISO
+  firmadoPorUsuarioId?: string; // UID del prevencionista/admin que guarda
 }
 
 export type Charla = {
