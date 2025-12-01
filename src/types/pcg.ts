@@ -161,6 +161,7 @@ export type Criticidad = 'baja' | 'media' | 'alta';
 export interface Hallazgo {
   id?: string;
   obraId: string;
+  sector?: string;
   createdAt: Timestamp;
   createdBy: string;
   tipoRiesgo: string;

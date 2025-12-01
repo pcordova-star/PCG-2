@@ -41,6 +41,7 @@ export default function CrearHallazgoPage() {
     const { toast } = useToast();
 
     // Estados del formulario
+    const [sector, setSector] = useState('');
     const [tipoRiesgo, setTipoRiesgo] = useState('');
     const [tipoHallazgoDetalle, setTipoHallazgoDetalle] = useState('');
     const [descripcionLibre, setDescripcionLibre] = useState('');
@@ -115,6 +116,7 @@ export default function CrearHallazgoPage() {
     }, [tipoRiesgo]);
 
     const resetForm = () => {
+        setSector('');
         setTipoRiesgo('');
         setTipoHallazgoDetalle('');
         setDescripcionLibre('');
@@ -146,6 +148,7 @@ export default function CrearHallazgoPage() {
 
             await addDoc(collection(firebaseDb, 'hallazgos'), {
                 obraId,
+                sector,
                 tipoRiesgo,
                 tipoHallazgoDetalle: tipoHallazgoDetalle,
                 descripcion: descripcionFinal,
@@ -198,6 +201,10 @@ export default function CrearHallazgoPage() {
                                 {obras.map(o => <SelectItem key={o.id} value={o.id}>{o.nombreFaena}</SelectItem>)}
                             </SelectContent>
                         </Select>
+                    </div>
+                     <div className="space-y-2">
+                        <Label htmlFor="sector">Sector Específico del Hallazgo</Label>
+                        <Input id="sector" value={sector} onChange={e => setSector(e.target.value)} placeholder="Ej: Piso 3, Ala Norte; Bodega principal..." />
                     </div>
                     <div className="space-y-2">
                         <Label>1. Tipo de Riesgo Identificado*</Label>
