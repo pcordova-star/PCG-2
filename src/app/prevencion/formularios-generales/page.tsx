@@ -18,7 +18,7 @@ import {
 } from "firebase/firestore";
 import { firebaseDb, firebaseStorage } from "../../../lib/firebaseClient";
 import { useRouter } from 'next/navigation';
-import { ArrowLeft, BookOpen, FileText, Plus, PlusCircle, Siren, Trash2, Edit } from 'lucide-react';
+import { ArrowLeft, BookOpen, FileText, Plus, PlusCircle, Siren, Trash2, Edit, Zap } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
@@ -512,7 +512,7 @@ export default function FormulariosGeneralesPrevencionPage() {
         <CardContent>
           <div className="max-w-md space-y-2">
             <Label htmlFor="obra-select">Obra Activa</Label>
-            <Select value={obraSeleccionadaId} onValueChange={(value) => {setObraSeleccionadaId(value)}}>
+            <Select value={obraSeleccionadaId} onValueChange={setObraSeleccionadaId}>
               <SelectTrigger id="obra-select">
                 <SelectValue placeholder="Seleccione una obra..." />
               </SelectTrigger>
@@ -546,7 +546,8 @@ export default function FormulariosGeneralesPrevencionPage() {
                             <form onSubmit={handleIperSubmit}>
                                 <div className="mb-4">
                                      <Button type="button" variant="outline" onClick={() => setIsTemplateModalOpen(true)}>
-                                        Usar IPER prediseñado (eléctrico)
+                                        <Zap className="mr-2 h-4 w-4 text-yellow-500"/>
+                                        Usar IPER Eléctrico Prediseñado
                                     </Button>
                                 </div>
                                 <IperForm value={iperFormValues as IperFormValues} onChange={(v) => setIperFormValues(v)} />
@@ -786,7 +787,7 @@ export default function FormulariosGeneralesPrevencionPage() {
                            </div>
                            <div className="flex gap-2">
                             <Input value={nuevoAsistenteNombre} onChange={e => setNuevoAsistenteNombre(e.target.value)} placeholder="Nombre del asistente"/>
-                            <Input value={nuevoAsistenteRut} onChange={e => setNuevoAsistenteRut(formatRut(e.target.value))} placeholder="RUT del asistente"/>
+                            <Input value={nuevoAsistenteRut} onChange={e => setNuevoAsistenteRut(e.target.value)} placeholder="RUT del asistente"/>
                             <Button onClick={handleAgregarAsistente}><Plus size={16}/> Agregar</Button>
                            </div>
                         </CardContent>
@@ -813,27 +814,41 @@ export default function FormulariosGeneralesPrevencionPage() {
         </AlertDialogContent>
       </AlertDialog>
 
-       <Dialog open={isTemplateModalOpen} onOpenChange={setIsTemplateModalOpen}>
-        <DialogContent className="max-w-2xl">
-            <CardHeader>
-                <CardTitle>Seleccionar Plantilla IPER para Trabajos Eléctricos</CardTitle>
-                <CardDescription>Elija una plantilla para pre-rellenar el formulario con datos estandarizados. Podrá ajustarlos antes de guardar.</CardDescription>
-            </CardHeader>
-            <CardContent className="max-h-[60vh] overflow-y-auto space-y-3">
-                {IPER_PLANTILLAS_ELECTRICAS.map(plantilla => (
-                    <div key={plantilla.id} className="border rounded-lg p-4 hover:bg-muted/50 transition-colors">
-                        <div className="flex justify-between items-center">
-                            <div>
-                                <h4 className="font-semibold">{plantilla.nombre}</h4>
-                                <p className="text-sm text-muted-foreground">{plantilla.descripcion}</p>
-                            </div>
-                            <Button size="sm" onClick={() => handleApplyTemplate(plantilla)}>Aplicar</Button>
-                        </div>
-                    </div>
-                ))}
-            </CardContent>
-        </DialogContent>
-    </Dialog>
+        <Dialog open={isTemplateModalOpen} onOpenChange={setIsTemplateModalOpen}>
+          <DialogContent className="max-w-2xl bg-slate-50">
+              <DialogHeader>
+                  <DialogTitle className="text-xl font-semibold">Seleccionar Plantilla IPER para Trabajos Eléctricos</DialogTitle>
+                  <DialogDescription className="text-sm text-muted-foreground">
+                      Elija una plantilla para pre-rellenar el formulario con datos estandarizados. Podrá ajustarlos antes de guardar.
+                  </DialogDescription>
+              </DialogHeader>
+              <div className="py-4 space-y-3 max-h-[60vh] overflow-y-auto">
+                  {IPER_PLANTILLAS_ELECTRICAS.map(plantilla => (
+                      <div 
+                          key={plantilla.id} 
+                          className="border-l-4 border-blue-500 rounded-r-lg bg-white p-4 shadow-sm hover:shadow-lg hover:-translate-y-1 transition-all duration-150 cursor-pointer flex justify-between items-center gap-4"
+                          onClick={() => handleApplyTemplate(plantilla)}
+                      >
+                          <div className="flex items-start gap-4">
+                              <div className="p-2 bg-blue-100 rounded-full mt-1">
+                                  <Zap className="h-5 w-5 text-blue-600"/>
+                              </div>
+                              <div>
+                                  <h4 className="font-semibold text-base">{plantilla.nombre}</h4>
+                                  <p className="text-xs text-muted-foreground mt-1">{plantilla.descripcion}</p>
+                              </div>
+                          </div>
+                          <Button 
+                              className="px-5 py-2 text-sm font-semibold flex-shrink-0"
+                              onClick={(e) => { e.stopPropagation(); handleApplyTemplate(plantilla); }}
+                          >
+                              Aplicar
+                          </Button>
+                      </div>
+                  ))}
+              </div>
+          </DialogContent>
+      </Dialog>
     </section>
   );
 }
