@@ -358,18 +358,20 @@ export default function DashboardPage() {
         </header>
 
         {/* --- ACCESOS RÁPIDOS --- */}
-         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 md:gap-6">
-            {quickAccessModules.map((mod) => (
-                <QuickAccessCard
-                    key={mod.id}
-                    title={mod.title}
-                    description={mod.description}
-                    icon={mod.icon}
-                    color={mod.color}
-                    onClick={() => handleQuickAccessClick(mod.href)}
-                />
-            ))}
-        </div>
+         {!isPrevencionista && (
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 md:gap-6">
+                {quickAccessModules.map((mod) => (
+                    <QuickAccessCard
+                        key={mod.id}
+                        title={mod.title}
+                        description={mod.description}
+                        icon={mod.icon}
+                        color={mod.color}
+                        onClick={() => handleQuickAccessClick(mod.href)}
+                    />
+                ))}
+            </div>
+        )}
 
         {/* Accesos a módulos principales */}
           <div>
