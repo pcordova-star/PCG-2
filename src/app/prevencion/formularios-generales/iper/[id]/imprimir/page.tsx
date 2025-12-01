@@ -6,11 +6,8 @@ import { firebaseDb } from '@/lib/firebaseClient';
 import { IPERRegistro } from '../../../page';
 import { IperPrintSheet } from '../../../components/IperPrintSheet';
 import { Button } from '@/components/ui/button';
+import { Obra } from '@/types/pcg';
 
-type Obra = {
-  id: string;
-  nombreFaena: string;
-};
 
 async function findIperDoc(iperId: string): Promise<{ iper: IPERRegistro; obra: Obra } | null> {
     if (!iperId) return null;
@@ -26,7 +23,7 @@ async function findIperDoc(iperId: string): Promise<{ iper: IPERRegistro; obra: 
         const iperSnap = await getDoc(iperDocRef);
         if (iperSnap.exists()) {
             return {
-                iper: { id: iperSnap.id, ...iperSnap.data() } as IPERRegistro,
+                iper: { id: iperSnap.id, ...iperSnap.data(), correlativo: 1 } as IPERRegistro, // correlativo es dummy
                 obra: { id: obraDoc.id, ...obraDoc.data() } as Obra,
             };
         }

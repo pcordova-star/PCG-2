@@ -2,7 +2,7 @@
 "use client";
 
 import React from "react";
-import { IPERRegistro } from "../page";
+import { IPERRegistro } from "@/types/pcg";
 import { Separator } from "@/components/ui/separator";
 import { Table, TableBody, TableCell, TableHeader, TableRow, TableHead } from "@/components/ui/table";
 
