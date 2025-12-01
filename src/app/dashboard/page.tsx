@@ -25,16 +25,17 @@ import {
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useEffect, useState } from 'react';
-import { collection, getDocs, query, where, doc, getDoc, collectionGroup, limit } from 'firebase/firestore';
+import { collection, getDocs, query, where, doc, getDoc, collectionGroup, limit, orderBy } from 'firebase/firestore';
 import { firebaseDb } from '@/lib/firebaseClient';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useAuth } from '@/context/AuthContext';
-import { Company, Obra } from '@/types/pcg';
+import { Company, Obra, Hallazgo } from '@/types/pcg';
 import { PcgLogo } from '@/components/branding/PcgLogo';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { QuickAccessCard } from '@/components/dashboard/QuickAccessCard';
 import { ObraSelectionModal } from '@/components/dashboard/ObraSelectionModal';
 import { useRouter } from 'next/navigation';
+import { Badge } from '@/components/ui/badge';
 
 type SummaryData = {
   obrasActivas: number | null;
@@ -126,6 +127,7 @@ export default function DashboardPage() {
   const [loading, setLoading] = useState(true);
   const [hasObras, setHasObras] = useState(false);
   const [obras, setObras] = useState<Obra[]>([]);
+  const [muralItems, setMuralItems] = useState<Hallazgo[]>([]);
   const [isObraModalOpen, setIsObraModalOpen] = useState(false);
   const [quickAccessTarget, setQuickAccessTarget] = useState('');
 
@@ -166,9 +168,11 @@ export default function DashboardPage() {
             const obrasList = obrasSnap.docs.map(doc => ({ id: doc.id, ...doc.data() } as Obra));
             setObras(obrasList);
             setHasObras(obrasList.length > 0);
+            const obrasIds = obrasList.map(doc => doc.id);
 
-            // 2. Fetch Summary Data
-            const [obrasActivas, tareasEnProgreso, alertasSeguridad] = await Promise.all([
+
+            // 2. Fetch Summary Data & Mural
+            const [obrasActivas, tareasEnProgreso, alertasSeguridad, muralData] = await Promise.all([
                 // Obras Activas
                 (async () => {
                     return obrasList.filter(o => o.estado === 'Activa').length;
@@ -178,7 +182,6 @@ export default function DashboardPage() {
                     try {
                         if (obrasList.length === 0) return 0;
                 
-                        const obrasIds = obrasList.map(doc => doc.id);
                         const CHUNK_SIZE = 30;
                         let totalTareas = 0;
 
@@ -215,6 +218,26 @@ export default function DashboardPage() {
                         console.warn("Error fetching security alerts:", error);
                         return 0;
                     }
+                })(),
+                // Mural Items (Hallazgos Cerrados)
+                 (async () => {
+                    if (obrasIds.length === 0) return [];
+                    try {
+                        const hallazgosRef = collection(firebaseDb, 'hallazgos');
+                        const qMural = query(
+                            hallazgosRef,
+                            where('obraId', 'in', obrasIds),
+                            where('estado', '==', 'cerrado'),
+                            where('criticidad', 'in', ['media', 'baja']),
+                            orderBy('createdAt', 'desc'),
+                            limit(3)
+                        );
+                        const muralSnap = await getDocs(qMural);
+                        return muralSnap.docs.map(doc => ({id: doc.id, ...doc.data() } as Hallazgo));
+                    } catch (error) {
+                        console.warn("Error fetching mural items:", error);
+                        return [];
+                    }
                 })()
             ]);
             
@@ -223,10 +246,12 @@ export default function DashboardPage() {
               tareasEnProgreso: tareasEnProgreso ?? 0,
               alertasSeguridad: alertasSeguridad ?? 0,
             });
+            setMuralItems(muralData);
 
         } catch (error) {
             console.error("Error fetching dashboard summary data:", error);
             setSummaryData({ obrasActivas: 0, tareasEnProgreso: 0, alertasSeguridad: 0 });
+            setMuralItems([]);
         } finally {
             setLoading(false);
         }
@@ -401,12 +426,37 @@ export default function DashboardPage() {
                     <Newspaper className="h-6 w-6 text-primary"/>
                     <CardTitle>Diario Mural</CardTitle>
                 </div>
-                <CardDescription>Anuncios importantes, actualizaciones y noticias para todo el equipo.</CardDescription>
+                <CardDescription>Últimos hallazgos cerrados, aprendizajes y noticias para todo el equipo.</CardDescription>
             </CardHeader>
             <CardContent>
-                <div className="text-center py-8 bg-muted/50 rounded-lg">
-                    <p className="text-muted-foreground">Próximamente: Aquí verás las últimas noticias y actualizaciones de la plataforma.</p>
-                </div>
+                {loading ? (
+                    <div className="space-y-4">
+                        <Skeleton className="h-10 w-full" />
+                        <Skeleton className="h-10 w-full" />
+                        <Skeleton className="h-10 w-full" />
+                    </div>
+                ) : muralItems.length === 0 ? (
+                    <div className="text-center py-8 bg-muted/50 rounded-lg">
+                        <p className="text-muted-foreground">No hay anuncios o hallazgos recientes para mostrar.</p>
+                    </div>
+                ) : (
+                    <div className="space-y-3">
+                        {muralItems.map(item => (
+                            <div key={item.id} className="flex items-center justify-between p-3 border rounded-lg bg-slate-50">
+                                <div>
+                                    <Badge variant={item.criticidad === 'baja' ? 'default' : 'secondary'}>{item.tipoRiesgo}</Badge>
+                                    <p className="font-medium mt-1">{item.descripcion}</p>
+                                    <p className="text-xs text-muted-foreground">
+                                        Registrado el {item.createdAt?.toDate().toLocaleDateString('es-CL')}
+                                    </p>
+                                </div>
+                                <Badge variant="outline" className="bg-green-100 text-green-800 border-green-200">
+                                    Cerrado
+                                </Badge>
+                            </div>
+                        ))}
+                    </div>
+                )}
             </CardContent>
         </Card>
 
