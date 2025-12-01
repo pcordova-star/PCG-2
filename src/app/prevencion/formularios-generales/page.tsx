@@ -391,7 +391,7 @@ export default function FormulariosGeneralesPrevencionPage() {
         const charlaRef = doc(firebaseDb, "charlas", selectedCharlaId);
         const asistentesActualizados = (charlaSeleccionada?.asistentes || []).map(a => 
             a.nombre === asistenteParaFirmar.nombre 
-                ? { ...a, firmaUrl: downloadURL, firmadoEn: new Date().toISOString() } 
+                ? { ...a, firmaUrl: downloadURL, firmadoEn: new Date().toISOString(), firmadoPorUsuarioId: user?.uid } 
                 : a
         );
         await updateDoc(charlaRef, { asistentes: asistentesActualizados });
@@ -623,7 +623,7 @@ export default function FormulariosGeneralesPrevencionPage() {
                             {charlas.map(charla => (
                                 <div key={charla.id} onClick={() => setSelectedCharlaId(charla.id)} className={cn("p-2 rounded-md cursor-pointer", selectedCharlaId === charla.id && 'bg-accent/20')}>
                                     <p className="font-medium">{charla.titulo}</p>
-                                    <p className="text-xs text-muted-foreground">{charla.fechaCreacion.toDate().toLocaleDateString()}</p>
+                                    {charla.fechaCreacion && <p className="text-xs text-muted-foreground">{charla.fechaCreacion.toDate().toLocaleDateString()}</p>}
                                 </div>
                             ))}
                         </CardContent>
