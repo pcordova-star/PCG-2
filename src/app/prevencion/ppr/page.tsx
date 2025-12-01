@@ -105,9 +105,9 @@ export default function PprPage() {
 
       // Fetch Charlas
       const charlasQuery = query(collection(firebaseDb, "charlas"), where("obraId", "==", selectedObraId));
-      const charlasSnapshot = await getDocs(charlaQuery);
+      const charlasSnapshot = await getDocs(charlasQuery);
       const charlasList = charlasSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Charla));
-      setCharlasData(charlasList);
+      setCharlasData(charlaList);
 
       // Calcular estado del PPR
       const status = calcularPprStatus({ iperRegistros: iperList, charlas: charlasList });
