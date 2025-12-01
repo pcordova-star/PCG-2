@@ -9,6 +9,8 @@ import {
   orderBy,
   onSnapshot,
   addDoc,
+  updateDoc,
+  doc,
   serverTimestamp,
 } from "firebase/firestore";
 import { firebaseDb } from "@/lib/firebaseClient";
@@ -62,7 +64,7 @@ export default function FormulariosGeneralesPrevencionPage() {
   const { companyId, role } = useAuth();
   const { toast } = useToast();
   
-  const [iperFormValues, setIperFormValues] = useState<IperFormValues>(initialIperState);
+  const [iperFormValues, setIperFormValues] = useState<Partial<IPERRegistro>>(initialIperState);
   const [guardandoIper, setGuardandoIper] = useState(false);
   const [iperSeleccionado, setIperSeleccionado] = useState<IPERRegistro | null>(null);
 
@@ -115,7 +117,7 @@ export default function FormulariosGeneralesPrevencionPage() {
     const iperCollectionRef = collection(firebaseDb, "obras", obraSeleccionadaId, "iper");
     const qIper = query(iperCollectionRef, orderBy("createdAt", "desc"));
     const unsubscribeIper = onSnapshot(qIper, (snapshot) => {
-      const iperList = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as IPERRegistro));
+      const iperList = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data(), correlativo: iperList?.length ? iperList.length - (snapshot.docs.indexOf(doc)) : 1 } as IPERRegistro));
       setIperRegistros(iperList);
       setLoading(false);
     }, (error) => {
@@ -138,42 +140,53 @@ export default function FormulariosGeneralesPrevencionPage() {
     }
     setGuardandoIper(true);
     try {
-        const nivel_riesgo_hombre = iperFormValues.probabilidadHombre * iperFormValues.consecuenciaHombre;
-        const nivel_riesgo_mujer = iperFormValues.probabilidadMujer * iperFormValues.consecuenciaMujer;
-        const nivel_riesgo_residual = iperFormValues.probabilidadResidual * iperFormValues.consecuenciaResidual;
+        const iperValues = iperFormValues as IperFormValues;
+        const nivel_riesgo_hombre = iperValues.probabilidadHombre * iperValues.consecuenciaHombre;
+        const nivel_riesgo_mujer = iperValues.probabilidadMujer * iperValues.consecuenciaMujer;
+        const nivel_riesgo_residual = iperValues.probabilidadResidual * iperValues.consecuenciaResidual;
 
         const iperDoc: Omit<IPERRegistro, 'id'> = {
             obraId: obraSeleccionadaId,
-            tarea: iperFormValues.tarea,
-            zona: iperFormValues.zona,
-            peligro: iperFormValues.peligro === 'Otro' ? iperFormValues.peligroOtro || '' : iperFormValues.peligro,
-            riesgo: iperFormValues.riesgo === 'Otro' ? iperFormValues.riesgoOtro || '' : iperFormValues.riesgo,
-            categoriaPeligro: iperFormValues.categoriaPeligro,
-            probabilidad_hombre: iperFormValues.probabilidadHombre,
-            consecuencia_hombre: iperFormValues.consecuenciaHombre,
+            tarea: iperValues.tarea,
+            zona: iperValues.zona,
+            peligro: iperValues.peligro === 'Otro' ? iperValues.peligroOtro || '' : iperValues.peligro,
+            riesgo: iperValues.riesgo === 'Otro' ? iperValues.riesgoOtro || '' : iperValues.riesgo,
+            categoriaPeligro: iperValues.categoriaPeligro,
+            probabilidad_hombre: iperValues.probabilidadHombre,
+            consecuencia_hombre: iperValues.consecuenciaHombre,
             nivel_riesgo_hombre,
-            probabilidad_mujer: iperFormValues.probabilidadMujer,
-            consecuencia_mujer: iperFormValues.consecuenciaMujer,
+            probabilidad_mujer: iperValues.probabilidadMujer,
+            consecuencia_mujer: iperValues.consecuenciaMujer,
             nivel_riesgo_mujer,
-            jerarquiaControl: iperFormValues.jerarquiaControl,
-            control_especifico_genero: iperFormValues.controlEspecificoGenero === 'Otro' ? iperFormValues.controlEspecificoGeneroOtro || '' : iperFormValues.controlEspecificoGenero,
-            responsable: iperFormValues.responsable,
-            plazo: iperFormValues.plazo,
-            estadoControl: iperFormValues.estadoControl,
-            probabilidad_residual: iperFormValues.probabilidadResidual,
-            consecuencia_residual: iperFormValues.consecuenciaResidual,
+            jerarquiaControl: iperValues.jerarquiaControl,
+            control_especifico_genero: iperValues.controlEspecificoGenero === 'Otro' ? iperValues.controlEspecificoGeneroOtro || '' : iperValues.controlEspecificoGenero,
+            responsable: iperValues.responsable,
+            plazo: iperValues.plazo,
+            estadoControl: iperValues.estadoControl,
+            probabilidad_residual: iperValues.probabilidadResidual,
+            consecuencia_residual: iperValues.consecuenciaResidual,
             nivel_riesgo_residual,
-            createdAt: serverTimestamp(),
+            createdAt: iperFormValues.createdAt || serverTimestamp(),
             medidasControlExistentes: '',
             medidasControlPropuestas: '',
             responsableImplementacion: '',
             plazoImplementacion: ''
         };
-        const iperCollectionRef = collection(firebaseDb, "obras", obraSeleccionadaId, "iper");
-        await addDoc(iperCollectionRef, iperDoc);
+        
+        if(iperFormValues.id) {
+            // Actualizar
+            const docRef = doc(firebaseDb, "obras", obraSeleccionadaId, "iper", iperFormValues.id);
+            await updateDoc(docRef, { ...iperDoc, updatedAt: serverTimestamp() });
+            toast({ title: 'Éxito', description: 'Registro IPER actualizado.' });
+        } else {
+            // Crear
+            const iperCollectionRef = collection(firebaseDb, "obras", obraSeleccionadaId, "iper");
+            await addDoc(iperCollectionRef, iperDoc);
+            toast({ title: 'Éxito', description: 'Registro IPER guardado.' });
+        }
 
-        toast({ title: 'Éxito', description: 'Registro IPER guardado correctamente.' });
         setIperFormValues(initialIperState);
+        setIperSeleccionado(null);
 
     } catch (error) {
         console.error("Error guardando IPER:", error);
@@ -234,17 +247,17 @@ export default function FormulariosGeneralesPrevencionPage() {
                  <div className="space-y-6">
                     <Card>
                         <CardHeader>
-                            <CardTitle>Registrar Nuevo IPER con enfoque de género</CardTitle>
+                            <CardTitle>{iperFormValues.id ? "Editando IPER" : "Registrar Nuevo IPER con enfoque de género"}</CardTitle>
                         </CardHeader>
                         <CardContent>
                             <form onSubmit={handleIperSubmit}>
-                                <IperForm value={iperFormValues} onChange={setIperFormValues} />
+                                <IperForm value={iperFormValues as IperFormValues} onChange={setIperFormValues} />
                                 <div className="flex gap-4 mt-6">
                                     <Button type="submit" disabled={guardandoIper}>
-                                        {guardandoIper ? 'Guardando IPER...' : 'Guardar Registro IPER'}
+                                        {guardandoIper ? 'Guardando IPER...' : (iperFormValues.id ? 'Actualizar Registro IPER' : 'Guardar Registro IPER')}
                                     </Button>
-                                    <Button type="button" variant="outline" onClick={() => setIperFormValues(initialIperState)}>
-                                        Limpiar Formulario
+                                    <Button type="button" variant="outline" onClick={() => {setIperFormValues(initialIperState); setIperSeleccionado(null)}}>
+                                        Limpiar / Nuevo
                                     </Button>
                                 </div>
                             </form>
@@ -294,9 +307,15 @@ export default function FormulariosGeneralesPrevencionPage() {
                                 <div><p className="font-semibold">Control Específico Género</p><p className="text-muted-foreground">{iperSeleccionado.control_especifico_genero || "No especificado"}</p></div>
                                 <div><p className="font-semibold">Responsable</p><p className="text-muted-foreground">{iperSeleccionado.responsable || "No asignado"}</p></div>
                                 <div className="flex gap-2">
-                                     <AlertDialog>
+                                     <Button onClick={() => setIperFormValues(iperSeleccionado)}>
+                                        <BookOpen className="mr-2 h-4 w-4"/>Editar IPER
+                                    </Button>
+                                    <Button variant="outline" asChild><Link href={`/prevencion/formularios-generales/iper/${iperSeleccionado.id}/imprimir`} target="_blank"><FileText className="mr-2 h-4 w-4" />Ver Ficha / Imprimir</Link></Button>
+                                </div>
+                                 <div className="pt-2">
+                                      <AlertDialog>
                                         <AlertDialogTrigger asChild>
-                                            <Button><Siren className="mr-2 h-4 w-4"/>Generar Charla de Seguridad</Button>
+                                            <Button variant="secondary" className="w-full"><Siren className="mr-2 h-4 w-4"/>Generar Charla de Seguridad</Button>
                                         </AlertDialogTrigger>
                                         <AlertDialogContent>
                                             <AlertDialogHeader>
@@ -310,7 +329,6 @@ export default function FormulariosGeneralesPrevencionPage() {
                                             </AlertDialogFooter>
                                         </AlertDialogContent>
                                     </AlertDialog>
-                                    <Button variant="outline" asChild><Link href={`/prevencion/formularios-generales/iper/${iperSeleccionado.id}/imprimir`} target="_blank"><FileText className="mr-2 h-4 w-4" />Ver Ficha</Link></Button>
                                 </div>
                             </CardContent>
                         </Card>
