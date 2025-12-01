@@ -129,6 +129,16 @@ export interface IPERRegistro {
   plazoImplementacion: string;
   fecha?: string;
   createdAt?: any;
+  // Campos para compatibilidad con plantillas (pueden ser opcionales)
+  peligroOtro?: string;
+  riesgoOtro?: string;
+  controlEspecificoGeneroOtro?: string;
+  probabilidadHombre?: number;
+  consecuenciaHombre?: number;
+  probabilidadMujer?: number;
+  consecuenciaMujer?: number;
+  probabilidadResidual?: number;
+  consecuenciaResidual?: number;
 };
 
 export type CharlaEstado = "borrador" | "realizada" | "programada" | "cancelada";

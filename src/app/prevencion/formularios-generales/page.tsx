@@ -44,12 +44,14 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
+import { Dialog } from "@/components/ui/dialog";
 import { Input } from '@/components/ui/input';
 import { generarIperPdf } from '@/lib/pdf/generarIperPdf';
 import { CharlaPdfButton } from '../charlas/components/CharlaPdfButton';
 import SignaturePad from '../hallazgos/components/SignaturePad';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { Textarea } from '@/components/ui/textarea';
+import { IperPlantilla, IPER_PLANTILLAS_ELECTRICAS } from '@/lib/iperPlantillasElectricas';
 
 
 // --- Estado inicial para el formulario IPER ---
@@ -117,6 +119,8 @@ export default function FormulariosGeneralesPrevencionPage() {
   const [isSignatureModalOpen, setIsSignatureModalOpen] = useState(false);
   const [asistenteParaFirmar, setAsistenteParaFirmar] = useState<FirmaAsistente | null>(null);
   const [nuevoAsistenteNombre, setNuevoAsistenteNombre] = useState('');
+
+  const [isTemplateModalOpen, setIsTemplateModalOpen] = useState(false);
 
 
   useEffect(() => {
@@ -421,6 +425,17 @@ export default function FormulariosGeneralesPrevencionPage() {
     }
   };
 
+  const handleApplyTemplate = (plantilla: IperPlantilla) => {
+    setIperFormValues(prev => ({
+        ...prev,
+        ...plantilla.valores,
+        id: undefined, // Asegurarse de que no se pise el ID si se estaba editando
+        createdAt: undefined,
+    }));
+    setIsTemplateModalOpen(false);
+    toast({ title: 'Plantilla aplicada', description: `Se han cargado los valores de "${plantilla.nombre}".` });
+  };
+
 
   return (
     <section className="space-y-6">
@@ -448,7 +463,7 @@ export default function FormulariosGeneralesPrevencionPage() {
         <CardContent>
           <div className="max-w-md space-y-2">
             <Label htmlFor="obra-select">Obra Activa</Label>
-            <Select value={obraSeleccionadaId} onValueChange={(value) => setObraSeleccionadaId(value)}>
+            <Select value={obraSeleccionadaId} onValueChange={(value) => {setObraSeleccionadaId(value)}}>
               <SelectTrigger id="obra-select">
                 <SelectValue placeholder="Seleccione una obra..." />
               </SelectTrigger>
@@ -474,10 +489,18 @@ export default function FormulariosGeneralesPrevencionPage() {
                     <Card>
                         <CardHeader>
                             <CardTitle>{iperFormValues.id ? "Editando IPER" : "Registrar Nuevo IPER con enfoque de género"}</CardTitle>
+                            <CardDescription>
+                                Identifique peligros, evalúe riesgos y proponga controles.
+                            </CardDescription>
                         </CardHeader>
                         <CardContent>
                             <form onSubmit={handleIperSubmit}>
-                                <IperForm value={iperFormValues as IperFormValues} onChange={setIperFormValues} />
+                                <div className="mb-4">
+                                     <Button type="button" variant="outline" onClick={() => setIsTemplateModalOpen(true)}>
+                                        Usar IPER prediseñado (eléctrico)
+                                    </Button>
+                                </div>
+                                <IperForm value={iperFormValues as IperFormValues} onChange={(v) => setIperFormValues(v)} />
                                 <div className="flex gap-4 mt-6">
                                     <Button type="submit" disabled={guardandoIper}>
                                         {guardandoIper ? 'Guardando IPER...' : (iperFormValues.id ? 'Actualizar Registro IPER' : 'Guardar Registro IPER')}
@@ -638,9 +661,9 @@ export default function FormulariosGeneralesPrevencionPage() {
                         <CardHeader><CardTitle>Listado de Charlas</CardTitle></CardHeader>
                         <CardContent>
                             {charlas.map(charla => (
-                                <div key={charla.id} className={cn("p-2 rounded-md cursor-pointer flex justify-between items-center", selectedCharlaId === charla.id && 'bg-accent/20')}>
-                                    <div onClick={() => setSelectedCharlaId(charla.id)} className="flex-1">
-                                        <p className="font-medium">{charla.titulo}</p>
+                                <div key={charla.id} className="p-2 rounded-md flex justify-between items-center">
+                                    <div onClick={() => setSelectedCharlaId(charla.id)} className={cn("flex-1 cursor-pointer", selectedCharlaId === charla.id && 'font-bold')}>
+                                        <p>{charla.titulo}</p>
                                         {charla.fechaCreacion && <p className="text-xs text-muted-foreground">{charla.fechaCreacion.toDate().toLocaleDateString('es-CL')}</p>}
                                     </div>
                                     <AlertDialog>
@@ -707,6 +730,28 @@ export default function FormulariosGeneralesPrevencionPage() {
             <SignaturePad onChange={handleGuardarFirma} onClear={() => {}} />
         </AlertDialogContent>
       </AlertDialog>
+
+       <Dialog open={isTemplateModalOpen} onOpenChange={setIsTemplateModalOpen}>
+        <DialogContent className="max-w-2xl">
+            <CardHeader>
+                <CardTitle>Seleccionar Plantilla IPER para Trabajos Eléctricos</CardTitle>
+                <CardDescription>Elija una plantilla para pre-rellenar el formulario con datos estandarizados. Podrá ajustarlos antes de guardar.</CardDescription>
+            </CardHeader>
+            <CardContent className="max-h-[60vh] overflow-y-auto space-y-3">
+                {IPER_PLANTILLAS_ELECTRICAS.map(plantilla => (
+                    <div key={plantilla.id} className="border rounded-lg p-4 hover:bg-muted/50 transition-colors">
+                        <div className="flex justify-between items-center">
+                            <div>
+                                <h4 className="font-semibold">{plantilla.nombre}</h4>
+                                <p className="text-sm text-muted-foreground">{plantilla.descripcion}</p>
+                            </div>
+                            <Button size="sm" onClick={() => handleApplyTemplate(plantilla)}>Aplicar</Button>
+                        </div>
+                    </div>
+                ))}
+            </CardContent>
+        </DialogContent>
+    </Dialog>
     </section>
   );
 }
