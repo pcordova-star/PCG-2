@@ -14,12 +14,13 @@ import {
   serverTimestamp,
   deleteDoc,
   getDoc,
+  getDocs,
 } from "firebase/firestore";
 import { firebaseDb, firebaseStorage } from "@/lib/firebaseClient";
 import { useRouter } from 'next/navigation';
 import { ArrowLeft, BookOpen, FileText, Plus, PlusCircle, Siren, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -347,13 +348,13 @@ export default function FormulariosGeneralesPrevencionPage() {
     try {
       if (charlaForm.id) {
         const docRef = doc(firebaseDb, "charlas", charlaForm.id);
-        await updateDoc(docRef, { ...charlaForm, fechaRealizacion: charlaForm.fechaRealizacion ? new Date(charlaForm.fechaRealizacion) : null });
+        await updateDoc(docRef, { ...charlaForm, fechaRealizacion: charlaForm.fechaRealizacion ? new Date(charlaForm.fechaRealizacion as any) : null });
       } else {
         const docRef = await addDoc(collection(firebaseDb, "charlas"), {
           ...charlaForm,
           obraId: obraSeleccionadaId,
           fechaCreacion: serverTimestamp(),
-          fechaRealizacion: charlaForm.fechaRealizacion ? new Date(charlaForm.fechaRealizacion) : null
+          fechaRealizacion: charlaForm.fechaRealizacion ? new Date(charlaForm.fechaRealizacion as any) : null
         });
         setSelectedCharlaId(docRef.id);
       }
