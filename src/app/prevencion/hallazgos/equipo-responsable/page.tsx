@@ -12,12 +12,14 @@ import { firebaseDb } from '@/lib/firebaseClient';
 import { useToast } from '@/hooks/use-toast';
 import { Obra, MiembroEquipo } from '@/types/pcg';
 import { useAuth } from '@/context/AuthContext';
-import { PlusCircle, Trash2 } from 'lucide-react';
+import { ArrowLeft, PlusCircle, Trash2 } from 'lucide-react';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { useRouter } from 'next/navigation';
 
 const CARGO_OPTIONS: MiembroEquipo['cargo'][] = ["Supervisor", "Administrador de obra", "Prevencionista", "Capataz", "Comité Paritario"];
 
 export default function EquipoResponsablePage() {
+    const router = useRouter();
     const [obras, setObras] = useState<Obra[]>([]);
     const [selectedObraId, setSelectedObraId] = useState<string>('');
     
@@ -111,81 +113,92 @@ export default function EquipoResponsablePage() {
     };
 
     return (
-        <Card>
-            <CardHeader>
-                <CardTitle>Configurar Equipo Responsable por Obra</CardTitle>
-                <CardDescription>Añada o elimine los miembros del equipo que pueden ser asignados como responsables en los formularios de prevención.</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-6">
-                <div className="space-y-2">
-                    <Label>Obra</Label>
-                    <Select value={selectedObraId} onValueChange={setSelectedObraId}>
-                        <SelectTrigger><SelectValue placeholder="Seleccione una obra..." /></SelectTrigger>
-                        <SelectContent>
-                            {obras.map(obra => <SelectItem key={obra.id} value={obra.id}>{obra.nombreFaena}</SelectItem>)}
-                        </SelectContent>
-                    </Select>
+        <div className="space-y-6">
+            <header className="flex items-center gap-4">
+                <Button variant="outline" size="icon" onClick={() => router.push('/prevencion')}>
+                    <ArrowLeft className="h-4 w-4" />
+                </Button>
+                <div>
+                    <h1 className="text-2xl font-bold">Configurar Equipo Responsable por Obra</h1>
+                    <p className="text-muted-foreground">Añada o elimine los miembros del equipo que pueden ser asignados como responsables en los formularios de prevención.</p>
                 </div>
-                
-                {selectedObraId && (
-                    <div className="space-y-6 pt-4 border-t">
-                        {/* Formulario para agregar nuevo miembro */}
-                        <div className="space-y-2">
-                            <h3 className="text-lg font-semibold">Agregar Nuevo Miembro</h3>
-                             <div className="flex flex-col sm:flex-row gap-4 sm:items-end">
-                                <div className="space-y-1 flex-1">
-                                    <Label htmlFor="nuevo-nombre">Nombre Completo</Label>
-                                    <Input id="nuevo-nombre" value={nuevoNombre} onChange={e => setNuevoNombre(e.target.value)} />
-                                </div>
-                                <div className="space-y-1">
-                                    <Label htmlFor="nuevo-cargo">Cargo</Label>
-                                    <Select value={nuevoCargo} onValueChange={v => setNuevoCargo(v as MiembroEquipo['cargo'])}>
-                                        <SelectTrigger id="nuevo-cargo" className="w-[220px]"><SelectValue /></SelectTrigger>
-                                        <SelectContent>
-                                            {CARGO_OPTIONS.map(cargo => <SelectItem key={cargo} value={cargo}>{cargo}</SelectItem>)}
-                                        </SelectContent>
-                                    </Select>
-                                </div>
-                                <Button onClick={handleAddMember}><PlusCircle className="mr-2 h-4 w-4" /> Agregar</Button>
-                            </div>
-                        </div>
-                        
-                        {/* Tabla de miembros actuales */}
-                        <div className="space-y-2">
-                             <h3 className="text-lg font-semibold">Equipo Actual</h3>
-                             {loading ? <p>Cargando equipo...</p> : 
-                                equipo.length === 0 ? <p className="text-sm text-muted-foreground">No hay miembros en el equipo para esta obra.</p> : (
-                                <div className="border rounded-md">
-                                    <Table>
-                                        <TableHeader>
-                                            <TableRow>
-                                                <TableHead>Nombre</TableHead>
-                                                <TableHead>Cargo</TableHead>
-                                                <TableHead className="text-right">Acciones</TableHead>
-                                            </TableRow>
-                                        </TableHeader>
-                                        <TableBody>
-                                            {equipo.map(member => (
-                                                <TableRow key={member.id}>
-                                                    <TableCell className="font-medium">{member.nombre}</TableCell>
-                                                    <TableCell>{member.cargo}</TableCell>
-                                                    <TableCell className="text-right">
-                                                        <Button variant="ghost" size="icon" onClick={() => handleRemoveMember(member.id)}>
-                                                            <Trash2 className="h-4 w-4 text-destructive" />
-                                                        </Button>
-                                                    </TableCell>
-                                                </TableRow>
-                                            ))}
-                                        </TableBody>
-                                    </Table>
-                                </div>
-                             )}
-                        </div>
+            </header>
 
-                        <Button onClick={handleSave} disabled={loading}>{loading ? 'Guardando...' : 'Guardar Equipo'}</Button>
+            <Card>
+                <CardHeader>
+                    <CardTitle>Gestión de Equipo</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-6">
+                    <div className="space-y-2">
+                        <Label>Obra</Label>
+                        <Select value={selectedObraId} onValueChange={setSelectedObraId}>
+                            <SelectTrigger><SelectValue placeholder="Seleccione una obra..." /></SelectTrigger>
+                            <SelectContent>
+                                {obras.map(obra => <SelectItem key={obra.id} value={obra.id}>{obra.nombreFaena}</SelectItem>)}
+                            </SelectContent>
+                        </Select>
                     </div>
-                )}
-            </CardContent>
-        </Card>
+                    
+                    {selectedObraId && (
+                        <div className="space-y-6 pt-4 border-t">
+                            {/* Formulario para agregar nuevo miembro */}
+                            <div className="space-y-2">
+                                <h3 className="text-lg font-semibold">Agregar Nuevo Miembro</h3>
+                                <div className="flex flex-col sm:flex-row gap-4 sm:items-end">
+                                    <div className="space-y-1 flex-1">
+                                        <Label htmlFor="nuevo-nombre">Nombre Completo</Label>
+                                        <Input id="nuevo-nombre" value={nuevoNombre} onChange={e => setNuevoNombre(e.target.value)} />
+                                    </div>
+                                    <div className="space-y-1">
+                                        <Label htmlFor="nuevo-cargo">Cargo</Label>
+                                        <Select value={nuevoCargo} onValueChange={v => setNuevoCargo(v as MiembroEquipo['cargo'])}>
+                                            <SelectTrigger id="nuevo-cargo" className="w-[220px]"><SelectValue /></SelectTrigger>
+                                            <SelectContent>
+                                                {CARGO_OPTIONS.map(cargo => <SelectItem key={cargo} value={cargo}>{cargo}</SelectItem>)}
+                                            </SelectContent>
+                                        </Select>
+                                    </div>
+                                    <Button onClick={handleAddMember}><PlusCircle className="mr-2 h-4 w-4" /> Agregar</Button>
+                                </div>
+                            </div>
+                            
+                            {/* Tabla de miembros actuales */}
+                            <div className="space-y-2">
+                                <h3 className="text-lg font-semibold">Equipo Actual</h3>
+                                {loading ? <p>Cargando equipo...</p> : 
+                                    equipo.length === 0 ? <p className="text-sm text-muted-foreground">No hay miembros en el equipo para esta obra.</p> : (
+                                    <div className="border rounded-md">
+                                        <Table>
+                                            <TableHeader>
+                                                <TableRow>
+                                                    <TableHead>Nombre</TableHead>
+                                                    <TableHead>Cargo</TableHead>
+                                                    <TableHead className="text-right">Acciones</TableHead>
+                                                </TableRow>
+                                            </TableHeader>
+                                            <TableBody>
+                                                {equipo.map(member => (
+                                                    <TableRow key={member.id}>
+                                                        <TableCell className="font-medium">{member.nombre}</TableCell>
+                                                        <TableCell>{member.cargo}</TableCell>
+                                                        <TableCell className="text-right">
+                                                            <Button variant="ghost" size="icon" onClick={() => handleRemoveMember(member.id)}>
+                                                                <Trash2 className="h-4 w-4 text-destructive" />
+                                                            </Button>
+                                                        </TableCell>
+                                                    </TableRow>
+                                                ))}
+                                            </TableBody>
+                                        </Table>
+                                    </div>
+                                )}
+                            </div>
+
+                            <Button onClick={handleSave} disabled={loading}>{loading ? 'Guardando...' : 'Guardar Equipo'}</Button>
+                        </div>
+                    )}
+                </CardContent>
+            </Card>
+        </div>
     );
 }
