@@ -16,6 +16,7 @@ interface Props {
 async function getBase64ImageFromUrl(imageUrl: string): Promise<string> {
     try {
         const response = await fetch(imageUrl);
+        if (!response.ok) throw new Error(`Network response was not ok: ${response.statusText}`);
         const blob = await response.blob();
         return new Promise((resolve, reject) => {
             const reader = new FileReader();
@@ -78,13 +79,32 @@ async function generarActaDeCharla(charla: Charla, obra?: Obra | null) {
   cursorY += 10;
   
   if (charla.asistentes && charla.asistentes.length > 0) {
-    const tableBody = charla.asistentes.map(asistente => [
-      asistente.nombre,
-      asistente.rut || '-',
-      asistente.cargo || '-',
-      asistente.firmadoEn ? new Date(asistente.firmadoEn).toLocaleString('es-CL') : 'Sin firma',
-      '' // Placeholder for signature
-    ]);
+    const tableBodyPromises = charla.asistentes.map(async (asistente) => {
+        let firmaContent: any = 'Sin firma';
+        if (asistente.firmaUrl) {
+            try {
+                const imgData = await getBase64ImageFromUrl(asistente.firmaUrl);
+                if(imgData) {
+                    firmaContent = { image: imgData, width: 30, height: 10 };
+                } else {
+                    firmaContent = 'Error al cargar firma';
+                }
+            } catch(e) {
+                console.error("Error al procesar firma", e);
+                firmaContent = 'Error de imagen';
+            }
+        }
+        
+        return [
+            asistente.nombre,
+            asistente.rut || '-',
+            asistente.cargo || '-',
+            asistente.firmadoEn ? new Date(asistente.firmadoEn).toLocaleString('es-CL') : 'N/A',
+            firmaContent
+        ];
+    });
+
+    const tableBody = await Promise.all(tableBodyPromises);
 
     autoTable(doc, {
       startY: cursorY,
@@ -92,20 +112,11 @@ async function generarActaDeCharla(charla: Charla, obra?: Obra | null) {
       body: tableBody,
       theme: 'grid',
       headStyles: { fillColor: [240, 240, 240], textColor: 20 },
-      didDrawCell: async (data) => {
-        if (data.column.index === 4 && data.row.index < charla.asistentes!.length) {
-            const asistente = charla.asistentes![data.row.index];
-            if(asistente.firmaUrl) {
-                try {
-                    const imgData = await getBase64ImageFromUrl(asistente.firmaUrl);
-                    if (imgData) {
-                        doc.addImage(imgData, 'PNG', data.cell.x + 2, data.cell.y + 2, 30, 10);
-                    }
-                } catch(e) {
-                    console.log("Error al cargar firma en PDF", e);
-                }
-            }
-        }
+      didDrawCell: (data) => {
+        // La lógica de `didDrawCell` es compleja con async, es mejor preparar la data antes
+      },
+      columnStyles: {
+          4: { minCellHeight: 15, halign: 'center', valign: 'middle' }
       }
     });
 

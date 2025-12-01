@@ -18,8 +18,13 @@ export default function SignaturePad({ onChange, onClear }: SignaturePadProps) {
   useEffect(() => {
     const canvas = canvasRef.current;
     if (canvas) {
+      // Ajustar para pantallas de alta densidad (Retina)
+      const ratio = Math.max(window.devicePixelRatio || 1, 1);
+      canvas.width = canvas.offsetWidth * ratio;
+      canvas.height = canvas.offsetHeight * ratio;
       const ctx = canvas.getContext('2d');
       if (ctx) {
+        ctx.scale(ratio, ratio);
         ctx.fillStyle = "#ffffff";
         ctx.fillRect(0, 0, canvas.width, canvas.height);
       }
@@ -64,7 +69,9 @@ export default function SignaturePad({ onChange, onClear }: SignaturePadProps) {
   const handleClear = () => {
     const canvas = canvasRef.current!;
     const ctx = canvas.getContext('2d')!;
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    ctx.clearRect(0, 0, canvas.width, canvas.height); // Correcto para borrar
+    // No es necesario rellenar de blanco si el fondo del canvas ya es blanco
+    // Pero si el fondo CSS es diferente, esto es importante:
     ctx.fillStyle = "#ffffff";
     ctx.fillRect(0, 0, canvas.width, canvas.height);
     onClear();
@@ -74,9 +81,7 @@ export default function SignaturePad({ onChange, onClear }: SignaturePadProps) {
     <div className="space-y-2">
       <canvas
         ref={canvasRef}
-        width={400}
-        height={160}
-        className="w-full max-w-full rounded-md border bg-white touch-none"
+        className="w-full h-40 rounded-md border bg-white touch-none"
         onMouseDown={startDrawing}
         onMouseMove={draw}
         onMouseUp={stopDrawing}
