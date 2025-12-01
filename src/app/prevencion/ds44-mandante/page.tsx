@@ -10,10 +10,11 @@ import { Textarea } from '@/components/ui/textarea';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Separator } from '@/components/ui/separator';
 import { firebaseDb } from '@/lib/firebaseClient';
-import { doc, getDoc, setDoc, serverTimestamp, Timestamp, collection, getDocs, onSnapshot } from 'firebase/firestore';
+import { doc, getDoc, setDoc, serverTimestamp, Timestamp, collection, getDocs, onSnapshot, query, where } from 'firebase/firestore';
 import Link from 'next/link';
 import { ArrowLeft } from 'lucide-react';
 import { useRouter } from 'next/navigation';
+import { useAuth } from '@/context/AuthContext';
 
 type Obra = {
   id: string;
@@ -53,6 +54,7 @@ type FichaDs44MandanteObra = {
 
 export default function DS44MandanteObraPage() {
   const router = useRouter();
+  const { user, companyId, role } = useAuth();
   const [obras, setObras] = useState<Obra[]>([]);
   const [obraSeleccionadaId, setObraSeleccionadaId] = useState<string>("");
   
@@ -67,7 +69,17 @@ export default function DS44MandanteObraPage() {
   const obraId = obraSeleccionadaId;
 
   useEffect(() => {
-    const unsub = onSnapshot(collection(firebaseDb, "obras"), (snapshot) => {
+    if (!user || (!companyId && role !== 'superadmin')) return;
+
+    let q;
+    const obrasRef = collection(firebaseDb, "obras");
+    if (role === 'superadmin') {
+        q = query(obrasRef);
+    } else {
+        q = query(obrasRef, where("empresaId", "==", companyId));
+    }
+    
+    const unsub = onSnapshot(q, (snapshot) => {
       const data: Obra[] = snapshot.docs.map(doc => ({
         id: doc.id,
         nombreFaena: doc.data().nombreFaena ?? "",
@@ -84,7 +96,7 @@ export default function DS44MandanteObraPage() {
       setError("No se pudieron cargar las obras desde Firestore.");
     });
     return () => unsub();
-  }, []);
+  }, [user, companyId, role]);
 
   useEffect(() => {
     const cargarFicha = async () => {
@@ -211,10 +223,10 @@ export default function DS44MandanteObraPage() {
     }
   };
 
-  if (!obras.length) {
+  if (!obras.length && role !== 'superadmin' && !companyId) {
       return (
           <div className="text-center p-8 text-muted-foreground">
-              Cargando obras...
+              Cargando...
           </div>
       );
   }
