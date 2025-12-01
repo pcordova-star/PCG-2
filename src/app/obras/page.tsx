@@ -13,7 +13,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Edit, Trash2, PlusCircle, Link as LinkIcon, DollarSign } from "lucide-react";
+import { Edit, Trash2, PlusCircle, Link as LinkIcon, DollarSign, ArrowLeft } from "lucide-react";
 import Link from "next/link";
 import { useToast } from "@/hooks/use-toast";
 
@@ -250,6 +250,10 @@ export default function ObrasPage() {
 
   return (
     <section className="space-y-6">
+       <Button asChild variant="outline" size="sm">
+          <Link href="/dashboard"><ArrowLeft className="mr-2 h-4 w-4" />Volver al Dashboard</Link>
+      </Button>
+
       <header className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
         <div className="space-y-1">
           <h2 className="text-2xl font-semibold">Gestión de Obras</h2>
