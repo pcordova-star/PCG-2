@@ -26,7 +26,7 @@ export function PprSection3Organizacion({ obra }: Props) {
               Mandante
             </h3>
             <p className="text-sm font-medium text-gray-800">
-              {obra?.mandanteRazonSocial ?? "Mandante principal de la obra"}
+              {obra?.mandanteRazonSocial || "Mandante principal no especificado"}
             </p>
           </div>
 
@@ -35,22 +35,31 @@ export function PprSection3Organizacion({ obra }: Props) {
               Empresa Contratista
             </h3>
             <p className="text-sm font-medium text-gray-800">
-              {obra?.empresa?.nombre ?? "Empresa contratista principal"}
+              {obra?.empresa?.nombre || "Constructora PCG (empresa principal)"}
+            </p>
+          </div>
+          
+           <div className="border rounded-xl p-3 bg-white">
+            <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1.5">
+              Jefe de Obra / Administrador de Contrato
+            </h3>
+            <p className="text-sm font-medium text-gray-800">
+              {obra?.jefeObraNombre || "No especificado"}
+            </p>
+            <p className="mt-1.5 text-xs text-gray-500">
+             Máximo responsable de la gestión de la obra, incluyendo la asignación de recursos para la seguridad.
             </p>
           </div>
 
-          <div className="border rounded-xl p-3 bg-white md:col-span-2">
+          <div className="border rounded-xl p-3 bg-white">
             <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1.5">
               Prevencionista Responsable
             </h3>
             <p className="text-sm font-medium text-gray-800">
-              {obra?.prevencionistaNombre ??
-                "Nombre del profesional responsable del Programa de Prevención de Riesgos en la obra."}
+              {obra?.prevencionistaNombre || "No especificado"}
             </p>
             <p className="mt-1.5 text-xs text-gray-500">
-              Encargado de coordinar la implementación del Programa de
-              Prevención de Riesgos, la IPER, las charlas de seguridad y la
-              supervisión de las medidas de control.
+              Encargado de coordinar la implementación del PPR, la IPER y la supervisión de las medidas de control.
             </p>
           </div>
         </div>
