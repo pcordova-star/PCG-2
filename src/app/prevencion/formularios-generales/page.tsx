@@ -1,3 +1,4 @@
+
 // src/app/prevencion/formularios-generales/page.tsx
 "use client";
 
@@ -44,7 +45,7 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
 import { Input } from '@/components/ui/input';
 import { generarIperPdf } from '@/lib/pdf/generarIperPdf';
 import { CharlaPdfButton } from '../charlas/components/CharlaPdfButton';
@@ -187,8 +188,8 @@ export default function FormulariosGeneralesPrevencionPage() {
     
     const qCharlas = query(collection(firebaseDb, "charlas"), where("obraId", "==", obraSeleccionadaId), orderBy("fechaCreacion", "desc"));
     unsubscribes.push(onSnapshot(qCharlas, (snapshot) => {
-        const charlasList = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Charla));
-        setCharlas(charlasList);
+        const charlaList = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Charla));
+        setCharlas(charlaList);
     }));
 
 
@@ -815,39 +816,39 @@ export default function FormulariosGeneralesPrevencionPage() {
       </AlertDialog>
 
         <Dialog open={isTemplateModalOpen} onOpenChange={setIsTemplateModalOpen}>
-          <DialogContent className="max-w-2xl bg-slate-50">
-              <DialogHeader>
-                  <DialogTitle className="text-xl font-semibold">Seleccionar Plantilla IPER para Trabajos Eléctricos</DialogTitle>
-                  <DialogDescription className="text-sm text-muted-foreground">
-                      Elija una plantilla para pre-rellenar el formulario con datos estandarizados. Podrá ajustarlos antes de guardar.
-                  </DialogDescription>
-              </DialogHeader>
-              <div className="py-4 space-y-3 max-h-[60vh] overflow-y-auto">
-                  {IPER_PLANTILLAS_ELECTRICAS.map(plantilla => (
-                      <div 
-                          key={plantilla.id} 
-                          className="border-l-4 border-blue-500 rounded-r-lg bg-white p-4 shadow-sm hover:shadow-lg hover:-translate-y-1 transition-all duration-150 cursor-pointer flex justify-between items-center gap-4"
-                          onClick={() => handleApplyTemplate(plantilla)}
-                      >
-                          <div className="flex items-start gap-4">
-                              <div className="p-2 bg-blue-100 rounded-full mt-1">
-                                  <Zap className="h-5 w-5 text-blue-600"/>
-                              </div>
-                              <div>
-                                  <h4 className="font-semibold text-base">{plantilla.nombre}</h4>
-                                  <p className="text-xs text-muted-foreground mt-1">{plantilla.descripcion}</p>
-                              </div>
+        <DialogContent className="max-w-2xl bg-slate-50">
+          <DialogHeader>
+              <DialogTitle className="text-xl font-semibold">Seleccionar Plantilla IPER para Trabajos Eléctricos</DialogTitle>
+              <DialogDescription className="text-sm text-muted-foreground">
+                  Elija una plantilla para pre-rellenar el formulario con datos estandarizados. Podrá ajustarlos antes de guardar.
+              </DialogDescription>
+          </DialogHeader>
+          <div className="py-4 space-y-3 max-h-[60vh] overflow-y-auto">
+              {IPER_PLANTILLAS_ELECTRICAS.map(plantilla => (
+                  <div 
+                      key={plantilla.id} 
+                      className="border-l-4 border-blue-500 rounded-r-lg bg-white p-4 shadow-sm hover:shadow-lg hover:-translate-y-1 transition-all duration-150 cursor-pointer flex justify-between items-center gap-4"
+                      onClick={() => handleApplyTemplate(plantilla)}
+                  >
+                      <div className="flex items-start gap-4">
+                          <div className="p-2 bg-blue-100 rounded-full mt-1">
+                              <Zap className="h-5 w-5 text-blue-600"/>
                           </div>
-                          <Button 
-                              className="px-5 py-2 text-sm font-semibold flex-shrink-0"
-                              onClick={(e) => { e.stopPropagation(); handleApplyTemplate(plantilla); }}
-                          >
-                              Aplicar
-                          </Button>
+                          <div>
+                              <h4 className="font-semibold text-base">{plantilla.nombre}</h4>
+                              <p className="text-xs text-muted-foreground mt-1">{plantilla.descripcion}</p>
+                          </div>
                       </div>
-                  ))}
-              </div>
-          </DialogContent>
+                      <Button 
+                          className="px-5 py-2 text-sm font-semibold flex-shrink-0"
+                          onClick={(e) => { e.stopPropagation(); handleApplyTemplate(plantilla); }}
+                      >
+                          Aplicar
+                      </Button>
+                  </div>
+              ))}
+          </div>
+        </DialogContent>
       </Dialog>
     </section>
   );
