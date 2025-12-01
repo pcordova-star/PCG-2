@@ -15,7 +15,7 @@ import {
   deleteDoc,
   getDoc,
 } from "firebase/firestore";
-import { firebaseDb } from "@/lib/firebaseClient";
+import { firebaseDb, firebaseStorage } from "@/lib/firebaseClient";
 import { useRouter } from 'next/navigation';
 import { ArrowLeft, BookOpen, FileText, Plus, PlusCircle, Siren, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -48,7 +48,6 @@ import { generarIperPdf } from '@/lib/pdf/generarIperPdf';
 import { CharlaPdfButton } from '../charlas/components/CharlaPdfButton';
 import SignaturePad from '../hallazgos/components/SignaturePad';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
-import { firebaseStorage } from '@/lib/firebaseClient';
 import { Textarea } from '@/components/ui/textarea';
 
 
@@ -179,7 +178,7 @@ export default function FormulariosGeneralesPrevencionPage() {
     const qCharlas = query(collection(firebaseDb, "charlas"), where("obraId", "==", obraSeleccionadaId), orderBy("fechaCreacion", "desc"));
     unsubscribes.push(onSnapshot(qCharlas, (snapshot) => {
         const charlasList = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Charla));
-        setCharlas(charlaList);
+        setCharlas(charlasList);
     }));
 
 
