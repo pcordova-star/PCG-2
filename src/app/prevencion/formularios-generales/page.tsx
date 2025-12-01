@@ -18,7 +18,7 @@ import {
 } from "firebase/firestore";
 import { firebaseDb, firebaseStorage } from "../../../lib/firebaseClient";
 import { useRouter } from 'next/navigation';
-import { ArrowLeft, BookOpen, FileText, Plus, PlusCircle, Siren, Trash2 } from 'lucide-react';
+import { ArrowLeft, BookOpen, FileText, Plus, PlusCircle, Siren, Trash2, Edit } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
@@ -123,6 +123,10 @@ export default function FormulariosGeneralesPrevencionPage() {
 
   const [isTemplateModalOpen, setIsTemplateModalOpen] = useState(false);
 
+  // Estado para edición de asistentes
+  const [editingAsistenteIndex, setEditingAsistenteIndex] = useState<number | null>(null);
+  const [editingAsistenteData, setEditingAsistenteData] = useState<FirmaAsistente | null>(null);
+
 
   useEffect(() => {
     if (!companyId && role !== 'superadmin') return;
@@ -183,8 +187,8 @@ export default function FormulariosGeneralesPrevencionPage() {
     
     const qCharlas = query(collection(firebaseDb, "charlas"), where("obraId", "==", obraSeleccionadaId), orderBy("fechaCreacion", "desc"));
     unsubscribes.push(onSnapshot(qCharlas, (snapshot) => {
-        const charlaList = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Charla));
-        setCharlas(charlaList);
+        const charlasList = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Charla));
+        setCharlas(charlasList);
     }));
 
 
@@ -379,10 +383,15 @@ export default function FormulariosGeneralesPrevencionPage() {
   };
   
   const formatRut = (rut: string): string => {
+    if (!rut) return "";
     let cleanRut = rut.replace(/[^0-9kK]/g, '');
     if (cleanRut.length === 0) return '';
+    
     let cuerpo = cleanRut.slice(0, -1);
     let dv = cleanRut.slice(-1).toUpperCase();
+    
+    if (cuerpo.length === 0) return dv;
+
     cuerpo = cuerpo.replace(/\B(?=(\d{3})+(?!\d))/g, ".");
     return `${cuerpo}-${dv}`;
   };
@@ -398,6 +407,32 @@ export default function FormulariosGeneralesPrevencionPage() {
     await updateDoc(charlaRef, { asistentes: [...asistentesActuales, nuevoAsistente] });
     setNuevoAsistenteNombre('');
     setNuevoAsistenteRut('');
+  };
+
+  const handleUpdateAsistente = async () => {
+    if (!selectedCharlaId || !editingAsistenteData || editingAsistenteIndex === null) return;
+    
+    const asistentesActualizados = [...(charlaSeleccionada?.asistentes || [])];
+    asistentesActualizados[editingAsistenteIndex] = {
+        ...asistentesActualizados[editingAsistenteIndex],
+        nombre: editingAsistenteData.nombre,
+        rut: formatRut(editingAsistenteData.rut)
+    };
+
+    const charlaRef = doc(firebaseDb, "charlas", selectedCharlaId);
+    await updateDoc(charlaRef, { asistentes: asistentesActualizados });
+
+    setEditingAsistenteIndex(null);
+    setEditingAsistenteData(null);
+    toast({ title: 'Asistente actualizado' });
+  };
+  
+  const handleRemoveAsistente = async (indexToRemove: number) => {
+    if (!selectedCharlaId) return;
+    const asistentesActualizados = (charlaSeleccionada?.asistentes || []).filter((_, index) => index !== indexToRemove);
+    const charlaRef = doc(firebaseDb, "charlas", selectedCharlaId);
+    await updateDoc(charlaRef, { asistentes: asistentesActualizados });
+    toast({ title: 'Asistente eliminado' });
   };
   
   const handleGuardarFirma = async (firmaUrl: string | null) => {
@@ -712,17 +747,46 @@ export default function FormulariosGeneralesPrevencionPage() {
                            <div className="space-y-2 mb-4">
                                 {(charlaSeleccionada.asistentes || []).map((asistente, i) => (
                                     <div key={i} className="flex justify-between items-center text-sm p-2 rounded-md bg-muted/50">
-                                        <div>
-                                            <p className="font-medium">{asistente.nombre}</p>
-                                            <p className="text-xs text-muted-foreground">{asistente.rut}</p>
-                                        </div>
-                                        {asistente.firmaUrl ? <Badge>Firmado</Badge> : <Button size="sm" variant="outline" onClick={() => { setAsistenteParaFirmar(asistente); setIsSignatureModalOpen(true);}}>Firmar</Button>}
+                                        {editingAsistenteIndex === i ? (
+                                            <div className="flex gap-2 items-center flex-1">
+                                                <Input value={editingAsistenteData?.nombre || ''} onChange={e => setEditingAsistenteData(p => ({...p!, nombre: e.target.value}))} className="h-8"/>
+                                                <Input value={editingAsistenteData?.rut || ''} onChange={e => setEditingAsistenteData(p => ({...p!, rut: formatRut(e.target.value)}))} className="h-8 w-28"/>
+                                                <Button size="sm" onClick={handleUpdateAsistente}>Guardar</Button>
+                                                <Button size="sm" variant="ghost" onClick={() => setEditingAsistenteIndex(null)}>Cancelar</Button>
+                                            </div>
+                                        ) : (
+                                            <>
+                                                <div>
+                                                    <p className="font-medium">{asistente.nombre}</p>
+                                                    <p className="text-xs text-muted-foreground">{asistente.rut}</p>
+                                                </div>
+                                                <div className="flex items-center gap-1">
+                                                    {asistente.firmaUrl ? <Badge>Firmado</Badge> : <Button size="sm" variant="outline" onClick={() => { setAsistenteParaFirmar(asistente); setIsSignatureModalOpen(true);}}>Firmar</Button>}
+                                                    <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => {setEditingAsistenteIndex(i); setEditingAsistenteData(asistente);}}><Edit className="h-4 w-4"/></Button>
+                                                     <AlertDialog>
+                                                        <AlertDialogTrigger asChild>
+                                                            <Button variant="ghost" size="icon" className="text-destructive h-8 w-8"><Trash2 className="h-4 w-4"/></Button>
+                                                        </AlertDialogTrigger>
+                                                        <AlertDialogContent>
+                                                            <AlertDialogHeader>
+                                                                <AlertDialogTitle>¿Eliminar Asistente?</AlertDialogTitle>
+                                                                <AlertDialogDescription>Se eliminará a {asistente.nombre} de la lista.</AlertDialogDescription>
+                                                            </AlertDialogHeader>
+                                                            <AlertDialogFooter>
+                                                                <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                                                                <AlertDialogAction onClick={() => handleRemoveAsistente(i)} className="bg-destructive hover:bg-destructive/90">Eliminar</AlertDialogAction>
+                                                            </AlertDialogFooter>
+                                                        </AlertDialogContent>
+                                                    </AlertDialog>
+                                                </div>
+                                            </>
+                                        )}
                                     </div>
                                 ))}
                            </div>
                            <div className="flex gap-2">
                             <Input value={nuevoAsistenteNombre} onChange={e => setNuevoAsistenteNombre(e.target.value)} placeholder="Nombre del asistente"/>
-                            <Input value={nuevoAsistenteRut} onChange={e => setNuevoAsistenteRut(e.target.value)} placeholder="RUT del asistente"/>
+                            <Input value={nuevoAsistenteRut} onChange={e => setNuevoAsistenteRut(formatRut(e.target.value))} placeholder="RUT del asistente"/>
                             <Button onClick={handleAgregarAsistente}><Plus size={16}/> Agregar</Button>
                            </div>
                         </CardContent>
