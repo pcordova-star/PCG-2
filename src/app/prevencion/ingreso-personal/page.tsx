@@ -38,6 +38,7 @@ type Obra = {
 // Se importa desde el otro módulo para consistencia
 import { EmpresaContratista, TipoEmpresaPrevencion } from '../empresas-contratistas/page';
 import { useRouter } from 'next/navigation';
+import { useAuth } from '@/context/AuthContext';
 
 
 type TipoRelacionPersonal = "Empresa" | "Subcontrato";
@@ -228,6 +229,7 @@ export default function IngresoPersonalPage() {
   const [trabajadorSeleccionadoId, setTrabajadorSeleccionadoId] = useState<string | null>(null);
   const [pasoActivo, setPasoActivo] = useState<PasoDS44>(null);
   const router = useRouter();
+  const { user, companyId, role } = useAuth();
   
   // Lista de empresas contratistas cargadas desde Firestore
   const [empresasContratistas, setEmpresasContratistas] = useState<EmpresaContratista[]>([]);
@@ -266,10 +268,18 @@ export default function IngresoPersonalPage() {
   const [errorCharla, setErrorCharla] = useState<string | null>(null);
 
   useEffect(() => {
+    if (!companyId && role !== 'superadmin') return;
+
     const fetchObras = async () => {
       setLoadingObras(true);
       try {
-        const q = query(collection(firebaseDb, "obras"), orderBy("nombreFaena", "asc"));
+        let q;
+        if (role === 'superadmin') {
+            q = query(collection(firebaseDb, "obras"), orderBy("nombreFaena", "asc"));
+        } else {
+            q = query(collection(firebaseDb, "obras"), where("empresaId", "==", companyId), orderBy("nombreFaena", "asc"));
+        }
+        
         const querySnapshot = await getDocs(q);
         const obrasData = querySnapshot.docs.map(doc => ({ 
             id: doc.id, 
@@ -289,7 +299,7 @@ export default function IngresoPersonalPage() {
       }
     };
     fetchObras();
-  }, []);
+  }, [companyId, role]);
 
   useEffect(() => {
     if (!obraSeleccionadaId) return;
