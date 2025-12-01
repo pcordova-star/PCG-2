@@ -383,7 +383,15 @@ export default function DashboardPage() {
         </header>
 
         {/* --- ACCESOS RÁPIDOS --- */}
-         {!isPrevencionista && (
+         {isPrevencionista ? (
+             <QuickAccessCard
+                  title="Hallazgo de seguridad"
+                  description="Registrar condición insegura en terreno"
+                  icon={Siren}
+                  color="orange"
+                  onClick={() => handleQuickAccessClick('/prevencion/hallazgos/crear')}
+              />
+         ) : (
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 md:gap-6">
                 {quickAccessModules.map((mod) => (
                     <QuickAccessCard
@@ -404,17 +412,6 @@ export default function DashboardPage() {
               <TooltipProvider delayDuration={100}>
                   <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4 md:gap-6">
                       {mainModules.map((mod) => renderModuleCard(mod))}
-                      
-                      {/* Para prevencionistas, la tarjeta de acceso rápido a hallazgos se muestra aquí */}
-                      {isPrevencionista && (
-                         <QuickAccessCard
-                              title="Hallazgo de seguridad"
-                              description="Registrar condición insegura en terreno"
-                              icon={Siren}
-                              color="orange"
-                              onClick={() => handleQuickAccessClick('/prevencion/hallazgos/crear')}
-                          />
-                      )}
                   </div>
               </TooltipProvider>
           </div>
