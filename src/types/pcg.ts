@@ -139,6 +139,13 @@ export interface IPERRegistro {
   consecuenciaMujer?: number;
   probabilidadResidual?: number;
   consecuenciaResidual?: number;
+  // Campos de firma del prevencionista
+  firmaPrevencionistaUrl?: string;
+  firmaPrevencionistaNombre?: string;
+  firmaPrevencionistaRut?: string;
+  firmaPrevencionistaCargo?: string;
+  firmaPrevencionistaFecha?: string; // ISO String
+  firmaPrevencionistaUserId?: string;
 };
 
 export type CharlaEstado = "borrador" | "realizada" | "programada" | "cancelada";
