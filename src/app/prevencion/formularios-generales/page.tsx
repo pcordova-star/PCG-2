@@ -1,5 +1,4 @@
 
-
 // src/app/prevencion/formularios-generales/page.tsx
 "use client";
 
@@ -54,6 +53,7 @@ import SignaturePad from '../hallazgos/components/SignaturePad';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { Textarea } from '@/components/ui/textarea';
 import { IperPlantilla, IPER_PLANTILLAS_ELECTRICAS } from '@/lib/iperPlantillasElectricas';
+import { Separator } from '@/components/ui/separator';
 
 
 // --- Estado inicial para el formulario IPER ---
@@ -774,7 +774,7 @@ export default function FormulariosGeneralesPrevencionPage() {
                             {charlas.map(charla => (
                                 <div key={charla.id} className="flex justify-between items-center p-2 rounded-md hover:bg-muted/50">
                                     <div onClick={() => setSelectedCharlaId(charla.id)} className={cn("flex-1 cursor-pointer", selectedCharlaId === charla.id && 'font-bold')}>
-                                        <p>{charla.titulo}</p>
+                                        <p className="font-medium">{charla.titulo}</p>
                                         {charla.fechaCreacion && <p className="text-xs text-muted-foreground">{new Date(charla.fechaCreacion.seconds * 1000).toLocaleDateString()}</p>}
                                     </div>
                                     <AlertDialog>
@@ -892,40 +892,40 @@ export default function FormulariosGeneralesPrevencionPage() {
         </Dialog>
 
         <Dialog open={isTemplateModalOpen} onOpenChange={setIsTemplateModalOpen}>
-        <DialogContent className="max-w-2xl bg-slate-50">
-          <DialogHeader>
-              <DialogTitle className="text-xl font-semibold">Seleccionar Plantilla IPER para Trabajos Eléctricos</DialogTitle>
-              <DialogDescription className="text-sm text-muted-foreground">
-                  Elija una plantilla para pre-rellenar el formulario con datos estandarizados. Podrá ajustarlos antes de guardar.
-              </DialogDescription>
-          </DialogHeader>
-          <div className="py-4 space-y-3 max-h-[60vh] overflow-y-auto">
-              {IPER_PLANTILLAS_ELECTRICAS.map(plantilla => (
-                  <div 
-                      key={plantilla.id} 
-                      className="border-l-4 border-blue-500 rounded-r-lg bg-white p-4 shadow-sm hover:shadow-lg hover:-translate-y-1 transition-all duration-150 cursor-pointer flex justify-between items-center gap-4"
-                      onClick={() => handleApplyTemplate(plantilla)}
-                  >
-                      <div className="flex items-start gap-4">
-                          <div className="p-2 bg-blue-100 rounded-full mt-1">
-                              <Zap className="h-5 w-5 text-blue-600"/>
-                          </div>
-                          <div>
-                              <h4 className="font-semibold text-base">{plantilla.nombre}</h4>
-                              <p className="text-xs text-muted-foreground mt-1">{plantilla.descripcion}</p>
-                          </div>
-                      </div>
-                      <Button 
-                          className="px-5 py-2 text-sm font-semibold flex-shrink-0"
-                          onClick={(e) => { e.stopPropagation(); handleApplyTemplate(plantilla); }}
+          <DialogContent className="max-w-2xl bg-slate-50">
+              <DialogHeader>
+                  <DialogTitle className="text-xl font-semibold">Seleccionar Plantilla IPER para Trabajos Eléctricos</DialogTitle>
+                  <DialogDescription className="text-sm text-muted-foreground">
+                      Elija una plantilla para pre-rellenar el formulario con datos estandarizados. Podrá ajustarlos antes de guardar.
+                  </DialogDescription>
+              </DialogHeader>
+              <div className="py-4 space-y-3 max-h-[60vh] overflow-y-auto">
+                  {IPER_PLANTILLAS_ELECTRICAS.map(plantilla => (
+                      <div 
+                          key={plantilla.id} 
+                          className="border-l-4 border-blue-500 rounded-r-lg bg-white p-4 shadow-sm hover:shadow-lg hover:-translate-y-1 transition-all duration-150 cursor-pointer flex justify-between items-center gap-4"
+                          onClick={() => handleApplyTemplate(plantilla)}
                       >
-                          Aplicar
-                      </Button>
-                  </div>
-              ))}
-          </div>
-        </DialogContent>
-      </Dialog>
+                          <div className="flex items-start gap-4">
+                              <div className="p-2 bg-blue-100 rounded-full mt-1">
+                                  <Zap className="h-5 w-5 text-blue-600"/>
+                              </div>
+                              <div>
+                                  <h4 className="font-semibold text-base">{plantilla.nombre}</h4>
+                                  <p className="text-xs text-muted-foreground mt-1">{plantilla.descripcion}</p>
+                              </div>
+                          </div>
+                          <Button 
+                              className="px-5 py-2 text-sm font-semibold flex-shrink-0"
+                              onClick={(e) => { e.stopPropagation(); handleApplyTemplate(plantilla); }}
+                          >
+                              Aplicar
+                          </Button>
+                      </div>
+                  ))}
+              </div>
+          </DialogContent>
+        </Dialog>
     </section>
   );
 }
