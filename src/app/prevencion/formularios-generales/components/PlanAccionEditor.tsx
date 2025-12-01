@@ -1,7 +1,7 @@
 // src/app/prevencion/formularios-generales/components/PlanAccionEditor.tsx
 "use client";
 
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { ArbolCausas, MedidaCorrectivaDetallada, NodoArbolCausas } from '@/types/pcg';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -10,6 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Trash2, PlusCircle, Edit } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
+import { Badge } from '@/components/ui/badge';
 
 interface PlanAccionEditorProps {
   arbolCausas?: ArbolCausas;
@@ -39,6 +40,7 @@ export function PlanAccionEditor({ arbolCausas, medidas = [], onChange, readOnly
   };
 
   const handleSave = () => {
+    if (!currentMedida || !currentMedida.id) return;
     const existingIndex = medidas.findIndex(m => m.id === currentMedida.id);
     if (existingIndex > -1) {
       const newMedidas = [...medidas];
