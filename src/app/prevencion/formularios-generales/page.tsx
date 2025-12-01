@@ -34,6 +34,8 @@ import { Dialog, DialogClose, DialogFooter, DialogHeader, DialogTitle, DialogCon
 import { Badge } from '@/components/ui/badge';
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from '@/context/AuthContext';
+import { ArbolCausas, MetodoAnalisisIncidente, RegistroIncidente } from '@/types/pcg';
+import { ArbolCausasEditor } from './components/ArbolCausasEditor';
 
 
 // --- Tipos y Datos para IPER ---
@@ -140,38 +142,6 @@ export interface Hallazgo {
   fichaFirmadaUrl?: string;
   fechaFichaFirmada?: Timestamp;
 }
-
-// --- Tipos y Datos para Investigación de Incidentes ---
-type TipoIncidente =
-  | "Accidente con tiempo perdido"
-  | "Accidente sin tiempo perdido"
-  | "Casi accidente"
-  | "Daño a la propiedad";
-
-type GravedadIncidente = "Leve" | "Grave" | "Fatal potencial";
-
-type RegistroIncidente = {
-  id: string;
-  obraId: string;
-  obraNombre?: string;
-  fecha: string; 
-  lugar: string;
-  tipoIncidente: TipoIncidente;
-  gravedad: GravedadIncidente;
-  descripcionHecho: string;
-  lesionPersona: string;
-  actoInseguro: string;
-  condicionInsegura: string;
-  causasInmediatas: string;
-  causasBasicas: string;
-  analisisIshikawa: string;
-  analisis5Porques: string;
-  medidasCorrectivas: string;
-  responsableSeguimiento: string;
-  plazoCierre: string;
-  estadoCierre: "Abierto" | "En seguimiento" | "Cerrado";
-  createdAt?: any;
-};
 
 // --- Tipos y Datos para Plan de Acción ---
 export type OrigenAccion =
@@ -944,24 +914,7 @@ function InvestigacionIncidenteSection({ onCrearAccionDesdeIncidente }: Investig
   const [cargandoIncidentes, setCargandoIncidentes] = useState(false);
   const [errorForm, setErrorForm] = useState<string | null>(null);
 
-  const [formIncidente, setFormIncidente] = useState<{
-    fecha: string;
-    lugar: string;
-    tipoIncidente: TipoIncidente;
-    gravedad: GravedadIncidente;
-    descripcionHecho: string;
-    lesionPersona: string;
-    actoInseguro: string;
-    condicionInsegura: string;
-    causasInmediatas: string;
-    causasBasicas: string;
-    analisisIshikawa: string;
-    analisis5Porques: string;
-    medidasCorrectivas: string;
-    responsableSeguimiento: string;
-    plazoCierre: string;
-    estadoCierre: "Abierto" | "En seguimiento" | "Cerrado";
-  }>({
+  const [formIncidente, setFormIncidente] = useState<Omit<RegistroIncidente, 'id' | 'obraId' | 'obraNombre' | 'createdAt'>>({
     fecha: new Date().toISOString().slice(0, 10),
     lugar: "",
     tipoIncidente: "Casi accidente",
@@ -978,9 +931,19 @@ function InvestigacionIncidenteSection({ onCrearAccionDesdeIncidente }: Investig
     responsableSeguimiento: "",
     plazoCierre: "",
     estadoCierre: "Abierto",
+    metodoAnalisis: 'ishikawa_5p',
   });
   
   const { companyId, role } = useAuth();
+  
+  const isAccident = formIncidente.tipoIncidente.includes("Accidente");
+
+  useEffect(() => {
+    setFormIncidente(prev => ({
+      ...prev,
+      metodoAnalisis: prev.tipoIncidente.includes('Accidente') ? 'arbol_causas' : 'ishikawa_5p'
+    }));
+  }, [formIncidente.tipoIncidente]);
 
   const cargarObras = async () => {
     try {
@@ -1088,6 +1051,7 @@ function InvestigacionIncidenteSection({ onCrearAccionDesdeIncidente }: Investig
             medidasCorrectivas: "",
             responsableSeguimiento: "",
             plazoCierre: "",
+            arbolCausas: undefined,
         }));
 
         cargarIncidentes(obraSeleccionadaId);
@@ -1101,9 +1065,9 @@ function InvestigacionIncidenteSection({ onCrearAccionDesdeIncidente }: Investig
   return (
     <Card className="mt-6">
       <CardHeader>
-        <CardTitle>Investigación de incidente / casi accidente (Ishikawa / 5 porqués)</CardTitle>
+        <CardTitle>Investigación de incidente / casi accidente</CardTitle>
         <CardDescription>
-          Registro de incidentes, causas e investigación. Conectado a Firestore.
+          Registro de incidentes, investigación de causas (Ishikawa, 5 Porqués, Árbol de Causas) y plan de acción.
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-6">
@@ -1128,17 +1092,17 @@ function InvestigacionIncidenteSection({ onCrearAccionDesdeIncidente }: Investig
           className="space-y-4"
           onSubmit={handleSubmit}
         >
-          <h3 className="text-lg font-semibold border-b pb-2">Registrar Nuevo Incidente</h3>
+          <h3 className="text-lg font-semibold border-b pb-2">Registrar Nuevo Incidente/Accidente</h3>
           {errorForm && (
             <p className="text-sm font-medium text-destructive">{errorForm}</p>
           )}
 
           <div className="grid gap-4 md:grid-cols-2">
-            <div className="space-y-2"><Label>Fecha del incidente*</Label><Input type="date" value={formIncidente.fecha} onChange={e => handleInputChange('fecha', e.target.value)} /></div>
-            <div className="space-y-2"><Label>Lugar del incidente</Label><Input value={formIncidente.lugar} onChange={e => handleInputChange('lugar', e.target.value)} /></div>
+            <div className="space-y-2"><Label>Fecha del suceso*</Label><Input type="date" value={formIncidente.fecha} onChange={e => handleInputChange('fecha', e.target.value)} /></div>
+            <div className="space-y-2"><Label>Lugar del suceso</Label><Input value={formIncidente.lugar} onChange={e => handleInputChange('lugar', e.target.value)} /></div>
           </div>
           <div className="grid gap-4 md:grid-cols-2">
-               <div className="space-y-2"><Label>Tipo de incidente</Label>
+               <div className="space-y-2"><Label>Tipo de suceso*</Label>
                   <Select value={formIncidente.tipoIncidente} onValueChange={v => handleInputChange('tipoIncidente', v as any)}>
                       <SelectTrigger><SelectValue/></SelectTrigger>
                       <SelectContent>
@@ -1162,12 +1126,27 @@ function InvestigacionIncidenteSection({ onCrearAccionDesdeIncidente }: Investig
           </div>
           <div className="space-y-2"><Label>Descripción del hecho*</Label><Textarea value={formIncidente.descripcionHecho} onChange={e => handleInputChange('descripcionHecho', e.target.value)} /></div>
           <div className="space-y-2"><Label>Lesión a la persona</Label><Input value={formIncidente.lesionPersona} onChange={e => handleInputChange('lesionPersona', e.target.value)} placeholder="Ej: Esguince tobillo, No aplica..." /></div>
-          <div className="space-y-2"><Label>Acto inseguro (si aplica)</Label><Input value={formIncidente.actoInseguro} onChange={e => handleInputChange('actoInseguro', e.target.value)} /></div>
-          <div className="space-y-2"><Label>Condición insegura (si aplica)</Label><Input value={formIncidente.condicionInsegura} onChange={e => handleInputChange('condicionInsegura', e.target.value)} /></div>
-          <div className="space-y-2"><Label>Causas inmediatas</Label><Textarea value={formIncidente.causasInmediatas} onChange={e => handleInputChange('causasInmediatas', e.target.value)} rows={2}/></div>
-          <div className="space-y-2"><Label>Causas básicas</Label><Textarea value={formIncidente.causasBasicas} onChange={e => handleInputChange('causasBasicas', e.target.value)} rows={2}/></div>
-          <div className="space-y-2"><Label>Análisis Ishikawa (resumen)</Label><Textarea value={formIncidente.analisisIshikawa} onChange={e => handleInputChange('analisisIshikawa', e.target.value)} rows={2}/></div>
-          <div className="space-y-2"><Label>Análisis 5 porqués (resumen)</Label><Textarea value={formIncidente.analisis5Porques} onChange={e => handleInputChange('analisis5Porques', e.target.value)} rows={2}/></div>
+          
+           <Separator className="my-4"/>
+           <h4 className="text-md font-semibold">Análisis de Causas</h4>
+           <div className="space-y-2"><Label>Método de Análisis</Label>
+                <Input value={isAccident ? "Árbol de Causas" : "Ishikawa / 5 Porqués"} disabled />
+           </div>
+
+            {isAccident ? (
+                 <ArbolCausasEditor 
+                    value={formIncidente.arbolCausas} 
+                    onChange={arbol => handleInputChange('arbolCausas', arbol)} 
+                />
+            ) : (
+                <>
+                    <div className="space-y-2"><Label>Análisis Ishikawa (resumen)</Label><Textarea value={formIncidente.analisisIshikawa} onChange={e => handleInputChange('analisisIshikawa', e.target.value)} rows={2}/></div>
+                    <div className="space-y-2"><Label>Análisis 5 porqués (resumen)</Label><Textarea value={formIncidente.analisis5Porques} onChange={e => handleInputChange('analisis5Porques', e.target.value)} rows={2}/></div>
+                </>
+            )}
+
+            <Separator className="my-4"/>
+
           <div className="space-y-2"><Label>Medidas correctivas</Label><Textarea value={formIncidente.medidasCorrectivas} onChange={e => handleInputChange('medidasCorrectivas', e.target.value)} rows={3}/></div>
           <div className="grid gap-4 md:grid-cols-2">
               <div className="space-y-2"><Label>Responsable seguimiento</Label><Input value={formIncidente.responsableSeguimiento} onChange={e => handleInputChange('responsableSeguimiento', e.target.value)} /></div>
@@ -1184,15 +1163,15 @@ function InvestigacionIncidenteSection({ onCrearAccionDesdeIncidente }: Investig
               </Select>
            </div>
 
-          <Button type="submit" className="w-full sm:w-auto">Registrar Incidente</Button>
+          <Button type="submit" className="w-full sm:w-auto">Registrar</Button>
         </form>
 
         <div className="space-y-2">
-          <h4 className="text-lg font-semibold border-b pb-2">Incidentes Registrados en Obra</h4>
-          {cargandoIncidentes ? <p className="text-sm text-muted-foreground pt-4 text-center">Cargando incidentes...</p> : 
+          <h4 className="text-lg font-semibold border-b pb-2">Investigaciones Registradas</h4>
+          {cargandoIncidentes ? <p className="text-sm text-muted-foreground pt-4 text-center">Cargando...</p> : 
           registrosIncidentes.length === 0 ? (
             <p className="text-sm text-muted-foreground text-center pt-8">
-              No hay incidentes registrados para esta obra.
+              No hay investigaciones para esta obra.
             </p>
           ) : (
             <div className="space-y-3 max-h-[600px] overflow-y-auto pr-2">
@@ -1201,21 +1180,22 @@ function InvestigacionIncidenteSection({ onCrearAccionDesdeIncidente }: Investig
                   key={inc.id}
                   className="rounded-lg border bg-card p-3 shadow-sm text-sm space-y-2"
                 >
-                  <p className="font-semibold text-primary">
-                    {inc.fecha} – {inc.lugar || "Sin lugar especificado"}
-                  </p>
+                  <div className="flex justify-between items-start">
+                    <p className="font-semibold text-primary">
+                      {inc.fecha} – {inc.lugar || "Sin lugar"}
+                    </p>
+                    {inc.metodoAnalisis === 'arbol_causas' && <Badge>Árbol de Causas</Badge>}
+                  </div>
                   <div className="flex justify-between items-center text-xs">
                       <span>Tipo: {inc.tipoIncidente}</span>
                       <span>Gravedad: {inc.gravedad}</span>
                       <span>Estado: <span className="font-semibold">{inc.estadoCierre}</span></span>
                   </div>
                   <p><strong className="text-muted-foreground">Hecho:</strong> {inc.descripcionHecho}</p>
-                  {inc.medidasCorrectivas && (
-                    <p><strong className="text-muted-foreground">Medidas:</strong> {inc.medidasCorrectivas}</p>
-                  )}
+                  
                   <div className="text-xs pt-2 border-t mt-2 flex justify-between">
-                    <span><strong className="text-muted-foreground">Responsable:</strong> {inc.responsableSeguimiento || "No asignado"}</span>
-                    <span><strong className="text-muted-foreground">Plazo:</strong> {inc.plazoCierre || "Sin plazo"}</span>
+                    <span><strong className="text-muted-foreground">Responsable:</strong> {inc.responsableSeguimiento || "N/A"}</span>
+                    <span><strong className="text-muted-foreground">Plazo:</strong> {inc.plazoCierre || "N/A"}</span>
                   </div>
                   <Button
                     type="button"
@@ -1230,7 +1210,7 @@ function InvestigacionIncidenteSection({ onCrearAccionDesdeIncidente }: Investig
                     size="sm"
                     className="mt-2"
                   >
-                    Crear acción desde este incidente
+                    Crear plan de acción
                   </Button>
                 </article>
               ))}
