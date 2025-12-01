@@ -1,6 +1,7 @@
+// src/app/prevencion/formularios-generales/components/ArbolCausasEditor.tsx
 "use client";
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { ArbolCausas, NodoArbolCausas } from '@/types/pcg';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -134,7 +135,7 @@ export function ArbolCausasEditor({ value, onChange, readOnly = false }: ArbolCa
 
   return (
     <div className="space-y-4 p-4 border rounded-md bg-slate-50">
-      <Label className="text-base font-semibold">Árbol de Causas</Label>
+      <Label className="text-base font-semibold">Análisis de Causas (Árbol)</Label>
       {raiz ? (
         renderNodo(raiz, 0)
       ) : !readOnly ? (
