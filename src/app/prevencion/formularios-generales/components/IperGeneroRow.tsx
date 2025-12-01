@@ -42,10 +42,10 @@ type Props = {
 };
 
 // --- Opciones predefinidas ---
-const peligrosComunes = [ "Caída de altura", "Riesgo eléctrico", "Sobreesfuerzo", "Exposición a ruido", "Atrapamiento", "Proyección de partículas", "Otro", ];
-const riesgosComunes = [ "Lesiones graves/fatales", "Electrocución", "Lesiones musculoesqueléticas", "Hipoacusia", "Amputación/fracturas", "Lesiones oculares", "Otro", ];
-const controlesGeneroComunes = [ "Ajustar peso máximo para trabajadoras", "EPP en tallaje diferenciado", "Adecuar tareas en embarazo/lactancia", "Capacitación con enfoque de género", "Otro", ];
-const categoriasPeligro = ["Mecánico", "Químico", "Físico", "Biológico", "Ergonómico", "Psicosocial", "Otro"];
+const peligrosComunes = [ "Caída de altura", "Riesgo eléctrico", "Sobreesfuerzo", "Exposición a ruido", "Atrapamiento", "Proyección de partículas", "Contacto con energía eléctrica (directo/indirecto)", "Arco eléctrico durante maniobra de interruptor", "Contacto con partes y piezas energizadas", "Otro", ];
+const riesgosComunes = [ "Lesiones graves/fatales", "Electrocución, shock eléctrico, quemaduras por arco.", "Electrocución", "Quemaduras severas por arco eléctrico", "Lesiones musculoesqueléticas", "Hipoacusia", "Amputación/fracturas", "Lesiones oculares", "Otro", ];
+const controlesGeneroComunes = [ "Ajustar peso máximo para trabajadoras", "EPP en tallaje diferenciado", "Adecuar tareas en embarazo/lactancia", "Capacitación con enfoque de género", "Procedimiento de trabajo seguro (PTS) para comisionamiento, uso de EPP dieléctrico y ropa ignífuga. Despeje y señalización del área.", "Uso de traje ignífugo (Arc Flash), careta facial, guantes dieléctricos. Maniobra realizada por personal autorizado y con 2do verificador.", "Procedimiento de trabajo en caliente, bloqueo LOTO si aplica parcialmente, delimitación de 'zona prohibida'.", "Otro", ];
+const categoriasPeligro = ["Mecánico", "Químico", "Físico", "Biológico", "Ergonómico", "Psicosocial", "Energía eléctrica", "Otro"];
 const jerarquiasControl = ["Eliminación", "Sustitución", "Control de Ingeniería", "Control Administrativo", "EPP"];
 const estadosControl = ["PENDIENTE", "EN_EJECUCION", "IMPLEMENTADO", "RECHAZADO"];
 
@@ -81,18 +81,18 @@ export const IperForm: React.FC<Props> = ({ value, onChange }) => {
           <div className="space-y-1"><Label>Tarea*</Label><Input value={tarea} onChange={handleFieldChange("tarea")} /></div>
           <div className="space-y-1"><Label>Zona / Sector donde se presenta*</Label><Input value={zona} onChange={handleFieldChange("zona")} placeholder="Ej: Sala de bombas, Bodega..." /></div>
           <div className="space-y-1"><Label>Categoría del Peligro</Label>
-            <Select value={categoriaPeligro} onValueChange={handleFieldChange("categoriaPeligro")}><SelectTrigger><SelectValue placeholder="Seleccione..."/></SelectTrigger>
+            <Select value={categoriaPeligro} onValueChange={(v) => handleFieldChange("categoriaPeligro")(v)}><SelectTrigger><SelectValue placeholder="Seleccione..."/></SelectTrigger>
               <SelectContent>{categoriasPeligro.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}</SelectContent>
             </Select>
           </div>
           <div className="space-y-1"><Label>Peligro Identificado*</Label>
-            <Select value={peligro} onValueChange={handleFieldChange("peligro")}><SelectTrigger><SelectValue placeholder="Seleccione..." /></SelectTrigger>
+            <Select value={peligro} onValueChange={(v) => handleFieldChange("peligro")(v)}><SelectTrigger><SelectValue placeholder="Seleccione..." /></SelectTrigger>
               <SelectContent>{peligrosComunes.map(p => <SelectItem key={p} value={p}>{p}</SelectItem>)}</SelectContent>
             </Select>
             {peligro === "Otro" && <Input className="mt-1" placeholder="Especifique otro peligro" value={peligroOtro} onChange={handleFieldChange("peligroOtro")} />}
           </div>
           <div className="space-y-1 md:col-span-2"><Label>Riesgo Asociado*</Label>
-            <Select value={riesgo} onValueChange={handleFieldChange("riesgo")}><SelectTrigger><SelectValue placeholder="Seleccione..." /></SelectTrigger>
+            <Select value={riesgo} onValueChange={(v) => handleFieldChange("riesgo")(v)}><SelectTrigger><SelectValue placeholder="Seleccione..." /></SelectTrigger>
               <SelectContent>{riesgosComunes.map(r => <SelectItem key={r} value={r}>{r}</SelectItem>)}</SelectContent>
             </Select>
             {riesgo === "Otro" && <Input className="mt-1" placeholder="Especifique otro riesgo" value={riesgoOtro} onChange={handleFieldChange("riesgoOtro")} />}
@@ -128,12 +128,12 @@ export const IperForm: React.FC<Props> = ({ value, onChange }) => {
         <h4 className="font-semibold text-md mb-3">3. Medidas de Control</h4>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
            <div className="space-y-1"><Label>Jerarquía del Control Aplicado</Label>
-              <Select value={jerarquiaControl} onValueChange={handleFieldChange("jerarquiaControl")}><SelectTrigger><SelectValue placeholder="Seleccione..." /></SelectTrigger>
+              <Select value={jerarquiaControl} onValueChange={(v) => handleFieldChange("jerarquiaControl")(v)}><SelectTrigger><SelectValue placeholder="Seleccione..." /></SelectTrigger>
                 <SelectContent>{jerarquiasControl.map(j => <SelectItem key={j} value={j}>{j}</SelectItem>)}</SelectContent>
               </Select>
           </div>
           <div className="space-y-1 md:col-span-2"><Label>Control específico según género (DS 44)</Label>
-            <Select value={controlEspecificoGenero} onValueChange={handleFieldChange("controlEspecificoGenero")}><SelectTrigger><SelectValue placeholder="Seleccione..." /></SelectTrigger>
+            <Select value={controlEspecificoGenero} onValueChange={(v) => handleFieldChange("controlEspecificoGenero")(v)}><SelectTrigger><SelectValue placeholder="Seleccione..." /></SelectTrigger>
               <SelectContent>{controlesGeneroComunes.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}</SelectContent>
             </Select>
             {controlEspecificoGenero === "Otro" && <Textarea className="mt-1" placeholder="Especifique..." value={controlEspecificoGeneroOtro} onChange={handleFieldChange("controlEspecificoGeneroOtro")} />}
@@ -156,7 +156,7 @@ export const IperForm: React.FC<Props> = ({ value, onChange }) => {
               </div>
           </div>
           <div className="space-y-1"><Label>Estado del Control</Label>
-              <Select value={estadoControl} onValueChange={handleFieldChange("estadoControl")}><SelectTrigger><SelectValue placeholder="Seleccione..." /></SelectTrigger>
+              <Select value={estadoControl} onValueChange={(v) => handleFieldChange("estadoControl")(v)}><SelectTrigger><SelectValue placeholder="Seleccione..." /></SelectTrigger>
                 <SelectContent>{estadosControl.map(e => <SelectItem key={e} value={e}>{e.replace("_", " ")}</SelectItem>)}</SelectContent>
               </Select>
           </div>
