@@ -8,7 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
-import { collection, getDocs, query, where, orderBy, onSnapshot } from 'firebase/firestore';
+import { collection, getDocs, query, where, orderBy, onSnapshot, doc, updateDoc } from 'firebase/firestore';
 import { firebaseDb } from '@/lib/firebaseClient';
 import { Hallazgo, Obra } from '@/types/pcg';
 import Link from 'next/link';
@@ -16,6 +16,8 @@ import { ArrowLeft, FileText, PlusCircle, CheckCircle, AlertTriangle, Clock, Sir
 import { useRouter } from 'next/navigation';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 import { useAuth } from '@/context/AuthContext';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
+import { useToast } from '@/hooks/use-toast';
 
 function HallazgoEstadoBadge({ estado }: { estado: Hallazgo['estado'] }) {
     const variants: Record<Hallazgo['estado'], string> = {
@@ -42,6 +44,7 @@ export default function HallazgosResumenPage() {
     const [loading, setLoading] = useState(true);
     const router = useRouter();
     const { companyId, role } = useAuth();
+    const { toast } = useToast();
 
     useEffect(() => {
         if (!companyId && role !== 'superadmin') return;
@@ -81,6 +84,17 @@ export default function HallazgosResumenPage() {
 
         return () => unsubscribe();
     }, [selectedObraId]);
+    
+    const handleCerrarHallazgo = async (hallazgoId: string) => {
+        try {
+            const hallazgoRef = doc(firebaseDb, "hallazgos", hallazgoId);
+            await updateDoc(hallazgoRef, { estado: 'cerrado' });
+            toast({ title: 'Hallazgo cerrado', description: 'El estado del hallazgo ha sido actualizado.' });
+        } catch (error) {
+            console.error("Error cerrando hallazgo:", error);
+            toast({ variant: 'destructive', title: 'Error', description: 'No se pudo cerrar el hallazgo.' });
+        }
+    };
 
     const metricas = useMemo(() => {
         return {
@@ -115,12 +129,6 @@ export default function HallazgosResumenPage() {
             { name: 'Alta', count: hallazgos.filter(h => h.criticidad === 'alta').length, fill: '#ef4444' },
         ]
     }, [hallazgos]);
-
-    const hallazgosCriticos = useMemo(() => {
-        return hallazgos.filter(h => h.criticidad === 'alta').slice(0, 5);
-    }, [hallazgos]);
-    
-    const selectedObra = obras.find(o => o.id === selectedObraId);
 
     return (
         <div className="space-y-8">
@@ -267,34 +275,57 @@ export default function HallazgosResumenPage() {
 
             <Card>
                 <CardHeader>
-                    <CardTitle>Últimos Hallazgos Críticos (Nivel Alto)</CardTitle>
-                    <CardDescription>Estos son los 5 hallazgos más recientes que requieren atención prioritaria.</CardDescription>
+                    <CardTitle>Listado Completo de Hallazgos</CardTitle>
+                    <CardDescription>Aquí puedes ver y gestionar todos los hallazgos registrados para la obra seleccionada.</CardDescription>
                 </CardHeader>
                 <CardContent>
-                     {loading ? <p>Cargando...</p> : hallazgosCriticos.length === 0 ? <p className="text-muted-foreground text-center py-4">No hay hallazgos críticos registrados.</p> : (
+                     {loading ? <p>Cargando...</p> : hallazgos.length === 0 ? <p className="text-muted-foreground text-center py-4">No hay hallazgos registrados para esta obra.</p> : (
                         <Table>
                             <TableHeader>
                                 <TableRow>
                                     <TableHead>Fecha</TableHead>
                                     <TableHead>Tipo de Riesgo</TableHead>
-                                    <TableHead>Detalle</TableHead>
+                                    <TableHead>Criticidad</TableHead>
+                                    <TableHead>Responsable</TableHead>
                                     <TableHead>Estado</TableHead>
-                                    <TableHead className="text-right">Acción</TableHead>
+                                    <TableHead className="text-right">Acciones</TableHead>
                                 </TableRow>
                             </TableHeader>
                             <TableBody>
-                                {hallazgosCriticos.map(h => (
+                                {hallazgos.map(h => (
                                     <TableRow key={h.id}>
                                         <TableCell>{h.createdAt.toDate().toLocaleDateString('es-CL')}</TableCell>
                                         <TableCell>{h.tipoRiesgo}</TableCell>
-                                        <TableCell>{h.descripcion}</TableCell>
+                                        <TableCell><CriticidadBadge criticidad={h.criticidad} /></TableCell>
+                                        <TableCell>{h.responsableNombre || 'No asignado'}</TableCell>
                                         <TableCell><HallazgoEstadoBadge estado={h.estado} /></TableCell>
                                         <TableCell className="text-right">
-                                            <Button variant="outline" size="sm" asChild>
-                                                <Link href={`/prevencion/hallazgos/detalle/${h.id}`}>
-                                                    Ver Detalle
-                                                </Link>
-                                            </Button>
+                                            <div className="flex gap-2 justify-end">
+                                                <Button variant="outline" size="sm" asChild>
+                                                    <Link href={`/prevencion/hallazgos/detalle/${h.id}`}>
+                                                        Ver Detalle
+                                                    </Link>
+                                                </Button>
+                                                {h.estado !== 'cerrado' && (
+                                                    <AlertDialog>
+                                                        <AlertDialogTrigger asChild>
+                                                            <Button variant="secondary" size="sm">Cerrar</Button>
+                                                        </AlertDialogTrigger>
+                                                        <AlertDialogContent>
+                                                            <AlertDialogHeader>
+                                                                <AlertDialogTitle>¿Confirmar Cierre de Hallazgo?</AlertDialogTitle>
+                                                                <AlertDialogDescription>
+                                                                    Esta acción marcará el hallazgo como "cerrado". Asegúrate de que las acciones correctivas hayan sido implementadas y verificadas.
+                                                                </AlertDialogDescription>
+                                                            </AlertDialogHeader>
+                                                            <AlertDialogFooter>
+                                                                <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                                                                <AlertDialogAction onClick={() => handleCerrarHallazgo(h.id!)}>Confirmar Cierre</AlertDialogAction>
+                                                            </AlertDialogFooter>
+                                                        </AlertDialogContent>
+                                                    </AlertDialog>
+                                                )}
+                                            </div>
                                         </TableCell>
                                     </TableRow>
                                 ))}
