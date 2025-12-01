@@ -91,6 +91,7 @@ export function InvestigacionAccidentesTab({ obraId, investigaciones, loading, o
         obraNombre: obra?.nombreFaena || "N/A",
         createdAt: serverTimestamp(),
         updatedAt: serverTimestamp(),
+        metodoAnalisis: 'arbol_causas',
       });
       setFormState(initialFormState);
       onUpdate();
