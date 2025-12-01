@@ -5,11 +5,12 @@ import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { AlertTriangle, CalendarClock, ListChecks, UserX, ArrowRight, CheckCircle, Clock } from 'lucide-react';
+import { AlertTriangle, CalendarClock, ListChecks, UserX, ArrowRight, CheckCircle, Clock, ArrowLeft } from 'lucide-react';
 import { Timestamp, collection, query, where, getDocs } from 'firebase/firestore';
 import { firebaseDb } from '@/lib/firebaseClient';
 import { useAuth } from '@/context/AuthContext';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 
 // --- TIPOS DE DATOS (simulando firestore) ---
 type TareaTipo = "charla" | "iper" | "induccion" | "capacitacion" | "seguimiento";
@@ -126,6 +127,7 @@ const TareaCard = ({ tarea }: { tarea: TareaPrevencion }) => {
 // --- COMPONENTE PRINCIPAL DE LA PÁGINA ---
 export default function PanelPrevencionistaPage() {
     const { user, companyId } = useAuth();
+    const router = useRouter();
     const [kpis, setKpis] = useState({ charlasAtrasadas: 0, charlasProximas: 0, iperCriticosSinCharla: 0, trabajadoresSinInduccion: 0 });
     const [tareasHoy, setTareasHoy] = useState<TareaPrevencion[]>([]);
     const [otrasTareas, setOtrasTareas] = useState<TareaPrevencion[]>([]);
@@ -138,7 +140,7 @@ export default function PanelPrevencionistaPage() {
             hoy.setHours(0,0,0,0);
             
             // Tareas para hoy: Charlas en borrador cuya fecha de realización ya pasó.
-            const charlaQuery = query(
+             const charlaQuery = query(
                 collection(firebaseDb, "charlas"),
                 where("estado", "==", "borrador")
                 // where("fechaRealizacion", "<", hoy) // Firestore no permite '<' en Timestamps para queries complejas. Filtraremos en cliente.
@@ -187,9 +189,14 @@ export default function PanelPrevencionistaPage() {
     return (
         <div className="space-y-8">
             {/* Encabezado */}
-            <header>
-                <h1 className="text-3xl md:text-4xl font-bold tracking-tight">Panel del Prevencionista</h1>
-                <p className="mt-2 text-lg text-muted-foreground">Gestión diaria de riesgos, charlas y cumplimiento operativo.</p>
+            <header className="flex items-start gap-4">
+                 <Button variant="outline" size="icon" onClick={() => router.push('/prevencion')} className="flex-shrink-0">
+                    <ArrowLeft className="h-4 w-4" />
+                </Button>
+                <div>
+                    <h1 className="text-3xl md:text-4xl font-bold tracking-tight">Panel del Prevencionista</h1>
+                    <p className="mt-2 text-lg text-muted-foreground">Gestión diaria de riesgos, charlas y cumplimiento operativo.</p>
+                </div>
             </header>
 
             {/* KPIs */}
