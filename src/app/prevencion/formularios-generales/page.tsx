@@ -171,12 +171,15 @@ export default function FormulariosGeneralesPrevencionPage() {
       const iperList = snapshot.docs.map((doc, index) => ({ id: doc.id, ...doc.data(), correlativo: snapshot.docs.length - index } as IPERRegistro));
       setIperRegistros(iperList);
       setLoading(false);
+    }, (error) => {
+        console.error("Error fetching IPER:", error);
+        setLoading(false);
     }));
     
     const qCharlas = query(collection(firebaseDb, "charlas"), where("obraId", "==", obraSeleccionadaId), orderBy("fechaCreacion", "desc"));
     unsubscribes.push(onSnapshot(qCharlas, (snapshot) => {
         const charlasList = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Charla));
-        setCharlas(charlasList);
+        setCharlas(charlaList);
     }));
 
 
@@ -428,7 +431,7 @@ export default function FormulariosGeneralesPrevencionPage() {
         <CardContent>
           <div className="max-w-md space-y-2">
             <Label htmlFor="obra-select">Obra Activa</Label>
-            <Select value={obraSeleccionadaId} onValueChange={setSelectedObraId}>
+            <Select value={obraSeleccionadaId} onValueChange={setObraSeleccionadaId}>
               <SelectTrigger id="obra-select">
                 <SelectValue placeholder="Seleccione una obra..." />
               </SelectTrigger>
@@ -662,14 +665,14 @@ export default function FormulariosGeneralesPrevencionPage() {
         </TabsContent>
       </Tabs>
       
-      <Dialog open={isSignatureModalOpen} onOpenChange={setIsSignatureModalOpen}>
-        <DialogContent>
-            <DialogHeader>
-                <DialogTitle>Firmar Asistencia: {asistenteParaFirmar?.nombre}</DialogTitle>
-            </DialogHeader>
+      <AlertDialog open={isSignatureModalOpen} onOpenChange={setIsSignatureModalOpen}>
+        <AlertDialogContent>
+            <AlertDialogHeader>
+                <AlertDialogTitle>Firmar Asistencia: {asistenteParaFirmar?.nombre}</AlertDialogTitle>
+            </AlertDialogHeader>
             <SignaturePad onChange={handleGuardarFirma} onClear={() => {}} />
-        </DialogContent>
-      </Dialog>
+        </AlertDialogContent>
+      </AlertDialog>
     </section>
   );
 }
