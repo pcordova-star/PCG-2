@@ -27,6 +27,7 @@ import { generarPprPdf, PprData } from '@/lib/pdf/generarPprPdf';
 import { useToast } from '@/hooks/use-toast';
 import { PprStatusBanner } from './components/PprStatusBanner';
 import { calcularPprStatus, PprStatus } from './pprStatus';
+import { useAuth } from '@/context/AuthContext';
 
 
 export type PprSectionId =
@@ -57,12 +58,22 @@ export default function PprPage() {
   const [pprStatus, setPprStatus] = useState<PprStatus | null>(null);
 
   const { toast } = useToast();
+  const { companyId, role } = useAuth();
+
 
   // Cargar lista de obras
   useEffect(() => {
+    if (!companyId && role !== 'superadmin') return;
+
     const fetchObras = async () => {
-      const q = query(collection(firebaseDb, "obras"));
-      const querySnapshot = await getDocs(q);
+      let obrasQuery;
+      if (role === 'superadmin') {
+        obrasQuery = query(collection(firebaseDb, "obras"));
+      } else {
+        obrasQuery = query(collection(firebaseDb, "obras"), where("empresaId", "==", companyId));
+      }
+      
+      const querySnapshot = await getDocs(obrasQuery);
       const obrasList = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Obra));
       setObras(obrasList);
       if (obrasList.length > 0) {
@@ -70,7 +81,7 @@ export default function PprPage() {
       }
     };
     fetchObras();
-  }, []);
+  }, [companyId, role]);
 
   // Cargar datos cuando cambia la obra seleccionada
   useEffect(() => {
