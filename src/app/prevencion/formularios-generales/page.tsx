@@ -1,4 +1,5 @@
 
+
 // src/app/prevencion/formularios-generales/page.tsx
 "use client";
 
@@ -19,7 +20,7 @@ import {
 } from "firebase/firestore";
 import { firebaseDb, firebaseStorage } from "../../../lib/firebaseClient";
 import { useRouter } from 'next/navigation';
-import { ArrowLeft, BookOpen, FileText, Plus, PlusCircle, Siren, Trash2, Edit, Zap, FileDown } from 'lucide-react';
+import { ArrowLeft, BookOpen, FileText, Plus, PlusCircle, Siren, Trash2, Edit, Zap, FileDown, Separator } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
@@ -53,7 +54,6 @@ import SignaturePad from '../hallazgos/components/SignaturePad';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { Textarea } from '@/components/ui/textarea';
 import { IperPlantilla, IPER_PLANTILLAS_ELECTRICAS } from '@/lib/iperPlantillasElectricas';
-import { Separator } from '@/components/ui/separator';
 
 
 // --- Estado inicial para el formulario IPER ---
@@ -144,6 +144,7 @@ export default function FormulariosGeneralesPrevencionPage() {
   // Estados para la firma del prevencionista en IPER
   const [isIperSignatureModalOpen, setIsIperSignatureModalOpen] = useState(false);
   const [iperSignatureDataUrl, setIperSignatureDataUrl] = useState<string | null>(null);
+  const [isSignatureDrawn, setIsSignatureDrawn] = useState(false);
 
 
   useEffect(() => {
@@ -282,7 +283,7 @@ export default function FormulariosGeneralesPrevencionPage() {
       }
       
       // Guardar firma si existe
-      if (iperSignatureDataUrl) {
+      if (isSignatureDrawn && iperSignatureDataUrl) {
           const blob = await (await fetch(iperSignatureDataUrl)).blob();
           const signatureRef = ref(firebaseStorage, `iper/${docId}/firmaPrevencionista.png`);
           await uploadBytes(signatureRef, blob, { contentType: 'image/png' });
@@ -302,6 +303,7 @@ export default function FormulariosGeneralesPrevencionPage() {
       setIperFormValues(initialIperState);
       setIperSeleccionado(null);
       setIperSignatureDataUrl(null);
+      setIsSignatureDrawn(false);
 
     } catch (error) {
       console.error("Error guardando IPER:", error);
@@ -523,6 +525,18 @@ export default function FormulariosGeneralesPrevencionPage() {
     }));
     setIsTemplateModalOpen(false);
     toast({ title: 'Plantilla aplicada', description: `Se han cargado los valores de "${plantilla.nombre}".` });
+  };
+  
+  const handleConfirmSignature = () => {
+    if (!isSignatureDrawn) {
+        toast({
+            variant: "destructive",
+            title: "Firma Vacía",
+            description: "Debe dibujar la firma para guardarla."
+        });
+        return;
+    }
+    setIsIperSignatureModalOpen(false);
   };
 
 
@@ -882,17 +896,21 @@ export default function FormulariosGeneralesPrevencionPage() {
                 </DialogHeader>
                 <SignaturePad
                     onChange={(dataUrl) => setIperSignatureDataUrl(dataUrl)}
-                    onClear={() => setIperSignatureDataUrl(null)}
+                    onClear={() => {
+                        setIperSignatureDataUrl(null);
+                        setIsSignatureDrawn(false);
+                    }}
+                    onDraw={() => setIsSignatureDrawn(true)}
                 />
                 <DialogFooter>
                     <Button variant="ghost" onClick={() => setIsIperSignatureModalOpen(false)}>Cancelar</Button>
-                    <Button onClick={() => setIsIperSignatureModalOpen(false)}>Confirmar Firma</Button>
+                    <Button onClick={handleConfirmSignature}>Confirmar Firma</Button>
                 </DialogFooter>
             </DialogContent>
         </Dialog>
 
         <Dialog open={isTemplateModalOpen} onOpenChange={setIsTemplateModalOpen}>
-          <DialogContent className="max-w-2xl bg-slate-50">
+           <DialogContent className="max-w-2xl bg-slate-50">
               <DialogHeader>
                   <DialogTitle className="text-xl font-semibold">Seleccionar Plantilla IPER para Trabajos Eléctricos</DialogTitle>
                   <DialogDescription className="text-sm text-muted-foreground">

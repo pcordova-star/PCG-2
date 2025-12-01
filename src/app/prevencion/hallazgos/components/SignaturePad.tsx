@@ -7,9 +7,10 @@ import { Button } from '@/components/ui/button';
 type SignaturePadProps = {
   onChange: (dataUrl: string | null) => void;
   onClear: () => void;
+  onDraw?: () => void; // Nuevo callback opcional
 };
 
-export default function SignaturePad({ onChange, onClear }: SignaturePadProps) {
+export default function SignaturePad({ onChange, onClear, onDraw }: SignaturePadProps) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   let isDrawing = false;
   let lastX = 0;
@@ -42,6 +43,7 @@ export default function SignaturePad({ onChange, onClear }: SignaturePadProps) {
     isDrawing = true;
     const { x, y } = getPos(e);
     [lastX, lastY] = [x, y];
+    onDraw?.(); // Llamar al callback cuando se empieza a dibujar
   };
 
   const draw = (e: any) => {
@@ -75,7 +77,8 @@ export default function SignaturePad({ onChange, onClear }: SignaturePadProps) {
   const handleClear = () => {
     const canvas = canvasRef.current!;
     const ctx = canvas.getContext('2d')!;
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    ctx.fillStyle = "#ffffff";
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
     onClear();
   };
 
