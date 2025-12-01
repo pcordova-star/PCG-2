@@ -138,30 +138,32 @@ export default function PanelPrevencionistaPage() {
             hoy.setHours(0,0,0,0);
             
             // Tareas para hoy: Charlas en borrador cuya fecha de realización ya pasó.
-            const charlasQuery = query(
+            const charlaQuery = query(
                 collection(firebaseDb, "charlas"),
-                where("estado", "==", "borrador"),
-                where("fechaRealizacion", "<", hoy)
+                where("estado", "==", "borrador")
+                // where("fechaRealizacion", "<", hoy) // Firestore no permite '<' en Timestamps para queries complejas. Filtraremos en cliente.
                 // Aquí se podría filtrar por empresa si fuera necesario
             );
             
             const charlasSnap = await getDocs(charlaQuery);
-            const tareasUrgentes: TareaPrevencion[] = charlasSnap.docs.map(doc => {
-                const charla = doc.data();
-                return {
-                    id: doc.id,
-                    obraId: charla.obraId,
-                    tipo: 'charla',
-                    titulo: `Realizar charla atrasada: ${charla.titulo}`,
-                    descripcion: `La charla sobre "${charla.tarea}" estaba programada para el ${charla.fechaRealizacion.toDate().toLocaleDateString()} y sigue en borrador.`,
-                    relacionId: doc.id,
-                    estado: 'vencida',
-                    prioridad: 'alta',
-                    fechaCreacion: charla.fechaCreacion,
-                    fechaLimite: charla.fechaRealizacion, // La fecha límite era la de realización
-                    creadaAutomaticamente: charla.generadaAutomaticamente,
-                    responsableUid: charla.creadaPorUid,
-                } as TareaPrevencion;
+            const tareasUrgentes: TareaPrevencion[] = charlasSnap.docs
+                .map(doc => ({ id: doc.id, ...doc.data() } as any))
+                .filter(charla => charla.fechaRealizacion && charla.fechaRealizacion.toDate() < hoy)
+                .map(charla => {
+                    return {
+                        id: charla.id,
+                        obraId: charla.obraId,
+                        tipo: 'charla',
+                        titulo: `Realizar charla atrasada: ${charla.titulo}`,
+                        descripcion: `La charla sobre "${charla.tarea}" estaba programada para el ${charla.fechaRealizacion.toDate().toLocaleDateString()} y sigue en borrador.`,
+                        relacionId: charla.id,
+                        estado: 'vencida',
+                        prioridad: 'alta',
+                        fechaCreacion: charla.fechaCreacion,
+                        fechaLimite: charla.fechaRealizacion, // La fecha límite era la de realización
+                        creadaAutomaticamente: charla.generadaAutomaticamente,
+                        responsableUid: charla.creadaPorUid,
+                    } as TareaPrevencion;
             });
 
             setTareasHoy(tareasUrgentes);
