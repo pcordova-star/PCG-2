@@ -96,7 +96,6 @@ export default function FormulariosGeneralesPrevencionPage() {
     const unsubscribeInvestigaciones = onSnapshot(qInvestigaciones, (snapshot) => {
       const investigacionesList = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as RegistroIncidente));
       setInvestigaciones(investigacionesList);
-      setLoading(false);
     }, (error) => {
       console.error("Error fetching investigaciones:", error);
       setLoading(false);
@@ -108,7 +107,11 @@ export default function FormulariosGeneralesPrevencionPage() {
     const unsubscribeIper = onSnapshot(qIper, (snapshot) => {
       const iperList = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as IPERRegistro));
       setIperRegistros(iperList);
-    }, (error) => console.error("Error fetching IPER records:", error));
+      setLoading(false);
+    }, (error) => {
+        console.error("Error fetching IPER records:", error);
+        setLoading(false);
+    });
 
 
     return () => {
@@ -209,43 +212,12 @@ export default function FormulariosGeneralesPrevencionPage() {
         </CardContent>
       </Card>
       
-      <Tabs defaultValue="investigaciones" className="w-full">
-        <TabsList className="grid w-full grid-cols-2">
-            <TabsTrigger value="investigaciones">Investigación de Incidentes / Accidentes</TabsTrigger>
+      <Tabs defaultValue="iper" className="w-full">
+        <TabsList className="grid w-full grid-cols-3">
             <TabsTrigger value="iper">IPER con Enfoque de Género</TabsTrigger>
+            <TabsTrigger value="investigaciones-incidentes">Incidentes (Ishikawa / 5 Porqués)</TabsTrigger>
+            <TabsTrigger value="investigaciones-accidentes">Accidentes (Árbol de Causas)</TabsTrigger>
         </TabsList>
-
-        <TabsContent value="investigaciones">
-            <Card>
-                <CardHeader>
-                    <CardTitle>Investigación de Incidentes y Accidentes</CardTitle>
-                </CardHeader>
-                <CardContent>
-                    <Tabs defaultValue="incidentes">
-                        <TabsList>
-                            <TabsTrigger value="incidentes">Incidentes / Casi Accidentes (Ishikawa)</TabsTrigger>
-                            <TabsTrigger value="accidentes">Accidentes (Árbol de Causas)</TabsTrigger>
-                        </TabsList>
-                        <TabsContent value="incidentes" className="pt-4">
-                            <InvestigacionIncidentesTab
-                                obraId={obraSeleccionadaId}
-                                investigaciones={investigaciones.filter(inv => inv.metodoAnalisis !== 'arbol_causas')}
-                                loading={loading}
-                                onUpdate={() => { /* Lógica para forzar recarga si es necesario */ }}
-                            />
-                        </TabsContent>
-                        <TabsContent value="accidentes" className="pt-4">
-                            <InvestigacionAccidentesTab
-                                obraId={obraSeleccionadaId}
-                                investigaciones={investigaciones.filter(inv => inv.metodoAnalisis === 'arbol_causas')}
-                                loading={loading}
-                                onUpdate={() => { /* Lógica para forzar recarga si es necesario */ }}
-                            />
-                        </TabsContent>
-                    </Tabs>
-                </CardContent>
-            </Card>
-        </TabsContent>
 
         <TabsContent value="iper">
              <Card>
@@ -301,6 +273,39 @@ export default function FormulariosGeneralesPrevencionPage() {
                     ))}
                     </div>
                 )}
+                </CardContent>
+            </Card>
+        </TabsContent>
+
+        <TabsContent value="investigaciones-incidentes">
+            <Card>
+                <CardHeader>
+                    <CardTitle>Investigación de Incidentes / Casi Accidentes</CardTitle>
+                    <CardDescription>Eventos que no generaron lesiones a personas, analizados con métodos como Ishikawa o 5 Porqués.</CardDescription>
+                </CardHeader>
+                <CardContent>
+                    <InvestigacionIncidentesTab
+                        obraId={obraSeleccionadaId}
+                        investigaciones={investigaciones.filter(inv => inv.metodoAnalisis !== 'arbol_causas')}
+                        loading={loading}
+                        onUpdate={() => { /* Lógica para forzar recarga si es necesario */ }}
+                    />
+                </CardContent>
+            </Card>
+        </TabsContent>
+        <TabsContent value="investigaciones-accidentes">
+            <Card>
+                <CardHeader>
+                    <CardTitle>Investigación de Accidentes (Árbol de Causas)</CardTitle>
+                    <CardDescription>Eventos que generaron (o pudieron generar) lesiones a personas, analizados con el método de Árbol de Causas.</CardDescription>
+                </CardHeader>
+                <CardContent>
+                    <InvestigacionAccidentesTab
+                        obraId={obraSeleccionadaId}
+                        investigaciones={investigaciones.filter(inv => inv.metodoAnalisis === 'arbol_causas')}
+                        loading={loading}
+                        onUpdate={() => { /* Lógica para forzar recarga si es necesario */ }}
+                    />
                 </CardContent>
             </Card>
         </TabsContent>
