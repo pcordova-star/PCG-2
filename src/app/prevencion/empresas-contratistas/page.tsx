@@ -18,6 +18,7 @@ import Link from "next/link";
 import { cn } from "@/lib/utils";
 import { FileDown, PlusCircle, Edit, Trash2, ArrowLeft } from "lucide-react";
 import { useRouter } from "next/navigation";
+import { useAuth } from "@/context/AuthContext";
 
 
 // --- Tipos de Datos ---
@@ -118,6 +119,7 @@ function countDocsOk(empresa: EmpresaContratista): number {
 
 export default function EmpresasContratistasPage() {
   const router = useRouter();
+  const { user, companyId, role } = useAuth();
   
   // --- Estados de UI ---
   const [obras, setObras] = useState<ObraPrevencion[]>([]);
@@ -156,11 +158,20 @@ export default function EmpresasContratistasPage() {
   
   // Carga de Obras
   useEffect(() => {
+    if (!companyId && role !== 'superadmin') return;
+
     async function cargarObras() {
       setLoadingObras(true);
       try {
         const colRef = collection(firebaseDb, "obras");
-        const snapshot = await getDocs(colRef);
+        let q;
+        if (role === 'superadmin') {
+            q = query(colRef, orderBy("nombreFaena"));
+        } else {
+            q = query(colRef, where("empresaId", "==", companyId), orderBy("nombreFaena"));
+        }
+        
+        const snapshot = await getDocs(q);
         const data: ObraPrevencion[] = snapshot.docs.map(doc => ({
           id: doc.id,
           nombreFaena: doc.data().nombreFaena ?? "",
@@ -177,7 +188,7 @@ export default function EmpresasContratistasPage() {
       }
     }
     cargarObras();
-  }, []);
+  }, [companyId, role]);
   
   // Carga de Empresas en tiempo real
   useEffect(() => {
