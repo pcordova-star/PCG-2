@@ -262,6 +262,15 @@ export type RegistroIncidente = {
   gravedad: GravedadIncidente;
   descripcionHecho: string;
   lesionPersona: string;
+  // Campos del accidente (nuevos)
+  lesionDescripcion?: string;
+  parteCuerpoAfectada?: string;
+  agenteAccidente?: string;
+  mecanismoAccidente?: string;
+  diasReposoMedico?: number | null;
+  huboTiempoPerdido?: boolean | null;
+  esAccidenteGraveFatal?: boolean | null;
+  // Campos de análisis
   actoInseguro: string;
   condicionInsegura: string;
   causasInmediatas: string;
