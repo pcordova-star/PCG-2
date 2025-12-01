@@ -1,12 +1,15 @@
 // src/app/prevencion/panel/page.tsx
 "use client";
 
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { AlertTriangle, CalendarClock, ListChecks, UserX, ArrowRight, CheckCircle, Clock } from 'lucide-react';
-import { Timestamp } from 'firebase/firestore';
+import { Timestamp, collection, query, where, getDocs } from 'firebase/firestore';
+import { firebaseDb } from '@/lib/firebaseClient';
+import { useAuth } from '@/context/AuthContext';
+import Link from 'next/link';
 
 // --- TIPOS DE DATOS (simulando firestore) ---
 type TareaTipo = "charla" | "iper" | "induccion" | "capacitacion" | "seguimiento";
@@ -27,50 +30,6 @@ type TareaPrevencion = {
   creadaAutomaticamente: boolean;
   responsableUid: string;
 };
-
-// --- DATOS MOCK ---
-const mockTareas: TareaPrevencion[] = [
-  {
-    id: "1", obraId: "OBRA-123", tipo: "charla", titulo: "Realizar charla: Riesgo eléctrico",
-    descripcion: "Charla asociada al IPER crítico sobre trabajos en tableros eléctricos.",
-    relacionId: "CHARLA-001", estado: "pendiente", prioridad: "alta",
-    fechaCreacion: Timestamp.fromDate(new Date()),
-    fechaLimite: Timestamp.fromDate(new Date()), // Tarea para hoy
-    creadaAutomaticamente: true, responsableUid: "prev1"
-  },
-  {
-    id: "2", obraId: "OBRA-123", tipo: "iper", titulo: "Revisar IPER de excavaciones",
-    descripcion: "Actualizar la matriz de riesgos para la nueva fase de excavación.",
-    relacionId: "IPER-045", estado: "en_progreso", prioridad: "media",
-    fechaCreacion: Timestamp.fromDate(new Date(Date.now() - 2 * 24 * 60 * 60 * 1000)),
-    fechaLimite: Timestamp.fromDate(new Date(Date.now() + 3 * 24 * 60 * 60 * 1000)),
-    creadaAutomaticamente: false, responsableUid: "prev1"
-  },
-  {
-    id: "3", obraId: "OBRA-456", tipo: "induccion", titulo: "Inducción nuevo personal: Contratista A",
-    descripcion: "Realizar inducción de seguridad a 5 nuevos trabajadores del subcontrato de pintura.",
-    relacionId: "CONTR-A", estado: "pendiente", prioridad: "alta",
-    fechaCreacion: Timestamp.fromDate(new Date(Date.now() - 1 * 24 * 60 * 60 * 1000)),
-    fechaLimite: Timestamp.fromDate(new Date()), // Tarea para hoy
-    creadaAutomaticamente: true, responsableUid: "prev1"
-  },
-  {
-    id: "4", obraId: "OBRA-123", tipo: "seguimiento", titulo: "Seguimiento acción correctiva Incidente #012",
-    descripcion: "Verificar implementación de nueva señalética en zona de acopio.",
-    relacionId: "INC-012", estado: "resuelta", prioridad: "media",
-    fechaCreacion: Timestamp.fromDate(new Date(Date.now() - 10 * 24 * 60 * 60 * 1000)),
-    fechaLimite: Timestamp.fromDate(new Date(Date.now() - 5 * 24 * 60 * 60 * 1000)),
-    creadaAutomaticamente: true, responsableUid: "prev1"
-  },
-  {
-    id: "5", obraId: "OBRA-123", tipo: "charla", titulo: "Charla de 5 min: Orden y Aseo",
-    descripcion: "Charla programada vencida de la semana pasada.",
-    relacionId: "CHARLA-002", estado: "vencida", prioridad: "baja",
-    fechaCreacion: Timestamp.fromDate(new Date(Date.now() - 8 * 24 * 60 * 60 * 1000)),
-    fechaLimite: Timestamp.fromDate(new Date(Date.now() - 2 * 24 * 60 * 60 * 1000)),
-    creadaAutomaticamente: true, responsableUid: "prev1"
-  }
-];
 
 // --- COMPONENTES INTERNOS ---
 
@@ -96,7 +55,7 @@ const TareasHoyList = ({ tareas }: { tareas: TareaPrevencion[] }) => {
     return (
         <Card>
             <CardHeader>
-                <CardTitle>Lo que debes hacer HOY</CardTitle>
+                <CardTitle>Lo que debes hacer hoy</CardTitle>
                 <CardDescription>Tareas urgentes que requieren tu atención inmediata.</CardDescription>
             </CardHeader>
             <CardContent className="space-y-3">
@@ -116,8 +75,10 @@ const TareasHoyList = ({ tareas }: { tareas: TareaPrevencion[] }) => {
                                     <Badge variant="outline" className={prioridadColor[tarea.prioridad]}>Prioridad {tarea.prioridad}</Badge>
                                 </div>
                             </div>
-                            <Button size="sm" onClick={() => console.log("Ir a tarea", tarea.id)}>
-                                Ir a tarea <ArrowRight className="ml-2 h-4 w-4" />
+                            <Button asChild size="sm" onClick={() => console.log("Ir a tarea", tarea.id)}>
+                                <Link href={`/prevencion/formularios-generales`}>
+                                 Ir a tarea <ArrowRight className="ml-2 h-4 w-4" />
+                                </Link>
                             </Button>
                         </div>
                     ))
@@ -164,18 +125,63 @@ const TareaCard = ({ tarea }: { tarea: TareaPrevencion }) => {
 
 // --- COMPONENTE PRINCIPAL DE LA PÁGINA ---
 export default function PanelPrevencionistaPage() {
+    const { user, companyId } = useAuth();
+    const [kpis, setKpis] = useState({ charlasAtrasadas: 0, charlasProximas: 0, iperCriticosSinCharla: 0, trabajadoresSinInduccion: 0 });
+    const [tareasHoy, setTareasHoy] = useState<TareaPrevencion[]>([]);
+    const [otrasTareas, setOtrasTareas] = useState<TareaPrevencion[]>([]);
     
+    useEffect(() => {
+        if (!companyId) return;
+
+        const fetchTareas = async () => {
+            const hoy = new Date();
+            hoy.setHours(0,0,0,0);
+            
+            // Tareas para hoy: Charlas en borrador cuya fecha de realización ya pasó.
+            const charlasQuery = query(
+                collection(firebaseDb, "charlas"),
+                where("estado", "==", "borrador"),
+                where("fechaRealizacion", "<", hoy)
+                // Aquí se podría filtrar por empresa si fuera necesario
+            );
+            
+            const charlasSnap = await getDocs(charlaQuery);
+            const tareasUrgentes: TareaPrevencion[] = charlasSnap.docs.map(doc => {
+                const charla = doc.data();
+                return {
+                    id: doc.id,
+                    obraId: charla.obraId,
+                    tipo: 'charla',
+                    titulo: `Realizar charla atrasada: ${charla.titulo}`,
+                    descripcion: `La charla sobre "${charla.tarea}" estaba programada para el ${charla.fechaRealizacion.toDate().toLocaleDateString()} y sigue en borrador.`,
+                    relacionId: doc.id,
+                    estado: 'vencida',
+                    prioridad: 'alta',
+                    fechaCreacion: charla.fechaCreacion,
+                    fechaLimite: charla.fechaRealizacion, // La fecha límite era la de realización
+                    creadaAutomaticamente: charla.generadaAutomaticamente,
+                    responsableUid: charla.creadaPorUid,
+                } as TareaPrevencion;
+            });
+
+            setTareasHoy(tareasUrgentes);
+
+            // Cargar otras tareas (simulado por ahora)
+            // setOtrasTareas(...)
+        };
+
+        fetchTareas();
+
+    }, [companyId]);
+
     // En una implementación real, esto vendría de un useEffect con una consulta a Firestore.
-    const kpis = [
-        { title: "Charlas atrasadas", value: 3, description: "Charlas en borrador con fecha vencida.", icon: CalendarClock, colorClass: "border-red-500 bg-red-50" },
-        { title: "Charlas de esta semana", value: 5, description: "Programadas para los próximos 7 días.", icon: CalendarClock, colorClass: "border-blue-500 bg-blue-50" },
-        { title: "IPER críticos sin charla", value: 2, description: "Riesgos altos que no tienen charla asociada.", icon: AlertTriangle, colorClass: "border-yellow-500 bg-yellow-50" },
-        { title: "Trabajadores sin inducción", value: 4, description: "Personal nuevo pendiente de inducción.", icon: UserX, colorClass: "border-orange-500 bg-orange-50" },
+    const kpiCards = [
+        { title: "Charlas atrasadas", value: kpis.charlasAtrasadas, description: "Charlas en borrador con fecha vencida.", icon: CalendarClock, colorClass: "border-red-500 bg-red-50" },
+        { title: "Charlas de esta semana", value: kpis.charlasProximas, description: "Programadas para los próximos 7 días.", icon: CalendarClock, colorClass: "border-blue-500 bg-blue-50" },
+        { title: "IPER críticos sin charla", value: kpis.iperCriticosSinCharla, description: "Riesgos altos que no tienen charla asociada.", icon: AlertTriangle, colorClass: "border-yellow-500 bg-yellow-50" },
+        { title: "Trabajadores sin inducción", value: kpis.trabajadoresSinInduccion, description: "Personal nuevo pendiente de inducción.", icon: UserX, colorClass: "border-orange-500 bg-orange-50" },
     ];
     
-    const tareasHoy = mockTareas.filter(t => t.estado === 'pendiente' && t.fechaLimite.toDate().toDateString() === new Date().toDateString());
-    const otrasTareas = mockTareas.filter(t => !(t.estado === 'pendiente' && t.fechaLimite.toDate().toDateString() === new Date().toDateString()));
-
     return (
         <div className="space-y-8">
             {/* Encabezado */}
@@ -186,7 +192,7 @@ export default function PanelPrevencionistaPage() {
 
             {/* KPIs */}
             <section className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-                {kpis.map(kpi => <PrevencionKpiCard key={kpi.title} {...kpi} />)}
+                {kpiCards.map(kpi => <PrevencionKpiCard key={kpi.title} {...kpi} />)}
             </section>
 
             {/* Tareas */}
@@ -197,11 +203,15 @@ export default function PanelPrevencionistaPage() {
                 <div className="lg:col-span-2">
                      <Card>
                         <CardHeader>
-                            <CardTitle>Tareas de Prevención</CardTitle>
+                            <CardTitle>Historial de Tareas</CardTitle>
                             <CardDescription>Listado general de todas tus tareas pendientes, en progreso y resueltas.</CardDescription>
                         </CardHeader>
                         <CardContent className="space-y-4">
-                           {otrasTareas.map(tarea => <TareaCard key={tarea.id} tarea={tarea} />)}
+                            {otrasTareas.length > 0 ? (
+                                otrasTareas.map(tarea => <TareaCard key={tarea.id} tarea={tarea} />)
+                            ) : (
+                                <p className="text-sm text-muted-foreground text-center py-4">No hay más tareas en el historial.</p>
+                            )}
                         </CardContent>
                     </Card>
                 </div>
