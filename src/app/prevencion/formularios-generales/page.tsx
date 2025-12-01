@@ -1,3 +1,4 @@
+
 // src/app/prevencion/formularios-generales/page.tsx
 "use client";
 
@@ -117,7 +118,7 @@ export default function FormulariosGeneralesPrevencionPage() {
     const iperCollectionRef = collection(firebaseDb, "obras", obraSeleccionadaId, "iper");
     const qIper = query(iperCollectionRef, orderBy("createdAt", "desc"));
     const unsubscribeIper = onSnapshot(qIper, (snapshot) => {
-      const iperList = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data(), correlativo: iperList?.length ? iperList.length - (snapshot.docs.indexOf(doc)) : 1 } as IPERRegistro));
+      const iperList = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data(), correlativo: snapshot.docs.length - snapshot.docs.indexOf(doc) } as IPERRegistro));
       setIperRegistros(iperList);
       setLoading(false);
     }, (error) => {
