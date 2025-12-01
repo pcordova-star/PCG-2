@@ -1,3 +1,4 @@
+
 // src/app/prevencion/formularios-generales/page.tsx
 "use client";
 
@@ -27,6 +28,7 @@ import { IperForm, IperFormValues } from './components/IperGeneroRow';
 import { IperPrintSheet } from './components/IperPrintSheet';
 import { useToast } from '@/hooks/use-toast';
 import Link from 'next/link';
+import { Badge } from "@/components/ui/badge";
 
 // --- Estado inicial para el formulario IPER ---
 const initialIperState: IperFormValues = {
