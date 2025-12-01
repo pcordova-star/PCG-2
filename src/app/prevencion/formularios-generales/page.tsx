@@ -20,7 +20,7 @@ import {
 } from "firebase/firestore";
 import { firebaseDb, firebaseStorage } from "../../../lib/firebaseClient";
 import { useRouter } from 'next/navigation';
-import { ArrowLeft, BookOpen, FileText, Plus, PlusCircle, Siren, Trash2, Edit, Zap, FileDown, Separator } from 'lucide-react';
+import { ArrowLeft, BookOpen, FileText, Plus, PlusCircle, Siren, Trash2, Edit, Zap, FileDown } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
@@ -54,6 +54,7 @@ import SignaturePad from '../hallazgos/components/SignaturePad';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { Textarea } from '@/components/ui/textarea';
 import { IperPlantilla, IPER_PLANTILLAS_ELECTRICAS } from '@/lib/iperPlantillasElectricas';
+import { Separator } from '@/components/ui/separator';
 
 
 // --- Estado inicial para el formulario IPER ---
