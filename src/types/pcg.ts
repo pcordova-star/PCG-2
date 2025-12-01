@@ -226,6 +226,32 @@ export type TipoIncidente =
 
 export type GravedadIncidente = "Leve" | "Grave" | "Fatal potencial";
 
+export type MetodoAnalisisIncidente = 'ishikawa_5p' | 'arbol_causas';
+
+export interface NodoArbolCausas {
+  id: string;
+  parentId: string | null;
+  tipo: 'hecho' | 'accion' | 'condicion';
+  descripcionCorta: string;
+  detalle?: string;
+  esCausaInmediata?: boolean;
+  esCausaBasica?: boolean;
+}
+
+export interface ArbolCausas {
+  habilitado: boolean;
+  raizId: string | null;
+  nodos: Record<string, NodoArbolCausas>;
+}
+
+export type MedidaCorrectivaDetallada = {
+  id: string;
+  accion: string;
+  responsable: string;
+  fechaCompromiso: string;
+  estado: 'pendiente' | 'en_proceso' | 'cerrado';
+};
+
 export type RegistroIncidente = {
   id: string;
   obraId: string;
@@ -250,4 +276,8 @@ export type RegistroIncidente = {
   // Campos para vincular
   origen?: string;
   hallazgoId?: string;
+  // Nuevos campos para Árbol de Causas
+  metodoAnalisis?: MetodoAnalisisIncidente;
+  arbolCausas?: ArbolCausas;
+  medidasCorrectivasDetalladas?: MedidaCorrectivaDetallada[];
 };
