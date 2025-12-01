@@ -28,7 +28,6 @@ import { InvestigacionAccidentesTab } from './components/InvestigacionAccidentes
 import { Obra, RegistroIncidente, IPERRegistro } from '@/types/pcg';
 import { IperForm, IperFormValues } from './components/IperGeneroRow';
 import { useToast } from '@/hooks/use-toast';
-import Link from 'next/link';
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { cn } from '@/lib/utils';
@@ -44,6 +43,7 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { Input } from '@/components/ui/input';
+import { generarIperPdf } from '@/lib/pdf/generarIperPdf';
 
 
 // --- Estado inicial para el formulario IPER ---
@@ -123,7 +123,7 @@ export default function FormulariosGeneralesPrevencionPage() {
     const iperCollectionRef = collection(firebaseDb, "obras", obraSeleccionadaId, "iper");
     const qIper = query(iperCollectionRef, orderBy("createdAt", "desc"));
     const unsubscribeIper = onSnapshot(qIper, (snapshot) => {
-      const iperList = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data(), correlativo: snapshot.docs.length - (snapshot.docs.indexOf(doc)) } as IPERRegistro));
+      const iperList = snapshot.docs.map((doc, index) => ({ id: doc.id, ...doc.data(), correlativo: snapshot.docs.length - index } as IPERRegistro));
       setIperRegistros(iperList);
       setLoading(false);
     }, (error) => {
@@ -224,6 +224,16 @@ export default function FormulariosGeneralesPrevencionPage() {
         console.error("Error eliminando IPER:", error);
         toast({ variant: 'destructive', title: 'Error', description: 'No se pudo eliminar el registro IPER.' });
     }
+  }
+  
+  const handleExportIperPdf = () => {
+    if (!iperSeleccionado) return;
+    const obra = obras.find(o => o.id === obraSeleccionadaId);
+    if (!obra) {
+        toast({variant: "destructive", title: "Error", description: "No se encontró la obra para generar el PDF."});
+        return;
+    }
+    generarIperPdf(iperSeleccionado, obra);
   }
 
 
@@ -353,7 +363,7 @@ export default function FormulariosGeneralesPrevencionPage() {
                                         <CardTitle>Detalle de IPER: {iperSeleccionado.tarea}</CardTitle>
                                         <CardDescription>Peligro: {iperSeleccionado.peligro}</CardDescription>
                                     </div>
-                                     <Badge variant="outline">ID: IPER-{String(iperSeleccionado.correlativo).padStart(3, '0')}</Badge>
+                                     <Badge variant="outline">IPER-{String(iperSeleccionado.correlativo).padStart(3, '0')}</Badge>
                                 </div>
                             </CardHeader>
                             <CardContent className="space-y-4 text-sm">
@@ -369,7 +379,7 @@ export default function FormulariosGeneralesPrevencionPage() {
                                      <Button onClick={() => setIperFormValues(iperSeleccionado)}>
                                         <BookOpen className="mr-2 h-4 w-4"/>Editar IPER
                                     </Button>
-                                    <Button variant="outline" asChild><Link href={`/prevencion/formularios-generales/iper/${iperSeleccionado.id}/imprimir`} target="_blank"><FileText className="mr-2 h-4 w-4" />Ver Ficha / Imprimir</Link></Button>
+                                    <Button variant="outline" onClick={handleExportIperPdf}><FileText className="mr-2 h-4 w-4" />Descargar Ficha PDF</Button>
                                     <AlertDialog>
                                         <AlertDialogTrigger asChild>
                                             <Button variant="ghost" size="icon" className="text-destructive"><Trash2 className="h-4 w-4"/></Button>
