@@ -436,7 +436,7 @@ function IPERFormSection({ onCrearAccionDesdeIPER }: IPERFormSectionProps) {
   const [filtroCharlas, setFiltroCharlas] = useState('todos');
 
   const { toast } = useToast();
-  const { user } = useAuth();
+  const { user, companyId, role } = useAuth();
   
   const handleOpenCharlaModal = (iper: IPERRegistro) => {
     setSelectedIperForCharla(iper);
@@ -488,22 +488,32 @@ function IPERFormSection({ onCrearAccionDesdeIPER }: IPERFormSectionProps) {
     }
   };
 
-  const cargarObras = async () => {
-     try {
-        const q = query(collection(firebaseDb, "obras"), orderBy("nombreFaena"));
-        const querySnapshot = await getDocs(q);
-        const data: ObraPrevencion[] = querySnapshot.docs.map(doc => ({
-            id: doc.id,
-            nombreFaena: doc.data().nombreFaena
-        } as ObraPrevencion));
-        setObras(data);
-        if (data.length > 0 && !obraSeleccionadaId) {
-          setObraSeleccionadaId(data[0].id);
+  useEffect(() => {
+    if (!companyId && role !== 'superadmin') return;
+
+    const cargarObras = async () => {
+        try {
+            let q;
+            if (role === 'superadmin') {
+                q = query(collection(firebaseDb, "obras"), orderBy("nombreFaena"));
+            } else {
+                q = query(collection(firebaseDb, "obras"), where("empresaId", "==", companyId), orderBy("nombreFaena"));
+            }
+            const querySnapshot = await getDocs(q);
+            const data: ObraPrevencion[] = querySnapshot.docs.map(doc => ({
+                id: doc.id,
+                nombreFaena: doc.data().nombreFaena
+            } as ObraPrevencion));
+            setObras(data);
+            if (data.length > 0 && !obraSeleccionadaId) {
+                setObraSeleccionadaId(data[0].id);
+            }
+        } catch (err) {
+            console.error("Error al cargar obras: ", err);
         }
-    } catch (err) {
-        console.error("Error al cargar obras: ", err);
-    }
-  }
+    };
+    cargarObras();
+  }, [companyId, role]);
 
   const cargarIperDeObra = async (obraId: string) => {
     if (!obraId) {
@@ -529,10 +539,6 @@ function IPERFormSection({ onCrearAccionDesdeIPER }: IPERFormSectionProps) {
         setCargandoIper(false);
     }
   };
-
-  useEffect(() => {
-    cargarObras();
-  }, []);
 
   useEffect(() => {
     if (obraSeleccionadaId) {
@@ -948,10 +954,17 @@ function InvestigacionIncidenteSection({ onCrearAccionDesdeIncidente }: Investig
     plazoCierre: "",
     estadoCierre: "Abierto",
   });
+  
+  const { companyId, role } = useAuth();
 
   const cargarObras = async () => {
-     try {
-        const q = query(collection(firebaseDb, "obras"), orderBy("nombreFaena"));
+    try {
+        let q;
+        if (role === 'superadmin') {
+            q = query(collection(firebaseDb, "obras"), orderBy("nombreFaena"));
+        } else {
+            q = query(collection(firebaseDb, "obras"), where("empresaId", "==", companyId), orderBy("nombreFaena"));
+        }
         const querySnapshot = await getDocs(q);
         const data: ObraPrevencion[] = querySnapshot.docs.map(doc => ({
             id: doc.id,
@@ -993,8 +1006,10 @@ function InvestigacionIncidenteSection({ onCrearAccionDesdeIncidente }: Investig
   };
 
   useEffect(() => {
-    cargarObras();
-  }, []);
+    if (companyId || role === 'superadmin') {
+      cargarObras();
+    }
+  }, [companyId, role]);
 
   useEffect(() => {
     if (obraSeleccionadaId) {
@@ -1241,10 +1256,16 @@ function PlanAccionSection({ prefill, onPrefillConsumido }: PlanAccionSectionPro
     
     const router = useRouter();
     const searchParams = useSearchParams();
+    const { companyId, role } = useAuth();
 
     const cargarObras = async () => {
       try {
-          const q = query(collection(firebaseDb, "obras"), orderBy("nombreFaena"));
+          let q;
+          if (role === 'superadmin') {
+              q = query(collection(firebaseDb, "obras"), orderBy("nombreFaena"));
+          } else {
+              q = query(collection(firebaseDb, "obras"), where("empresaId", "==", companyId), orderBy("nombreFaena"));
+          }
           const querySnapshot = await getDocs(q);
           const data: ObraPrevencion[] = querySnapshot.docs.map(doc => ({
               id: doc.id,
@@ -1290,8 +1311,10 @@ function PlanAccionSection({ prefill, onPrefillConsumido }: PlanAccionSectionPro
     };
     
     useEffect(() => {
-      cargarObras();
-    }, []);
+        if (companyId || role === 'superadmin') {
+            cargarObras();
+        }
+    }, [companyId, role]);
 
     useEffect(() => {
       if (obraSeleccionadaId) {
@@ -1464,7 +1487,7 @@ function PlanAccionSection({ prefill, onPrefillConsumido }: PlanAccionSectionPro
                         {cargandoPlanes ? <p className="text-sm text-muted-foreground pt-4 text-center">Cargando planes de acción...</p> :
                         planesAccion.length === 0 ? (
                             <p className="text-sm text-muted-foreground text-center pt-8">
-                                No hay acciones registradas para esta obra aún.
+                                No hay acciones registradas para esta obra.
                             </p>
                         ) : (
                             <div className="space-y-3 max-h-[600px] overflow-y-auto pr-2">
