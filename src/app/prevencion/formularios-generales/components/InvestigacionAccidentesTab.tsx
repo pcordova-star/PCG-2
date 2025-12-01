@@ -10,15 +10,13 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Textarea } from '@/components/ui/textarea';
 import { Switch } from '@/components/ui/switch';
 import { Badge } from '@/components/ui/badge';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Separator } from '@/components/ui/separator';
 import { ArbolCausasEditor } from './ArbolCausasEditor';
 import { PlanAccionEditor } from './PlanAccionEditor';
-import { generarInvestigacionAccidentePdf } from '@/lib/pdf/generarInvestigacionAccidentePdf';
 import { firebaseDb } from '@/lib/firebaseClient';
 import { collection, addDoc, serverTimestamp, doc, getDoc } from 'firebase/firestore';
 import { RegistroIncidente, Obra, MedidaCorrectivaDetallada, ArbolCausas } from '@/types/pcg';
-import { FileText } from 'lucide-react';
+import { InformeAccidentePdfButton } from './InformeAccidentePdfButton';
 
 interface Props {
   obraId: string;
@@ -102,7 +100,7 @@ export function InvestigacionAccidentesTab({ obraId, investigaciones, loading, o
         obraNombre: obra?.nombreFaena || "N/A",
         createdAt: serverTimestamp(),
         updatedAt: serverTimestamp(),
-        metodoAnalisis: 'arbol_causas', // Forzar el método para esta pestaña
+        metodoAnalisis: 'arbol_causas',
       });
       setFormState(initialFormState);
       onUpdate();
@@ -187,7 +185,9 @@ export function InvestigacionAccidentesTab({ obraId, investigaciones, loading, o
                         <Badge variant="outline">Árbol de Causas</Badge>
                     </div>
                     <p className="text-xs text-muted-foreground">{inv.fecha} - {inv.lugar}</p>
-                     {obra && <Button size="sm" variant="secondary" onClick={() => generarInvestigacionAccidentePdf(inv, obra)}><FileText className="h-4 w-4 mr-2" />Generar Informe</Button>}
+                     {obra && inv.metodoAnalisis === 'arbol_causas' && (
+                        <InformeAccidentePdfButton investigacion={inv} obra={obra} />
+                    )}
                 </article>
               ))}
             </div>
