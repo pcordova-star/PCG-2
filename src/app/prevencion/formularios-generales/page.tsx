@@ -36,6 +36,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useAuth } from '@/context/AuthContext';
 import { ArbolCausas, MetodoAnalisisIncidente, RegistroIncidente } from '@/types/pcg';
 import { ArbolCausasEditor } from './components/ArbolCausasEditor';
+import { Switch } from '@/components/ui/switch';
 
 
 // --- Tipos y Datos para IPER ---
@@ -109,7 +110,6 @@ type Charla = {
     controlGenero: string;
     estado: CharlaEstado;
     contenido: string;
-    // Campos de la Etapa 4
     fechaRealizacion?: Timestamp;
     duracionMinutos?: number;
     participantesTexto?: string;
@@ -122,6 +122,7 @@ export type Criticidad = 'baja' | 'media' | 'alta';
 export interface Hallazgo {
   id?: string;
   obraId: string;
+  sector?: string;
   createdAt: Timestamp;
   createdBy: string;
   tipoRiesgo: string;
@@ -920,7 +921,13 @@ function InvestigacionIncidenteSection({ onCrearAccionDesdeIncidente }: Investig
     tipoIncidente: "Casi accidente",
     gravedad: "Leve",
     descripcionHecho: "",
-    lesionPersona: "",
+    lesionDescripcion: "",
+    parteCuerpoAfectada: "",
+    agenteAccidente: "",
+    mecanismoAccidente: "",
+    diasReposoMedico: null,
+    huboTiempoPerdido: false,
+    esAccidenteGraveFatal: false,
     actoInseguro: "",
     condicionInsegura: "",
     causasInmediatas: "",
@@ -936,17 +943,13 @@ function InvestigacionIncidenteSection({ onCrearAccionDesdeIncidente }: Investig
   
   const { companyId, role } = useAuth();
   
-  const isAccident = useMemo(() => 
-    formIncidente.tipoIncidente.includes("Accidente"),
-    [formIncidente.tipoIncidente]
-  );
-
   useEffect(() => {
-    setFormIncidente(prev => ({
-      ...prev,
-      metodoAnalisis: isAccident ? 'arbol_causas' : 'ishikawa_5p'
-    }));
-  }, [isAccident]);
+    const esAccidente = formIncidente.tipoIncidente.includes("Accidente");
+    handleInputChange('metodoAnalisis', esAccidente ? 'arbol_causas' : 'ishikawa_5p');
+    if(esAccidente) {
+        handleInputChange('huboTiempoPerdido', formIncidente.tipoIncidente === "Accidente con tiempo perdido");
+    }
+  }, [formIncidente.tipoIncidente]);
 
   const cargarObras = async () => {
     try {
@@ -1038,7 +1041,6 @@ function InvestigacionIncidenteSection({ onCrearAccionDesdeIncidente }: Investig
         updatedAt: serverTimestamp(),
     };
 
-    // No guardar el árbol de causas si el método no corresponde
     if(formIncidente.metodoAnalisis !== 'arbol_causas'){
         delete (dataToSave as any).arbolCausas;
     }
@@ -1061,6 +1063,13 @@ function InvestigacionIncidenteSection({ onCrearAccionDesdeIncidente }: Investig
             responsableSeguimiento: "",
             plazoCierre: "",
             arbolCausas: undefined,
+            lesionDescripcion: "",
+            parteCuerpoAfectada: "",
+            agenteAccidente: "",
+            mecanismoAccidente: "",
+            diasReposoMedico: null,
+            huboTiempoPerdido: false,
+            esAccidenteGraveFatal: false,
         }));
 
         cargarIncidentes(obraSeleccionadaId);
@@ -1134,16 +1143,32 @@ function InvestigacionIncidenteSection({ onCrearAccionDesdeIncidente }: Investig
                </div>
           </div>
           <div className="space-y-2"><Label>Descripción del hecho*</Label><Textarea value={formIncidente.descripcionHecho} onChange={e => handleInputChange('descripcionHecho', e.target.value)} /></div>
-          <div className="space-y-2"><Label>Lesión a la persona</Label><Input value={formIncidente.lesionPersona} onChange={e => handleInputChange('lesionPersona', e.target.value)} placeholder="Ej: Esguince tobillo, No aplica..." /></div>
           
-           <Separator className="my-4"/>
-           <h4 className="text-md font-semibold">Análisis de Causas</h4>
-           <div className="space-y-2">
-            <Label>Método de Análisis</Label>
-            <Input value={isAccident ? "Árbol de Causas" : "Ishikawa / 5 Porqués"} disabled />
-           </div>
+           {formIncidente.metodoAnalisis === 'arbol_causas' && (
+              <div className="space-y-4 pt-4 border-t">
+                  <h4 className="text-md font-semibold">Datos Específicos del Accidente</h4>
+                  <div className="space-y-2"><Label>Lesión Producida</Label><Textarea value={formIncidente.lesionDescripcion} onChange={e => handleInputChange('lesionDescripcion', e.target.value)} rows={2} /></div>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-2"><Label>Parte del Cuerpo Afectada</Label><Input value={formIncidente.parteCuerpoAfectada} onChange={e => handleInputChange('parteCuerpoAfectada', e.target.value)} /></div>
+                    <div className="space-y-2"><Label>Días de Reposo Médico</Label><Input type="number" value={formIncidente.diasReposoMedico ?? ''} onChange={e => handleInputChange('diasReposoMedico', e.target.value === '' ? null : Number(e.target.value))} /></div>
+                  </div>
+                   <div className="grid grid-cols-2 gap-4">
+                     <div className="space-y-2"><Label>Agente del Accidente</Label><Input value={formIncidente.agenteAccidente} onChange={e => handleInputChange('agenteAccidente', e.target.value)} /></div>
+                    <div className="space-y-2"><Label>Mecanismo del Accidente</Label><Input value={formIncidente.mecanismoAccidente} onChange={e => handleInputChange('mecanismoAccidente', e.target.value)} /></div>
+                  </div>
+                  <div className="flex items-center space-x-2"><Switch id="tiempo-perdido" checked={formIncidente.huboTiempoPerdido ?? false} onCheckedChange={c => handleInputChange('huboTiempoPerdido', c)} /><Label htmlFor="tiempo-perdido">¿Hubo tiempo perdido?</Label></div>
+                  <div className="flex items-center space-x-2"><Switch id="grave-fatal" checked={formIncidente.esAccidenteGraveFatal ?? false} onCheckedChange={c => handleInputChange('esAccidenteGraveFatal', c)} /><Label htmlFor="grave-fatal">¿Corresponde a accidente grave/fatal?</Label></div>
+              </div>
+            )}
+            
+            <Separator className="my-4"/>
+            <h4 className="text-md font-semibold">Análisis de Causas</h4>
+            <div className="space-y-2">
+                <Label>Método de Análisis</Label>
+                <Input value={formIncidente.metodoAnalisis === 'arbol_causas' ? "Árbol de Causas" : "Ishikawa / 5 Porqués"} disabled />
+            </div>
 
-            {isAccident ? (
+            {formIncidente.metodoAnalisis === 'arbol_causas' ? (
                  <ArbolCausasEditor 
                     value={formIncidente.arbolCausas} 
                     onChange={arbol => handleInputChange('arbolCausas', arbol)} 
@@ -1194,7 +1219,7 @@ function InvestigacionIncidenteSection({ onCrearAccionDesdeIncidente }: Investig
                     <p className="font-semibold text-primary">
                       {inc.fecha} – {inc.lugar || "Sin lugar"}
                     </p>
-                     <Badge variant="outline">{inc.metodoAnalisis === 'arbol_causas' ? "Árbol de Causas" : "Ishikawa / 5 Porqués"}</Badge>
+                     <Badge variant="outline">{inc.metodoAnalisis === 'arbol_causas' ? "Árbol de Causas" : "Ishikawa / 5P"}</Badge>
                   </div>
                   <div className="flex justify-between items-center text-xs">
                       <span>Tipo: {inc.tipoIncidente}</span>
@@ -1202,6 +1227,9 @@ function InvestigacionIncidenteSection({ onCrearAccionDesdeIncidente }: Investig
                       <span>Estado: <span className="font-semibold">{inc.estadoCierre}</span></span>
                   </div>
                   <p><strong className="text-muted-foreground">Hecho:</strong> {inc.descripcionHecho}</p>
+                   {inc.metodoAnalisis === 'arbol_causas' && (
+                    <p className="text-xs italic"><strong className="text-muted-foreground">Lesión:</strong> {inc.lesionDescripcion || 'No especificada'}</p>
+                  )}
                   
                   <div className="text-xs pt-2 border-t mt-2 flex justify-between">
                     <span><strong className="text-muted-foreground">Responsable:</strong> {inc.responsableSeguimiento || "N/A"}</span>
@@ -1550,7 +1578,7 @@ function PlanAccionSection({ prefill, onPrefillConsumido }: PlanAccionSectionPro
     );
 }
 
-function HallazgosSection() {
+const HallazgosSection = () => {
     const router = useRouter();
     const { toast } = useToast();
     const { companyId, role } = useAuth();
@@ -1663,7 +1691,9 @@ function HallazgosSection() {
                                             <TableCell>{h.createdAt.toDate().toLocaleDateString('es-CL')}</TableCell>
                                             <TableCell>{h.tipoRiesgo}</TableCell>
                                             <TableCell><Badge variant="outline">{h.criticidad}</Badge></TableCell>
-                                            <TableCell><HallazgoEstadoBadge estado={h.estado} /></TableCell>
+                                            <TableCell>
+                                                <Badge variant={h.estado === 'cerrado' ? 'default' : 'secondary'}>{h.estado}</Badge>
+                                            </TableCell>
                                             <TableCell className="text-right">
                                                 <div className="flex gap-2 justify-end">
                                                     <Button asChild size="sm" variant="outline"><Link href={`/prevencion/hallazgos/detalle/${h.id}`}>Ver Detalle</Link></Button>
