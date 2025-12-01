@@ -1,5 +1,3 @@
-
-
 // src/app/prevencion/formularios-generales/page.tsx
 "use client";
 
@@ -15,7 +13,7 @@ import {
 } from "firebase/firestore";
 import { firebaseDb } from "@/lib/firebaseClient";
 import { useRouter } from 'next/navigation';
-import { ArrowLeft, BookOpen, FileText, Plus } from 'lucide-react';
+import { ArrowLeft, BookOpen, FileText, Plus, PlusCircle, Siren } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
@@ -26,10 +24,23 @@ import { InvestigacionIncidentesTab } from './components/InvestigacionIncidentes
 import { InvestigacionAccidentesTab } from './components/InvestigacionAccidentesTab';
 import { Obra, RegistroIncidente, IPERRegistro } from '@/types/pcg';
 import { IperForm, IperFormValues } from './components/IperGeneroRow';
-import { IperPrintSheet } from './components/IperPrintSheet';
 import { useToast } from '@/hooks/use-toast';
 import Link from 'next/link';
 import { Badge } from "@/components/ui/badge";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { cn } from '@/lib/utils';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
+
 
 // --- Estado inicial para el formulario IPER ---
 const initialIperState: IperFormValues = {
@@ -51,7 +62,6 @@ export default function FormulariosGeneralesPrevencionPage() {
   const { companyId, role } = useAuth();
   const { toast } = useToast();
   
-  // Estado para el formulario IPER
   const [iperFormValues, setIperFormValues] = useState<IperFormValues>(initialIperState);
   const [guardandoIper, setGuardandoIper] = useState(false);
   const [iperSeleccionado, setIperSeleccionado] = useState<IPERRegistro | null>(null);
@@ -87,8 +97,8 @@ export default function FormulariosGeneralesPrevencionPage() {
     }
 
     setLoading(true);
+    setIperSeleccionado(null);
     
-    // Suscripción para Investigaciones
     const qInvestigaciones = query(
       collection(firebaseDb, "investigacionesIncidentes"),
       where("obraId", "==", obraSeleccionadaId),
@@ -102,7 +112,6 @@ export default function FormulariosGeneralesPrevencionPage() {
       setLoading(false);
     });
 
-    // Suscripción para IPER
     const iperCollectionRef = collection(firebaseDb, "obras", obraSeleccionadaId, "iper");
     const qIper = query(iperCollectionRef, orderBy("createdAt", "desc"));
     const unsubscribeIper = onSnapshot(qIper, (snapshot) => {
@@ -221,62 +230,92 @@ export default function FormulariosGeneralesPrevencionPage() {
         </TabsList>
 
         <TabsContent value="iper">
-            <div className="space-y-6">
-                <Card>
-                    <CardHeader>
-                        <CardTitle>Identificación de Peligros y Evaluación de Riesgos (IPER) con enfoque de género</CardTitle>
-                        <CardDescription>Use este formulario para registrar y evaluar los riesgos de las tareas en la obra.</CardDescription>
-                    </CardHeader>
-                    <CardContent>
-                        <form onSubmit={handleIperSubmit}>
-                            <IperForm value={iperFormValues} onChange={setIperFormValues} />
-                            <div className="flex gap-4 mt-6">
-                                <Button type="submit" disabled={guardandoIper}>
-                                    {guardandoIper ? 'Guardando IPER...' : 'Guardar Registro IPER'}
-                                </Button>
-                                <Button type="button" variant="outline" onClick={() => setIperFormValues(initialIperState)}>
-                                    Limpiar Formulario
-                                </Button>
-                            </div>
-                        </form>
-                    </CardContent>
-                </Card>
-
-                <Card>
-                    <CardHeader>
-                    <CardTitle>Historial de IPER Registrados</CardTitle>
-                    <CardDescription>
-                        Listado de todos los análisis de riesgo guardados para la obra seleccionada.
-                    </CardDescription>
-                    </CardHeader>
-                    <CardContent>
-                    {loading ? (
-                        <p>Cargando historial IPER...</p>
-                    ) : iperRegistros.length === 0 ? (
-                        <p className="text-sm text-muted-foreground">No hay registros IPER para esta obra.</p>
-                    ) : (
-                        <div className="space-y-2">
-                        {iperRegistros.map(iper => (
-                            <div key={iper.id} className="border p-3 rounded-md text-sm flex justify-between items-center">
-                                <div>
-                                    <p className="font-semibold">{iper.tarea}</p>
-                                    <p className="text-xs text-muted-foreground">Peligro: {iper.peligro}</p>
-                                </div>
-                                <div className="flex items-center gap-2">
-                                    <Badge variant="outline">Riesgo H: {iper.nivel_riesgo_hombre}</Badge>
-                                    <Badge variant="outline">Riesgo M: {iper.nivel_riesgo_mujer}</Badge>
-                                    <Button asChild variant="secondary" size="sm">
-                                        <Link href={`/prevencion/formularios-generales/iper/${iper.id}/imprimir`} target="_blank">
-                                            <FileText className="mr-2 h-4 w-4" /> Ver Ficha
-                                        </Link>
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-start">
+                 <div className="space-y-6">
+                    <Card>
+                        <CardHeader>
+                            <CardTitle>Registrar Nuevo IPER con enfoque de género</CardTitle>
+                        </CardHeader>
+                        <CardContent>
+                            <form onSubmit={handleIperSubmit}>
+                                <IperForm value={iperFormValues} onChange={setIperFormValues} />
+                                <div className="flex gap-4 mt-6">
+                                    <Button type="submit" disabled={guardandoIper}>
+                                        {guardandoIper ? 'Guardando IPER...' : 'Guardar Registro IPER'}
+                                    </Button>
+                                    <Button type="button" variant="outline" onClick={() => setIperFormValues(initialIperState)}>
+                                        Limpiar Formulario
                                     </Button>
                                 </div>
+                            </form>
+                        </CardContent>
+                    </Card>
+                    <Card>
+                      <CardHeader>
+                          <CardTitle>Historial de IPER Registrados</CardTitle>
+                          <CardDescription>Seleccione un registro para ver sus detalles y acciones.</CardDescription>
+                      </CardHeader>
+                      <CardContent>
+                          {loading ? <p>Cargando...</p> : 
+                           iperRegistros.length === 0 ? <p className="text-sm text-muted-foreground">No hay registros IPER para esta obra.</p> : (
+                            <div className="border rounded-md">
+                               <Table>
+                                  <TableHeader><TableRow><TableHead>Tarea</TableHead><TableHead>Peligro</TableHead></TableRow></TableHeader>
+                                  <TableBody>
+                                      {iperRegistros.map(iper => (
+                                          <TableRow key={iper.id} onClick={() => setIperSeleccionado(iper)} className={cn("cursor-pointer", iperSeleccionado?.id === iper.id && "bg-accent/20")}>
+                                              <TableCell className="font-medium">{iper.tarea}</TableCell>
+                                              <TableCell>{iper.peligro}</TableCell>
+                                          </TableRow>
+                                      ))}
+                                  </TableBody>
+                              </Table>
                             </div>
-                        ))}
-                        </div>
+                           )}
+                      </CardContent>
+                    </Card>
+                 </div>
+                 <div className="sticky top-24">
+                    {!iperSeleccionado ? (
+                        <Card className="flex items-center justify-center h-96 border-dashed">
+                            <p className="text-muted-foreground">Seleccione un IPER del listado para ver su detalle.</p>
+                        </Card>
+                    ) : (
+                        <Card>
+                            <CardHeader>
+                                <CardTitle>Detalle de IPER: {iperSeleccionado.tarea}</CardTitle>
+                                <CardDescription>Peligro: {iperSeleccionado.peligro}</CardDescription>
+                            </CardHeader>
+                            <CardContent className="space-y-4 text-sm">
+                                <div className="grid grid-cols-2 gap-4">
+                                    <div><p className="font-semibold">Riesgo Inherente (H/M)</p><p><span className="font-bold text-blue-600">{iperSeleccionado.nivel_riesgo_hombre}</span> / <span className="font-bold text-pink-600">{iperSeleccionado.nivel_riesgo_mujer}</span></p></div>
+                                    <div><p className="font-semibold">Riesgo Residual</p><p className="font-bold text-green-700">{iperSeleccionado.nivel_riesgo_residual}</p></div>
+                                </div>
+                                <div><p className="font-semibold">Control Específico Género</p><p className="text-muted-foreground">{iperSeleccionado.control_especifico_genero || "No especificado"}</p></div>
+                                <div><p className="font-semibold">Responsable</p><p className="text-muted-foreground">{iperSeleccionado.responsable || "No asignado"}</p></div>
+                                <div className="flex gap-2">
+                                     <AlertDialog>
+                                        <AlertDialogTrigger asChild>
+                                            <Button><Siren className="mr-2 h-4 w-4"/>Generar Charla de Seguridad</Button>
+                                        </AlertDialogTrigger>
+                                        <AlertDialogContent>
+                                            <AlertDialogHeader>
+                                                <AlertDialogTitle>Función en Desarrollo</AlertDialogTitle>
+                                                <AlertDialogDescription>
+                                                    Esta función generará automáticamente una nueva charla de seguridad asociada a este riesgo IPER. Aún está en desarrollo.
+                                                </AlertDialogDescription>
+                                            </AlertDialogHeader>
+                                            <AlertDialogFooter>
+                                                <AlertDialogAction>Entendido</AlertDialogAction>
+                                            </AlertDialogFooter>
+                                        </AlertDialogContent>
+                                    </AlertDialog>
+                                    <Button variant="outline" asChild><Link href={`/prevencion/formularios-generales/iper/${iperSeleccionado.id}/imprimir`} target="_blank"><FileText className="mr-2 h-4 w-4" />Ver Ficha</Link></Button>
+                                </div>
+                            </CardContent>
+                        </Card>
                     )}
-                    </CardContent>
-                </Card>
+                 </div>
             </div>
         </TabsContent>
 
@@ -297,8 +336,6 @@ export default function FormulariosGeneralesPrevencionPage() {
             />
         </TabsContent>
       </Tabs>
-      
-      <IperPrintSheet iper={iperSeleccionado} obraNombre={obras.find(o => o.id === iperSeleccionado?.obraId)?.nombreFaena} />
 
     </section>
   );
