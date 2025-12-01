@@ -146,7 +146,7 @@ export type CharlaEstado = "borrador" | "realizada" | "programada" | "cancelada"
 export interface FirmaAsistente {
   trabajadorId?: string;
   nombre: string;
-  rut?: string;
+  rut: string;
   cargo?: string;
   firmaUrl?: string;
   firmadoEn?: string; // ISO

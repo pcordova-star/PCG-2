@@ -27,7 +27,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useAuth } from '@/context/AuthContext';
 import { InvestigacionIncidentesTab } from './components/InvestigacionIncidentesTab';
 import { InvestigacionAccidentesTab } from './components/InvestigacionAccidentesTab';
-import { Obra, RegistroIncidente, IPERRegistro, Charla, FirmaAsistente } from '@/types/pcg';
+import { Obra, RegistroIncidente, IPERRegistro, Charla, FirmaAsistente, CharlaEstado } from '@/types/pcg';
 import { IperForm, IperFormValues } from './components/IperGeneroRow';
 import { useToast } from '@/hooks/use-toast';
 import { Badge } from "@/components/ui/badge";
@@ -119,6 +119,7 @@ export default function FormulariosGeneralesPrevencionPage() {
   const [isSignatureModalOpen, setIsSignatureModalOpen] = useState(false);
   const [asistenteParaFirmar, setAsistenteParaFirmar] = useState<FirmaAsistente | null>(null);
   const [nuevoAsistenteNombre, setNuevoAsistenteNombre] = useState('');
+  const [nuevoAsistenteRut, setNuevoAsistenteRut] = useState('');
 
   const [isTemplateModalOpen, setIsTemplateModalOpen] = useState(false);
 
@@ -182,8 +183,8 @@ export default function FormulariosGeneralesPrevencionPage() {
     
     const qCharlas = query(collection(firebaseDb, "charlas"), where("obraId", "==", obraSeleccionadaId), orderBy("fechaCreacion", "desc"));
     unsubscribes.push(onSnapshot(qCharlas, (snapshot) => {
-        const charlasList = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Charla));
-        setCharlas(charlasList);
+        const charlaList = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Charla));
+        setCharlas(charlaList);
     }));
 
 
@@ -377,13 +378,26 @@ export default function FormulariosGeneralesPrevencionPage() {
     }
   };
   
+  const formatRut = (rut: string): string => {
+    let cleanRut = rut.replace(/[^0-9kK]/g, '');
+    if (cleanRut.length === 0) return '';
+    let cuerpo = cleanRut.slice(0, -1);
+    let dv = cleanRut.slice(-1).toUpperCase();
+    cuerpo = cuerpo.replace(/\B(?=(\d{3})+(?!\d))/g, ".");
+    return `${cuerpo}-${dv}`;
+  };
+
   const handleAgregarAsistente = async () => {
-    if (!selectedCharlaId || !nuevoAsistenteNombre.trim()) return;
-    const nuevoAsistente: FirmaAsistente = { nombre: nuevoAsistenteNombre };
+    if (!selectedCharlaId || !nuevoAsistenteNombre.trim() || !nuevoAsistenteRut.trim()) {
+        toast({ variant: 'destructive', title: 'Error', description: 'Nombre y RUT son obligatorios.' });
+        return;
+    }
+    const nuevoAsistente: FirmaAsistente = { nombre: nuevoAsistenteNombre, rut: formatRut(nuevoAsistenteRut) };
     const charlaRef = doc(firebaseDb, "charlas", selectedCharlaId);
     const asistentesActuales = charlaSeleccionada?.asistentes || [];
     await updateDoc(charlaRef, { asistentes: [...asistentesActuales, nuevoAsistente] });
     setNuevoAsistenteNombre('');
+    setNuevoAsistenteRut('');
   };
   
   const handleGuardarFirma = async (firmaUrl: string | null) => {
@@ -661,10 +675,10 @@ export default function FormulariosGeneralesPrevencionPage() {
                         <CardHeader><CardTitle>Listado de Charlas</CardTitle></CardHeader>
                         <CardContent>
                             {charlas.map(charla => (
-                                <div key={charla.id} className="p-2 rounded-md flex justify-between items-center">
+                                <div key={charla.id} className="p-2 rounded-md flex justify-between items-center hover:bg-muted/50">
                                     <div onClick={() => setSelectedCharlaId(charla.id)} className={cn("flex-1 cursor-pointer", selectedCharlaId === charla.id && 'font-bold')}>
                                         <p>{charla.titulo}</p>
-                                        {charla.fechaCreacion && <p className="text-xs text-muted-foreground">{charla.fechaCreacion.toDate().toLocaleDateString('es-CL')}</p>}
+                                        {charla.fechaCreacion && <p className="text-xs text-muted-foreground">{new Date(charla.fechaCreacion.seconds * 1000).toLocaleDateString()}</p>}
                                     </div>
                                     <AlertDialog>
                                         <AlertDialogTrigger asChild>
@@ -697,14 +711,18 @@ export default function FormulariosGeneralesPrevencionPage() {
                            <h4 className="font-semibold mb-2">Asistentes</h4>
                            <div className="space-y-2 mb-4">
                                 {(charlaSeleccionada.asistentes || []).map((asistente, i) => (
-                                    <div key={i} className="flex justify-between items-center">
-                                        <span>{asistente.nombre}</span>
+                                    <div key={i} className="flex justify-between items-center text-sm p-2 rounded-md bg-muted/50">
+                                        <div>
+                                            <p className="font-medium">{asistente.nombre}</p>
+                                            <p className="text-xs text-muted-foreground">{asistente.rut}</p>
+                                        </div>
                                         {asistente.firmaUrl ? <Badge>Firmado</Badge> : <Button size="sm" variant="outline" onClick={() => { setAsistenteParaFirmar(asistente); setIsSignatureModalOpen(true);}}>Firmar</Button>}
                                     </div>
                                 ))}
                            </div>
                            <div className="flex gap-2">
                             <Input value={nuevoAsistenteNombre} onChange={e => setNuevoAsistenteNombre(e.target.value)} placeholder="Nombre del asistente"/>
+                            <Input value={nuevoAsistenteRut} onChange={e => setNuevoAsistenteRut(e.target.value)} placeholder="RUT del asistente"/>
                             <Button onClick={handleAgregarAsistente}><Plus size={16}/> Agregar</Button>
                            </div>
                         </CardContent>
