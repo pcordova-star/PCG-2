@@ -1,4 +1,5 @@
 
+
 // src/app/prevencion/formularios-generales/page.tsx
 "use client";
 
@@ -19,7 +20,7 @@ import {
 } from "firebase/firestore";
 import { firebaseDb, firebaseStorage } from "../../../lib/firebaseClient";
 import { useRouter } from 'next/navigation';
-import { ArrowLeft, BookOpen, FileText, Plus, PlusCircle, Siren, Trash2, Edit, Zap } from 'lucide-react';
+import { ArrowLeft, BookOpen, FileText, Plus, PlusCircle, Siren, Trash2, Edit, Zap, FileDown } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
@@ -56,12 +57,24 @@ import { IperPlantilla, IPER_PLANTILLAS_ELECTRICAS } from '@/lib/iperPlantillasE
 
 
 // --- Estado inicial para el formulario IPER ---
-const initialIperState: IperFormValues = {
+const initialIperState: Omit<IPERRegistro, 'id' | 'createdAt' | 'correlativo'> = {
+  obraId: "",
   tarea: "", zona: "", peligro: "", riesgo: "", categoriaPeligro: "Mecánico",
-  probabilidadHombre: 1, consecuenciaHombre: 1, probabilidadMujer: 1, consecuenciaMujer: 1,
-  jerarquiaControl: "Control Administrativo", controlEspecificoGenero: "",
+  probabilidad_hombre: 1, consecuencia_hombre: 1, nivel_riesgo_hombre: 1,
+  probabilidad_mujer: 1, consecuencia_mujer: 1, nivel_riesgo_mujer: 1,
+  jerarquiaControl: "Control Administrativo", control_especifico_genero: "",
   responsable: "", plazo: "", estadoControl: "PENDIENTE",
-  probabilidadResidual: 1, consecuenciaResidual: 1,
+  probabilidad_residual: 1, consecuencia_residual: 1, nivel_riesgo_residual: 1,
+  medidasControlExistentes: "",
+  medidasControlPropuestas: "",
+  responsableImplementacion: "",
+  plazoImplementacion: "",
+  firmaPrevencionistaUrl: undefined,
+  firmaPrevencionistaNombre: undefined,
+  firmaPrevencionistaRut: undefined,
+  firmaPrevencionistaCargo: undefined,
+  firmaPrevencionistaFecha: undefined,
+  firmaPrevencionistaUserId: undefined,
 };
 
 const initialCharlaState: Omit<Charla, 'id'> = {
@@ -70,7 +83,7 @@ const initialCharlaState: Omit<Charla, 'id'> = {
     iperId: "",
     titulo: "",
     tipo: "charla_iper",
-    fechaCreacion: serverTimestamp(),
+    fechaCreacion: serverTimestamp() as any,
     creadaPorUid: "",
     generadaAutomaticamente: false,
     tarea: "",
@@ -127,6 +140,10 @@ export default function FormulariosGeneralesPrevencionPage() {
   // Estado para edición de asistentes
   const [editingAsistenteIndex, setEditingAsistenteIndex] = useState<number | null>(null);
   const [editingAsistenteData, setEditingAsistenteData] = useState<FirmaAsistente | null>(null);
+  
+  // Estados para la firma del prevencionista en IPER
+  const [isIperSignatureModalOpen, setIsIperSignatureModalOpen] = useState(false);
+  const [iperSignatureDataUrl, setIperSignatureDataUrl] = useState<string | null>(null);
 
 
   useEffect(() => {
@@ -208,69 +225,91 @@ export default function FormulariosGeneralesPrevencionPage() {
     });
   }, [iperRegistros, filtroIperTexto, filtroIperEstado]);
   
-  const handleIperSubmit = async (e: React.FormEvent) => {
+ const handleIperSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if(!obraSeleccionadaId) {
-        toast({ variant: 'destructive', title: 'Error', description: 'Debe seleccionar una obra.' });
-        return;
+    if (!obraSeleccionadaId) {
+      toast({ variant: 'destructive', title: 'Error', description: 'Debe seleccionar una obra.' });
+      return;
     }
     setGuardandoIper(true);
     try {
-        const iperValues = iperFormValues as IperFormValues;
-        const nivel_riesgo_hombre = iperValues.probabilidadHombre * iperValues.consecuenciaHombre;
-        const nivel_riesgo_mujer = iperValues.probabilidadMujer * iperValues.consecuenciaMujer;
-        const nivel_riesgo_residual = iperValues.probabilidadResidual * iperValues.consecuenciaResidual;
+      const iperValues = iperFormValues as IperFormValues;
+      const nivel_riesgo_hombre = (iperValues.probabilidadHombre || 1) * (iperValues.consecuenciaHombre || 1);
+      const nivel_riesgo_mujer = (iperValues.probabilidadMujer || 1) * (iperValues.consecuenciaMujer || 1);
+      const nivel_riesgo_residual = (iperValues.probabilidadResidual || 1) * (iperValues.consecuenciaResidual || 1);
 
-        const iperDoc: Omit<IPERRegistro, 'id'> = {
-            obraId: obraSeleccionadaId,
-            tarea: iperValues.tarea,
-            zona: iperValues.zona,
-            peligro: iperValues.peligro === 'Otro' ? iperValues.peligroOtro || '' : iperValues.peligro,
-            riesgo: iperValues.riesgo === 'Otro' ? iperValues.riesgoOtro || '' : iperValues.riesgo,
-            categoriaPeligro: iperValues.categoriaPeligro,
-            probabilidad_hombre: iperValues.probabilidadHombre,
-            consecuencia_hombre: iperValues.consecuenciaHombre,
-            nivel_riesgo_hombre,
-            probabilidad_mujer: iperValues.probabilidadMujer,
-            consecuencia_mujer: iperValues.consecuenciaMujer,
-            nivel_riesgo_mujer,
-            jerarquiaControl: iperValues.jerarquiaControl,
-            control_especifico_genero: iperValues.controlEspecificoGenero === 'Otro' ? iperValues.controlEspecificoGeneroOtro || '' : iperValues.controlEspecificoGenero,
-            responsable: iperValues.responsable,
-            plazo: iperValues.plazo,
-            estadoControl: iperValues.estadoControl,
-            probabilidad_residual: iperValues.probabilidadResidual,
-            consecuencia_residual: iperValues.consecuenciaResidual,
-            nivel_riesgo_residual,
-            createdAt: iperFormValues.createdAt || serverTimestamp(),
-            medidasControlExistentes: '',
-            medidasControlPropuestas: '',
-            responsableImplementacion: '',
-            plazoImplementacion: ''
-        };
-        
-        if(iperFormValues.id) {
-            // Actualizar
-            const docRef = doc(firebaseDb, "obras", obraSeleccionadaId, "iper", iperFormValues.id);
-            await updateDoc(docRef, { ...iperDoc, updatedAt: serverTimestamp() });
-            toast({ title: 'Éxito', description: 'Registro IPER actualizado.' });
-        } else {
-            // Crear
-            const iperCollectionRef = collection(firebaseDb, "obras", obraSeleccionadaId, "iper");
-            await addDoc(iperCollectionRef, iperDoc);
-            toast({ title: 'Éxito', description: 'Registro IPER guardado.' });
-        }
+      const iperDoc: Omit<IPERRegistro, 'id'> = {
+        obraId: obraSeleccionadaId,
+        tarea: iperValues.tarea,
+        zona: iperValues.zona,
+        peligro: iperValues.peligro === 'Otro' ? iperValues.peligroOtro || '' : iperValues.peligro,
+        riesgo: iperValues.riesgo === 'Otro' ? iperValues.riesgoOtro || '' : iperValues.riesgo,
+        categoriaPeligro: iperValues.categoriaPeligro,
+        probabilidad_hombre: iperValues.probabilidadHombre || 1,
+        consecuencia_hombre: iperValues.consecuenciaHombre || 1,
+        nivel_riesgo_hombre,
+        probabilidad_mujer: iperValues.probabilidadMujer || 1,
+        consecuencia_mujer: iperValues.consecuenciaMujer || 1,
+        nivel_riesgo_mujer,
+        jerarquiaControl: iperValues.jerarquiaControl,
+        control_especifico_genero: iperValues.controlEspecificoGenero === 'Otro' ? iperValues.controlEspecificoGeneroOtro || '' : iperValues.controlEspecificoGenero,
+        responsable: iperValues.responsable,
+        plazo: iperValues.plazo,
+        estadoControl: iperValues.estadoControl,
+        probabilidad_residual: iperValues.probabilidadResidual || 1,
+        consecuencia_residual: iperValues.consecuenciaResidual || 1,
+        nivel_riesgo_residual,
+        createdAt: iperFormValues.createdAt || serverTimestamp(),
+        medidasControlExistentes: '',
+        medidasControlPropuestas: '',
+        responsableImplementacion: '',
+        plazoImplementacion: ''
+      };
 
-        setIperFormValues(initialIperState);
-        setIperSeleccionado(null);
+      let docId = iperFormValues.id;
+
+      if (docId) {
+        // Actualizar
+        const docRef = doc(firebaseDb, "obras", obraSeleccionadaId, "iper", docId);
+        await updateDoc(docRef, { ...iperDoc, updatedAt: serverTimestamp() });
+        toast({ title: 'Éxito', description: 'Registro IPER actualizado.' });
+      } else {
+        // Crear
+        const iperCollectionRef = collection(firebaseDb, "obras", obraSeleccionadaId, "iper");
+        const newDocRef = await addDoc(iperCollectionRef, iperDoc);
+        docId = newDocRef.id;
+        toast({ title: 'Éxito', description: 'Registro IPER guardado.' });
+      }
+      
+      // Guardar firma si existe
+      if (iperSignatureDataUrl) {
+          const blob = await (await fetch(iperSignatureDataUrl)).blob();
+          const signatureRef = ref(firebaseStorage, `iper/${docId}/firmaPrevencionista.png`);
+          await uploadBytes(signatureRef, blob, { contentType: 'image/png' });
+          const downloadURL = await getDownloadURL(signatureRef);
+          
+          const docRef = doc(firebaseDb, "obras", obraSeleccionadaId, "iper", docId);
+          await updateDoc(docRef, {
+              firmaPrevencionistaUrl: downloadURL,
+              firmaPrevencionistaNombre: iperFormValues.firmaPrevencionistaNombre,
+              firmaPrevencionistaRut: iperFormValues.firmaPrevencionistaRut,
+              firmaPrevencionistaCargo: iperFormValues.firmaPrevencionistaCargo,
+              firmaPrevencionistaFecha: new Date().toISOString(),
+              firmaPrevencionistaUserId: user?.uid
+          });
+      }
+
+      setIperFormValues(initialIperState);
+      setIperSeleccionado(null);
+      setIperSignatureDataUrl(null);
 
     } catch (error) {
-        console.error("Error guardando IPER:", error);
-        toast({ variant: 'destructive', title: 'Error', description: 'No se pudo guardar el registro IPER.' });
+      console.error("Error guardando IPER:", error);
+      toast({ variant: 'destructive', title: 'Error', description: 'No se pudo guardar el registro IPER.' });
     } finally {
-        setGuardandoIper(false);
+      setGuardandoIper(false);
     }
-  }
+  };
 
   const handleDeleteIper = async (iperId: string) => {
     if(!obraSeleccionadaId || !iperId) return;
@@ -551,7 +590,28 @@ export default function FormulariosGeneralesPrevencionPage() {
                                         Usar IPER Eléctrico Prediseñado
                                     </Button>
                                 </div>
-                                <IperForm value={iperFormValues as IperFormValues} onChange={(v) => setIperFormValues(v)} />
+                                <IperForm value={iperFormValues as IperFormValues} onChange={(v) => setIperFormValues(prev => ({...prev, ...v}))} />
+                                
+                                <Separator className="my-6"/>
+                                
+                                <div className="space-y-4">
+                                    <h4 className="font-semibold text-md">Firma del Prevencionista / Responsable</h4>
+                                    <div className="grid grid-cols-2 gap-4">
+                                        <div className="space-y-1"><Label>Nombre</Label><Input value={iperFormValues.firmaPrevencionistaNombre || ''} onChange={e => setIperFormValues(p => ({...p, firmaPrevencionistaNombre: e.target.value}))} /></div>
+                                        <div className="space-y-1"><Label>RUT</Label><Input value={iperFormValues.firmaPrevencionistaRut || ''} onChange={e => setIperFormValues(p => ({...p, firmaPrevencionistaRut: e.target.value}))} /></div>
+                                    </div>
+                                    <div className="space-y-1"><Label>Cargo</Label><Input value={iperFormValues.firmaPrevencionistaCargo || ''} onChange={e => setIperFormValues(p => ({...p, firmaPrevencionistaCargo: e.target.value}))} /></div>
+                                    
+                                    {iperFormValues.firmaPrevencionistaUrl ? (
+                                        <div className="text-center p-2 border rounded-md bg-green-50">
+                                            <p className="text-sm font-medium text-green-700">Firma guardada.</p>
+                                            <img src={iperFormValues.firmaPrevencionistaUrl} alt="Firma" className="mx-auto h-16"/>
+                                        </div>
+                                    ) : (
+                                        <Button type="button" variant="secondary" className="w-full" onClick={() => setIsIperSignatureModalOpen(true)}>Abrir panel para firmar</Button>
+                                    )}
+                                </div>
+
                                 <div className="flex gap-4 mt-6">
                                     <Button type="submit" disabled={guardandoIper}>
                                         {guardandoIper ? 'Guardando IPER...' : (iperFormValues.id ? 'Actualizar Registro IPER' : 'Guardar Registro IPER')}
@@ -712,7 +772,7 @@ export default function FormulariosGeneralesPrevencionPage() {
                         <CardHeader><CardTitle>Listado de Charlas</CardTitle></CardHeader>
                         <CardContent>
                             {charlas.map(charla => (
-                                <div key={charla.id} className="p-2 rounded-md flex justify-between items-center hover:bg-muted/50">
+                                <div key={charla.id} className="flex justify-between items-center p-2 rounded-md hover:bg-muted/50">
                                     <div onClick={() => setSelectedCharlaId(charla.id)} className={cn("flex-1 cursor-pointer", selectedCharlaId === charla.id && 'font-bold')}>
                                         <p>{charla.titulo}</p>
                                         {charla.fechaCreacion && <p className="text-xs text-muted-foreground">{new Date(charla.fechaCreacion.seconds * 1000).toLocaleDateString()}</p>}
@@ -814,6 +874,22 @@ export default function FormulariosGeneralesPrevencionPage() {
             <SignaturePad onChange={handleGuardarFirma} onClear={() => {}} />
         </AlertDialogContent>
       </AlertDialog>
+
+       <Dialog open={isIperSignatureModalOpen} onOpenChange={setIsIperSignatureModalOpen}>
+            <DialogContent>
+                <DialogHeader>
+                    <DialogTitle>Firmar como Prevencionista Responsable</DialogTitle>
+                </DialogHeader>
+                <SignaturePad
+                    onChange={(dataUrl) => setIperSignatureDataUrl(dataUrl)}
+                    onClear={() => setIperSignatureDataUrl(null)}
+                />
+                <DialogFooter>
+                    <Button variant="ghost" onClick={() => setIsIperSignatureModalOpen(false)}>Cancelar</Button>
+                    <Button onClick={() => setIsIperSignatureModalOpen(false)}>Confirmar Firma</Button>
+                </DialogFooter>
+            </DialogContent>
+        </Dialog>
 
         <Dialog open={isTemplateModalOpen} onOpenChange={setIsTemplateModalOpen}>
         <DialogContent className="max-w-2xl bg-slate-50">

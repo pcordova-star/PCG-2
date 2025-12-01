@@ -6,6 +6,24 @@ import { IPERRegistro, Obra } from "@/types/pcg";
 const headerColor = [226, 232, 240];
 const marginX = 15;
 
+async function getBase64ImageFromUrl(imageUrl: string): Promise<string> {
+    try {
+        const response = await fetch(imageUrl);
+        if (!response.ok) return "";
+        const blob = await response.blob();
+        return new Promise((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onloadend = () => resolve(reader.result as string);
+            reader.onerror = reject;
+            reader.readAsDataURL(blob);
+        });
+    } catch (error) {
+        console.error("Error fetching image for PDF:", error);
+        return "";
+    }
+}
+
+
 function addHeader(doc: jsPDF, obraNombre: string, iperId: string) {
     doc.setFont("helvetica", "bold");
     doc.setFontSize(16);
@@ -40,7 +58,7 @@ function addSection(doc: jsPDF, title: string, y: number): number {
     return y + 8;
 }
 
-export function generarIperPdf(iper: IPERRegistro, obra: Obra) {
+export async function generarIperPdf(iper: IPERRegistro, obra: Obra) {
     const doc = new jsPDF("p", "mm", "a4");
     const iperId = `IPER-${String(iper.correlativo).padStart(3, '0')}`;
 
@@ -113,13 +131,21 @@ export function generarIperPdf(iper: IPERRegistro, obra: Obra) {
     cursorY = (doc as any).lastAutoTable.finalY + 20;
 
     // --- 6. Firmas ---
-    doc.text("________________________", marginX, cursorY);
-    doc.text("________________________", 110, cursorY);
-    cursorY += 5;
+    if (iper.firmaPrevencionistaUrl) {
+        const imgData = await getBase64ImageFromUrl(iper.firmaPrevencionistaUrl);
+        if (imgData) {
+            doc.addImage(imgData, 'PNG', marginX, cursorY, 60, 20);
+        }
+    } else {
+        doc.line(marginX, cursorY + 15, marginX + 60, cursorY + 15);
+    }
+    cursorY += 22;
     doc.setFontSize(9);
-    doc.text("Firma Prevencionista", marginX, cursorY);
-    doc.text("Firma Jefe de Obra / Supervisor", 110, cursorY);
-
+    doc.text(iper.firmaPrevencionistaNombre || "________________________", marginX, cursorY);
+    cursorY += 4;
+    doc.text(iper.firmaPrevencionistaCargo || "Prevencionista de Riesgos", marginX, cursorY);
+    cursorY += 4;
+    doc.text(iper.firmaPrevencionistaRut || "RUT", marginX, cursorY);
 
     // --- Finalizar PDF ---
     addFooter(doc);
