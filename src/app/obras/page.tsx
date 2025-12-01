@@ -306,12 +306,14 @@ export default function ObrasPage() {
                       <TableCell>{obra.prevencionistaNombre}</TableCell>
                       <TableCell className="text-right">
                         <div className="flex justify-end gap-2">
-                          <Button variant="secondary" size="sm" asChild>
-                            <Link href={`/operaciones/presupuestos/nuevo?obraId=${obra.id}`}>
-                              <DollarSign className="mr-2 h-3 w-3" />
-                              Crear Presupuesto
-                            </Link>
-                          </Button>
+                          {role !== 'prevencionista' && (
+                            <Button variant="secondary" size="sm" asChild>
+                              <Link href={`/operaciones/presupuestos/nuevo?obraId=${obra.id}`}>
+                                <DollarSign className="mr-2 h-3 w-3" />
+                                Crear Presupuesto
+                              </Link>
+                            </Button>
+                          )}
                            <Button variant="outline" size="sm" asChild>
                             <Link href={`/cliente/obras/${obra.id}?preview=true`} target="_blank">
                               <LinkIcon className="mr-2 h-3 w-3" />
