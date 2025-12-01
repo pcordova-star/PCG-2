@@ -16,6 +16,7 @@ import { generateHallazgoPDF } from '../../pdf/HallazgoPDF';
 import { ArrowLeft, Loader2, Upload, FileText, Link as LinkIcon, Siren } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import Link from 'next/link';
 
 function CriticidadBadge({ criticidad }: { criticidad: Hallazgo['criticidad'] }) {
     const variants: Record<Hallazgo['criticidad'], string> = {
