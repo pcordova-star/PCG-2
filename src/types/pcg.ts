@@ -244,13 +244,15 @@ export interface ArbolCausas {
   nodos: Record<string, NodoArbolCausas>;
 }
 
-export type MedidaCorrectivaDetallada = {
+export interface MedidaCorrectivaDetallada {
   id: string;
-  accion: string;
+  causaNodoId?: string | null;
+  descripcionAccion: string;
   responsable: string;
   fechaCompromiso: string;
   estado: 'pendiente' | 'en_proceso' | 'cerrado';
-};
+  observaciones?: string;
+}
 
 export type RegistroIncidente = {
   id: string;
@@ -261,8 +263,6 @@ export type RegistroIncidente = {
   tipoIncidente: TipoIncidente;
   gravedad: GravedadIncidente;
   descripcionHecho: string;
-  lesionPersona: string;
-  // Campos del accidente (nuevos)
   lesionDescripcion?: string;
   parteCuerpoAfectada?: string;
   agenteAccidente?: string;
@@ -270,7 +270,6 @@ export type RegistroIncidente = {
   diasReposoMedico?: number | null;
   huboTiempoPerdido?: boolean | null;
   esAccidenteGraveFatal?: boolean | null;
-  // Campos de análisis
   actoInseguro: string;
   condicionInsegura: string;
   causasInmediatas: string;
@@ -282,10 +281,8 @@ export type RegistroIncidente = {
   plazoCierre: string;
   estadoCierre: "Abierto" | "En seguimiento" | "Cerrado";
   createdAt?: any;
-  // Campos para vincular
   origen?: string;
   hallazgoId?: string;
-  // Nuevos campos para Árbol de Causas
   metodoAnalisis?: MetodoAnalisisIncidente;
   arbolCausas?: ArbolCausas;
   medidasCorrectivasDetalladas?: MedidaCorrectivaDetallada[];
