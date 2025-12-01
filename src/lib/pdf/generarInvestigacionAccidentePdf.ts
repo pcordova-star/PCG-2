@@ -29,7 +29,7 @@ function addFooter(doc: jsPDF, obraNombre: string) {
 }
 
 function addSectionTitle(doc: jsPDF, title: string, y: number): number {
-    if (y > 250) { // Evita que el título quede al final de la página
+    if (y > 250) { 
         doc.addPage();
         y = 40;
     }
@@ -57,8 +57,6 @@ export function generarInvestigacionAccidentePdf(
     doc.setFont("helvetica", "normal");
     doc.setFontSize(12);
     doc.text(`Fecha del Accidente: ${new Date(incidente.fecha + 'T00:00:00').toLocaleDateString('es-CL')}`, 105, 140, { align: 'center' });
-    // Aquí podrías añadir el nombre del trabajador si lo tienes en el registro
-    // doc.text(`Persona Afectada: [Nombre del trabajador]`, 105, 148, { align: 'center' });
     doc.text(`Tipo de Suceso: ${incidente.tipoIncidente}`, 105, 148, { align: 'center' });
     doc.text(`Gravedad: ${incidente.gravedad}`, 105, 156, { align: 'center' });
     doc.text(`Fecha de Generación: ${new Date().toLocaleDateString('es-CL')}`, 105, 164, { align: 'center' });
@@ -69,15 +67,13 @@ export function generarInvestigacionAccidentePdf(
     addHeader(doc, `Investigación ID: ${incidente.id}`);
     let cursorY = 40;
 
-    // Sección 1: Datos Generales
+    // Sección 1: Datos Generales del Accidente
     cursorY = addSectionTitle(doc, "1. Datos Generales del Accidente", cursorY);
     autoTable(doc, {
         startY: cursorY,
         body: [
-            ['Fecha y Hora', `${new Date(incidente.fecha + 'T00:00:00').toLocaleDateString('es-CL')}`], // Hora no está en el modelo actual
-            ['Lugar del Accidente', incidente.lugar || 'No registrado'],
-            // ['Persona Afectada', 'PENDIENTE' /* Aquí iría el nombre del trabajador */ ],
-            // ['Responsable del Área', incidente.responsableSeguimiento || 'No registrado'],
+            ['Fecha del Accidente', new Date(incidente.fecha + 'T00:00:00').toLocaleDateString('es-CL')],
+            ['Lugar', incidente.lugar || 'No registrado'],
             ['Lesión Producida', incidente.lesionDescripcion || 'No registrado'],
             ['Parte del Cuerpo Afectada', incidente.parteCuerpoAfectada || 'No registrado'],
             ['Agente del Accidente', incidente.agenteAccidente || 'No registrado'],
@@ -86,9 +82,10 @@ export function generarInvestigacionAccidentePdf(
             ['Días de Reposo Médico', incidente.diasReposoMedico?.toString() || 'No registrado'],
             ['¿Accidente Grave/Fatal?', incidente.esAccidenteGraveFatal ? 'Sí' : 'No'],
         ],
-        theme: 'plain',
-        styles: { fontSize: 9 },
-        columnStyles: { 0: { fontStyle: 'bold', cellWidth: 60 } },
+        head: [['Campo', 'Valor']],
+        theme: 'striped',
+        headStyles: { fillColor: [52, 73, 94] },
+        columnStyles: { 0: { fontStyle: 'bold' } },
     });
     cursorY = (doc as any).lastAutoTable.finalY + 10;
     
@@ -100,6 +97,7 @@ export function generarInvestigacionAccidentePdf(
     cursorY += descLines.length * 5 + 10;
     
     // Sección 3: Árbol de Causas
+    if (cursorY > 200) { doc.addPage(); cursorY = 40; }
     cursorY = addSectionTitle(doc, "3. Análisis de Causas (Árbol de Causas)", cursorY);
     
     if (incidente.arbolCausas && incidente.arbolCausas.nodos && incidente.arbolCausas.raizId) {
@@ -107,47 +105,36 @@ export function generarInvestigacionAccidentePdf(
         const raiz = nodos.find(n => n.id === incidente.arbolCausas!.raizId);
         const causasInmediatas = nodos.filter(n => n.esCausaInmediata);
         const causasBasicas = nodos.filter(n => n.esCausaBasica);
-
-        doc.setFont('helvetica', 'bold');
-        doc.setFontSize(10);
-        doc.text("Hecho Principal (Accidente):", 15, cursorY); cursorY += 5;
-        doc.setFont('helvetica', 'normal');
         
+        const arbolBody = [];
         if (raiz) {
-            const descRaiz = raiz.descripcionCorta === 'Nuevo Hecho' ? 'Accidente investigado' : raiz.descripcionCorta;
-            doc.text(`- [${raiz.tipo.toUpperCase()}] ${descRaiz}`, 20, cursorY); cursorY += 5;
-            if(raiz.detalle) {
-                doc.setFontSize(9);
-                doc.setTextColor(100);
-                doc.text(`  Detalle: ${raiz.detalle}`, 22, cursorY); cursorY += 5;
-                doc.setTextColor(0);
-                doc.setFontSize(10);
-            }
+            arbolBody.push([
+                raiz.tipo.toUpperCase(),
+                raiz.descripcionCorta === 'Nuevo Hecho' ? 'Accidente investigado' : raiz.descripcionCorta,
+                raiz.detalle || '-',
+                'Hecho Principal'
+            ]);
         }
-        cursorY += 5;
-        
-        doc.setFont('helvetica', 'bold');
-        doc.text("Causas Inmediatas:", 15, cursorY); cursorY += 5;
-        doc.setFont('helvetica', 'normal');
         if (causasInmediatas.length > 0) {
-            causasInmediatas.forEach(causa => {
-                doc.text(`- [${causa.tipo.toUpperCase()}] ${causa.descripcionCorta}`, 20, cursorY); cursorY += 5;
-            });
+            causasInmediatas.forEach(c => arbolBody.push([c.tipo.toUpperCase(), c.descripcionCorta, c.detalle || '-', 'Causa Inmediata']));
         } else {
-            doc.text("No se registraron causas inmediatas.", 20, cursorY); cursorY += 5;
+             arbolBody.push([{ content: 'No se registraron causas inmediatas.', colSpan: 4, styles: { fontStyle: 'italic', textColor: 120 } }]);
         }
-        cursorY += 5;
-        
-        doc.setFont('helvetica', 'bold');
-        doc.text("Causas Básicas:", 15, cursorY); cursorY += 5;
-        doc.setFont('helvetica', 'normal');
         if (causasBasicas.length > 0) {
-            causasBasicas.forEach(causa => {
-                doc.text(`- [${causa.tipo.toUpperCase()}] ${causa.descripcionCorta}`, 20, cursorY); cursorY += 5;
-            });
+            causasBasicas.forEach(c => arbolBody.push([c.tipo.toUpperCase(), c.descripcionCorta, c.detalle || '-', 'Causa Básica']));
         } else {
-             doc.text("No se registraron causas básicas.", 20, cursorY); cursorY += 5;
+            arbolBody.push([{ content: 'No se registraron causas básicas.', colSpan: 4, styles: { fontStyle: 'italic', textColor: 120 } }]);
         }
+
+        autoTable(doc, {
+            startY: cursorY,
+            head: [['Tipo', 'Descripción', 'Detalle', 'Nivel']],
+            body: arbolBody,
+            theme: 'grid',
+            headStyles: { fillColor: [52, 73, 94] }
+        });
+        cursorY = (doc as any).lastAutoTable.finalY;
+
     } else {
         doc.text("No se ha definido un árbol de causas para esta investigación.", 15, cursorY);
     }
@@ -178,6 +165,11 @@ export function generarInvestigacionAccidentePdf(
                 cursorY = data.cursor?.y || cursorY;
             }
         });
+        cursorY = (doc as any).lastAutoTable.finalY;
+    } else {
+        if (cursorY > 250) { doc.addPage(); cursorY = 40; } else { cursorY += 10; }
+        cursorY = addSectionTitle(doc, "4. Plan de Acción / Medidas Correctivas", cursorY);
+        doc.text("No existen medidas correctivas registradas.", 15, cursorY);
     }
 
 
@@ -185,5 +177,6 @@ export function generarInvestigacionAccidentePdf(
     addFooter(doc, obra.nombreFaena);
 
     // --- GUARDAR ---
-    doc.save(`Investigacion_Accidente_${incidente.id?.substring(0, 8)}.pdf`);
+    const fecha = new Date().toISOString().slice(0, 10).replace(/-/g, '');
+    doc.save(`Informe_Accidente_${obra.nombreFaena.replace(/ /g, '_')}_${fecha}.pdf`);
 }
