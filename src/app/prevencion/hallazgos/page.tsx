@@ -15,6 +15,7 @@ import Link from 'next/link';
 import { ArrowLeft, FileText, PlusCircle, CheckCircle, AlertTriangle, Clock, Siren } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, Legend, ResponsiveContainer } from 'recharts';
+import { useAuth } from '@/context/AuthContext';
 
 function HallazgoEstadoBadge({ estado }: { estado: Hallazgo['estado'] }) {
     const variants: Record<Hallazgo['estado'], string> = {
@@ -40,11 +41,20 @@ export default function HallazgosResumenPage() {
     const [hallazgos, setHallazgos] = useState<Hallazgo[]>([]);
     const [loading, setLoading] = useState(true);
     const router = useRouter();
+    const { companyId, role } = useAuth();
 
     useEffect(() => {
+        if (!companyId && role !== 'superadmin') return;
+
         const fetchObras = async () => {
-            const q = query(collection(firebaseDb, "obras"), orderBy("nombreFaena"));
-            const snapshot = await getDocs(q);
+            let obrasQuery;
+            if (role === 'superadmin') {
+                obrasQuery = query(collection(firebaseDb, "obras"), orderBy("nombreFaena"));
+            } else {
+                obrasQuery = query(collection(firebaseDb, "obras"), where("empresaId", "==", companyId), orderBy("nombreFaena"));
+            }
+            
+            const snapshot = await getDocs(obrasQuery);
             const obrasList = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Obra));
             setObras(obrasList);
             if (obrasList.length > 0) {
@@ -52,10 +62,14 @@ export default function HallazgosResumenPage() {
             }
         };
         fetchObras();
-    }, []);
+    }, [companyId, role]);
 
     useEffect(() => {
-        if (!selectedObraId) return;
+        if (!selectedObraId) {
+            setHallazgos([]);
+            setLoading(false);
+            return;
+        }
 
         setLoading(true);
         const q = query(collection(firebaseDb, "hallazgos"), where("obraId", "==", selectedObraId), orderBy("createdAt", "desc"));
