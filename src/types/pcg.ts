@@ -252,10 +252,10 @@ export interface ArbolCausas {
 
 export interface MedidaCorrectivaDetallada {
   id: string;
-  causaNodoId?: string | null;
+  causaNodoId?: string | null; // id del NodoArbolCausas al que se asocia la medida (si aplica)
   descripcionAccion: string;
   responsable: string;
-  fechaCompromiso: string;
+  fechaCompromiso: string; // ISO string
   estado: 'pendiente' | 'en_proceso' | 'cerrado';
   observaciones?: string;
 }
