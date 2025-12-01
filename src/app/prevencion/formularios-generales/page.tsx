@@ -16,7 +16,7 @@ import {
   getDoc,
   getDocs,
 } from "firebase/firestore";
-import { firebaseDb, firebaseStorage } from "@/lib/firebaseClient";
+import { firebaseDb, firebaseStorage } from "../../../lib/firebaseClient";
 import { useRouter } from 'next/navigation';
 import { ArrowLeft, BookOpen, FileText, Plus, PlusCircle, Siren, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -325,7 +325,6 @@ export default function FormulariosGeneralesPrevencionPage() {
             description: "Se ha creado una nueva charla en borrador.",
         });
         
-        // Cambiar al tab de charlas y seleccionar la nueva
         setActiveTab('charlas');
         setSelectedCharlaId(docRef.id);
 
@@ -337,7 +336,14 @@ export default function FormulariosGeneralesPrevencionPage() {
   
   const charlaSeleccionada = useMemo(() => charlas.find(c => c.id === selectedCharlaId), [charlas, selectedCharlaId]);
 
-  // Lógica para el tab de Charlas
+  useEffect(() => {
+      if (charlaSeleccionada) {
+          setCharlaForm(charlaSeleccionada);
+      } else {
+          setCharlaForm(initialCharlaState);
+      }
+  }, [charlaSeleccionada]);
+
   const handleGuardarCharla = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!obraSeleccionadaId || !charlaForm.titulo) {
@@ -359,7 +365,6 @@ export default function FormulariosGeneralesPrevencionPage() {
         setSelectedCharlaId(docRef.id);
       }
       toast({ title: 'Éxito', description: 'Charla guardada correctamente.' });
-      setCharlaForm(initialCharlaState);
     } catch (error) {
       console.error(error);
       toast({ variant: 'destructive', title: 'Error', description: 'No se pudo guardar la charla.' });
@@ -381,13 +386,11 @@ export default function FormulariosGeneralesPrevencionPage() {
     if (!firmaUrl || !asistenteParaFirmar || !selectedCharlaId) return;
 
     try {
-        // 1. Subir la firma a Storage
         const blob = await (await fetch(firmaUrl)).blob();
         const storageRef = ref(firebaseStorage, `charlas/${selectedCharlaId}/firmas/${asistenteParaFirmar.nombre.replace(/ /g, '_')}.png`);
         await uploadBytes(storageRef, blob, { contentType: 'image/png' });
         const downloadURL = await getDownloadURL(storageRef);
 
-        // 2. Actualizar el documento de la charla en Firestore
         const charlaRef = doc(firebaseDb, "charlas", selectedCharlaId);
         const asistentesActualizados = (charlaSeleccionada?.asistentes || []).map(a => 
             a.nombre === asistenteParaFirmar.nombre 
@@ -401,6 +404,20 @@ export default function FormulariosGeneralesPrevencionPage() {
     } catch (error) {
         console.error("Error guardando firma:", error);
         toast({ variant: 'destructive', title: 'Error', description: 'No se pudo guardar la firma.' });
+    }
+  };
+
+  const handleDeleteCharla = async (charlaId: string) => {
+    if (!charlaId) return;
+    try {
+      await deleteDoc(doc(firebaseDb, "charlas", charlaId));
+      toast({ title: "Charla eliminada" });
+      if(selectedCharlaId === charlaId) {
+        setSelectedCharlaId(null);
+      }
+    } catch (error) {
+      console.error(error);
+      toast({ variant: "destructive", title: "Error", description: "No se pudo eliminar la charla." });
     }
   };
 
@@ -431,7 +448,7 @@ export default function FormulariosGeneralesPrevencionPage() {
         <CardContent>
           <div className="max-w-md space-y-2">
             <Label htmlFor="obra-select">Obra Activa</Label>
-            <Select value={obraSeleccionadaId} onValueChange={setObraSeleccionadaId}>
+            <Select value={obraSeleccionadaId} onValueChange={(value) => setObraSeleccionadaId(value)}>
               <SelectTrigger id="obra-select">
                 <SelectValue placeholder="Seleccione una obra..." />
               </SelectTrigger>
@@ -599,7 +616,7 @@ export default function FormulariosGeneralesPrevencionPage() {
                <div className="space-y-6">
                     <Card>
                         <CardHeader>
-                            <CardTitle>{charlaSeleccionada ? "Editar Charla" : "Registrar Nueva Charla"}</CardTitle>
+                            <CardTitle>{selectedCharlaId ? "Editar Charla" : "Registrar Nueva Charla"}</CardTitle>
                         </CardHeader>
                         <CardContent>
                             <form onSubmit={handleGuardarCharla} className="space-y-4">
@@ -621,9 +638,26 @@ export default function FormulariosGeneralesPrevencionPage() {
                         <CardHeader><CardTitle>Listado de Charlas</CardTitle></CardHeader>
                         <CardContent>
                             {charlas.map(charla => (
-                                <div key={charla.id} onClick={() => setSelectedCharlaId(charla.id)} className={cn("p-2 rounded-md cursor-pointer", selectedCharlaId === charla.id && 'bg-accent/20')}>
-                                    <p className="font-medium">{charla.titulo}</p>
-                                    {charla.fechaCreacion && <p className="text-xs text-muted-foreground">{charla.fechaCreacion.toDate().toLocaleDateString()}</p>}
+                                <div key={charla.id} className={cn("p-2 rounded-md cursor-pointer flex justify-between items-center", selectedCharlaId === charla.id && 'bg-accent/20')}>
+                                    <div onClick={() => setSelectedCharlaId(charla.id)} className="flex-1">
+                                        <p className="font-medium">{charla.titulo}</p>
+                                        {charla.fechaCreacion && <p className="text-xs text-muted-foreground">{charla.fechaCreacion.toDate().toLocaleDateString('es-CL')}</p>}
+                                    </div>
+                                    <AlertDialog>
+                                        <AlertDialogTrigger asChild>
+                                            <Button variant="ghost" size="icon" className="text-destructive h-8 w-8" onClick={(e) => e.stopPropagation()}><Trash2 className="h-4 w-4"/></Button>
+                                        </AlertDialogTrigger>
+                                        <AlertDialogContent>
+                                            <AlertDialogHeader>
+                                                <AlertDialogTitle>¿Eliminar esta charla?</AlertDialogTitle>
+                                                <AlertDialogDescription>Esta acción no se puede deshacer.</AlertDialogDescription>
+                                            </AlertDialogHeader>
+                                            <AlertDialogFooter>
+                                                <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                                                <AlertDialogAction onClick={() => handleDeleteCharla(charla.id)} className="bg-destructive hover:bg-destructive/90">Eliminar</AlertDialogAction>
+                                            </AlertDialogFooter>
+                                        </AlertDialogContent>
+                                    </AlertDialog>
                                 </div>
                             ))}
                         </CardContent>
