@@ -17,7 +17,7 @@ import { PlanAccionEditor } from './PlanAccionEditor';
 import { generarInvestigacionAccidentePdf } from '@/lib/pdf/generarInvestigacionAccidentePdf';
 import { firebaseDb } from '@/lib/firebaseClient';
 import { collection, addDoc, serverTimestamp, doc, getDoc } from 'firebase/firestore';
-import { RegistroIncidente, Obra } from '@/types/pcg';
+import { RegistroIncidente, Obra, MedidaCorrectivaDetallada, ArbolCausas } from '@/types/pcg';
 import { FileText } from 'lucide-react';
 
 interface Props {
@@ -33,6 +33,7 @@ const initialFormState: Omit<RegistroIncidente, 'id' | 'obraId' | 'obraNombre' |
   tipoIncidente: "Accidente sin tiempo perdido",
   gravedad: "Leve",
   descripcionHecho: "",
+  // Nuevos campos normativos
   lesionDescripcion: "",
   parteCuerpoAfectada: "",
   agenteAccidente: "",
@@ -40,6 +41,7 @@ const initialFormState: Omit<RegistroIncidente, 'id' | 'obraId' | 'obraNombre' |
   diasReposoMedico: null,
   huboTiempoPerdido: false,
   esAccidenteGraveFatal: false,
+  // Campos antiguos para compatibilidad
   actoInseguro: "",
   condicionInsegura: "",
   causasInmediatas: "",
@@ -50,6 +52,7 @@ const initialFormState: Omit<RegistroIncidente, 'id' | 'obraId' | 'obraNombre' |
   responsableSeguimiento: "",
   plazoCierre: "",
   estadoCierre: "Abierto",
+  // Campos del método de análisis
   metodoAnalisis: 'arbol_causas',
   arbolCausas: { habilitado: true, raizId: null, nodos: {} },
   medidasCorrectivasDetalladas: [],
@@ -77,6 +80,14 @@ export function InvestigacionAccidentesTab({ obraId, investigaciones, loading, o
     setFormState(prev => ({ ...prev, [campo]: valor }));
   };
 
+  const handleArbolChange = (arbol: ArbolCausas) => {
+    setFormState(prev => ({...prev, arbolCausas: arbol}));
+  }
+
+  const handlePlanAccionChange = (medidas: MedidaCorrectivaDetallada[]) => {
+    setFormState(prev => ({...prev, medidasCorrectivasDetalladas: medidas}));
+  }
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!obraId) {
@@ -91,7 +102,7 @@ export function InvestigacionAccidentesTab({ obraId, investigaciones, loading, o
         obraNombre: obra?.nombreFaena || "N/A",
         createdAt: serverTimestamp(),
         updatedAt: serverTimestamp(),
-        metodoAnalisis: 'arbol_causas',
+        metodoAnalisis: 'arbol_causas', // Forzar el método para esta pestaña
       });
       setFormState(initialFormState);
       onUpdate();
@@ -106,7 +117,7 @@ export function InvestigacionAccidentesTab({ obraId, investigaciones, loading, o
       <Card>
         <CardHeader>
           <CardTitle>Registrar Nuevo Accidente</CardTitle>
-          <CardDescription>Use este formulario para registrar accidentes que requieren un análisis con Árbol de Causas.</CardDescription>
+          <CardDescription>Utilice este formulario para registrar e investigar accidentes laborales, usando el método de Árbol de Causas.</CardDescription>
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-6">
@@ -118,8 +129,8 @@ export function InvestigacionAccidentesTab({ obraId, investigaciones, loading, o
                 <Select value={formState.tipoIncidente} onValueChange={v => handleInputChange('tipoIncidente', v as any)}>
                   <SelectTrigger><SelectValue /></SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="Accidente sin tiempo perdido">Accidente sin tiempo perdido</SelectItem>
                     <SelectItem value="Accidente con tiempo perdido">Accidente con tiempo perdido</SelectItem>
+                    <SelectItem value="Accidente sin tiempo perdido">Accidente sin tiempo perdido</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
@@ -146,14 +157,14 @@ export function InvestigacionAccidentesTab({ obraId, investigaciones, loading, o
              <Separator/>
             <ArbolCausasEditor 
                 value={formState.arbolCausas} 
-                onChange={arbol => handleInputChange('arbolCausas', arbol)} 
+                onChange={handleArbolChange} 
             />
 
             <Separator/>
             <PlanAccionEditor 
                 arbolCausas={formState.arbolCausas}
                 medidas={formState.medidasCorrectivasDetalladas}
-                onChange={medidas => handleInputChange('medidasCorrectivasDetalladas', medidas)}
+                onChange={handlePlanAccionChange}
             />
             
             <Button type="submit">Registrar Accidente</Button>
