@@ -252,9 +252,9 @@ export default function FormulariosGeneralesPrevencionPage() {
         consecuencia_mujer: iperValues.consecuenciaMujer || 1,
         nivel_riesgo_mujer,
         jerarquiaControl: iperValues.jerarquiaControl,
-        control_especifico_genero: iperValues.controlEspecificoGenero === 'Otro' ? iperValues.controlEspecificoGeneroOtro || '' : iperValues.controlEspecificoGenero,
-        responsable: iperValues.responsable,
-        plazo: iperValues.plazo,
+        control_especifico_genero: iperValues.controlEspecificoGenero === 'Otro' ? iperValues.controlEspecificoGeneroOtro || '' : iperValues.controlEspecificoGenero || '',
+        responsable: iperValues.responsable || '',
+        plazo: iperValues.plazo || '',
         estadoControl: iperValues.estadoControl,
         probabilidad_residual: iperValues.probabilidadResidual || 1,
         consecuencia_residual: iperValues.consecuenciaResidual || 1,
@@ -775,7 +775,7 @@ export default function FormulariosGeneralesPrevencionPage() {
                                 <div key={charla.id} className="flex justify-between items-center p-2 rounded-md hover:bg-muted/50">
                                     <div onClick={() => setSelectedCharlaId(charla.id)} className={cn("flex-1 cursor-pointer", selectedCharlaId === charla.id && 'font-bold')}>
                                         <p className="font-medium">{charla.titulo}</p>
-                                        {charla.fechaCreacion && <p className="text-xs text-muted-foreground">{new Date(charla.fechaCreacion.seconds * 1000).toLocaleDateString()}</p>}
+                                        {charla.fechaCreacion && <p className="text-xs text-muted-foreground">{charla.fechaCreacion.toDate().toLocaleDateString()}</p>}
                                     </div>
                                     <AlertDialog>
                                         <AlertDialogTrigger asChild>
