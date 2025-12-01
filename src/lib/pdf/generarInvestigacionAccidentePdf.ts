@@ -45,9 +45,13 @@ export function generarInvestigacionAccidentePdf(
   obra: Obra
 ) {
     const doc = new jsPDF("p", "mm", "a4");
+    const headerColor = [226, 232, 240]; // Un gris azulado claro (slate-200)
 
     // --- 1. PORTADA ---
     doc.setFont("helvetica", "bold");
+    doc.setFontSize(16);
+    doc.text("PCG - Plataforma de Control y Gestión", 105, 60, { align: 'center' });
+
     doc.setFontSize(22);
     doc.text("Informe de Investigación de Accidente", 105, 100, { align: 'center' });
 
@@ -74,18 +78,19 @@ export function generarInvestigacionAccidentePdf(
         body: [
             ['Fecha del Accidente', new Date(incidente.fecha + 'T00:00:00').toLocaleDateString('es-CL')],
             ['Lugar', incidente.lugar || 'No registrado'],
-            ['Lesión Producida', incidente.lesionDescripcion || 'No registrado'],
-            ['Parte del Cuerpo Afectada', incidente.parteCuerpoAfectada || 'No registrado'],
-            ['Agente del Accidente', incidente.agenteAccidente || 'No registrado'],
-            ['Mecanismo del Accidente', incidente.mecanismoAccidente || 'No registrado'],
-            ['¿Hubo Tiempo Perdido?', incidente.huboTiempoPerdido ? 'Sí' : 'No'],
-            ['Días de Reposo Médico', incidente.diasReposoMedico?.toString() || 'No registrado'],
-            ['¿Accidente Grave/Fatal?', incidente.esAccidenteGraveFatal ? 'Sí' : 'No'],
+            ['Lesión', incidente.lesionDescripcion || 'No registrado'],
+            ['Parte del cuerpo', incidente.parteCuerpoAfectada || 'No registrado'],
+            ['Agente del accidente', incidente.agenteAccidente || 'No registrado'],
+            ['Mecanismo del accidente', incidente.mecanismoAccidente || 'No registrado'],
+            ['Tiempo perdido', incidente.huboTiempoPerdido ? 'Sí' : 'No'],
+            ['Días de reposo', incidente.diasReposoMedico?.toString() || 'No registrado'],
+            ['Accidente grave/fatal', incidente.esAccidenteGraveFatal ? 'Sí' : 'No'],
         ],
         head: [['Campo', 'Valor']],
-        theme: 'striped',
-        headStyles: { fillColor: [52, 73, 94] },
+        theme: 'grid',
+        headStyles: { fillColor: headerColor, textColor: 20 },
         columnStyles: { 0: { fontStyle: 'bold' } },
+        didDrawPage: (data) => { cursorY = data.cursor?.y || cursorY; }
     });
     cursorY = (doc as any).lastAutoTable.finalY + 10;
     
@@ -116,12 +121,12 @@ export function generarInvestigacionAccidentePdf(
             ]);
         }
         if (causasInmediatas.length > 0) {
-            causasInmediatas.forEach(c => arbolBody.push([c.tipo.toUpperCase(), c.descripcionCorta, c.detalle || '-', 'Causa Inmediata']));
+            causasInmediatas.forEach(c => arbolBody.push([c.tipo.toUpperCase(), c.descripcionCorta, c.detalle === raiz?.detalle ? '-' : (c.detalle || '-'), 'Causa Inmediata']));
         } else {
              arbolBody.push([{ content: 'No se registraron causas inmediatas.', colSpan: 4, styles: { fontStyle: 'italic', textColor: 120 } }]);
         }
         if (causasBasicas.length > 0) {
-            causasBasicas.forEach(c => arbolBody.push([c.tipo.toUpperCase(), c.descripcionCorta, c.detalle || '-', 'Causa Básica']));
+            causasBasicas.forEach(c => arbolBody.push([c.tipo.toUpperCase(), c.descripcionCorta, c.detalle === raiz?.detalle ? '-' : (c.detalle || '-'), 'Causa Básica']));
         } else {
             arbolBody.push([{ content: 'No se registraron causas básicas.', colSpan: 4, styles: { fontStyle: 'italic', textColor: 120 } }]);
         }
@@ -131,7 +136,8 @@ export function generarInvestigacionAccidentePdf(
             head: [['Tipo', 'Descripción', 'Detalle', 'Nivel']],
             body: arbolBody,
             theme: 'grid',
-            headStyles: { fillColor: [52, 73, 94] }
+            headStyles: { fillColor: headerColor, textColor: 20 },
+            didDrawPage: (data) => { cursorY = data.cursor?.y || cursorY; }
         });
         cursorY = (doc as any).lastAutoTable.finalY;
 
@@ -159,9 +165,9 @@ export function generarInvestigacionAccidentePdf(
                     m.estado
                 ];
             }),
-            theme: 'striped',
-            headStyles: { fillColor: [52, 73, 94] },
-            didDrawPage: (data) => { // Para manejar saltos de página
+            theme: 'grid',
+            headStyles: { fillColor: headerColor, textColor: 20 },
+            didDrawPage: (data) => {
                 cursorY = data.cursor?.y || cursorY;
             }
         });
