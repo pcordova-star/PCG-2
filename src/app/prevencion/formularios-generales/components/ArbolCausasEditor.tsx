@@ -90,7 +90,7 @@ export function ArbolCausasEditor({ value, onChange, readOnly = false }: ArbolCa
                  <Label className="text-xs">Tipo</Label>
                 <Select
                     value={nodo.tipo}
-                    onValueChange={(tipo: NodoArbolCausas['tipo']) => handleUpdateNodo(nodo.id, { tipo })}
+                    onValueChange={(tipo) => handleUpdateNodo(nodo.id, { tipo: tipo as NodoArbolCausas['tipo'] })}
                     disabled={readOnly}
                 >
                     <SelectTrigger><SelectValue/></SelectTrigger>

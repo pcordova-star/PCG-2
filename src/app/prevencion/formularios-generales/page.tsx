@@ -936,14 +936,17 @@ function InvestigacionIncidenteSection({ onCrearAccionDesdeIncidente }: Investig
   
   const { companyId, role } = useAuth();
   
-  const isAccident = formIncidente.tipoIncidente.includes("Accidente");
+  const isAccident = useMemo(() => 
+    formIncidente.tipoIncidente.includes("Accidente"),
+    [formIncidente.tipoIncidente]
+  );
 
   useEffect(() => {
     setFormIncidente(prev => ({
       ...prev,
-      metodoAnalisis: prev.tipoIncidente.includes('Accidente') ? 'arbol_causas' : 'ishikawa_5p'
+      metodoAnalisis: isAccident ? 'arbol_causas' : 'ishikawa_5p'
     }));
-  }, [formIncidente.tipoIncidente]);
+  }, [isAccident]);
 
   const cargarObras = async () => {
     try {
@@ -1027,15 +1030,21 @@ function InvestigacionIncidenteSection({ onCrearAccionDesdeIncidente }: Investig
     }
     
     const obraSeleccionada = obras.find(o => o.id === obraSeleccionadaId);
+    const dataToSave = {
+        ...formIncidente,
+        obraId: obraSeleccionadaId,
+        obraNombre: obraSeleccionada?.nombreFaena ?? "N/A",
+        createdAt: serverTimestamp(),
+        updatedAt: serverTimestamp(),
+    };
+
+    // No guardar el árbol de causas si el método no corresponde
+    if(formIncidente.metodoAnalisis !== 'arbol_causas'){
+        delete (dataToSave as any).arbolCausas;
+    }
 
     try {
-        await addDoc(collection(firebaseDb, "investigacionesIncidentes"), {
-            ...formIncidente,
-            obraId: obraSeleccionadaId,
-            obraNombre: obraSeleccionada?.nombreFaena ?? "N/A",
-            createdAt: serverTimestamp(),
-            updatedAt: serverTimestamp(),
-        });
+        await addDoc(collection(firebaseDb, "investigacionesIncidentes"), dataToSave);
 
         setFormIncidente((prev) => ({
             ...prev,
@@ -1129,8 +1138,9 @@ function InvestigacionIncidenteSection({ onCrearAccionDesdeIncidente }: Investig
           
            <Separator className="my-4"/>
            <h4 className="text-md font-semibold">Análisis de Causas</h4>
-           <div className="space-y-2"><Label>Método de Análisis</Label>
-                <Input value={isAccident ? "Árbol de Causas" : "Ishikawa / 5 Porqués"} disabled />
+           <div className="space-y-2">
+            <Label>Método de Análisis</Label>
+            <Input value={isAccident ? "Árbol de Causas" : "Ishikawa / 5 Porqués"} disabled />
            </div>
 
             {isAccident ? (
@@ -1184,7 +1194,7 @@ function InvestigacionIncidenteSection({ onCrearAccionDesdeIncidente }: Investig
                     <p className="font-semibold text-primary">
                       {inc.fecha} – {inc.lugar || "Sin lugar"}
                     </p>
-                    {inc.metodoAnalisis === 'arbol_causas' && <Badge>Árbol de Causas</Badge>}
+                     <Badge variant="outline">{inc.metodoAnalisis === 'arbol_causas' ? "Árbol de Causas" : "Ishikawa / 5 Porqués"}</Badge>
                   </div>
                   <div className="flex justify-between items-center text-xs">
                       <span>Tipo: {inc.tipoIncidente}</span>
@@ -1540,16 +1550,6 @@ function PlanAccionSection({ prefill, onPrefillConsumido }: PlanAccionSectionPro
     );
 }
 
-function HallazgoEstadoBadge({ estado }: { estado: Hallazgo['estado'] }) {
-    const variants: Record<Hallazgo['estado'], string> = {
-        abierto: 'bg-yellow-100 text-yellow-800 border-yellow-300',
-        en_progreso: 'bg-blue-100 text-blue-800 border-blue-300',
-        cerrado: 'bg-green-100 text-green-800 border-green-300',
-    };
-    return <Badge variant="outline" className={variants[estado]}>{estado.replace('_', ' ')}</Badge>;
-}
-
-// --- Componente de Hallazgos ---
 function HallazgosSection() {
     const router = useRouter();
     const { toast } = useToast();
