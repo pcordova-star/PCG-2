@@ -13,6 +13,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { firebaseDb } from '@/lib/firebaseClient';
 import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
 import { RegistroIncidente } from '@/types/pcg';
+import { PlanAccionEditor } from './PlanAccionEditor';
 
 interface Props {
   obraId: string;
@@ -38,6 +39,7 @@ const initialFormState: Omit<RegistroIncidente, 'id' | 'obraId' | 'obraNombre' |
   plazoCierre: "",
   estadoCierre: "Abierto",
   metodoAnalisis: 'ishikawa_5p',
+  medidasCorrectivasDetalladas: [],
 };
 
 export function InvestigacionIncidentesTab({ obraId, investigaciones, loading, onUpdate }: Props) {
@@ -61,6 +63,7 @@ export function InvestigacionIncidentesTab({ obraId, investigaciones, loading, o
         obraId,
         createdAt: serverTimestamp(),
         updatedAt: serverTimestamp(),
+        metodoAnalisis: 'ishikawa_5p',
       });
       setFormState(initialFormState);
       onUpdate();
@@ -102,6 +105,11 @@ export function InvestigacionIncidentesTab({ obraId, investigaciones, loading, o
             
             <div className="space-y-2"><Label>Análisis Ishikawa (Resumen)</Label><Textarea value={formState.analisisIshikawa} onChange={e => handleInputChange('analisisIshikawa', e.target.value)} rows={2} /></div>
             <div className="space-y-2"><Label>Análisis 5 Porqués (Resumen)</Label><Textarea value={formState.analisis5Porques} onChange={e => handleInputChange('analisis5Porques', e.target.value)} rows={2} /></div>
+            
+            <PlanAccionEditor
+                medidas={formState.medidasCorrectivasDetalladas}
+                onChange={medidas => handleInputChange('medidasCorrectivasDetalladas', medidas)}
+            />
 
             <Button type="submit">Registrar Incidente</Button>
           </form>
