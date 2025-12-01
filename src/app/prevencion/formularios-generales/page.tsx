@@ -25,7 +25,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useAuth } from '@/context/AuthContext';
 import { InvestigacionIncidentesTab } from './components/InvestigacionIncidentesTab';
 import { InvestigacionAccidentesTab } from './components/InvestigacionAccidentesTab';
-import { Obra, RegistroIncidente, IPERRegistro } from '@/types/pcg';
+import { Obra, RegistroIncidente, IPERRegistro, Charla } from '@/types/pcg';
 import { IperForm, IperFormValues } from './components/IperGeneroRow';
 import { useToast } from '@/hooks/use-toast';
 import { Badge } from "@/components/ui/badge";
@@ -63,7 +63,7 @@ export default function FormulariosGeneralesPrevencionPage() {
   const [iperRegistros, setIperRegistros] = useState<IPERRegistro[]>([]);
   const [loading, setLoading] = useState(true);
   const router = useRouter();
-  const { companyId, role } = useAuth();
+  const { user, companyId, role } = useAuth();
   const { toast } = useToast();
   
   const [iperFormValues, setIperFormValues] = useState<Partial<IPERRegistro>>(initialIperState);
@@ -236,6 +236,53 @@ export default function FormulariosGeneralesPrevencionPage() {
     generarIperPdf(iperSeleccionado, obra);
   }
 
+  const handleGenerarCharla = async () => {
+    if (!iperSeleccionado || !user) return;
+
+    const obra = obras.find(o => o.id === obraSeleccionadaId);
+    if (!obra) return;
+    
+    try {
+        const nuevaCharla: Omit<Charla, 'id'> = {
+            obraId: obraSeleccionadaId,
+            obraNombre: obra.nombreFaena,
+            iperId: iperSeleccionado.id,
+            iperIdRelacionado: iperSeleccionado.id,
+            titulo: `Charla de seguridad: ${iperSeleccionado.tarea}`,
+            tipo: "charla_iper",
+            fechaCreacion: serverTimestamp() as any,
+            creadaPorUid: user.uid,
+            generadaAutomaticamente: true,
+            tarea: iperSeleccionado.tarea,
+            zonaSector: iperSeleccionado.zona,
+            peligro: iperSeleccionado.peligro,
+            riesgo: iperSeleccionado.riesgo,
+            probHombres: iperSeleccionado.probabilidad_hombre,
+            consHombres: iperSeleccionado.consecuencia_hombre,
+            nivelHombres: iperSeleccionado.nivel_riesgo_hombre,
+            probMujeres: iperSeleccionado.probabilidad_mujer,
+            consMujeres: iperSeleccionado.consecuencia_mujer,
+            nivelMujeres: iperSeleccionado.nivel_riesgo_mujer,
+            controlGenero: iperSeleccionado.control_especifico_genero,
+            estado: 'borrador',
+            contenido: `Esta charla se enfoca en el riesgo de "${iperSeleccionado.riesgo}" durante la tarea de "${iperSeleccionado.tarea}". Se deben aplicar las siguientes medidas de control: ${iperSeleccionado.medidasControlPropuestas || iperSeleccionado.control_especifico_genero}. El nivel de riesgo inherente es ${Math.max(iperSeleccionado.nivel_riesgo_hombre, iperSeleccionado.nivel_riesgo_mujer)}.`,
+        };
+        
+        await addDoc(collection(firebaseDb, "charlas"), nuevaCharla);
+        
+        toast({
+            title: "Charla Generada",
+            description: "Se ha creado una nueva charla en borrador. Puede verla y completarla en el módulo de Charlas.",
+        });
+        
+        router.push('/prevencion/ppr?tab=charlas');
+
+    } catch(err) {
+        console.error("Error generando charla desde IPER:", err);
+        toast({ variant: 'destructive', title: 'Error', description: 'No se pudo generar la charla.' });
+    }
+  }
+
 
   return (
     <section className="space-y-6">
@@ -397,22 +444,10 @@ export default function FormulariosGeneralesPrevencionPage() {
                                     </AlertDialog>
                                 </div>
                                  <div className="pt-2">
-                                      <AlertDialog>
-                                        <AlertDialogTrigger asChild>
-                                            <Button variant="secondary" className="w-full"><Siren className="mr-2 h-4 w-4"/>Generar Charla de Seguridad</Button>
-                                        </AlertDialogTrigger>
-                                        <AlertDialogContent>
-                                            <AlertDialogHeader>
-                                                <AlertDialogTitle>Función en Desarrollo</AlertDialogTitle>
-                                                <AlertDialogDescription>
-                                                    Esta función generará automáticamente una nueva charla de seguridad asociada a este riesgo IPER. Aún está en desarrollo.
-                                                </AlertDialogDescription>
-                                            </AlertDialogHeader>
-                                            <AlertDialogFooter>
-                                                <AlertDialogAction>Entendido</AlertDialogAction>
-                                            </AlertDialogFooter>
-                                        </AlertDialogContent>
-                                    </AlertDialog>
+                                    <Button onClick={handleGenerarCharla} variant="secondary" className="w-full">
+                                      <Siren className="mr-2 h-4 w-4"/>
+                                      Generar Charla de Seguridad desde IPER
+                                    </Button>
                                 </div>
                             </CardContent>
                         </Card>
