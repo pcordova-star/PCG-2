@@ -34,8 +34,9 @@ import { Dialog, DialogClose, DialogFooter, DialogHeader, DialogTitle, DialogCon
 import { Badge } from '@/components/ui/badge';
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from '@/context/AuthContext';
-import { ArbolCausas, MetodoAnalisisIncidente, RegistroIncidente } from '@/types/pcg';
+import { ArbolCausas, MetodoAnalisisIncidente, RegistroIncidente, MedidaCorrectivaDetallada } from '@/types/pcg';
 import { ArbolCausasEditor } from './components/ArbolCausasEditor';
+import { PlanAccionEditor } from './components/PlanAccionEditor';
 import { Switch } from '@/components/ui/switch';
 
 
@@ -939,6 +940,7 @@ function InvestigacionIncidenteSection({ onCrearAccionDesdeIncidente }: Investig
     plazoCierre: "",
     estadoCierre: "Abierto",
     metodoAnalisis: 'ishikawa_5p',
+    medidasCorrectivasDetalladas: [],
   });
   
   const { companyId, role } = useAuth();
@@ -1033,8 +1035,8 @@ function InvestigacionIncidenteSection({ onCrearAccionDesdeIncidente }: Investig
     }
     
     const obraSeleccionada = obras.find(o => o.id === obraSeleccionadaId);
-    const dataToSave = {
-        ...formIncidente,
+    const dataToSave: Omit<RegistroIncidente, 'id'> & { createdAt: any, updatedAt: any } = {
+        ...(formIncidente as Omit<RegistroIncidente, 'id'>),
         obraId: obraSeleccionadaId,
         obraNombre: obraSeleccionada?.nombreFaena ?? "N/A",
         createdAt: serverTimestamp(),
@@ -1052,7 +1054,13 @@ function InvestigacionIncidenteSection({ onCrearAccionDesdeIncidente }: Investig
             ...prev,
             lugar: "",
             descripcionHecho: "",
-            lesionPersona: "",
+            lesionDescripcion: "",
+            parteCuerpoAfectada: "",
+            agenteAccidente: "",
+            mecanismoAccidente: "",
+            diasReposoMedico: null,
+            huboTiempoPerdido: false,
+            esAccidenteGraveFatal: false,
             actoInseguro: "",
             condicionInsegura: "",
             causasInmediatas: "",
@@ -1063,13 +1071,7 @@ function InvestigacionIncidenteSection({ onCrearAccionDesdeIncidente }: Investig
             responsableSeguimiento: "",
             plazoCierre: "",
             arbolCausas: undefined,
-            lesionDescripcion: "",
-            parteCuerpoAfectada: "",
-            agenteAccidente: "",
-            mecanismoAccidente: "",
-            diasReposoMedico: null,
-            huboTiempoPerdido: false,
-            esAccidenteGraveFatal: false,
+            medidasCorrectivasDetalladas: [],
         }));
 
         cargarIncidentes(obraSeleccionadaId);
@@ -1182,7 +1184,14 @@ function InvestigacionIncidenteSection({ onCrearAccionDesdeIncidente }: Investig
 
             <Separator className="my-4"/>
 
-          <div className="space-y-2"><Label>Medidas correctivas</Label><Textarea value={formIncidente.medidasCorrectivas} onChange={e => handleInputChange('medidasCorrectivas', e.target.value)} rows={3}/></div>
+            <PlanAccionEditor 
+                arbolCausas={formIncidente.metodoAnalisis === 'arbol_causas' ? formIncidente.arbolCausas : undefined}
+                medidas={formIncidente.medidasCorrectivasDetalladas}
+                onChange={medidas => handleInputChange('medidasCorrectivasDetalladas', medidas)}
+            />
+
+            <Separator className="my-4"/>
+          
           <div className="grid gap-4 md:grid-cols-2">
               <div className="space-y-2"><Label>Responsable seguimiento</Label><Input value={formIncidente.responsableSeguimiento} onChange={e => handleInputChange('responsableSeguimiento', e.target.value)} /></div>
               <div className="space-y-2"><Label>Plazo de cierre</Label><Input type="date" value={formIncidente.plazoCierre} onChange={e => handleInputChange('plazoCierre', e.target.value)} /></div>
@@ -1235,6 +1244,12 @@ function InvestigacionIncidenteSection({ onCrearAccionDesdeIncidente }: Investig
                     <span><strong className="text-muted-foreground">Responsable:</strong> {inc.responsableSeguimiento || "N/A"}</span>
                     <span><strong className="text-muted-foreground">Plazo:</strong> {inc.plazoCierre || "N/A"}</span>
                   </div>
+                   <PlanAccionEditor 
+                        arbolCausas={inc.arbolCausas} 
+                        medidas={inc.medidasCorrectivasDetalladas} 
+                        onChange={() => {}} // No-op en modo lectura
+                        readOnly 
+                    />
                   <Button
                     type="button"
                     onClick={() =>
