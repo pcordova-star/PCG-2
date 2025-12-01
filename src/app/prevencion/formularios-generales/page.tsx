@@ -1,4 +1,5 @@
 
+
 // src/app/prevencion/formularios-generales/page.tsx
 "use client";
 
@@ -115,6 +116,32 @@ type Charla = {
     observaciones?: string;
 };
 
+// --- Tipos y Datos para Hallazgos (copiado de hallazgos/page) ---
+export type Criticidad = 'baja' | 'media' | 'alta';
+
+export interface Hallazgo {
+  id?: string;
+  obraId: string;
+  createdAt: Timestamp;
+  createdBy: string;
+  tipoRiesgo: string;
+  descripcion: string;
+  tipoHallazgoDetalle?: string;
+  descripcionLibre?: string;
+  accionesInmediatas: string[];
+  responsableId: string;
+  responsableNombre?: string;
+  plazo: string;
+  evidenciaUrl: string;
+  criticidad: Criticidad;
+  estado: 'abierto' | 'en_progreso' | 'cerrado';
+  iperActividadId?: string;
+  iperRiesgoId?: string;
+  planAccionId?: string;
+  investigacionId?: string; 
+  fichaFirmadaUrl?: string;
+  fechaFichaFirmada?: Timestamp;
+}
 
 // --- Tipos y Datos para Investigación de Incidentes ---
 type TipoIncidente =
@@ -1535,30 +1562,146 @@ function PlanAccionSection({ prefill, onPrefillConsumido }: PlanAccionSectionPro
     );
 }
 
-// --- Componente Principal ---
-type FormularioGeneralActivo = "IPER" | "INCIDENTE" | "PLAN_ACCION" | "HALLAZGO" | null;
+function HallazgoEstadoBadge({ estado }: { estado: Hallazgo['estado'] }) {
+    const variants: Record<Hallazgo['estado'], string> = {
+        abierto: 'bg-yellow-100 text-yellow-800 border-yellow-300',
+        en_progreso: 'bg-blue-100 text-blue-800 border-blue-300',
+        cerrado: 'bg-green-100 text-green-800 border-green-300',
+    };
+    return <Badge variant="outline" className={variants[estado]}>{estado.replace('_', ' ')}</Badge>;
+}
 
+// --- Componente de Hallazgos ---
 function HallazgosSection() {
     const router = useRouter();
+    const { toast } = useToast();
+    const [obras, setObras] = useState<ObraPrevencion[]>([]);
+    const [obraSeleccionadaId, setObraSeleccionadaId] = useState<string>("");
+    const [hallazgos, setHallazgos] = useState<Hallazgo[]>([]);
+    const [loading, setLoading] = useState(true);
+
+    useEffect(() => {
+        const fetchObras = async () => {
+            const q = query(collection(firebaseDb, "obras"), orderBy("nombreFaena"));
+            const snapshot = await getDocs(q);
+            const obrasData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as ObraPrevencion));
+            setObras(obrasData);
+            if (obrasData.length > 0) {
+                setObraSeleccionadaId(obrasData[0].id);
+            }
+        };
+        fetchObras();
+    }, []);
+
+    useEffect(() => {
+        if (!obraSeleccionadaId) {
+            setHallazgos([]);
+            setLoading(false);
+            return;
+        }
+
+        setLoading(true);
+        const q = query(collection(firebaseDb, "hallazgos"), where("obraId", "==", obraSeleccionadaId), orderBy("createdAt", "desc"));
+        const unsubscribe = onSnapshot(q, (snapshot) => {
+            const hallazgosList = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Hallazgo));
+            setHallazgos(hallazgosList);
+            setLoading(false);
+        });
+
+        return () => unsubscribe();
+    }, [obraSeleccionadaId]);
+    
+    const handleCerrarHallazgo = async (hallazgoId: string) => {
+        if (!hallazgoId) return;
+        try {
+            const hallazgoRef = doc(firebaseDb, "hallazgos", hallazgoId);
+            await updateDoc(hallazgoRef, { estado: 'cerrado' });
+            toast({ title: 'Hallazgo cerrado', description: 'El estado del hallazgo ha sido actualizado.' });
+        } catch (error) {
+            console.error("Error al cerrar hallazgo:", error);
+            toast({ variant: 'destructive', title: 'Error', description: 'No se pudo cerrar el hallazgo.' });
+        }
+    };
+
     return (
         <Card className="mt-6">
             <CardHeader>
-                <CardTitle>Hallazgos en Terreno</CardTitle>
-                <CardDescription>Módulo para la gestión de hallazgos de seguridad en terreno.</CardDescription>
+                <CardTitle>Gestión de Hallazgos en Terreno</CardTitle>
+                <CardDescription>Visualiza, gestiona y crea nuevos hallazgos de seguridad para la obra seleccionada.</CardDescription>
             </CardHeader>
-            <CardContent>
-                <div className="space-y-4">
-                    <p>Funcionalidad de hallazgos. Desde aquí se podrán crear, ver y gestionar los hallazgos.</p>
-                    <div className="flex gap-4">
-                        <Button onClick={() => router.push('/prevencion/hallazgos/crear')}>Crear Hallazgo</Button>
+            <CardContent className="space-y-6">
+                <div className="flex flex-col md:flex-row gap-4 items-start md:items-end">
+                    <div className="space-y-2 flex-grow">
+                        <Label htmlFor="obra-hallazgos-select">Seleccionar Obra</Label>
+                        <Select value={obraSeleccionadaId} onValueChange={setObraSeleccionadaId}>
+                            <SelectTrigger id="obra-hallazgos-select">
+                                <SelectValue placeholder="Seleccione una obra..." />
+                            </SelectTrigger>
+                            <SelectContent>
+                                {obras.map(obra => <SelectItem key={obra.id} value={obra.id}>{obra.nombreFaena}</SelectItem>)}
+                            </SelectContent>
+                        </Select>
+                    </div>
+                     <div className="flex gap-2">
+                        <Button onClick={() => router.push(`/prevencion/hallazgos/crear?obraId=${obraSeleccionadaId}`)}>Crear Hallazgo</Button>
                         <Button onClick={() => router.push('/prevencion/hallazgos/equipo-responsable')} variant="outline">Configurar Equipo</Button>
                     </div>
                 </div>
+
+                {loading ? <p className="text-center text-muted-foreground">Cargando hallazgos...</p> : (
+                    hallazgos.length === 0 ? <p className="text-center text-muted-foreground pt-8">No hay hallazgos para esta obra.</p> : (
+                         <div className="border rounded-md overflow-hidden">
+                             <Table>
+                                <TableHeader>
+                                    <TableRow>
+                                        <TableHead>Fecha</TableHead>
+                                        <TableHead>Tipo de Riesgo</TableHead>
+                                        <TableHead>Criticidad</TableHead>
+                                        <TableHead>Estado</TableHead>
+                                        <TableHead className="text-right">Acciones</TableHead>
+                                    </TableRow>
+                                </TableHeader>
+                                <TableBody>
+                                    {hallazgos.map(h => (
+                                        <TableRow key={h.id}>
+                                            <TableCell>{h.createdAt.toDate().toLocaleDateString('es-CL')}</TableCell>
+                                            <TableCell>{h.tipoRiesgo}</TableCell>
+                                            <TableCell><Badge variant="outline">{h.criticidad}</Badge></TableCell>
+                                            <TableCell><HallazgoEstadoBadge estado={h.estado} /></TableCell>
+                                            <TableCell className="text-right">
+                                                <div className="flex gap-2 justify-end">
+                                                    <Button asChild size="sm" variant="outline"><Link href={`/prevencion/hallazgos/detalle/${h.id}`}>Ver Detalle</Link></Button>
+                                                    {h.estado !== 'cerrado' && (
+                                                        <AlertDialog>
+                                                            <AlertDialogTrigger asChild><Button size="sm">Cerrar</Button></AlertDialogTrigger>
+                                                            <AlertDialogContent>
+                                                                <AlertDialogHeader>
+                                                                    <AlertDialogTitle>¿Confirmar cierre?</AlertDialogTitle>
+                                                                    <AlertDialogDescription>Esto marcará el hallazgo como resuelto.</AlertDialogDescription>
+                                                                </AlertDialogHeader>
+                                                                <AlertDialogFooter>
+                                                                    <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                                                                    <AlertDialogAction onClick={() => handleCerrarHallazgo(h.id!)}>Confirmar</AlertDialogAction>
+                                                                </AlertDialogFooter>
+                                                            </AlertDialogContent>
+                                                        </AlertDialog>
+                                                    )}
+                                                </div>
+                                            </TableCell>
+                                        </TableRow>
+                                    ))}
+                                </TableBody>
+                             </Table>
+                         </div>
+                    )
+                )}
             </CardContent>
         </Card>
     );
 }
 
+// --- Componente Principal ---
+type FormularioGeneralActivo = "IPER" | "INCIDENTE" | "PLAN_ACCION" | "HALLAZGO" | null;
 
 export default function FormulariosGeneralesPrevencionPage() {
   const [activeForm, setActiveForm] = useState<FormularioGeneralActivo>("IPER");
