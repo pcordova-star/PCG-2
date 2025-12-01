@@ -1,4 +1,3 @@
-
 // src/app/prevencion/formularios-generales/page.tsx
 "use client";
 
@@ -13,10 +12,11 @@ import {
   updateDoc,
   doc,
   serverTimestamp,
+  deleteDoc,
 } from "firebase/firestore";
 import { firebaseDb } from "@/lib/firebaseClient";
 import { useRouter } from 'next/navigation';
-import { ArrowLeft, BookOpen, FileText, Plus, PlusCircle, Siren } from 'lucide-react';
+import { ArrowLeft, BookOpen, FileText, Plus, PlusCircle, Siren, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
@@ -118,7 +118,7 @@ export default function FormulariosGeneralesPrevencionPage() {
     const iperCollectionRef = collection(firebaseDb, "obras", obraSeleccionadaId, "iper");
     const qIper = query(iperCollectionRef, orderBy("createdAt", "desc"));
     const unsubscribeIper = onSnapshot(qIper, (snapshot) => {
-      const iperList = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data(), correlativo: snapshot.docs.length - snapshot.docs.indexOf(doc) } as IPERRegistro));
+      const iperList = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data(), correlativo: snapshot.docs.length - (snapshot.docs.indexOf(doc)) } as IPERRegistro));
       setIperRegistros(iperList);
       setLoading(false);
     }, (error) => {
@@ -194,6 +194,20 @@ export default function FormulariosGeneralesPrevencionPage() {
         toast({ variant: 'destructive', title: 'Error', description: 'No se pudo guardar el registro IPER.' });
     } finally {
         setGuardandoIper(false);
+    }
+  }
+
+  const handleDeleteIper = async (iperId: string) => {
+    if(!obraSeleccionadaId || !iperId) return;
+
+    try {
+        const docRef = doc(firebaseDb, "obras", obraSeleccionadaId, "iper", iperId);
+        await deleteDoc(docRef);
+        toast({title: 'Éxito', description: 'Registro IPER eliminado correctamente.'});
+        setIperSeleccionado(null); // Limpiar la vista de detalle
+    } catch (error) {
+        console.error("Error eliminando IPER:", error);
+        toast({ variant: 'destructive', title: 'Error', description: 'No se pudo eliminar el registro IPER.' });
     }
   }
 
@@ -297,8 +311,13 @@ export default function FormulariosGeneralesPrevencionPage() {
                     ) : (
                         <Card>
                             <CardHeader>
-                                <CardTitle>Detalle de IPER: {iperSeleccionado.tarea}</CardTitle>
-                                <CardDescription>Peligro: {iperSeleccionado.peligro}</CardDescription>
+                                <div className="flex justify-between items-start">
+                                    <div>
+                                        <CardTitle>Detalle de IPER: {iperSeleccionado.tarea}</CardTitle>
+                                        <CardDescription>Peligro: {iperSeleccionado.peligro}</CardDescription>
+                                    </div>
+                                     <Badge variant="outline">ID: IPER-{String(iperSeleccionado.correlativo).padStart(3, '0')}</Badge>
+                                </div>
                             </CardHeader>
                             <CardContent className="space-y-4 text-sm">
                                 <div className="grid grid-cols-2 gap-4">
@@ -307,11 +326,26 @@ export default function FormulariosGeneralesPrevencionPage() {
                                 </div>
                                 <div><p className="font-semibold">Control Específico Género</p><p className="text-muted-foreground">{iperSeleccionado.control_especifico_genero || "No especificado"}</p></div>
                                 <div><p className="font-semibold">Responsable</p><p className="text-muted-foreground">{iperSeleccionado.responsable || "No asignado"}</p></div>
-                                <div className="flex gap-2">
+                                <div className="flex gap-2 items-center">
                                      <Button onClick={() => setIperFormValues(iperSeleccionado)}>
                                         <BookOpen className="mr-2 h-4 w-4"/>Editar IPER
                                     </Button>
                                     <Button variant="outline" asChild><Link href={`/prevencion/formularios-generales/iper/${iperSeleccionado.id}/imprimir`} target="_blank"><FileText className="mr-2 h-4 w-4" />Ver Ficha / Imprimir</Link></Button>
+                                    <AlertDialog>
+                                        <AlertDialogTrigger asChild>
+                                            <Button variant="ghost" size="icon" className="text-destructive"><Trash2 className="h-4 w-4"/></Button>
+                                        </AlertDialogTrigger>
+                                        <AlertDialogContent>
+                                            <AlertDialogHeader>
+                                                <AlertDialogTitle>¿Eliminar este registro IPER?</AlertDialogTitle>
+                                                <AlertDialogDescription>Esta acción no se puede deshacer y eliminará permanentemente el registro de la tarea '{iperSeleccionado.tarea}'.</AlertDialogDescription>
+                                            </AlertDialogHeader>
+                                            <AlertDialogFooter>
+                                                <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                                                <AlertDialogAction onClick={() => handleDeleteIper(iperSeleccionado.id)} className="bg-destructive hover:bg-destructive/90">Eliminar</AlertDialogAction>
+                                            </AlertDialogFooter>
+                                        </AlertDialogContent>
+                                    </AlertDialog>
                                 </div>
                                  <div className="pt-2">
                                       <AlertDialog>
