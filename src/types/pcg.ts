@@ -133,11 +133,21 @@ export interface IPERRegistro {
 
 export type CharlaEstado = "borrador" | "realizada" | "programada" | "cancelada";
 
+export interface FirmaAsistente {
+  trabajadorId?: string;
+  nombre: string;
+  rut?: string;
+  cargo?: string;
+  firmaUrl?: string;
+  firmadoEn?: string; // ISO
+}
+
 export type Charla = {
     id: string;
     obraId: string;
     obraNombre: string;
     iperId: string;
+    iperIdRelacionado?: string; // Nuevo campo opcional
     titulo: string;
     tipo: "charla_iper" | "charla_induccion";
     fechaCreacion: Timestamp;
@@ -159,6 +169,7 @@ export type Charla = {
     fechaRealizacion?: Timestamp;
     duracionMinutos?: number;
     participantesTexto?: string;
+    asistentes?: FirmaAsistente[]; // Nuevo campo opcional
     observaciones?: string;
 };
 
