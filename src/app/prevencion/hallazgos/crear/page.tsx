@@ -8,7 +8,7 @@ import { firebaseDb, firebaseStorage } from '@/lib/firebaseClient';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { useAuth } from '@/context/AuthContext';
 import { useToast } from '@/hooks/use-toast';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -46,6 +46,12 @@ function HallazgoEstadoBadge({ estado }: { estado: Hallazgo['estado'] }) {
 
 
 export default function CrearHallazgoPage() {
+    const router = useRouter();
+    const searchParams = useSearchParams();
+    const obraIdFromQuery = searchParams.get('obraId');
+    const { user, companyId } = useAuth();
+    const { toast } = useToast();
+
     // Estados del formulario
     const [tipoRiesgo, setTipoRiesgo] = useState('');
     const [tipoHallazgoDetalle, setTipoHallazgoDetalle] = useState('');
@@ -62,11 +68,7 @@ export default function CrearHallazgoPage() {
     const [cargandoHallazgos, setCargandoHallazgos] = useState(false);
     const [equipo, setEquipo] = useState<MiembroEquipo[]>([]);
 
-    const { user, companyId } = useAuth();
-    const { toast } = useToast();
-    const router = useRouter();
-
-    // Cargar obras
+    // Cargar obras y setear la inicial
     useEffect(() => {
         if (!companyId) return;
 
@@ -75,12 +77,15 @@ export default function CrearHallazgoPage() {
             const querySnapshot = await getDocs(q);
             const obrasList = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Obra));
             setObras(obrasList);
-            if (obrasList.length > 0) {
+
+            if (obraIdFromQuery && obrasList.some(o => o.id === obraIdFromQuery)) {
+                setObraId(obraIdFromQuery);
+            } else if (obrasList.length > 0) {
                 setObraId(obrasList[0].id);
             }
         };
         fetchObras();
-    }, [companyId]);
+    }, [companyId, obraIdFromQuery]);
 
     // Cargar hallazgos y equipo responsable cuando cambia la obra
     useEffect(() => {
@@ -212,7 +217,7 @@ export default function CrearHallazgoPage() {
     return (
        <div className="space-y-6">
             <header className="flex items-center gap-4">
-                <Button variant="outline" size="icon" onClick={() => router.push('/prevencion/formularios-generales')}>
+                <Button variant="outline" size="icon" onClick={() => router.back()}>
                     <ArrowLeft className="h-4 w-4" />
                 </Button>
                 <div>
@@ -230,7 +235,7 @@ export default function CrearHallazgoPage() {
                     <CardContent className="space-y-4">
                         <div className="space-y-2">
                             <Label>Obra*</Label>
-                            <Select onValueChange={setObraId} value={obraId}>
+                            <Select onValueChange={setObraId} value={obraId} disabled={!!obraIdFromQuery}>
                                 <SelectTrigger><SelectValue placeholder="Seleccionar obra..." /></SelectTrigger>
                                 <SelectContent>
                                     {obras.map(o => <SelectItem key={o.id} value={o.id}>{o.nombreFaena}</SelectItem>)}
