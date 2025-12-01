@@ -79,7 +79,7 @@ async function generarActaDeCharla(charla: Charla, obra?: Obra | null, language:
 
   // Origen de la charla (IPER)
   if (iper) {
-    cursorY = addSectionTitle(doc, texts.sectionIperTitle, cursorY);
+    cursorY = addSectionTitle(doc, texts.sectionIperTitle, cursorY, marginX);
     autoTable(doc, {
         startY: cursorY,
         body: [
@@ -98,7 +98,7 @@ async function generarActaDeCharla(charla: Charla, obra?: Obra | null, language:
   }
 
   // Contenido
-  cursorY = addSectionTitle(doc, texts.sectionContentTitle, cursorY);
+  cursorY = addSectionTitle(doc, texts.sectionContentTitle, cursorY, marginX);
   doc.setFont("helvetica", "normal");
   doc.setFontSize(10);
   
@@ -114,9 +114,11 @@ async function generarActaDeCharla(charla: Charla, obra?: Obra | null, language:
   cursorY += contenidoLines.length * 5 + 10;
 
   // Lista de Asistentes
-  doc.addPage();
-  cursorY = 20;
-  cursorY = addSectionTitle(doc, texts.sectionAttendeesTitle, cursorY);
+  if (cursorY > 220) {
+      doc.addPage();
+      cursorY = 20;
+  }
+  cursorY = addSectionTitle(doc, texts.sectionAttendeesTitle, cursorY, marginX);
   
   if (charla.asistentes && charla.asistentes.length > 0) {
     const tableBodyPromises = charla.asistentes.map(async (asistente) => {
@@ -152,7 +154,7 @@ async function generarActaDeCharla(charla: Charla, obra?: Obra | null, language:
       body: tableBody,
       theme: 'grid',
       headStyles: { fillColor: [240, 240, 240], textColor: 20 },
-      didDrawCell: (data) => {},
+      didDrawPage: (data) => {},
       columnStyles: {
           4: { minCellHeight: 15, halign: 'center', valign: 'middle' }
       }
@@ -170,7 +172,7 @@ async function generarActaDeCharla(charla: Charla, obra?: Obra | null, language:
   doc.save(fileName);
 }
 
-function addSectionTitle(doc: jsPDF, title: string, y: number): number {
+function addSectionTitle(doc: jsPDF, title: string, y: number, marginX: number): number {
     doc.setFont("helvetica", "bold");
     doc.setFontSize(12);
     doc.text(title, marginX, y);
