@@ -252,10 +252,10 @@ export interface ArbolCausas {
 
 export interface MedidaCorrectivaDetallada {
   id: string;
-  causaNodoId?: string | null; // id de NodoArbolCausas asociado (si aplica)
+  causaNodoId?: string | null;
   descripcionAccion: string;
   responsable: string;
-  fechaCompromiso: string; // ISO string
+  fechaCompromiso: string;
   estado: 'pendiente' | 'en_proceso' | 'cerrado';
   observaciones?: string;
 }
@@ -269,13 +269,6 @@ export type RegistroIncidente = {
   tipoIncidente: TipoIncidente;
   gravedad: GravedadIncidente;
   descripcionHecho: string;
-  lesionDescripcion?: string;
-  parteCuerpoAfectada?: string;
-  agenteAccidente?: string;
-  mecanismoAccidente?: string;
-  diasReposoMedico?: number | null;
-  huboTiempoPerdido?: boolean | null;
-  esAccidenteGraveFatal?: boolean | null;
   actoInseguro: string;
   condicionInsegura: string;
   causasInmediatas: string;
@@ -289,7 +282,17 @@ export type RegistroIncidente = {
   createdAt?: any;
   origen?: string;
   hallazgoId?: string;
+  // Campos del Árbol de Causas
   metodoAnalisis?: MetodoAnalisisIncidente;
   arbolCausas?: ArbolCausas;
+  // Campos para el Plan de Acción
   medidasCorrectivasDetalladas?: MedidaCorrectivaDetallada[];
+  // Campos Normativos para Accidentes
+  lesionDescripcion?: string;
+  parteCuerpoAfectada?: string;
+  agenteAccidente?: string;
+  mecanismoAccidente?: string;
+  diasReposoMedico?: number | null;
+  huboTiempoPerdido?: boolean | null;
+  esAccidenteGraveFatal?: boolean | null;
 };
