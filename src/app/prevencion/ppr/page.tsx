@@ -105,7 +105,7 @@ export default function PprPage() {
 
       // Fetch Charlas
       const charlasQuery = query(collection(firebaseDb, "charlas"), where("obraId", "==", selectedObraId));
-      const charlasSnapshot = await getDocs(charlasQuery);
+      const charlasSnapshot = await getDocs(charlaQuery);
       const charlasList = charlasSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Charla));
       setCharlasData(charlasList);
 
@@ -119,7 +119,7 @@ export default function PprPage() {
     fetchDataForObra();
   }, [selectedObraId]);
 
-  const handleExportPdf = async () => {
+  const handleExportPdf = async (language: 'es' | 'pt') => {
     if (!selectedObra) {
         toast({
             variant: "destructive",
@@ -135,7 +135,7 @@ export default function PprPage() {
             iperRegistros: iperData,
             charlas: charlasData,
         };
-        await generarPprPdf(pprData);
+        await generarPprPdf(pprData, language);
     } catch (error) {
         console.error("Error generando PDF:", error);
         toast({
@@ -199,10 +199,16 @@ export default function PprPage() {
                 </SelectContent>
                 </Select>
             </div>
-             <Button onClick={handleExportPdf} disabled={generandoPdf || !selectedObra}>
-                {generandoPdf ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <FileDown className="mr-2 h-4 w-4" />}
-                {generandoPdf ? "Generando PDF..." : "Exportar Programa en PDF"}
-            </Button>
+            <div className="flex gap-2">
+                <Button onClick={() => handleExportPdf('es')} disabled={generandoPdf || !selectedObra}>
+                    {generandoPdf ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <FileDown className="mr-2 h-4 w-4" />}
+                    Descargar PPR (ES)
+                </Button>
+                 <Button onClick={() => handleExportPdf('pt')} disabled={generandoPdf || !selectedObra} variant="secondary">
+                    {generandoPdf ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <FileDown className="mr-2 h-4 w-4" />}
+                    Baixar PPR (PT)
+                </Button>
+            </div>
           </div>
           
           {loading ? (

@@ -2,6 +2,7 @@
 import jsPDF from "jspdf";
 import autoTable from 'jspdf-autotable';
 import { Obra, IPERRegistro, Charla } from "@/types/pcg";
+import { pprTexts } from "./translations/pprTexts";
 
 export type PprData = {
   obra: Obra;
@@ -12,16 +13,18 @@ export type PprData = {
 const headerColor = [226, 232, 240]; // slate-200
 const marginX = 15;
 
-function addHeader(doc: jsPDF, obraNombre: string) {
+function addHeader(doc: jsPDF, obraNombre: string, language: 'es' | 'pt') {
+    const texts = pprTexts[language];
     doc.setFont("helvetica", "bold");
     doc.setFontSize(16);
-    doc.text("PCG · Plataforma de Control y Gestión", marginX, 20);
+    doc.text(texts.subtitle, marginX, 20);
     doc.setFont("helvetica", "normal");
     doc.setFontSize(10);
-    doc.text(`Programa de Prevención de Riesgos (PPR) para: ${obraNombre}`, marginX, 26);
+    doc.text(`${texts.title}: ${obraNombre}`, marginX, 26);
 }
 
-function addFooter(doc: jsPDF, obraNombre: string) {
+function addFooter(doc: jsPDF, obraNombre: string, language: 'es' | 'pt') {
+    const texts = pprTexts[language];
     const pageCount = (doc as any).internal.getNumberOfPages();
     for (let i = 1; i <= pageCount; i++) {
         doc.setPage(i);
@@ -30,8 +33,8 @@ function addFooter(doc: jsPDF, obraNombre: string) {
         doc.setTextColor(120);
 
         doc.text(obraNombre, marginX, pageHeight - 10);
-        doc.text("PCG – Programa de Prevención de Riesgos", 105, pageHeight - 10, { align: 'center' });
-        doc.text(`Página ${i} de ${pageCount}`, 195, pageHeight - 10, { align: 'right' });
+        doc.text(texts.footer, 105, pageHeight - 10, { align: 'center' });
+        doc.text(`${texts.page} ${i} / ${pageCount}`, 195, pageHeight - 10, { align: 'right' });
         
         doc.setTextColor(0);
     }
@@ -58,40 +61,39 @@ function addDescriptionText(doc: jsPDF, text: string, y: number): number {
 }
 
 
-export async function generarPprPdf(pprData: PprData): Promise<void> {
+export async function generarPprPdf(pprData: PprData, language: 'es' | 'pt' = 'es'): Promise<void> {
+    const texts = pprTexts[language];
     const { obra, iperRegistros, charlas } = pprData;
     const doc = new jsPDF("p", "mm", "a4");
 
     // --- 1. PORTADA ---
     doc.setFont("helvetica", "bold");
-    doc.setFontSize(20);
-    doc.text("Programa de Prevención de Riesgos (PPR)", 105, 80, { align: 'center' });
+    doc.setFontSize(22);
+    doc.text(texts.title, 105, 80, { align: 'center' });
     
     doc.setFontSize(12);
-    doc.text("PCG – Plataforma de Control y Gestión", 105, 88, { align: 'center' });
+    doc.text(texts.subtitle, 105, 88, { align: 'center' });
 
     doc.setFontSize(18);
     doc.text(obra.nombreFaena, 105, 110, { align: 'center' });
 
     doc.setFont("helvetica", "normal");
     doc.setFontSize(12);
-    doc.text(`Empresa Contratista: ${obra.empresa?.nombre || 'Constructora PCG Ltda.'}`, 105, 130, { align: 'center' });
-    doc.text(`Empresa Mandante: ${obra.mandanteRazonSocial || 'No especificado'}`, 105, 138, { align: 'center' });
-    doc.text(`Prevencionista Responsable: ${obra.prevencionistaNombre || 'No especificado'}`, 105, 146, { align: 'center' });
-    doc.text(`Fecha de Generación: ${new Date().toLocaleDateString('es-CL')}`, 105, 160, { align: 'center' });
+    doc.text(`${texts.fieldContratista}: ${obra.empresa?.nombre || 'Constructora PCG Ltda.'}`, 105, 130, { align: 'center' });
+    doc.text(`${texts.fieldMandante}: ${obra.mandanteRazonSocial || texts.noEspecificado}`, 105, 138, { align: 'center' });
+    doc.text(`${texts.fieldPrevencionista}: ${obra.prevencionistaNombre || texts.noEspecificado}`, 105, 146, { align: 'center' });
+    doc.text(`${texts.fieldFechaGeneracion}: ${new Date().toLocaleDateString(language === 'pt' ? 'pt-BR' : 'es-CL')}`, 105, 160, { align: 'center' });
 
     // --- 2. ÍNDICE ---
     doc.addPage();
-    addHeader(doc, obra.nombreFaena);
+    addHeader(doc, obra.nombreFaena, language);
     let cursorY = 40;
-    cursorY = addSectionTitle(doc, "Índice de Contenidos", cursorY);
+    cursorY = addSectionTitle(doc, texts.index, cursorY);
     
     const secciones = [
-        "1. Información General de la Obra", "2. Objetivo del Programa", "3. Organización Interna",
-        "4. Identificación de Peligros (IPER)", "5. Medidas de Control", "6. Charlas y Capacitación",
-        "7. Plan de Capacitación DS 44", "8. Procedimientos de Trabajo Seguro",
-        "9. Protocolos de Emergencia", "10. Plan de Fiscalización Interna",
-        "11. Registro y Seguimiento", "12. Enfoque de Género (DS 44)"
+        texts.section1, texts.section2, texts.section3, texts.section4,
+        texts.section5, texts.section6, texts.section7, texts.section8,
+        texts.section9, texts.section10, texts.section11, texts.section12
     ];
     
     autoTable(doc, {
@@ -105,19 +107,19 @@ export async function generarPprPdf(pprData: PprData): Promise<void> {
     const startY = 40;
 
     // Sección 1
-    doc.addPage(); addHeader(doc, obra.nombreFaena); cursorY = startY;
-    cursorY = addSectionTitle(doc, "1. Información General de la Obra", cursorY);
+    doc.addPage(); addHeader(doc, obra.nombreFaena, language); cursorY = startY;
+    cursorY = addSectionTitle(doc, texts.section1, cursorY);
     autoTable(doc, {
         startY: cursorY,
-        head: [['Campo', 'Valor']],
+        head: [[texts.tableInfoCampo, texts.tableInfoValor]],
         body: [
-            ['Nombre de la obra', obra.nombreFaena],
-            ['Ubicación', obra.direccion || 'No registrado'],
-            ['Mandante', obra.mandanteRazonSocial || 'No registrado'],
-            ['Contratista', obra.empresa?.nombre || 'No registrado'],
-            ['Fecha de inicio', obra.fechaInicio ? new Date(obra.fechaInicio + 'T00:00:00').toLocaleDateString('es-CL') : 'No registrado'],
-            ['Fecha de término', obra.fechaTermino ? new Date(obra.fechaTermino + 'T00:00:00').toLocaleDateString('es-CL') : 'No registrado'],
-            ['Prevencionista responsable', obra.prevencionistaNombre || 'No registrado'],
+            [texts.fieldNombreObra, obra.nombreFaena],
+            [texts.fieldUbicacion, obra.direccion || texts.noRegistrado],
+            [texts.fieldMandante, obra.mandanteRazonSocial || texts.noRegistrado],
+            [texts.fieldContratista, obra.empresa?.nombre || texts.noRegistrado],
+            [texts.fieldFechaInicio, obra.fechaInicio ? new Date(obra.fechaInicio + 'T00:00:00').toLocaleDateString(language === 'pt' ? 'pt-BR' : 'es-CL') : texts.noRegistrado],
+            [texts.fieldFechaTermino, obra.fechaTermino ? new Date(obra.fechaTermino + 'T00:00:00').toLocaleDateString(language === 'pt' ? 'pt-BR' : 'es-CL') : texts.noRegistrado],
+            [texts.fieldPrevencionista, obra.prevencionistaNombre || texts.noRegistrado],
         ],
         theme: 'grid',
         headStyles: { fillColor: headerColor, textColor: 20 },
@@ -125,82 +127,83 @@ export async function generarPprPdf(pprData: PprData): Promise<void> {
     });
 
     // Sección 2
-    doc.addPage(); addHeader(doc, obra.nombreFaena); cursorY = startY;
-    cursorY = addSectionTitle(doc, "2. Objetivo del Programa", cursorY);
-    cursorY = addDescriptionText(doc, "Establecer las directrices y acciones necesarias para prevenir accidentes y enfermedades profesionales en la obra, cumpliendo la legislación vigente y protocolos internos del mandante y contratista.", cursorY);
+    doc.addPage(); addHeader(doc, obra.nombreFaena, language); cursorY = startY;
+    cursorY = addSectionTitle(doc, texts.section2, cursorY);
+    cursorY = addDescriptionText(doc, texts.textObjetivo, cursorY);
 
     // Sección 3
-    doc.addPage(); addHeader(doc, obra.nombreFaena); cursorY = startY;
-    cursorY = addSectionTitle(doc, "3. Organización Interna", cursorY);
+    doc.addPage(); addHeader(doc, obra.nombreFaena, language); cursorY = startY;
+    cursorY = addSectionTitle(doc, texts.section3, cursorY);
     autoTable(doc, {
         startY: cursorY,
-        head: [['Cargo', 'Nombre', 'Rol en el Sistema de Gestión']],
+        head: [[texts.tableOrgCargo, texts.tableOrgNombre, texts.tableOrgRol]],
         body: [
-            ['Jefe de Obra', obra.jefeObraNombre || 'No asignado', 'Máximo responsable de la gestión y recursos.'],
-            ['Prevencionista', obra.prevencionistaNombre || 'No asignado', 'Coordinador y asesor técnico del PPR.'],
+            [texts.cargoJefeObra, obra.jefeObraNombre || texts.noAsignado, texts.rolJefeObra],
+            [texts.cargoPrevencionista, obra.prevencionistaNombre || texts.noAsignado, texts.rolPrevencionista],
         ],
         theme: 'grid', headStyles: { fillColor: headerColor, textColor: 20 }
     });
 
     // Sección 4
-    doc.addPage(); addHeader(doc, obra.nombreFaena); cursorY = startY;
-    cursorY = addSectionTitle(doc, "4. Identificación de Peligros (IPER)", cursorY);
+    doc.addPage(); addHeader(doc, obra.nombreFaena, language); cursorY = startY;
+    cursorY = addSectionTitle(doc, texts.section4, cursorY);
     if(iperRegistros.length > 0) {
         autoTable(doc, {
             startY: cursorY,
-            head: [['Tarea', 'Peligro', 'Riesgo', 'Riesgo H/M', 'Riesgo Residual']],
+            head: [[texts.tableIperTarea, texts.tableIperPeligro, texts.tableIperRiesgo, texts.tableIperRiesgoHM, texts.tableIperRiesgoResidual]],
             body: iperRegistros.map(iper => [iper.tarea, iper.peligro, iper.riesgo, `${iper.nivel_riesgo_hombre}/${iper.nivel_riesgo_mujer}`, iper.nivel_riesgo_residual]),
             theme: 'grid', headStyles: { fillColor: headerColor, textColor: 20 }
         });
     } else {
-        doc.text("No hay registros IPER para esta obra.", 15, cursorY);
+        doc.text(texts.noIper, 15, cursorY);
     }
     
     // Sección 5
-    doc.addPage(); addHeader(doc, obra.nombreFaena); cursorY = startY;
-    cursorY = addSectionTitle(doc, "5. Medidas de Control", cursorY);
+    doc.addPage(); addHeader(doc, obra.nombreFaena, language); cursorY = startY;
+    cursorY = addSectionTitle(doc, texts.section5, cursorY);
     if(iperRegistros.length > 0) {
         autoTable(doc, {
             startY: cursorY,
-            head: [['Peligro', 'Control Específico (Género)', 'Responsable']],
+            head: [[texts.tableControlPeligro, texts.tableControlMedida, texts.tableControlResponsable]],
             body: iperRegistros.map(iper => [iper.peligro, iper.control_especifico_genero || '-', iper.responsable || '-']),
             theme: 'grid', headStyles: { fillColor: headerColor, textColor: 20 }
         });
     } else {
-        doc.text("No hay medidas de control definidas (sin IPER).", 15, cursorY);
+        doc.text(texts.noMedidas, 15, cursorY);
     }
 
     // Sección 6
-    doc.addPage(); addHeader(doc, obra.nombreFaena); cursorY = startY;
-    cursorY = addSectionTitle(doc, "6. Charlas y Capacitación", cursorY);
+    doc.addPage(); addHeader(doc, obra.nombreFaena, language); cursorY = startY;
+    cursorY = addSectionTitle(doc, texts.section6, cursorY);
     if(charlas.length > 0) {
         autoTable(doc, {
             startY: cursorY,
-            head: [['Título', 'Fecha Creación', 'Estado']],
-            body: charlas.map(c => [c.titulo, c.fechaCreacion.toDate().toLocaleDateString('es-CL'), c.estado]),
+            head: [[texts.tableCharlasTitulo, texts.tableCharlasFecha, texts.tableCharlasEstado]],
+            body: charlas.map(c => [c.titulo, c.fechaCreacion.toDate().toLocaleDateString(language === 'pt' ? 'pt-BR' : 'es-CL'), c.estado]),
             theme: 'grid', headStyles: { fillColor: headerColor, textColor: 20 }
         });
     } else {
-        doc.text("No hay charlas registradas para esta obra.", 15, cursorY);
+        doc.text(texts.noCharlas, 15, cursorY);
     }
 
     // Secciones Placeholder
     const placeholderSections = [
-        "7. Plan de Capacitación DS 44", "8. Procedimientos de Trabajo Seguro",
-        "9. Protocolos de Emergencia", "10. Plan de Fiscalización Interna",
-        "11. Registro y Seguimiento", "12. Enfoque de Género (DS 44)"
+        texts.section7, texts.section8, texts.section9, texts.section10,
+        texts.section11, texts.section12
     ];
 
     placeholderSections.forEach(title => {
-        doc.addPage(); addHeader(doc, obra.nombreFaena); cursorY = startY;
+        doc.addPage(); addHeader(doc, obra.nombreFaena, language); cursorY = startY;
         cursorY = addSectionTitle(doc, title, cursorY);
-        doc.text("Esta sección se completará a medida que se registren actividades y documentos asociados en la plataforma PCG.", 15, cursorY);
+        doc.text(texts.textPlaceholder, 15, cursorY);
     });
     
     // --- PIE DE PÁGINA ---
-    addFooter(doc, obra.nombreFaena);
+    addFooter(doc, obra.nombreFaena, language);
 
     // --- GUARDAR ---
     const fecha = new Date().toISOString().slice(0, 10).replace(/-/g, '');
-    doc.save(`PPR_${obra.nombreFaena.replace(/ /g, '_')}_${fecha}.pdf`);
+    const langSuffix = language.toUpperCase();
+    const fileName = `${texts.fileName}_${obra.nombreFaena.replace(/ /g, '_')}_${fecha}_${langSuffix}.pdf`;
+    doc.save(fileName);
 }
