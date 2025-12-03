@@ -317,29 +317,33 @@ export default function DocumentosProyectoPage() {
                     </Table>
                 </CardContent>
             </Card>
-
-            <ImportarCorporativosModal 
-                open={openImportar}
-                onClose={() => setOpenImportar(false)}
-                documentos={corporativos}
-                onImport={handleImportar}
-            />
-            {user && selectedObraId && companyId && (
-                <SubirDocumentoProyectoModal
-                    open={openSubir}
-                    onClose={() => setOpenSubir(false)}
-                    projectId={selectedObraId}
-                    companyId={companyId}
-                    userId={user.uid}
-                />
-            )}
-            {selectedDocumentForVersionChange && user && (
-                <CambiarVersionModal
-                    open={isChangeVersionModalOpen}
-                    onClose={() => setIsChangeVersionModalOpen(false)}
-                    projectDocument={selectedDocumentForVersionChange}
-                    userId={user.uid}
-                />
+            
+            {role !== 'prevencionista' && (
+                <>
+                    <ImportarCorporativosModal 
+                        open={openImportar}
+                        onClose={() => setOpenImportar(false)}
+                        documentos={corporativos}
+                        onImport={handleImportar}
+                    />
+                    {user && selectedObraId && companyId && (
+                        <SubirDocumentoProyectoModal
+                            open={openSubir}
+                            onClose={() => setOpenSubir(false)}
+                            projectId={selectedObraId}
+                            companyId={companyId}
+                            userId={user.uid}
+                        />
+                    )}
+                    {selectedDocumentForVersionChange && user && (
+                        <CambiarVersionModal
+                            open={isChangeVersionModalOpen}
+                            onClose={() => setIsChangeVersionModalOpen(false)}
+                            projectDocument={selectedDocumentForVersionChange}
+                            userId={user.uid}
+                        />
+                    )}
+                </>
             )}
         </div>
     );

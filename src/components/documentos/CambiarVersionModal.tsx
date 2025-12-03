@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import { firebaseDb, firebaseStorage } from "@/lib/firebaseClient";
-import { addDoc, collection, serverTimestamp, doc, writeBatch } from "firebase/firestore";
+import { doc, collection, serverTimestamp, writeBatch } from "firebase/firestore";
 import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
 import { Loader2 } from "lucide-react";
 import { ProjectDocument } from "@/types/pcg";
@@ -53,21 +53,23 @@ export default function CambiarVersionModal({
     
     setLoading(true);
     try {
-      // 1. Subir el nuevo archivo
-      const uniqueFileName = `${Date.now()}_${file.name}`;
-      const storagePath = `projectDocuments/${projectDocument.projectId}/${uniqueFileName}`;
+      const batch = writeBatch(firebaseDb);
+
+      // 1. Marcar el documento actual como obsoleto
+      const oldDocRef = doc(firebaseDb, "projectDocuments", projectDocument.id!);
+      batch.update(oldDocRef, { vigente: false, obsoleto: true });
+
+      // 2. Preparar el nuevo documento para obtener un ID
+      const newDocRef = doc(collection(firebaseDb, "projectDocuments"));
+      const newDocId = newDocRef.id;
+
+      // 3. Subir el nuevo archivo con el ID del nuevo documento
+      const storagePath = `projectDocuments/${projectDocument.projectId}/${newDocId}.pdf`;
       const storageRef = ref(firebaseStorage, storagePath);
       await uploadBytes(storageRef, file);
       const newFileUrl = await getDownloadURL(storageRef);
 
-      const batch = writeBatch(firebaseDb);
-
-      // 2. Marcar el documento actual como obsoleto
-      const oldDocRef = doc(firebaseDb, "projectDocuments", projectDocument.id!);
-      batch.update(oldDocRef, { vigente: false, obsoleto: true });
-
-      // 3. Crear el nuevo documento con la nueva versión
-      const newDocRef = doc(collection(firebaseDb, "projectDocuments"));
+      // 4. Crear el nuevo documento en el batch
       batch.set(newDocRef, {
         companyId: projectDocument.companyId,
         projectId: projectDocument.projectId,
@@ -84,6 +86,7 @@ export default function CambiarVersionModal({
         assignedById: userId,
       });
 
+      // 5. Ejecutar el batch
       await batch.commit();
 
       toast({ title: "Versión actualizada", description: "El documento ha sido actualizado a la nueva versión." });
