@@ -65,10 +65,12 @@ export default function DocumentosCorporativosPage() {
                     <h1 className="text-2xl font-bold">Documentos Corporativos</h1>
                     <p className="text-muted-foreground">Gestión de documentos maestros de la empresa.</p>
                 </div>
-                <Button>
-                    <PlusCircle className="mr-2 h-4 w-4" />
-                    Nuevo Documento
-                </Button>
+                {role !== 'prevencionista' && (
+                    <Button>
+                        <PlusCircle className="mr-2 h-4 w-4" />
+                        Nuevo Documento
+                    </Button>
+                )}
             </header>
 
             <Card>

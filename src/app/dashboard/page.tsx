@@ -90,7 +90,7 @@ const allMainModules = [
     href: '/admin/documentos/proyecto',
     icon: BookCopy,
     linkText: 'Ir a Documentos',
-    roles: ['superadmin', 'admin_empresa']
+    roles: ['superadmin', 'admin_empresa', 'prevencionista']
   }
 ];
 
