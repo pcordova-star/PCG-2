@@ -2,7 +2,7 @@
 "use client";
 
 import React, { useState, useEffect, useMemo } from 'react';
-import { collection, query, where, getDocs, orderBy, onSnapshot, writeBatch, doc, serverTimestamp, getDocsFromCache } from 'firebase/firestore';
+import { collection, query, where, getDocs, orderBy, onSnapshot, writeBatch, doc, serverTimestamp } from 'firebase/firestore';
 import { firebaseDb, firebaseFunctions } from '@/lib/firebaseClient';
 import { useAuth } from '@/context/AuthContext';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
