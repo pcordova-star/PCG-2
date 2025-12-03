@@ -3,7 +3,8 @@
 
 import React, { useState, useEffect, useMemo } from 'react';
 import { collection, query, where, orderBy, onSnapshot, writeBatch, doc, serverTimestamp, getDocs, updateDoc } from 'firebase/firestore';
-import { firebaseDb, firebaseFunctions } from '@/lib/firebaseClient';
+import { firebaseDb, firebaseStorage } from '@/lib/firebaseClient';
+import { ref, getDownloadURL } from 'firebase/storage';
 import { useAuth } from '@/context/AuthContext';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -15,7 +16,6 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Label } from '@/components/ui/label';
 import ImportarCorporativosModal from '@/components/documentos/ImportarCorporativosModal';
 import SubirDocumentoProyectoModal from '@/components/documentos/SubirDocumentoProyectoModal';
-import { httpsCallable } from 'firebase/functions';
 import { useToast } from '@/hooks/use-toast';
 import Link from "next/link";
 import {
@@ -132,7 +132,7 @@ export default function DocumentosProyectoPage() {
             const existingCompanyDocIds = new Set(existingDocsSnap.docs.map(doc => doc.data().companyDocumentId));
 
             const batch = writeBatch(firebaseDb);
-            const nuevosDocumentosParaNotificar = [];
+            let importadosCount = 0;
             let omitidos = 0;
 
             for (const docCorp of documentosAImportar) {
@@ -159,35 +159,12 @@ export default function DocumentosProyectoPage() {
                     assignedById: user.uid,
                 };
                 batch.set(nuevoDocRef, nuevoProjectDocument);
-                
-                nuevosDocumentosParaNotificar.push({
-                    projectDocumentId: nuevoDocRef.id,
-                    ...nuevoProjectDocument
-                });
+                importadosCount++;
             }
 
             await batch.commit();
 
-            // Notificar después de que el batch se haya completado
-            const notifyFunction = httpsCallable(firebaseFunctions, 'notifyDocumentDistribution');
-            for (const docToNotify of nuevosDocumentosParaNotificar) {
-                try {
-                    await notifyFunction({
-                        projectDocumentId: docToNotify.projectDocumentId,
-                        projectId: docToNotify.projectId,
-                        companyId: docToNotify.companyId,
-                        companyDocumentId: docToNotify.companyDocumentId,
-                        version: docToNotify.versionAsignada,
-                        notifiedUserId: user.uid, // Por ahora, el mismo admin
-                        email: user.email,
-                    });
-                } catch (error) {
-                    console.error(`Error al notificar para el documento ${docToNotify.projectDocumentId}:`, error);
-                }
-            }
-
-            const importados = nuevosDocumentosParaNotificar.length;
-            let description = `Se importaron ${importados} documentos nuevos.`;
+            let description = `Se importaron ${importadosCount} documentos nuevos.`;
             if (omitidos > 0) {
                 description += ` Se omitieron ${omitidos} por ya existir en el proyecto.`;
             }
@@ -278,13 +255,12 @@ export default function DocumentosProyectoPage() {
                                                   <DropdownMenuItem
                                                     onClick={async () => {
                                                       try {
-                                                        const getUrl = httpsCallable(firebaseFunctions, "getSecureDownloadUrl");
-                                                        const response: any = await getUrl({ storagePath: doc.storagePath });
-                                                        const url = response.data.url;
+                                                        const storageRef = ref(firebaseStorage, doc.storagePath!);
+                                                        const url = await getDownloadURL(storageRef);
                                                         window.open(url, "_blank");
                                                       } catch (error) {
-                                                        console.error("Error getting secure URL", error);
-                                                        toast({ variant: 'destructive', title: 'Error', description: 'No se pudo obtener la URL segura para el archivo.' });
+                                                        console.error("Error getting download URL", error);
+                                                        toast({ variant: 'destructive', title: 'Error', description: 'No se pudo obtener la URL de descarga. Verifique los permisos de CORS en su bucket de Firebase Storage.' });
                                                       }
                                                     }}
                                                   >
