@@ -325,3 +325,48 @@ export type RegistroIncidente = {
   huboTiempoPerdido?: boolean | null;
   esAccidenteGraveFatal?: boolean | null;
 };
+
+// --- MÓDULO DE CONTROL DOCUMENTAL ---
+
+export interface CompanyDocument {
+    id?: string;
+    companyId: string;
+    code: string;
+    name: string;
+    category: string;
+    version: string;
+    vigente: boolean;
+    fileUrl: string;
+    createdAt: Timestamp;
+    updatedAt: Timestamp;
+    createdById: string;
+    updatedById: string;
+}
+
+export interface ProjectDocument {
+    id?: string;
+    companyId: string;
+    projectId: string; // Corresponde a obraId
+    companyDocumentId: string;
+    code: string;
+    name: string;
+    category: string;
+    versionAsignada: string;
+    vigente: boolean;
+    obsoleto: boolean;
+    assignedAt: Timestamp;
+    assignedById: string;
+}
+
+export interface DocumentDistribution {
+    id?: string;
+    companyId: string;
+    projectId: string; // Corresponde a obraId
+    projectDocumentId: string;
+    companyDocumentId: string;
+    version: string;
+    notifiedUserId: string;
+    email: string;
+    method: "email";
+    sentAt: Timestamp;
+}
