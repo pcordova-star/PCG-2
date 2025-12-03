@@ -44,7 +44,7 @@ const navItemsBase = [
   { href: '/operaciones/estados-de-pago', label: 'Estados de Pago', icon: FileText, roles: ['superadmin', 'admin_empresa', 'jefe_obra'] },
   { href: '/prevencion', label: 'Prevención', icon: ShieldCheck, roles: ['superadmin', 'admin_empresa', 'jefe_obra', 'prevencionista'] },
   // Nueva ruta para el módulo de documentos
-  { href: '/admin/documentos/proyecto', label: 'Documentos', icon: BookCopy, roles: ['superadmin', 'admin_empresa'] },
+  { href: '/admin/documentos/proyecto', label: 'Documentos', icon: BookCopy, roles: ['superadmin', 'admin_empresa', 'prevencionista'] },
 ];
 
 const adminNavItems = [
@@ -143,14 +143,19 @@ function LayoutLogic({ children }: { children: React.ReactNode }) {
         );
     }
     
+    const canAccessDocs = role === 'admin_empresa' || role === 'prevencionista';
     if (isAdminOnlyPage && !canSeeAdminItems) {
-        return (
-        <div className="flex flex-col items-center justify-center min-h-screen col-span-full">
-            <h1 className="text-2xl font-bold">Acceso Denegado</h1>
-            <p className="text-muted-foreground">No tienes permisos para acceder a esta sección.</p>
-            <Button asChild variant="link" className="mt-4"><Link href="/dashboard">Volver al Dashboard</Link></Button>
-        </div>
-        );
+        if (pathname.startsWith('/admin/documentos') && canAccessDocs) {
+            // Permite el acceso
+        } else {
+             return (
+                <div className="flex flex-col items-center justify-center min-h-screen col-span-full">
+                    <h1 className="text-2xl font-bold">Acceso Denegado</h1>
+                    <p className="text-muted-foreground">No tienes permisos para acceder a esta sección.</p>
+                    <Button asChild variant="link" className="mt-4"><Link href="/dashboard">Volver al Dashboard</Link></Button>
+                </div>
+            );
+        }
     }
   
   const showSidebar = role !== 'cliente' || isPreview;
