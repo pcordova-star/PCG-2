@@ -17,6 +17,13 @@ import ImportarCorporativosModal from '@/components/documentos/ImportarCorporati
 import SubirDocumentoProyectoModal from '@/components/documentos/SubirDocumentoProyectoModal';
 import { httpsCallable } from 'firebase/functions';
 import { useToast } from '@/hooks/use-toast';
+import Link from "next/link";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
 function EstadoDocumentoBadge({ vigente, obsoleto }: { vigente: boolean, obsoleto: boolean }) {
     if (obsoleto) {
@@ -239,7 +246,25 @@ export default function DocumentosProyectoPage() {
                                             <EstadoDocumentoBadge vigente={doc.vigente} obsoleto={doc.obsoleto} />
                                         </TableCell>
                                         <TableCell className="text-right">
-                                            <Button variant="ghost" size="icon"><MoreVertical className="h-4 w-4" /></Button>
+                                          <DropdownMenu>
+                                            <DropdownMenuTrigger asChild>
+                                              <Button variant="ghost" size="icon">
+                                                <MoreVertical className="h-4 w-4" />
+                                              </Button>
+                                            </DropdownMenuTrigger>
+                                            <DropdownMenuContent align="end">
+                                              <DropdownMenuItem asChild>
+                                                <Link href={`/admin/documentos/historial/${doc.id}`}>
+                                                  Ver historial
+                                                </Link>
+                                              </DropdownMenuItem>
+                                              <DropdownMenuItem asChild>
+                                                <Link href={`/admin/documentos/distribucion/${doc.id}`}>
+                                                  Evidencia de distribución
+                                                </Link>
+                                              </DropdownMenuItem>
+                                            </DropdownMenuContent>
+                                          </DropdownMenu>
                                         </TableCell>
                                     </TableRow>
                                 ))
