@@ -14,7 +14,7 @@ async function getDistributionData(projectDocumentId: string) {
     // 1. Get document name
     const docRef = doc(db, "projectDocuments", projectDocumentId);
     const docSnap = await getDoc(docRef);
-    const documentName = docSnap.exists() ? docSnap.data().name : "Documento no encontrado";
+    const documentName = docSnap.exists() ? (docSnap.data() as any).name : "Documento no encontrado";
 
     // 2. Get distribution records
     const q = query(
