@@ -145,9 +145,9 @@ export default function DocumentosProyectoPage() {
                     versionAsignada: docCorp.version,
                     vigente: true,
                     obsoleto: false,
+                    fileUrl: docCorp.fileUrl ?? null,
                     assignedAt: serverTimestamp(),
                     assignedById: user.uid,
-                    fileUrl: docCorp.fileUrl ?? null,
                 };
                 batch.set(nuevoDocRef, nuevoProjectDocument);
                 
