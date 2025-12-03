@@ -9,8 +9,9 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { PlusCircle, MoreVertical, Loader2 } from "lucide-react";
+import { PlusCircle, MoreVertical, Loader2, ArrowLeft } from "lucide-react";
 import { CompanyDocument } from '@/types/pcg';
+import Link from 'next/link';
 
 export default function DocumentosCorporativosPage() {
     const { companyId, role } = useAuth();
@@ -60,6 +61,9 @@ export default function DocumentosCorporativosPage() {
 
     return (
         <div className="space-y-6">
+            <Button asChild variant="outline" size="sm">
+              <Link href="/dashboard"><ArrowLeft className="mr-2 h-4 w-4" />Volver al Dashboard</Link>
+            </Button>
             <header className="flex items-center justify-between">
                 <div>
                     <h1 className="text-2xl font-bold">Documentos Corporativos</h1>
