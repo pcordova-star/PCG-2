@@ -1,5 +1,5 @@
 // src/app/admin/documentos/corporativos/page.tsx
-import { collection, query, where, getDocs, orderBy } from 'firebase/firestore';
+import { collection, query, where, getDocs, orderBy, limit } from 'firebase/firestore';
 import { getAdminDb } from '@/lib/firebaseAdmin';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -10,11 +10,11 @@ import { CompanyDocument } from '@/types/pcg';
 
 // Asumimos que esta función obtiene el companyId del usuario autenticado en el servidor
 // En un caso real, esto vendría de la sesión.
-async function getCompanyIdForUser() {
+async function getCompanyIdForUser(): Promise<string | null> {
     // Placeholder: En una app real, obtendrías esto de la sesión del usuario.
     // Por ahora, buscaremos la primera empresa para mostrar datos.
     const db = getAdminDb();
-    const companiesSnap = await getDocs(query(collection(db, 'companies'), orderBy('createdAt', 'desc'), where('activa', '==', true)));
+    const companiesSnap = await getDocs(query(collection(db, 'companies'), orderBy('createdAt', 'desc'), where('activa', '==', true), limit(1)));
     if (!companiesSnap.empty) {
         return companiesSnap.docs[0].id;
     }
