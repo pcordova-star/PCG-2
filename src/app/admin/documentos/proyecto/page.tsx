@@ -24,6 +24,8 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import CambiarVersionModal from '@/components/documentos/CambiarVersionModal';
+
 
 function EstadoDocumentoBadge({ vigente, obsoleto }: { vigente: boolean, obsoleto: boolean }) {
     if (obsoleto) {
@@ -47,6 +49,11 @@ export default function DocumentosProyectoPage() {
 
     const [openImportar, setOpenImportar] = useState(false);
     const [openSubir, setOpenSubir] = useState(false);
+    
+    // Estados para el nuevo modal de cambio de versión
+    const [isChangeVersionModalOpen, setIsChangeVersionModalOpen] = useState(false);
+    const [selectedDocumentForVersionChange, setSelectedDocumentForVersionChange] = useState<ProjectDocument | null>(null);
+
 
     useEffect(() => {
         if (!companyId && role !== 'superadmin') return;
@@ -192,6 +199,11 @@ export default function DocumentosProyectoPage() {
             setOpenImportar(false);
         }
     };
+    
+    const handleOpenChangeVersion = (doc: ProjectDocument) => {
+        setSelectedDocumentForVersionChange(doc);
+        setIsChangeVersionModalOpen(true);
+    };
 
     return (
         <div className="space-y-6">
@@ -267,6 +279,11 @@ export default function DocumentosProyectoPage() {
                                                     </a>
                                                   </DropdownMenuItem>
                                                 )}
+                                                {role !== 'prevencionista' && doc.vigente && (
+                                                    <DropdownMenuItem onClick={() => handleOpenChangeVersion(doc)}>
+                                                        Cambiar versión
+                                                    </DropdownMenuItem>
+                                                )}
                                               <DropdownMenuItem asChild>
                                                 <Link href={`/admin/documentos/historial/${doc.id}`}>
                                                   Ver historial
@@ -302,6 +319,14 @@ export default function DocumentosProyectoPage() {
                     onClose={() => setOpenSubir(false)}
                     projectId={selectedObraId}
                     companyId={companyId}
+                    userId={user.uid}
+                />
+            )}
+            {selectedDocumentForVersionChange && user && (
+                <CambiarVersionModal
+                    open={isChangeVersionModalOpen}
+                    onClose={() => setIsChangeVersionModalOpen(false)}
+                    projectDocument={selectedDocumentForVersionChange}
                     userId={user.uid}
                 />
             )}
