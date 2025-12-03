@@ -65,18 +65,13 @@ export default function SubirDocumentoProyectoModal({
 
     setLoading(true);
     try {
-      // 1. Subir el archivo a Storage
-      const newDocRef = collection(firebaseDb, "projectDocuments"); // Ref temporal para obtener un ID
-      const newDocId = (await addDoc(newDocRef, {})).id; // Esto es una forma de generar un ID, pero puede dejar un doc vacío. Mejoramos esto.
-
-      // Mejor forma: generar un path con id único al vuelo
-      const uniqueFileName = `${newDocId}.pdf`;
-      const storageRef = ref(firebaseStorage, `projectDocuments/${projectId}/${uniqueFileName}`);
+      const docId = collection(firebaseDb, "projectDocuments").doc().id;
+      const storagePath = `projectDocuments/${projectId}/${docId}.pdf`;
+      const storageRef = ref(firebaseStorage, storagePath);
       
       await uploadBytes(storageRef, file);
       const fileUrl = await getDownloadURL(storageRef);
       
-      // 2. Crear el documento en Firestore
       const projectDocData = {
         companyId,
         projectId,
@@ -88,11 +83,11 @@ export default function SubirDocumentoProyectoModal({
         vigente: true,
         obsoleto: false,
         fileUrl,
+        storagePath: storagePath,
         assignedAt: serverTimestamp(),
         assignedById: userId,
       };
       
-      // En lugar de crear un doc vacío antes, ahora lo creamos con todos los datos
       await addDoc(collection(firebaseDb, "projectDocuments"), projectDocData);
 
       toast({ title: "Éxito", description: "Documento subido y registrado correctamente." });
