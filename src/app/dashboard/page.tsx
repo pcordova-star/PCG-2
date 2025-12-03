@@ -51,7 +51,8 @@ const allMainModules = [
     href: '/obras',
     icon: HardHat,
     linkText: 'Gestionar Obras',
-    tooltip: 'Punto de partida. Crea y gestiona tus proyectos aquí.'
+    tooltip: 'Punto de partida. Crea y gestiona tus proyectos aquí.',
+    roles: ['superadmin', 'admin_empresa', 'jefe_obra', 'prevencionista']
   },
   {
     id: 'presupuestos',
@@ -60,7 +61,8 @@ const allMainModules = [
     href: '/operaciones/presupuestos',
     icon: BookCopy,
     linkText: 'Ir a Presupuestos',
-    tooltip: 'Necesitas crear una obra primero para usar este módulo.'
+    tooltip: 'Necesitas crear una obra primero para usar este módulo.',
+    roles: ['superadmin', 'admin_empresa', 'jefe_obra']
   },
   {
     id: 'programacion',
@@ -69,7 +71,8 @@ const allMainModules = [
     href: '/operaciones/programacion',
     icon: GanttChartSquare,
     linkText: 'Ir a Programación',
-    tooltip: 'Necesitas crear una obra primero para usar este módulo.'
+    tooltip: 'Necesitas crear una obra primero para usar este módulo.',
+    roles: ['superadmin', 'admin_empresa', 'jefe_obra']
   },
    {
     id: 'prevencion',
@@ -77,7 +80,17 @@ const allMainModules = [
     description: 'Gestiona la seguridad: IPER, incidentes, charlas, DS44 y control documental de contratistas.',
     href: '/prevencion',
     icon: ShieldCheck,
-    linkText: 'Ir a Prevención'
+    linkText: 'Ir a Prevención',
+    roles: ['superadmin', 'admin_empresa', 'jefe_obra', 'prevencionista']
+  },
+  {
+    id: 'documentos',
+    title: 'Control Documental',
+    description: 'Administra documentos corporativos y documentos aplicados a cada obra (ISO 9001).',
+    href: '/admin/documentos/proyecto',
+    icon: BookCopy,
+    linkText: 'Ir a Documentos',
+    roles: ['superadmin', 'admin_empresa']
   }
 ];
 
@@ -133,12 +146,7 @@ export default function DashboardPage() {
 
   const isPrevencionista = role === 'prevencionista';
 
-  const mainModules = allMainModules.filter(module => {
-    if (isPrevencionista) {
-        return module.id === 'obras' || module.id === 'prevencion';
-    }
-    return true;
-  });
+  const mainModules = allMainModules.filter(module => module.roles.includes(role));
 
   useEffect(() => {
     async function fetchDashboardData() {
