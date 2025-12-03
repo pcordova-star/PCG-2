@@ -2,8 +2,8 @@
 "use client";
 
 import React, { useState, useEffect, useMemo } from 'react';
-import { collection, query, where, getDocs, orderBy, onSnapshot } from 'firebase/firestore';
-import { firebaseDb } from '@/lib/firebaseClient';
+import { collection, query, where, getDocs, orderBy, onSnapshot, writeBatch, doc, serverTimestamp, getDocsFromCache } from 'firebase/firestore';
+import { firebaseDb, firebaseFunctions } from '@/lib/firebaseClient';
 import { useAuth } from '@/context/AuthContext';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -15,6 +15,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Label } from '@/components/ui/label';
 import ImportarCorporativosModal from '@/components/documentos/ImportarCorporativosModal';
 import SubirDocumentoProyectoModal from '@/components/documentos/SubirDocumentoProyectoModal';
+import { httpsCallable } from 'firebase/functions';
+import { useToast } from '@/hooks/use-toast';
 
 function EstadoDocumentoBadge({ vigente, obsoleto }: { vigente: boolean, obsoleto: boolean }) {
     if (obsoleto) {
@@ -27,7 +29,9 @@ function EstadoDocumentoBadge({ vigente, obsoleto }: { vigente: boolean, obsolet
 }
 
 export default function DocumentosProyectoPage() {
-    const { companyId, role } = useAuth();
+    const { user, companyId, role } = useAuth();
+    const { toast } = useToast();
+
     const [obras, setObras] = useState<Obra[]>([]);
     const [selectedObraId, setSelectedObraId] = useState<string>('');
     const [documents, setDocuments] = useState<ProjectDocument[]>([]);
@@ -95,9 +99,88 @@ export default function DocumentosProyectoPage() {
         return () => unsub();
     }, [companyId]);
 
-    function handleImportar(ids: string[]) {
-        console.log("Importar", ids);
-    }
+    const handleImportar = async (ids: string[]) => {
+        if (!selectedObraId || !companyId || !user) {
+            toast({ variant: 'destructive', title: 'Error', description: 'No se ha seleccionado una obra o falta información de usuario.' });
+            return;
+        }
+
+        const documentosAImportar = corporativos.filter(doc => ids.includes(doc.id!));
+        if (documentosAImportar.length === 0) return;
+        
+        try {
+            const projectDocsRef = collection(firebaseDb, "projectDocuments");
+            const q = query(projectDocsRef, where("projectId", "==", selectedObraId));
+            const existingDocsSnap = await getDocs(q);
+            const existingCompanyDocIds = new Set(existingDocsSnap.docs.map(doc => doc.data().companyDocumentId));
+
+            const batch = writeBatch(firebaseDb);
+            const nuevosDocumentosParaNotificar = [];
+            let omitidos = 0;
+
+            for (const docCorp of documentosAImportar) {
+                if (existingCompanyDocIds.has(docCorp.id!)) {
+                    omitidos++;
+                    continue;
+                }
+
+                const nuevoDocRef = doc(projectDocsRef);
+                const nuevoProjectDocument = {
+                    companyId,
+                    projectId: selectedObraId,
+                    companyDocumentId: docCorp.id!,
+                    code: docCorp.code,
+                    name: docCorp.name,
+                    category: docCorp.category,
+                    versionAsignada: docCorp.version,
+                    vigente: true,
+                    obsoleto: false,
+                    assignedAt: serverTimestamp(),
+                    assignedById: user.uid,
+                };
+                batch.set(nuevoDocRef, nuevoProjectDocument);
+                
+                nuevosDocumentosParaNotificar.push({
+                    projectDocumentId: nuevoDocRef.id,
+                    ...nuevoProjectDocument
+                });
+            }
+
+            await batch.commit();
+
+            // Notificar después de que el batch se haya completado
+            const notifyFunction = httpsCallable(firebaseFunctions, 'notifyDocumentDistribution');
+            for (const docToNotify of nuevosDocumentosParaNotificar) {
+                try {
+                    await notifyFunction({
+                        projectDocumentId: docToNotify.projectDocumentId,
+                        projectId: docToNotify.projectId,
+                        companyId: docToNotify.companyId,
+                        companyDocumentId: docToNotify.companyDocumentId,
+                        version: docToNotify.versionAsignada,
+                        notifiedUserId: user.uid, // Por ahora, el mismo admin
+                        email: user.email,
+                    });
+                } catch (error) {
+                    console.error(`Error al notificar para el documento ${docToNotify.projectDocumentId}:`, error);
+                }
+            }
+
+            const importados = nuevosDocumentosParaNotificar.length;
+            let description = `Se importaron ${importados} documentos nuevos.`;
+            if (omitidos > 0) {
+                description += ` Se omitieron ${omitidos} por ya existir en el proyecto.`;
+            }
+
+            toast({ title: "Importación completada", description });
+
+        } catch (error) {
+            console.error("Error al importar documentos:", error);
+            toast({ variant: 'destructive', title: 'Error', description: 'No se pudieron importar los documentos.' });
+        } finally {
+            setOpenImportar(false);
+        }
+    };
 
     return (
         <div className="space-y-6">
@@ -107,10 +190,10 @@ export default function DocumentosProyectoPage() {
                     <p className="text-muted-foreground">Documentos aplicados a una obra específica.</p>
                 </div>
                 <div className="flex gap-2">
-                    <Button variant="outline" onClick={() => setOpenImportar(true)}>
+                    <Button variant="outline" onClick={() => setOpenImportar(true)} disabled={!selectedObraId}>
                         <Upload className="mr-2 h-4 w-4" /> Importar Corporativos
                     </Button>
-                    <Button onClick={() => setOpenSubir(true)}>
+                    <Button onClick={() => setOpenSubir(true)} disabled={!selectedObraId}>
                         <PlusCircle className="mr-2 h-4 w-4" /> Subir Documento
                     </Button>
                 </div>
@@ -143,20 +226,24 @@ export default function DocumentosProyectoPage() {
                         <TableBody>
                             {loading ? (
                                 <TableRow><TableCell colSpan={6} className="text-center">Cargando documentos...</TableCell></TableRow>
-                            ) : documents.map((doc) => (
-                                <TableRow key={doc.id}>
-                                    <TableCell className="font-mono">{doc.code}</TableCell>
-                                    <TableCell className="font-medium">{doc.name}</TableCell>
-                                    <TableCell>{doc.category}</TableCell>
-                                    <TableCell>{doc.versionAsignada}</TableCell>
-                                    <TableCell>
-                                        <EstadoDocumentoBadge vigente={doc.vigente} obsoleto={doc.obsoleto} />
-                                    </TableCell>
-                                    <TableCell className="text-right">
-                                        <Button variant="ghost" size="icon"><MoreVertical className="h-4 w-4" /></Button>
-                                    </TableCell>
-                                </TableRow>
-                            ))}
+                            ) : documents.length > 0 ? ( 
+                                documents.map((doc) => (
+                                    <TableRow key={doc.id}>
+                                        <TableCell className="font-mono">{doc.code}</TableCell>
+                                        <TableCell className="font-medium">{doc.name}</TableCell>
+                                        <TableCell>{doc.category}</TableCell>
+                                        <TableCell>{doc.versionAsignada}</TableCell>
+                                        <TableCell>
+                                            <EstadoDocumentoBadge vigente={doc.vigente} obsoleto={doc.obsoleto} />
+                                        </TableCell>
+                                        <TableCell className="text-right">
+                                            <Button variant="ghost" size="icon"><MoreVertical className="h-4 w-4" /></Button>
+                                        </TableCell>
+                                    </TableRow>
+                                ))
+                            ) : (
+                                <TableRow><TableCell colSpan={6} className="text-center h-24">No hay documentos para esta obra.</TableCell></TableRow>
+                            )}
                         </TableBody>
                     </Table>
                 </CardContent>
