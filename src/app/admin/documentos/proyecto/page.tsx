@@ -189,14 +189,16 @@ export default function DocumentosProyectoPage() {
                     <h1 className="text-2xl font-bold">Documentos del Proyecto</h1>
                     <p className="text-muted-foreground">Documentos aplicados a una obra específica.</p>
                 </div>
-                <div className="flex gap-2">
-                    <Button variant="outline" onClick={() => setOpenImportar(true)} disabled={!selectedObraId}>
-                        <Upload className="mr-2 h-4 w-4" /> Importar Corporativos
-                    </Button>
-                    <Button onClick={() => setOpenSubir(true)} disabled={!selectedObraId}>
-                        <PlusCircle className="mr-2 h-4 w-4" /> Subir Documento
-                    </Button>
-                </div>
+                {role !== 'prevencionista' && (
+                    <div className="flex gap-2">
+                        <Button variant="outline" onClick={() => setOpenImportar(true)} disabled={!selectedObraId}>
+                            <Upload className="mr-2 h-4 w-4" /> Importar Corporativos
+                        </Button>
+                        <Button onClick={() => setOpenSubir(true)} disabled={!selectedObraId}>
+                            <PlusCircle className="mr-2 h-4 w-4" /> Subir Documento
+                        </Button>
+                    </div>
+                )}
             </header>
 
             <Card>
