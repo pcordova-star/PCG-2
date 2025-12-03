@@ -55,7 +55,8 @@ export default function CambiarVersionModal({
     try {
       // 1. Subir el nuevo archivo
       const uniqueFileName = `${Date.now()}_${file.name}`;
-      const storageRef = ref(firebaseStorage, `projectDocuments/${projectDocument.projectId}/${uniqueFileName}`);
+      const storagePath = `projectDocuments/${projectDocument.projectId}/${uniqueFileName}`;
+      const storageRef = ref(firebaseStorage, storagePath);
       await uploadBytes(storageRef, file);
       const newFileUrl = await getDownloadURL(storageRef);
 
@@ -78,6 +79,7 @@ export default function CambiarVersionModal({
         vigente: true,
         obsoleto: false,
         fileUrl: newFileUrl,
+        storagePath: storagePath,
         assignedAt: serverTimestamp(),
         assignedById: userId,
       });

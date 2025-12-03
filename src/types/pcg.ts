@@ -337,6 +337,7 @@ export interface CompanyDocument {
     version: string;
     vigente: boolean;
     fileUrl?: string | null;
+    storagePath?: string | null; // Path en Firebase Storage
     createdAt: Timestamp;
     updatedAt: Timestamp;
     createdById: string;
@@ -347,13 +348,15 @@ export interface ProjectDocument {
     id?: string;
     companyId: string;
     projectId: string; // Corresponde a obraId
-    companyDocumentId: string;
+    companyDocumentId: string | null;
     code: string;
     name: string;
     category: string;
     versionAsignada: string;
     vigente: boolean;
     obsoleto: boolean;
+    fileUrl: string | null;
+    storagePath: string | null; // Path en Firebase Storage
     assignedAt: Timestamp;
     assignedById: string;
 }

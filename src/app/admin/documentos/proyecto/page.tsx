@@ -153,6 +153,7 @@ export default function DocumentosProyectoPage() {
                     vigente: true,
                     obsoleto: false,
                     fileUrl: docCorp.fileUrl ?? null,
+                    storagePath: docCorp.storagePath ?? null,
                     assignedAt: serverTimestamp(),
                     assignedById: user.uid,
                 };
@@ -272,11 +273,21 @@ export default function DocumentosProyectoPage() {
                                               </Button>
                                             </DropdownMenuTrigger>
                                             <DropdownMenuContent align="end">
-                                              {doc.fileUrl && (
-                                                  <DropdownMenuItem asChild>
-                                                    <a href={doc.fileUrl} target="_blank" rel="noopener noreferrer">
-                                                      Ver / Descargar PDF
-                                                    </a>
+                                               {doc.fileUrl && doc.storagePath && (
+                                                  <DropdownMenuItem
+                                                    onClick={async () => {
+                                                      try {
+                                                        const getUrl = httpsCallable(firebaseFunctions, "getSecureDownloadUrl");
+                                                        const response: any = await getUrl({ path: doc.storagePath });
+                                                        const url = response.data.url;
+                                                        window.open(url, "_blank");
+                                                      } catch (error) {
+                                                        console.error("Error getting secure URL", error);
+                                                        toast({ variant: 'destructive', title: 'Error', description: 'No se pudo obtener la URL segura para el archivo.' });
+                                                      }
+                                                    }}
+                                                  >
+                                                    Ver / Descargar PDF
                                                   </DropdownMenuItem>
                                                 )}
                                                 {role !== 'prevencionista' && doc.vigente && (
