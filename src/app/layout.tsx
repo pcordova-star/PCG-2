@@ -19,6 +19,7 @@ import {
   LogOut,
   Users as UsersIcon,
   DollarSign,
+  BookCopy, // Añadido para el nuevo módulo
 } from 'lucide-react';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import {
@@ -42,6 +43,8 @@ const navItemsBase = [
   { href: '/operaciones', label: 'Operaciones', icon: Activity, roles: ['superadmin', 'admin_empresa', 'jefe_obra'] },
   { href: '/operaciones/estados-de-pago', label: 'Estados de Pago', icon: FileText, roles: ['superadmin', 'admin_empresa', 'jefe_obra'] },
   { href: '/prevencion', label: 'Prevención', icon: ShieldCheck, roles: ['superadmin', 'admin_empresa', 'jefe_obra', 'prevencionista'] },
+  // Nueva ruta para el módulo de documentos
+  { href: '/admin/documentos/proyecto', label: 'Documentos', icon: BookCopy, roles: ['superadmin', 'admin_empresa'] },
 ];
 
 const adminNavItems = [
@@ -64,8 +67,8 @@ function LayoutLogic({ children }: { children: React.ReactNode }) {
 
     const navItems = navItemsBase.filter(item => item.roles.includes(role));
 
-    const isAdminPage = pathname.startsWith('/admin');
-    const isSuperAdmin = role === 'superadmin';
+    const isAdminOnlyPage = pathname.startsWith('/admin') && !pathname.startsWith('/admin/documentos');
+    const canSeeAdminItems = role === 'superadmin';
     const [isCollapsed, setIsCollapsed] = useState(false);
     const timerRef = useRef<NodeJS.Timeout | null>(null);
 
@@ -140,7 +143,7 @@ function LayoutLogic({ children }: { children: React.ReactNode }) {
         );
     }
     
-    if (isAdminPage && !isSuperAdmin) {
+    if (isAdminOnlyPage && !canSeeAdminItems) {
         return (
         <div className="flex flex-col items-center justify-center min-h-screen col-span-full">
             <h1 className="text-2xl font-bold">Acceso Denegado</h1>
@@ -193,7 +196,7 @@ function LayoutLogic({ children }: { children: React.ReactNode }) {
           </div>
           <div className="flex-1 overflow-y-auto">
             <nav className="grid items-start px-2 text-sm font-medium lg:px-4">
-              {isSuperAdmin && (
+              {canSeeAdminItems && (
                 <div className="my-2">
                   <p className={cn("px-3 py-2 text-xs font-semibold text-muted-foreground transition-opacity", isCollapsed && "opacity-0 hidden")}>SUPER ADMIN</p>
                    {adminNavItems.map((item) => (
@@ -293,7 +296,7 @@ function LayoutLogic({ children }: { children: React.ReactNode }) {
                 </SheetHeader>
                 <div className="flex-1 overflow-y-auto px-6">
                   <nav className="grid gap-2 text-lg font-medium">
-                    {isSuperAdmin && (
+                    {canSeeAdminItems && (
                       <>
                         <p className="px-3 py-2 text-sm font-semibold text-muted-foreground">SUPER ADMIN</p>
                         {adminNavItems.map((item) => (
