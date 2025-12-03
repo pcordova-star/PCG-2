@@ -1,23 +1,8 @@
 [
   {
-    "origin": [
-      "http://localhost:3000",
-      "http://localhost:9002",
-      "https://pcg-2-8bf1b.web.app",
-      "https://pcg2-0--pcg-2-8bf1b.us-central1.hosted.app",
-      "https://6000-firebase-studio-1762883355607.cluster-ocv3ypmyg.cloudworkstations.dev"
-    ],
-    "method": [
-      "GET",
-      "POST",
-      "PUT",
-      "DELETE",
-      "OPTIONS"
-    ],
-    "responseHeader": [
-      "Content-Type",
-      "Access-Control-Allow-Origin"
-    ],
+    "origin": ["*"],
+    "method": ["GET"],
+    "responseHeader": ["Content-Type", "Access-Control-Allow-Origin"],
     "maxAgeSeconds": 3600
   }
 ]
