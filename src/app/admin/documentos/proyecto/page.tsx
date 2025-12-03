@@ -10,7 +10,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { PlusCircle, Upload, MoreVertical } from "lucide-react";
-import { ProjectDocument, Obra } from '@/types/pcg';
+import { ProjectDocument, Obra, CompanyDocument } from '@/types/pcg';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Label } from '@/components/ui/label';
 import ImportarCorporativosModal from '@/components/documentos/ImportarCorporativosModal';
@@ -31,6 +31,7 @@ export default function DocumentosProyectoPage() {
     const [obras, setObras] = useState<Obra[]>([]);
     const [selectedObraId, setSelectedObraId] = useState<string>('');
     const [documents, setDocuments] = useState<ProjectDocument[]>([]);
+    const [corporativos, setCorporativos] = useState<CompanyDocument[]>([]);
     const [loading, setLoading] = useState(true);
 
     const [openImportar, setOpenImportar] = useState(false);
@@ -76,6 +77,23 @@ export default function DocumentosProyectoPage() {
 
         return () => unsub();
     }, [selectedObraId]);
+
+    useEffect(() => {
+        if (!companyId) return;
+
+        const q = query(
+            collection(firebaseDb, "companyDocuments"),
+            where("companyId", "==", companyId),
+            orderBy("code", "asc")
+        );
+
+        const unsub = onSnapshot(q, (snapshot) => {
+            const corporativosData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as CompanyDocument));
+            setCorporativos(corporativosData);
+        });
+
+        return () => unsub();
+    }, [companyId]);
 
     return (
         <div className="space-y-6">
@@ -143,7 +161,7 @@ export default function DocumentosProyectoPage() {
             <ImportarCorporativosModal 
                 open={openImportar}
                 onClose={() => setOpenImportar(false)}
-                documentos={[]}
+                documentos={corporativos}
             />
             <SubirDocumentoProyectoModal
                 open={openSubir}
