@@ -13,6 +13,8 @@ import { PlusCircle, Upload, MoreVertical } from "lucide-react";
 import { ProjectDocument, Obra } from '@/types/pcg';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Label } from '@/components/ui/label';
+import ImportarCorporativosModal from '@/components/documentos/ImportarCorporativosModal';
+import SubirDocumentoProyectoModal from '@/components/documentos/SubirDocumentoProyectoModal';
 
 function EstadoDocumentoBadge({ vigente, obsoleto }: { vigente: boolean, obsoleto: boolean }) {
     if (obsoleto) {
@@ -30,6 +32,9 @@ export default function DocumentosProyectoPage() {
     const [selectedObraId, setSelectedObraId] = useState<string>('');
     const [documents, setDocuments] = useState<ProjectDocument[]>([]);
     const [loading, setLoading] = useState(true);
+
+    const [openImportar, setOpenImportar] = useState(false);
+    const [openSubir, setOpenSubir] = useState(false);
 
     useEffect(() => {
         if (!companyId && role !== 'superadmin') return;
@@ -80,8 +85,12 @@ export default function DocumentosProyectoPage() {
                     <p className="text-muted-foreground">Documentos aplicados a una obra específica.</p>
                 </div>
                 <div className="flex gap-2">
-                    <Button variant="outline"><Upload className="mr-2 h-4 w-4" /> Importar Corporativos</Button>
-                    <Button><PlusCircle className="mr-2 h-4 w-4" /> Subir Documento</Button>
+                    <Button variant="outline" onClick={() => setOpenImportar(true)}>
+                        <Upload className="mr-2 h-4 w-4" /> Importar Corporativos
+                    </Button>
+                    <Button onClick={() => setOpenSubir(true)}>
+                        <PlusCircle className="mr-2 h-4 w-4" /> Subir Documento
+                    </Button>
                 </div>
             </header>
 
@@ -130,6 +139,16 @@ export default function DocumentosProyectoPage() {
                     </Table>
                 </CardContent>
             </Card>
+
+            <ImportarCorporativosModal 
+                open={openImportar}
+                onClose={() => setOpenImportar(false)}
+                documentos={[]}
+            />
+            <SubirDocumentoProyectoModal
+                open={openSubir}
+                onClose={() => setOpenSubir(false)}
+            />
         </div>
     );
 }
