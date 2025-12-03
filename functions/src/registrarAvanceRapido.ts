@@ -1,7 +1,16 @@
-import { onCall, HttpsError } from "firebase-functions/v2/https";
+import { HttpsError } from "firebase-functions/v2/https";
 import * as logger from "firebase-functions/logger";
 import { getFirestore, FieldValue } from "firebase-admin/firestore";
 import { z } from "zod";
+import * as functions from "firebase-functions";
+import * as cors from "cors";
+import { getAuth } from "firebase-admin/auth";
+
+const corsHandler = cors({
+  origin: true, 
+  methods: ["POST", "OPTIONS"],
+  allowedHeaders: ["Content-Type", "Authorization"],
+});
 
 const AvanceSchema = z.object({
     obraId: z.string().min(1),
@@ -17,78 +26,97 @@ function escapeHtml(s: string): string {
 }
 
 
-export const registrarAvanceRapido = onCall({ region: "southamerica-west1", cors: true }, async (request) => {
-    if (!request.auth) {
-        throw new HttpsError("unauthenticated", "El usuario no está autenticado.");
-    }
-    const { uid, token } = request.auth;
-    const displayName = token.name || token.email || "";
+export const registrarAvanceRapido = functions
+  .region("southamerica-west1")
+  .https.onRequest((req, res) => {
+    corsHandler(req, res, async () => {
+      if (req.method === "OPTIONS") {
+        res.status(204).send("");
+        return;
+      }
+      
+      if (req.method !== "POST") {
+        res.status(405).json({ ok: false, error: "METHOD_NOT_ALLOWED" });
+        return;
+      }
 
-    const parsed = AvanceSchema.safeParse(request.data);
-    if (!parsed.success) {
-        throw new HttpsError("invalid-argument", "Los datos proporcionados son inválidos.", parsed.error.flatten());
-    }
-    const { obraId, actividadId, porcentaje, comentario, fotos, visibleCliente } = parsed.data;
+      try {
+        const authHeader = req.headers.authorization;
+        if (!authHeader || !authHeader.startsWith("Bearer ")) {
+          throw new HttpsError("unauthenticated", "El usuario no está autenticado.");
+        }
+        const token = authHeader.split(" ")[1];
+        const decodedToken = await getAuth().verifyIdToken(token);
+        const { uid } = decodedToken;
+        const displayName = decodedToken.name || decodedToken.email || "";
 
-    try {
+        const parsed = AvanceSchema.safeParse(req.body);
+        if (!parsed.success) {
+          throw new HttpsError("invalid-argument", "Los datos proporcionados son inválidos.", parsed.error.flatten());
+        }
+
+        const { obraId, actividadId, porcentaje, comentario, fotos, visibleCliente } = parsed.data;
+
         const db = getFirestore();
         const obraRef = db.collection("obras").doc(obraId);
 
         const avanceId = await db.runTransaction(async (tx) => {
-            const obraSnap = await tx.get(obraRef);
-            if (!obraSnap.exists) {
-                throw new HttpsError("not-found", `La obra con ID ${obraId} no fue encontrada.`);
-            }
+          const obraSnap = await tx.get(obraRef);
+          if (!obraSnap.exists) {
+            throw new HttpsError("not-found", `La obra con ID ${obraId} no fue encontrada.`);
+          }
 
-            const avancesRef = obraRef.collection("avancesDiarios");
-            const nuevoAvanceRef = avancesRef.doc();
+          const avancesRef = obraRef.collection("avancesDiarios");
+          const nuevoAvanceRef = avancesRef.doc();
 
-            const avanceData = {
-                obraId,
-                actividadId: actividadId || null,
-                porcentajeAvance: porcentaje,
-                comentario: escapeHtml(comentario),
-                fotos,
-                visibleCliente,
-                fecha: FieldValue.serverTimestamp(),
-                creadoPor: { uid, displayName: escapeHtml(displayName) },
-            };
-            tx.set(nuevoAvanceRef, avanceData);
+          const avanceData = {
+            obraId,
+            actividadId: actividadId || null,
+            porcentajeAvance: porcentaje,
+            comentario: escapeHtml(comentario),
+            fotos,
+            visibleCliente,
+            fecha: FieldValue.serverTimestamp(),
+            creadoPor: { uid, displayName: escapeHtml(displayName) },
+          };
+          tx.set(nuevoAvanceRef, avanceData);
 
-            if (porcentaje > 0) {
-                const currentData = obraSnap.data() || {};
-                const avancePrevio = Number(currentData.avanceAcumulado || 0);
-                const totalActividades = Number(currentData.totalActividades || 1); // Evitar división por cero
-                
-                if (totalActividades > 0) {
-                    const avancePonderadoDelDia = porcentaje / totalActividades;
-                    if (!isNaN(avancePonderadoDelDia) && avancePonderadoDelDia > 0) {
-                        const nuevoAvanceAcumulado = Math.min(100, avancePrevio + avancePonderadoDelDia);
-                        tx.update(obraRef, {
-                            ultimaActualizacion: FieldValue.serverTimestamp(),
-                            avanceAcumulado: nuevoAvanceAcumulado,
-                        });
-                    } else {
-                         tx.update(obraRef, { ultimaActualizacion: FieldValue.serverTimestamp() });
-                    }
+          if (porcentaje > 0) {
+            const currentData = obraSnap.data() || {};
+            const avancePrevio = Number(currentData.avanceAcumulado || 0);
+            const totalActividades = Number(currentData.totalActividades || 1); // Evitar división por cero
+            
+            if (totalActividades > 0) {
+                const avancePonderadoDelDia = porcentaje / totalActividades;
+                if (!isNaN(avancePonderadoDelDia) && avancePonderadoDelDia > 0) {
+                    const nuevoAvanceAcumulado = Math.min(100, avancePrevio + avancePonderadoDelDia);
+                    tx.update(obraRef, {
+                        ultimaActualizacion: FieldValue.serverTimestamp(),
+                        avanceAcumulado: nuevoAvanceAcumulado,
+                    });
                 } else {
-                    tx.update(obraRef, { ultimaActualizacion: FieldValue.serverTimestamp() });
+                     tx.update(obraRef, { ultimaActualizacion: FieldValue.serverTimestamp() });
                 }
-
             } else {
                 tx.update(obraRef, { ultimaActualizacion: FieldValue.serverTimestamp() });
             }
 
-            return nuevoAvanceRef.id;
+          } else {
+            tx.update(obraRef, { ultimaActualizacion: FieldValue.serverTimestamp() });
+          }
+
+          return nuevoAvanceRef.id;
         });
 
-        return { ok: true, id: avanceId };
+        res.status(200).json({ ok: true, id: avanceId });
 
-    } catch (error) {
+      } catch (error: any) {
         logger.error("Error en registrarAvanceRapido:", error);
         if (error instanceof HttpsError) {
-            throw error;
+            res.status(error.httpErrorCode.status).json({ ok: false, error: error.code, details: error.message });
+        } else {
+            res.status(500).json({ ok: false, error: "INTERNAL_SERVER_ERROR", details: error.message });
         }
-        throw new HttpsError("internal", "Ocurrió un error inesperado al guardar el avance.");
-    }
-});
+      }
+    });
+  });
