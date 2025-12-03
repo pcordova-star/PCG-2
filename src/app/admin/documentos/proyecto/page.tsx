@@ -95,6 +95,10 @@ export default function DocumentosProyectoPage() {
         return () => unsub();
     }, [companyId]);
 
+    function handleImportar(ids: string[]) {
+        console.log("Importar", ids);
+    }
+
     return (
         <div className="space-y-6">
             <header className="flex items-center justify-between">
@@ -162,6 +166,7 @@ export default function DocumentosProyectoPage() {
                 open={openImportar}
                 onClose={() => setOpenImportar(false)}
                 documentos={corporativos}
+                onImport={handleImportar}
             />
             <SubirDocumentoProyectoModal
                 open={openSubir}
