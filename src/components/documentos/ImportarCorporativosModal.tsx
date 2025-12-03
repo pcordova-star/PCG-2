@@ -18,10 +18,12 @@ export default function ImportarCorporativosModal({
   open,
   onClose,
   documentos,
+  onImport,
 }: {
   open: boolean;
   onClose: () => void;
   documentos: DocumentoCorporativo[];
+  onImport: (selected: string[]) => void;
 }) {
   const [selected, setSelected] = useState<string[]>([]);
 
@@ -54,7 +56,7 @@ export default function ImportarCorporativosModal({
 
         <DialogFooter>
           <Button variant="outline" onClick={onClose}>Cancelar</Button>
-          <Button disabled={selected.length === 0}>
+          <Button onClick={() => onImport(selected)} disabled={selected.length === 0}>
             Importar ({selected.length})
           </Button>
         </DialogFooter>
