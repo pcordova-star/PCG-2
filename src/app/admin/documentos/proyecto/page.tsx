@@ -73,7 +73,7 @@ export default function DocumentosProyectoPage() {
             }
         });
         return () => unsub();
-    }, [companyId, role]);
+    }, [companyId, role, selectedObraId]);
 
     useEffect(() => {
         if (!selectedObraId) {
@@ -279,7 +279,7 @@ export default function DocumentosProyectoPage() {
                                                     onClick={async () => {
                                                       try {
                                                         const getUrl = httpsCallable(firebaseFunctions, "getSecureDownloadUrl");
-                                                        const response: any = await getUrl({ path: doc.storagePath });
+                                                        const response: any = await getUrl({ storagePath: doc.storagePath });
                                                         const url = response.data.url;
                                                         window.open(url, "_blank");
                                                       } catch (error) {
@@ -336,7 +336,7 @@ export default function DocumentosProyectoPage() {
                 </CardContent>
             </Card>
             
-            {role !== 'prevencionista' && (
+            {role !== 'prevencionista' && user && companyId &&(
                 <>
                     <ImportarCorporativosModal 
                         open={openImportar}
@@ -344,7 +344,7 @@ export default function DocumentosProyectoPage() {
                         documentos={corporativos}
                         onImport={handleImportar}
                     />
-                    {user && selectedObraId && companyId && (
+                    {selectedObraId && (
                         <SubirDocumentoProyectoModal
                             open={openSubir}
                             onClose={() => setOpenSubir(false)}
@@ -353,7 +353,7 @@ export default function DocumentosProyectoPage() {
                             userId={user.uid}
                         />
                     )}
-                    {selectedDocumentForVersionChange && user && (
+                    {selectedDocumentForVersionChange && (
                         <CambiarVersionModal
                             open={isChangeVersionModalOpen}
                             onClose={() => setIsChangeVersionModalOpen(false)}

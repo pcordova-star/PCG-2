@@ -15,24 +15,25 @@ export const getSecureDownloadUrl = onCall(
       throw new HttpsError("unauthenticated", "Usuario no autenticado.");
     }
 
-    const { path } = request.data;
-    if (!path) {
-      throw new HttpsError("invalid-argument", "Falta path del archivo.");
+    const { storagePath } = request.data as { storagePath: string };
+    if (!storagePath) {
+      throw new HttpsError("invalid-argument", "Falta storagePath del archivo.");
     }
 
     try {
-      // 2. Generar URL firmada válida por 1 minuto
-      const bucket = storage.bucket();
-      const file = bucket.file(path);
+      // 2. Generar URL firmada válida por 1 hora
+      const bucket = storage.bucket(); // Bucket por defecto del proyecto
+      const file = bucket.file(storagePath);
 
       const [url] = await file.getSignedUrl({
         action: "read",
-        expires: Date.now() + 1 * 60 * 1000, // 1 minuto
+        expires: Date.now() + 60 * 60 * 1000, // 1 hora
       });
 
       return { url };
     } catch (error: any) {
-      throw new HttpsError("internal", error.message);
+      console.error("Error generando URL firmada:", error);
+      throw new HttpsError("internal", "No se pudo generar la URL segura.", error.message);
     }
   }
 );
