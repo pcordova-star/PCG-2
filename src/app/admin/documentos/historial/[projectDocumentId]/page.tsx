@@ -1,49 +1,80 @@
 // src/app/admin/documentos/historial/[projectDocumentId]/page.tsx
+"use client";
+
+import { useEffect, useState } from 'react';
 import { collection, query, where, getDocs, orderBy, doc, getDoc } from 'firebase/firestore';
-import { getAdminDb } from '@/lib/firebaseAdmin';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { firebaseDb } from '@/lib/firebaseClient';
+import { useAuth } from '@/context/AuthContext';
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { ProjectDocument } from '@/types/pcg';
-import { ArrowLeft } from 'lucide-react';
+import { ArrowLeft, Loader2 } from 'lucide-react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
+import { useParams } from 'next/navigation';
 
-
-async function getDocumentHistory(projectDocumentId: string) {
-    const db = getAdminDb();
+export default function HistorialDocumentoPage() {
+    const params = useParams();
+    const projectDocumentId = params.projectDocumentId as string;
+    const { companyId, role } = useAuth();
     
-    // 1. Get the current project document to find its companyDocumentId
-    const currentDocRef = doc(db, "projectDocuments", projectDocumentId);
-    const currentDocSnap = await getDoc(currentDocRef);
+    const [documentName, setDocumentName] = useState<string>('');
+    const [history, setHistory] = useState<ProjectDocument[]>([]);
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState<string | null>(null);
 
-    if (!currentDocSnap.exists()) {
-        return { documentName: "Documento no encontrado", history: [] };
-    }
-    
-    const currentDocData = currentDocSnap.data() as ProjectDocument;
-    const { companyDocumentId, name } = currentDocData;
+    useEffect(() => {
+        if (!projectDocumentId || (!companyId && role !== 'superadmin')) {
+            setLoading(false);
+            return;
+        }
 
-    // 2. Find all project documents with the same companyDocumentId
-    const q = query(
-        collection(db, "projectDocuments"),
-        where("companyDocumentId", "==", companyDocumentId),
-        where("projectId", "==", currentDocData.projectId),
-        orderBy("assignedAt", "desc")
-    );
-    const snapshot = await getDocs(q);
+        const getDocumentHistory = async () => {
+            setLoading(true);
+            setError(null);
+            try {
+                // 1. Get the current project document to find its details and verify access
+                const currentDocRef = doc(firebaseDb, "projectDocuments", projectDocumentId);
+                const currentDocSnap = await getDoc(currentDocRef);
 
-    if (snapshot.empty) {
-        return { documentName: name, history: [] };
-    }
-    
-    const history = snapshot.docs.map(d => ({ id: d.id, ...d.data() } as ProjectDocument));
-    return { documentName: name, history };
-}
+                if (!currentDocSnap.exists()) {
+                    throw new Error("El documento del proyecto no fue encontrado.");
+                }
+                
+                const currentDocData = currentDocSnap.data() as ProjectDocument;
+                
+                if (role !== 'superadmin' && currentDocData.companyId !== companyId) {
+                    throw new Error("No tienes permiso para ver el historial de este documento.");
+                }
+                
+                const { companyDocumentId, name, projectId } = currentDocData;
+                setDocumentName(name);
 
+                // 2. Find all project documents with the same companyDocumentId and projectId
+                const q = query(
+                    collection(firebaseDb, "projectDocuments"),
+                    where("companyDocumentId", "==", companyDocumentId),
+                    where("projectId", "==", projectId),
+                    orderBy("assignedAt", "desc")
+                );
+                const snapshot = await getDocs(q);
+                
+                const histData = snapshot.docs.map(d => ({ id: d.id, ...d.data() } as ProjectDocument));
+                setHistory(histData);
 
-export default async function HistorialDocumentoPage({ params }: { params: { projectDocumentId: string } }) {
-    const { documentName, history } = await getDocumentHistory(params.projectDocumentId);
+            } catch (err: any) {
+                console.error("Error fetching document history:", err);
+                setError(err.message || "Ocurrió un error al cargar el historial.");
+            } finally {
+                setLoading(false);
+            }
+        };
+
+        getDocumentHistory();
+
+    }, [projectDocumentId, companyId, role]);
+
 
     return (
         <div className="space-y-6">
@@ -52,7 +83,7 @@ export default async function HistorialDocumentoPage({ params }: { params: { pro
             </Button>
             <header>
                 <h1 className="text-2xl font-bold">Historial del Documento</h1>
-                <p className="text-muted-foreground">{documentName}</p>
+                <p className="text-muted-foreground">{documentName || 'Cargando nombre...'}</p>
             </header>
 
             <Card>
@@ -60,30 +91,42 @@ export default async function HistorialDocumentoPage({ params }: { params: { pro
                     <CardTitle>Versiones</CardTitle>
                 </CardHeader>
                 <CardContent>
-                    <Table>
-                        <TableHeader>
-                            <TableRow>
-                                <TableHead>Versión</TableHead>
-                                <TableHead>Estado</TableHead>
-                                <TableHead>Fecha Asignación</TableHead>
-                                <TableHead>Asignado Por</TableHead>
-                            </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                            {history.map((version) => (
-                                <TableRow key={version.id}>
-                                    <TableCell className="font-medium">{version.versionAsignada}</TableCell>
-                                    <TableCell>
-                                        {version.obsoleto ? <Badge variant="destructive">Obsoleto</Badge> 
-                                        : version.vigente ? <Badge variant="default">Vigente</Badge>
-                                        : <Badge variant="secondary">No Vigente</Badge>}
-                                    </TableCell>
-                                    <TableCell>{version.assignedAt.toDate().toLocaleDateString('es-CL')}</TableCell>
-                                    <TableCell>{version.assignedById}</TableCell>
+                     {loading ? (
+                        <div className="flex justify-center items-center h-24">
+                            <Loader2 className="animate-spin" />
+                        </div>
+                    ) : error ? (
+                        <p className="text-destructive text-center">{error}</p>
+                    ) : (
+                        <Table>
+                            <TableHeader>
+                                <TableRow>
+                                    <TableHead>Versión</TableHead>
+                                    <TableHead>Estado</TableHead>
+                                    <TableHead>Fecha Asignación</TableHead>
+                                    <TableHead>Asignado Por</TableHead>
                                 </TableRow>
-                            ))}
-                        </TableBody>
-                    </Table>
+                            </TableHeader>
+                            <TableBody>
+                                {history.length > 0 ? history.map((version) => (
+                                    <TableRow key={version.id}>
+                                        <TableCell className="font-medium">{version.versionAsignada}</TableCell>
+                                        <TableCell>
+                                            {version.obsoleto ? <Badge variant="destructive">Obsoleto</Badge> 
+                                            : version.vigente ? <Badge variant="default">Vigente</Badge>
+                                            : <Badge variant="secondary">No Vigente</Badge>}
+                                        </TableCell>
+                                        <TableCell>{version.assignedAt.toDate().toLocaleDateString('es-CL')}</TableCell>
+                                        <TableCell>{version.assignedById}</TableCell>
+                                    </TableRow>
+                                )) : (
+                                     <TableRow>
+                                        <TableCell colSpan={4} className="text-center h-24">No hay historial de versiones para este documento.</TableCell>
+                                    </TableRow>
+                                )}
+                            </TableBody>
+                        </Table>
+                    )}
                 </CardContent>
             </Card>
         </div>
