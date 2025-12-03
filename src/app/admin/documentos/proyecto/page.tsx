@@ -9,7 +9,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { PlusCircle, Upload, MoreVertical } from "lucide-react";
+import { PlusCircle, Upload, MoreVertical, ArrowLeft } from "lucide-react";
 import { ProjectDocument, Obra, CompanyDocument } from '@/types/pcg';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Label } from '@/components/ui/label';
@@ -191,6 +191,9 @@ export default function DocumentosProyectoPage() {
 
     return (
         <div className="space-y-6">
+            <Button asChild variant="outline" size="sm">
+              <Link href="/dashboard"><ArrowLeft className="mr-2 h-4 w-4" />Volver al Dashboard</Link>
+            </Button>
             <header className="flex items-center justify-between">
                 <div>
                     <h1 className="text-2xl font-bold">Documentos del Proyecto</h1>
