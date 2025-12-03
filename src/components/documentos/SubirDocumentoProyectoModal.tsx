@@ -8,7 +8,7 @@ import { useState } from "react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 import { firebaseDb, firebaseStorage } from "@/lib/firebaseClient";
-import { addDoc, collection, serverTimestamp } from "firebase/firestore";
+import { doc, collection, serverTimestamp, setDoc } from "firebase/firestore";
 import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
 import { Loader2 } from "lucide-react";
 
@@ -65,7 +65,10 @@ export default function SubirDocumentoProyectoModal({
 
     setLoading(true);
     try {
-      const docId = collection(firebaseDb, "projectDocuments").doc().id;
+      // Generar una referencia de documento primero para obtener un ID único
+      const newDocRef = doc(collection(firebaseDb, "projectDocuments"));
+      const docId = newDocRef.id;
+      
       const storagePath = `projectDocuments/${projectId}/${docId}.pdf`;
       const storageRef = ref(firebaseStorage, storagePath);
       
@@ -83,12 +86,12 @@ export default function SubirDocumentoProyectoModal({
         vigente: true,
         obsoleto: false,
         fileUrl,
-        storagePath: storagePath,
+        storagePath,
         assignedAt: serverTimestamp(),
         assignedById: userId,
       };
       
-      await addDoc(collection(firebaseDb, "projectDocuments"), projectDocData);
+      await setDoc(newDocRef, projectDocData);
 
       toast({ title: "Éxito", description: "Documento subido y registrado correctamente." });
       handleClose();
