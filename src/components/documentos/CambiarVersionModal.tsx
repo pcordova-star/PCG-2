@@ -80,6 +80,7 @@ export default function CambiarVersionModal({
         versionAsignada: newVersion,
         vigente: true,
         obsoleto: false,
+        eliminado: false,
         fileUrl: newFileUrl,
         storagePath: storagePath,
         assignedAt: serverTimestamp(),

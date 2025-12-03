@@ -2,7 +2,7 @@
 "use client";
 
 import React, { useState, useEffect, useMemo } from 'react';
-import { collection, query, where, orderBy, onSnapshot, writeBatch, doc, serverTimestamp, getDocs } from 'firebase/firestore';
+import { collection, query, where, orderBy, onSnapshot, writeBatch, doc, serverTimestamp, getDocs, updateDoc } from 'firebase/firestore';
 import { firebaseDb, firebaseFunctions } from '@/lib/firebaseClient';
 import { useAuth } from '@/context/AuthContext';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -152,6 +152,7 @@ export default function DocumentosProyectoPage() {
                     versionAsignada: docCorp.version,
                     vigente: true,
                     obsoleto: false,
+                    eliminado: false,
                     fileUrl: docCorp.fileUrl ?? null,
                     storagePath: docCorp.storagePath ?? null,
                     assignedAt: serverTimestamp(),
@@ -255,8 +256,8 @@ export default function DocumentosProyectoPage() {
                         <TableBody>
                             {loading ? (
                                 <TableRow><TableCell colSpan={6} className="text-center">Cargando documentos...</TableCell></TableRow>
-                            ) : documents.length > 0 ? ( 
-                                documents.map((doc) => (
+                            ) : documents.filter(d => !d.eliminado).length > 0 ? ( 
+                                documents.filter(d => !d.eliminado).map((doc) => (
                                     <TableRow key={doc.id}>
                                         <TableCell className="font-mono">{doc.code}</TableCell>
                                         <TableCell className="font-medium">{doc.name}</TableCell>
@@ -305,6 +306,23 @@ export default function DocumentosProyectoPage() {
                                                   Evidencia de distribución
                                                 </Link>
                                               </DropdownMenuItem>
+                                              {(role === "admin_empresa" || role === "superadmin") && (
+                                                <DropdownMenuItem
+                                                  onClick={async () => {
+                                                    const confirmDelete = window.confirm("¿Eliminar este documento del proyecto? Se mantendrá en el historial pero no estará vigente.");
+                                                    if (!confirmDelete) return;
+                                                    const refDoc = doc(firebaseDb, "projectDocuments", doc.id!);
+                                                    await updateDoc(refDoc, {
+                                                      eliminado: true,
+                                                      vigente: false,
+                                                      obsoleto: true
+                                                    });
+                                                    toast({title: 'Documento Eliminado', description: 'El documento ha sido marcado como eliminado.'})
+                                                  }}
+                                                >
+                                                  Eliminar del proyecto
+                                                </DropdownMenuItem>
+                                              )}
                                             </DropdownMenuContent>
                                           </DropdownMenu>
                                         </TableCell>
