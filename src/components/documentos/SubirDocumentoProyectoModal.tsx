@@ -85,6 +85,7 @@ export default function SubirDocumentoProyectoModal({
         versionAsignada: version,
         vigente: true,
         obsoleto: false,
+        eliminado: false,
         fileUrl,
         storagePath,
         assignedAt: serverTimestamp(),
