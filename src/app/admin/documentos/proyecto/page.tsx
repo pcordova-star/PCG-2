@@ -92,19 +92,11 @@ export default function DocumentosProyectoPage() {
     useEffect(() => {
         if (!companyId && role !== 'superadmin') return;
         
-        let corpQuery;
-        if (role === 'superadmin') {
-            // Superadmin podría ver todos, o los de la primera empresa, por ahora filtramos por el companyId del primer documento de obra si existe
-            const firstCompany = obras.length > 0 ? obras[0].empresaId : null;
-            if(firstCompany) {
-                corpQuery = query(collection(firebaseDb, "companyDocuments"), where("companyId", "==", firstCompany), orderBy("code", "asc"));
-            } else {
-                // Opcional: cargar todos, pero puede ser mucho
-                corpQuery = query(collection(firebaseDb, "companyDocuments"), orderBy("code", "asc"));
-            }
-        } else {
-            corpQuery = query(collection(firebaseDb, "companyDocuments"), where("companyId", "==", companyId), orderBy("code", "asc"));
-        }
+        const finalCompanyId = role === 'superadmin' ? (obras[0]?.empresaId) : companyId;
+
+        if (!finalCompanyId) return;
+
+        const corpQuery = query(collection(firebaseDb, "companyDocuments"), where("companyId", "==", finalCompanyId), orderBy("code", "asc"));
 
         const unsub = onSnapshot(corpQuery, (snapshot) => {
             const corporativosData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as CompanyDocument));
@@ -268,6 +260,13 @@ export default function DocumentosProyectoPage() {
                                               </Button>
                                             </DropdownMenuTrigger>
                                             <DropdownMenuContent align="end">
+                                              {doc.fileUrl && (
+                                                  <DropdownMenuItem asChild>
+                                                    <a href={doc.fileUrl} target="_blank" rel="noopener noreferrer">
+                                                      Ver / Descargar PDF
+                                                    </a>
+                                                  </DropdownMenuItem>
+                                                )}
                                               <DropdownMenuItem asChild>
                                                 <Link href={`/admin/documentos/historial/${doc.id}`}>
                                                   Ver historial
