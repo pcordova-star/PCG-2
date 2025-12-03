@@ -90,21 +90,32 @@ export default function DocumentosProyectoPage() {
     }, [selectedObraId]);
 
     useEffect(() => {
-        if (!companyId) return;
+        if (!companyId && role !== 'superadmin') return;
+        
+        let corpQuery;
+        if (role === 'superadmin') {
+            // Superadmin podría ver todos, o los de la primera empresa, por ahora filtramos por el companyId del primer documento de obra si existe
+            const firstCompany = obras.length > 0 ? obras[0].empresaId : null;
+            if(firstCompany) {
+                corpQuery = query(collection(firebaseDb, "companyDocuments"), where("companyId", "==", firstCompany), orderBy("code", "asc"));
+            } else {
+                // Opcional: cargar todos, pero puede ser mucho
+                corpQuery = query(collection(firebaseDb, "companyDocuments"), orderBy("code", "asc"));
+            }
+        } else {
+            corpQuery = query(collection(firebaseDb, "companyDocuments"), where("companyId", "==", companyId), orderBy("code", "asc"));
+        }
 
-        const q = query(
-            collection(firebaseDb, "companyDocuments"),
-            where("companyId", "==", companyId),
-            orderBy("code", "asc")
-        );
-
-        const unsub = onSnapshot(q, (snapshot) => {
+        const unsub = onSnapshot(corpQuery, (snapshot) => {
             const corporativosData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as CompanyDocument));
             setCorporativos(corporativosData);
+        }, (error) => {
+            console.error("Error fetching corporate documents:", error);
+            toast({ variant: 'destructive', title: 'Error', description: 'No se pudieron cargar los documentos corporativos.' });
         });
 
         return () => unsub();
-    }, [companyId]);
+    }, [companyId, role, obras]);
 
     const handleImportar = async (ids: string[]) => {
         if (!selectedObraId || !companyId || !user) {
@@ -144,6 +155,7 @@ export default function DocumentosProyectoPage() {
                     obsoleto: false,
                     assignedAt: serverTimestamp(),
                     assignedById: user.uid,
+                    fileUrl: docCorp.fileUrl ?? null,
                 };
                 batch.set(nuevoDocRef, nuevoProjectDocument);
                 

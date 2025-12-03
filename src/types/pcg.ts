@@ -336,7 +336,7 @@ export interface CompanyDocument {
     category: string;
     version: string;
     vigente: boolean;
-    fileUrl: string;
+    fileUrl?: string | null;
     createdAt: Timestamp;
     updatedAt: Timestamp;
     createdById: string;
