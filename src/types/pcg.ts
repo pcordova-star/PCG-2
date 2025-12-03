@@ -355,6 +355,7 @@ export interface ProjectDocument {
     versionAsignada: string;
     vigente: boolean;
     obsoleto: boolean;
+    eliminado?: boolean;
     fileUrl: string | null;
     storagePath: string | null; // Path en Firebase Storage
     assignedAt: Timestamp;
