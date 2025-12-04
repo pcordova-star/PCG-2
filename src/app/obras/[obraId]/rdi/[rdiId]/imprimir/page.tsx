@@ -2,7 +2,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useParams } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import { Rdi, Obra } from "@/types/pcg";
 import { getRdiById } from "@/lib/rdi/rdiService";
 import { getDoc, doc } from "firebase/firestore";
@@ -13,7 +13,8 @@ import { Button } from "@/components/ui/button";
 
 function RdiPrintPage() {
   const params = useParams();
-  const { user } = useAuth(); // No necesitamos companyId aquí
+  const router = useRouter();
+  const { user } = useAuth();
 
   const obraId = params.obraId as string;
   const rdiId = params.rdiId as string;
@@ -24,17 +25,15 @@ function RdiPrintPage() {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    // Asegurarse de tener todos los IDs necesarios
     if (!obraId || !rdiId || !user) {
-        if (!loading) setLoading(true); // Mostrar carga si los IDs aparecen más tarde
-        return;
+      if (!loading) setLoading(true);
+      return;
     }
 
     const fetchData = async () => {
       setLoading(true);
       try {
-        // La función ahora solo necesita obraId y rdiId
-        const rdiData = await getRdiById(obraId, rdiId); 
+        const rdiData = await getRdiById(obraId, rdiId);
         if (!rdiData) {
           throw new Error("RDI no encontrado.");
         }
@@ -55,113 +54,138 @@ function RdiPrintPage() {
     };
     fetchData();
   }, [obraId, rdiId, user]);
-  
+
   if (loading) {
-    return <div className="flex justify-center items-center h-screen"><Loader2 className="animate-spin mr-2" />Cargando documento...</div>;
-  }
-  
-  if (error) {
-    return <div className="text-center text-destructive p-8">{error}</div>;
-  }
-  
-  if (!rdi || !obra) {
-    return <div className="text-center text-muted-foreground p-8">No se encontraron los datos para generar el documento.</div>;
+    return (
+      <div className="flex justify-center items-center h-screen bg-slate-100">
+        <Loader2 className="animate-spin mr-2" />
+        Cargando documento...
+      </div>
+    );
   }
 
+  if (error) {
+    return <div className="text-center text-destructive p-8 bg-slate-100">{error}</div>;
+  }
+
+  if (!rdi || !obra) {
+    return (
+      <div className="text-center text-muted-foreground p-8 bg-slate-100">
+        No se encontraron los datos para generar el documento.
+      </div>
+    );
+  }
 
   return (
-    <div className="bg-background min-h-screen p-4 sm:p-8 print:p-0">
+    <div className="min-h-screen bg-slate-100 flex flex-col items-center py-6 print:bg-white print:py-0">
         <style jsx global>{`
             @media print {
-            body { background-color: #fff; color: #000; }
-            .print-hidden { display: none !important; }
-            .printable-area { box-shadow: none !important; border: none !important; padding: 0 !important; }
+                body { background-color: #fff; color: #000; }
             }
         `}</style>
+      
+      <div className="w-full max-w-4xl flex justify-between mb-4 print:hidden px-4">
+        <Button onClick={() => router.back()} variant="outline">
+          Volver
+        </Button>
+        <Button onClick={() => window.print()}>Imprimir / Guardar como PDF</Button>
+      </div>
 
-        <div className="max-w-4xl mx-auto">
-            <div className="flex justify-between items-center mb-6 print-hidden">
-                <h1 className="text-xl font-bold">Vista Previa de RDI</h1>
-                <div className="flex gap-2">
-                    <Button variant="outline" onClick={() => window.history.back()}>Volver</Button>
-                    <Button onClick={() => window.print()}>Imprimir / Guardar como PDF</Button>
+      <div className="w-full max-w-4xl bg-white text-black shadow-md rounded-md p-8 print:shadow-none print:rounded-none print:p-0">
+        <header className="mb-8">
+          <div className="flex justify-between items-start border-b pb-4">
+            <div>
+              <h2 className="text-xl font-semibold text-gray-800">{obra.empresa?.nombre || 'Constructora PCG'}</h2>
+              <p className="text-sm text-gray-500">{obra.mandanteRazonSocial}</p>
+            </div>
+            <div className="text-right text-xs">
+              <p>
+                <strong className="font-semibold">Correlativo:</strong> {rdi.correlativo}
+              </p>
+            </div>
+          </div>
+          <h1 className="text-center text-2xl font-bold mt-6">
+            Requerimiento de Información (RDI)
+          </h1>
+        </header>
+
+        <main className="space-y-6 text-sm">
+          <section>
+            <h2 className="text-base font-semibold border-b pb-1 mb-2">Datos Generales</h2>
+            <div className="grid grid-cols-2 gap-x-6 gap-y-1">
+              <div><span className="font-medium">Obra:</span> {obra.nombreFaena}</div>
+              <div><span className="font-medium">Tipo:</span> {rdi.tipo}</div>
+              <div><span className="font-medium">Especialidad:</span> {rdi.especialidad}</div>
+              <div><span className="font-medium">Estado:</span> {rdi.estado}</div>
+              <div><span className="font-medium">Prioridad:</span> {rdi.prioridad}</div>
+              <div><span className="font-medium">Fecha Emisión:</span> {rdi.createdAt.toDate().toLocaleDateString('es-CL')}</div>
+            </div>
+          </section>
+
+          <section>
+            <h2 className="text-base font-semibold border-b pb-1 mb-2">Solicitante</h2>
+            <div className="grid grid-cols-2 gap-x-6 gap-y-1">
+              <div><span className="font-medium">Nombre:</span> {rdi.solicitante.nombre}</div>
+              <div><span className="font-medium">Email:</span> {rdi.solicitante.email}</div>
+              <div className="col-span-2"><span className="font-medium">Cargo:</span> {rdi.solicitante.cargo || "No especificado"}</div>
+            </div>
+          </section>
+
+          <section>
+            <h2 className="text-base font-semibold border-b pb-1 mb-2">Destinatario</h2>
+            <div className="grid grid-cols-2 gap-x-6 gap-y-1">
+              <div><span className="font-medium">Nombre:</span> {rdi.destinatario.nombre}</div>
+              <div><span className="font-medium">Email:</span> {rdi.destinatario.email}</div>
+              <div><span className="font-medium">Empresa:</span> {rdi.destinatario.empresa || "No especificada"}</div>
+              <div><span className="font-medium">Cargo:</span> {rdi.destinatario.cargo || "No especificado"}</div>
+            </div>
+          </section>
+
+          <section>
+            <h2 className="text-base font-semibold border-b pb-1 mb-2">Requerimiento</h2>
+            <div className="space-y-2">
+                <p><span className="font-medium">Título:</span> {rdi.titulo}</p>
+                <div>
+                    <p className="font-medium">Descripción:</p>
+                    <p className="text-gray-700 whitespace-pre-line mt-1">{rdi.descripcion}</p>
                 </div>
             </div>
+          </section>
+          
+          <section>
+            <h2 className="text-base font-semibold border-b pb-1 mb-2">Plazos e Impacto en Programa</h2>
+             <div className="grid grid-cols-2 gap-x-6 gap-y-1">
+                <div><span className="font-medium">Plazo de respuesta (días):</span> {rdi.plazoRespuestaDias || "No especificado"}</div>
+                <div><span className="font-medium">¿Afecta plazo de obra?:</span> {rdi.afectaPlazo ? 'Sí' : 'No'}</div>
+                {rdi.afectaPlazo && <div><span className="font-medium">Días de aumento solicitados:</span> {rdi.diasAumentoSolicitados || "No especificado"}</div>}
+                {rdi.afectaPlazo && <div><span className="font-medium">Días de aumento aprobados:</span> {rdi.diasAumentoAprobados || "No especificado"}</div>}
+             </div>
+          </section>
 
-            <div className="printable-area p-8 border rounded-lg bg-card text-card-foreground shadow-md text-sm">
-                <header className="mb-8">
-                    <div className="flex justify-between items-start border-b pb-4">
-                        <div>
-                            <h2 className="text-2xl font-bold text-primary">PCG 2.0</h2>
-                            <p className="text-sm text-muted-foreground">{obra.empresa?.nombre || 'Constructora Principal'}</p>
-                        </div>
-                        <div className="text-right text-sm">
-                            <p><strong className="font-semibold">RDI:</strong> {rdi.correlativo}</p>
-                            <p><strong className="font-semibold">Fecha Emisión:</strong> {rdi.createdAt.toDate().toLocaleDateString('es-CL')}</p>
-                        </div>
-                    </div>
-                    <h3 className="text-center text-xl font-bold mt-4">
-                        Requerimiento de Información (RDI)
-                    </h3>
-                </header>
+          {rdi.respuestaTexto && (
+            <section>
+              <h2 className="text-base font-semibold border-b pb-1 mb-2">Respuesta del Cliente</h2>
+              <p className="text-gray-700 whitespace-pre-line">{rdi.respuestaTexto}</p>
+            </section>
+          )}
 
-                <main className="space-y-6">
-                    <section>
-                        <h4 className="font-bold text-base mb-2 border-b pb-1">Datos Generales</h4>
-                        <div className="grid grid-cols-2 gap-x-8 gap-y-2">
-                            <p><strong>Obra:</strong> {obra.nombreFaena}</p>
-                            <p><strong>Tipo:</strong> {rdi.tipo}</p>
-                            <p><strong>Especialidad:</strong> {rdi.especialidad}</p>
-                            <p><strong>Prioridad:</strong> {rdi.prioridad}</p>
-                             <p><strong>Estado:</strong> {rdi.estado}</p>
-                        </div>
-                    </section>
-                    <section>
-                        <h4 className="font-bold text-base mb-2 border-b pb-1">Solicitante</h4>
-                        <div className="grid grid-cols-2 gap-x-8 gap-y-2">
-                           <p><strong>Nombre:</strong> {rdi.solicitante.nombre}</p>
-                           <p><strong>Email:</strong> {rdi.solicitante.email}</p>
-                           <p><strong>Cargo:</strong> {rdi.solicitante.cargo || "No especificado"}</p>
-                        </div>
-                    </section>
-                     <section>
-                        <h4 className="font-bold text-base mb-2 border-b pb-1">Destinatario</h4>
-                        <div className="grid grid-cols-2 gap-x-8 gap-y-2">
-                           <p><strong>Nombre:</strong> {rdi.destinatario.nombre}</p>
-                           <p><strong>Email:</strong> {rdi.destinatario.email}</p>
-                           <p><strong>Empresa:</strong> {rdi.destinatario.empresa || "No especificada"}</p>
-                           <p><strong>Cargo:</strong> {rdi.destinatario.cargo || "No especificado"}</p>
-                        </div>
-                    </section>
-                    <section>
-                        <h4 className="font-bold text-base mb-2 border-b pb-1">Requerimiento</h4>
-                         <p className="font-semibold">{rdi.titulo}</p>
-                         <p className="text-muted-foreground whitespace-pre-line mt-2">{rdi.descripcion}</p>
-                    </section>
-                     <section>
-                        <h4 className="font-bold text-base mb-2 border-b pb-1">Plazos e Impacto</h4>
-                        <div className="grid grid-cols-2 gap-x-8 gap-y-2">
-                            <p><strong>Plazo de Respuesta Solicitado:</strong> {rdi.plazoRespuestaDias ? `${rdi.plazoRespuestaDias} días` : 'No especificado'}</p>
-                            <p><strong>¿Afecta Plazo de Obra?:</strong> {rdi.afectaPlazo ? 'Sí' : 'No'}</p>
-                            {rdi.afectaPlazo && <p><strong>Días de Aumento Solicitados:</strong> {rdi.diasAumentoSolicitados || 'No especificado'}</p>}
-                        </div>
-                    </section>
-                </main>
-                <footer className="mt-16 pt-8 border-t text-xs">
-                    <h4 className="font-semibold text-center mb-8">Firmas</h4>
-                    <div className="grid grid-cols-2 gap-12">
-                        <div className="flex flex-col items-center">
-                            <div className="w-full border-b mt-12 mb-2"></div>
-                            <p className="font-semibold">Firma Solicitante</p>
-                        </div>
-                        <div className="flex flex-col items-center">
-                            <div className="w-full border-b mt-12 mb-2"></div>
-                            <p className="font-semibold">Firma Destinatario (Recepción)</p>
-                        </div>
-                    </div>
-                </footer>
+        </main>
+        
+        <footer className="mt-16 text-sm">
+           <div className="grid grid-cols-2 gap-8">
+            <div className="text-center">
+              <div className="border-t border-black mt-8 pt-1">
+                Firma representante Empresa
+              </div>
             </div>
-        </div>
+            <div className="text-center">
+              <div className="border-t border-black mt-8 pt-1">
+                Firma representante Cliente
+              </div>
+            </div>
+          </div>
+        </footer>
+      </div>
     </div>
   );
 }
