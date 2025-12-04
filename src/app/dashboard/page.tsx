@@ -158,10 +158,10 @@ const allMainModules = [
     id: 'rdi',
     title: 'Requerimientos (RDI)',
     description: 'Gestiona consultas, solicitudes de información y respuestas con mandantes y subcontratos.',
-    href: '/obras',
+    href: '/obras/rdi',
     icon: MessageSquare,
     linkText: 'Ir a RDI',
-    tooltip: 'Necesitas una obra para gestionar sus RDI.',
+    tooltip: 'Acceso directo a los RDI de tu obra más reciente.',
     roles: ['superadmin', 'admin_empresa', 'jefe_obra', 'prevencionista']
   }
 ];
@@ -330,9 +330,13 @@ export default function DashboardPage() {
   }, [user, role, companyId, authLoading]);
   
   const handleQuickAccessClick = (target: string) => {
+    if (target === '/obras/rdi') {
+      router.push(target);
+      return;
+    }
     if (obras.length === 1) {
         const obraId = obras[0].id;
-        const finalTarget = target.includes('/obras/rdi') ? `/obras/${obraId}/rdi` : `${target}?obraId=${obraId}`;
+        const finalTarget = `${target}?obraId=${obraId}`;
         router.push(finalTarget);
     } else {
         setQuickAccessTarget(target);
@@ -342,7 +346,7 @@ export default function DashboardPage() {
 
   const handleObraSelected = (obraId: string) => {
       if (obraId && quickAccessTarget) {
-          const finalTarget = quickAccessTarget.includes('/obras/rdi') ? `/obras/${obraId}/rdi` : `${quickAccessTarget}?obraId=${obraId}`;
+          const finalTarget = `${quickAccessTarget}?obraId=${obraId}`;
           router.push(finalTarget);
       }
       setIsObraModalOpen(false);
