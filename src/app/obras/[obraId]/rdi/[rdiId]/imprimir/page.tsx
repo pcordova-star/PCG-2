@@ -13,7 +13,7 @@ import { Button } from "@/components/ui/button";
 
 function RdiPrintPage() {
   const params = useParams();
-  const { user } = useAuth();
+  const { user, companyId } = useAuth(); // Obtener companyId del contexto
 
   const obraId = params.obraId as string;
   const rdiId = params.rdiId as string;
@@ -24,12 +24,16 @@ function RdiPrintPage() {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!obraId || !rdiId || !user) return;
+    // Asegurarse de tener todos los IDs necesarios
+    if (!companyId || !obraId || !rdiId || !user) {
+        if (!loading) setLoading(true); // Mostrar carga si los IDs aparecen más tarde
+        return;
+    }
 
     const fetchData = async () => {
       setLoading(true);
       try {
-        const rdiData = await getRdiById(obraId, rdiId);
+        const rdiData = await getRdiById(companyId, obraId, rdiId); // Usar companyId
         if (!rdiData) {
           throw new Error("RDI no encontrado.");
         }
@@ -49,7 +53,7 @@ function RdiPrintPage() {
       }
     };
     fetchData();
-  }, [obraId, rdiId, user]);
+  }, [companyId, obraId, rdiId, user]);
   
   if (loading) {
     return <div className="flex justify-center items-center h-screen"><Loader2 className="animate-spin mr-2" />Cargando documento...</div>;
