@@ -25,6 +25,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import CambiarVersionModal from '@/components/documentos/CambiarVersionModal';
+import { Input } from '@/components/ui/input';
 
 
 function EstadoDocumentoBadge({ vigente, obsoleto }: { vigente: boolean, obsoleto: boolean }) {
@@ -53,6 +54,16 @@ export default function DocumentosProyectoPage() {
     // Estados para el nuevo modal de cambio de versión
     const [isChangeVersionModalOpen, setIsChangeVersionModalOpen] = useState(false);
     const [selectedDocumentForVersionChange, setSelectedDocumentForVersionChange] = useState<ProjectDocument | null>(null);
+
+    // Estados para los nuevos filtros
+    const [filtroNombre, setFiltroNombre] = useState('');
+    const [filtroCategoria, setFiltroCategoria] = useState('all');
+    const [filtroEstado, setFiltroEstado] = useState('all');
+
+    const categoriasUnicas = useMemo(() => {
+        const cats = new Set(documents.map(d => d.category));
+        return Array.from(cats);
+    }, [documents]);
 
 
     useEffect(() => {
@@ -95,6 +106,24 @@ export default function DocumentosProyectoPage() {
 
         return () => unsub();
     }, [selectedObraId]);
+
+    const documentosFiltrados = useMemo(() => {
+        return documents.filter(doc => {
+            if (doc.eliminado) return false;
+
+            const matchNombre = filtroNombre === '' || 
+                doc.name.toLowerCase().includes(filtroNombre.toLowerCase()) || 
+                doc.code.toLowerCase().includes(filtroNombre.toLowerCase());
+
+            const matchCategoria = filtroCategoria === 'all' || doc.category === filtroCategoria;
+
+            const matchEstado = filtroEstado === 'all' ||
+                (filtroEstado === 'vigente' && doc.vigente && !doc.obsoleto) ||
+                (filtroEstado === 'obsoleto' && doc.obsoleto);
+
+            return matchNombre && matchCategoria && matchEstado;
+        });
+    }, [documents, filtroNombre, filtroCategoria, filtroEstado]);
 
     useEffect(() => {
         if (!companyId && role !== 'superadmin') return;
@@ -184,6 +213,21 @@ export default function DocumentosProyectoPage() {
         setIsChangeVersionModalOpen(true);
     };
 
+    const handleVerDescargar = async (doc: ProjectDocument) => {
+        if (!doc.storagePath) {
+            toast({ variant: 'destructive', title: 'Error', description: 'Este documento no tiene un archivo asociado.' });
+            return;
+        }
+        try {
+            const storageRef = ref(firebaseStorage, doc.storagePath);
+            const url = await getDownloadURL(storageRef);
+            window.open(url, "_blank");
+        } catch (error) {
+            console.error("Error al obtener la URL de descarga:", error);
+            toast({ variant: 'destructive', title: 'Error de descarga', description: 'No se pudo obtener el enlace del archivo. Verifique los permisos de CORS en su bucket de Firebase Storage.' });
+        }
+    };
+
     return (
         <div className="space-y-6">
             <Button asChild variant="outline" size="sm">
@@ -208,14 +252,41 @@ export default function DocumentosProyectoPage() {
 
             <Card>
                 <CardHeader>
-                    <div className="max-w-md space-y-2">
-                        <Label htmlFor="obra-select">Seleccione una Obra</Label>
-                        <Select value={selectedObraId} onValueChange={setSelectedObraId}>
-                            <SelectTrigger id="obra-select"><SelectValue placeholder="Seleccione una obra..."/></SelectTrigger>
-                            <SelectContent>
-                                {obras.map(o => <SelectItem key={o.id} value={o.id}>{o.nombreFaena}</SelectItem>)}
-                            </SelectContent>
-                        </Select>
+                    <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                        <div className="space-y-2">
+                            <Label htmlFor="obra-select">Seleccione una Obra</Label>
+                            <Select value={selectedObraId} onValueChange={setSelectedObraId}>
+                                <SelectTrigger id="obra-select"><SelectValue placeholder="Seleccione una obra..."/></SelectTrigger>
+                                <SelectContent>
+                                    {obras.map(o => <SelectItem key={o.id} value={o.id}>{o.nombreFaena}</SelectItem>)}
+                                </SelectContent>
+                            </Select>
+                        </div>
+                        <div className="space-y-2">
+                            <Label htmlFor="filtro-nombre">Buscar por Código o Nombre</Label>
+                            <Input id="filtro-nombre" value={filtroNombre} onChange={(e) => setFiltroNombre(e.target.value)} placeholder="Ej: P-S-01..." />
+                        </div>
+                         <div className="space-y-2">
+                            <Label htmlFor="filtro-categoria">Categoría</Label>
+                            <Select value={filtroCategoria} onValueChange={setFiltroCategoria}>
+                                <SelectTrigger id="filtro-categoria"><SelectValue /></SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="all">Todas</SelectItem>
+                                    {categoriasUnicas.map(cat => <SelectItem key={cat} value={cat}>{cat}</SelectItem>)}
+                                </SelectContent>
+                            </Select>
+                        </div>
+                         <div className="space-y-2">
+                            <Label htmlFor="filtro-estado">Estado</Label>
+                            <Select value={filtroEstado} onValueChange={setFiltroEstado}>
+                                <SelectTrigger id="filtro-estado"><SelectValue /></SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="all">Todos</SelectItem>
+                                    <SelectItem value="vigente">Vigente</SelectItem>
+                                    <SelectItem value="obsoleto">Obsoleto</SelectItem>
+                                </SelectContent>
+                            </Select>
+                        </div>
                     </div>
                 </CardHeader>
                 <CardContent>
@@ -233,8 +304,8 @@ export default function DocumentosProyectoPage() {
                         <TableBody>
                             {loading ? (
                                 <TableRow><TableCell colSpan={6} className="text-center">Cargando documentos...</TableCell></TableRow>
-                            ) : documents.filter(d => !d.eliminado).length > 0 ? ( 
-                                documents.filter(d => !d.eliminado).map((doc) => (
+                            ) : documentosFiltrados.length > 0 ? ( 
+                                documentosFiltrados.map((doc) => (
                                     <TableRow key={doc.id}>
                                         <TableCell className="font-mono">{doc.code}</TableCell>
                                         <TableCell className="font-medium">{doc.name}</TableCell>
@@ -252,18 +323,7 @@ export default function DocumentosProyectoPage() {
                                             </DropdownMenuTrigger>
                                             <DropdownMenuContent align="end">
                                                {doc.fileUrl && doc.storagePath && (
-                                                  <DropdownMenuItem
-                                                    onClick={async () => {
-                                                      try {
-                                                        const storageRef = ref(firebaseStorage, doc.storagePath!);
-                                                        const url = await getDownloadURL(storageRef);
-                                                        window.open(url, "_blank");
-                                                      } catch (error) {
-                                                        console.error("Error getting download URL", error);
-                                                        toast({ variant: 'destructive', title: 'Error', description: 'No se pudo obtener la URL de descarga. Verifique los permisos de CORS en su bucket de Firebase Storage.' });
-                                                      }
-                                                    }}
-                                                  >
+                                                  <DropdownMenuItem onClick={() => handleVerDescargar(doc)}>
                                                     Ver / Descargar PDF
                                                   </DropdownMenuItem>
                                                 )}
@@ -305,7 +365,7 @@ export default function DocumentosProyectoPage() {
                                     </TableRow>
                                 ))
                             ) : (
-                                <TableRow><TableCell colSpan={6} className="text-center h-24">No hay documentos para esta obra.</TableCell></TableRow>
+                                <TableRow><TableCell colSpan={6} className="text-center h-24">No hay documentos para esta obra o que coincidan con los filtros.</TableCell></TableRow>
                             )}
                         </TableBody>
                     </Table>
