@@ -57,11 +57,11 @@ const allMainModules = [
   },
   {
     id: 'presupuestos',
-    title: 'Presupuestos',
-    description: 'Administra tu catálogo de ítems y precios. Crea y duplica presupuestos detallados por obra.',
+    title: 'Itemizados',
+    description: 'Administra tu catálogo de ítems y precios. Crea y duplica itemizados detallados por obra.',
     href: '/operaciones/presupuestos',
     icon: BookCopy,
-    linkText: 'Ir a Presupuestos',
+    linkText: 'Ir a Itemizados',
     tooltip: 'Necesitas crear una obra primero para usar este módulo.',
     roles: ['superadmin', 'admin_empresa', 'jefe_obra']
   },
@@ -97,7 +97,7 @@ const allMainModules = [
     id: 'rdi',
     title: 'Requerimientos (RDI)',
     description: 'Gestiona consultas, solicitudes de información y respuestas con mandantes y subcontratos.',
-    href: '/obras',
+    href: '/obras/rdi',
     icon: MessageSquare,
     linkText: 'Ir a RDI',
     tooltip: 'Necesitas una obra para gestionar sus RDI.',
@@ -126,7 +126,7 @@ const quickAccessModules = [
         id: 'rdi',
         title: 'Requerimientos (RDI)',
         description: 'Crea y gestiona consultas de información (RDI) con mandantes, proyectistas o subcontratos.',
-        href: '/obras',
+        href: '/obras/rdi',
         icon: MessageSquare,
         color: 'orange' as const,
     },
@@ -292,7 +292,7 @@ export default function DashboardPage() {
   const handleQuickAccessClick = (target: string) => {
     if (obras.length === 1) {
         const obraId = obras[0].id;
-        const finalTarget = target === '/obras' ? `/obras/${obraId}/rdi` : `${target}?obraId=${obraId}`;
+        const finalTarget = target.includes('/obras/rdi') ? `/obras/${obraId}/rdi` : `${target}?obraId=${obraId}`;
         router.push(finalTarget);
     } else {
         setQuickAccessTarget(target);
@@ -302,7 +302,7 @@ export default function DashboardPage() {
 
   const handleObraSelected = (obraId: string) => {
       if (obraId && quickAccessTarget) {
-          const finalTarget = quickAccessTarget === '/obras' ? `/obras/${obraId}/rdi` : `${quickAccessTarget}?obraId=${obraId}`;
+          const finalTarget = quickAccessTarget.includes('/obras/rdi') ? `/obras/${obraId}/rdi` : `${quickAccessTarget}?obraId=${obraId}`;
           router.push(finalTarget);
       }
       setIsObraModalOpen(false);
