@@ -38,7 +38,7 @@ const estadoColors: Record<RdiEstado, string> = {
   anulada: "bg-red-100 text-red-800 line-through",
 };
 
-export default function RdiPage() {
+export default function RdiListPage() {
   const params = useParams();
   const router = useRouter();
   const { user, companyId, role } = useAuth();
@@ -231,14 +231,14 @@ export default function RdiPage() {
         </Button>
         <div>
           <h1 className="text-2xl font-bold">Requerimientos de Información (RDI)</h1>
-          <p className="text-muted-foreground">Obra: {obra?.nombreFaena || 'Cargando...'}</p>
+          <p className="text-muted-foreground">Este módulo centraliza todas las consultas y solicitudes de información (RDI) de la obra, permitiendo gestionar su trazabilidad y respuestas.</p>
         </div>
       </header>
 
       <Card>
         <CardHeader className="flex flex-row items-center justify-between">
           <div>
-            <CardTitle>Listado de RDI</CardTitle>
+            <CardTitle>Listado de RDI - {obra?.nombreFaena || 'Cargando...'}</CardTitle>
             <CardDescription>Mostrando {rdis.length} requerimientos registrados.</CardDescription>
           </div>
           <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
