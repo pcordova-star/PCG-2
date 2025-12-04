@@ -72,7 +72,7 @@ function parseNumber(value: string): number {
 
 
 export default function PresupuestoEditPage() {
-    const { user, companyId } = useAuth();
+    const { user, companyId, role } = useAuth();
     const { id: presupuestoId } = useParams<{ id: string }>();
     const searchParams = useSearchParams();
     const obraIdFromQuery = searchParams.get('obraId');
@@ -97,9 +97,19 @@ export default function PresupuestoEditPage() {
     const [isSaving, setIsSaving] = useState(false);
 
     useEffect(() => {
+        if (!companyId && role !== 'superadmin') return;
+
         const fetchInitialData = async () => {
             setLoading(true);
-            const obrasQuery = query(collection(firebaseDb, "obras"), orderBy("nombreFaena"));
+            
+            const obrasRef = collection(firebaseDb, "obras");
+            let obrasQuery;
+            if (role === 'superadmin') {
+                obrasQuery = query(obrasRef, orderBy("nombreFaena"));
+            } else {
+                obrasQuery = query(obrasRef, where("empresaId", "==", companyId), orderBy("nombreFaena"));
+            }
+
             const obrasSnap = await getDocs(obrasQuery);
             const obrasData = obrasSnap.docs.map(doc => ({ id: doc.id, ...doc.data() } as Obra));
             setObras(obrasData);
@@ -130,7 +140,7 @@ export default function PresupuestoEditPage() {
             setLoading(false);
         };
         fetchInitialData();
-    }, [presupuestoId, router, toast, obraIdFromQuery, companyId]);
+    }, [presupuestoId, router, toast, obraIdFromQuery, companyId, role]);
     
     const { hierarchicalItems, totalPresupuesto } = useMemo(() => {
     if (!items) return { hierarchicalItems: [], totalPresupuesto: 0 };
@@ -403,7 +413,7 @@ export default function PresupuestoEditPage() {
             </header>
 
             <Card>
-                <CardHeader><CardTitle>Datos Generales</CardTitle></CardHeader>
+                <CardHeader><CardTitle>Datos Generales del Itemizado</CardTitle></CardHeader>
                 <CardContent className="grid grid-cols-1 md:grid-cols-3 gap-4">
                     <div className="space-y-2">
                         <Label>Obra*</Label>
