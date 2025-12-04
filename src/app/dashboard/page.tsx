@@ -158,7 +158,7 @@ const allMainModules = [
     id: 'rdi',
     title: 'Requerimientos (RDI)',
     description: 'Gestiona consultas, solicitudes de información y respuestas con mandantes y subcontratos.',
-    href: '/obras/rdi',
+    href: '/rdi',
     icon: MessageSquare,
     linkText: 'Ir a RDI',
     tooltip: 'Acceso directo a los RDI de tu obra más reciente.',
@@ -187,7 +187,7 @@ const quickAccessModules = [
         id: 'rdi',
         title: 'Requerimientos (RDI)',
         description: 'Crea y gestiona consultas de información (RDI) con mandantes, proyectistas o subcontratos.',
-        href: '/obras/rdi',
+        href: '/rdi',
         icon: MessageSquare,
         color: 'orange' as const,
     },
@@ -278,7 +278,7 @@ export default function DashboardPage() {
                     titulo: `RDI: ${rdi.correlativo}`,
                     descripcion: rdi.titulo,
                     estado: rdi.estado,
-                    href: `/obras/${rdi.obraId}/rdi/${d.id}`
+                    href: `/rdi/${rdi.obraId}/${d.id}`
                 };
             });
 
@@ -330,7 +330,7 @@ export default function DashboardPage() {
   }, [user, role, companyId, authLoading]);
   
   const handleQuickAccessClick = (target: string) => {
-    if (target === '/obras/rdi') {
+    if (target === '/rdi') {
       router.push(target);
       return;
     }

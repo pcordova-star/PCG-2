@@ -1,3 +1,4 @@
+// src/app/rdi/[obraId]/page.tsx
 "use client";
 
 import React, { useState, useEffect, FormEvent } from 'react';
@@ -325,7 +326,7 @@ export default function RdiListPage() {
                       <TableCell>{rdi.createdAt.toDate().toLocaleDateString()}</TableCell>
                       <TableCell className="text-right">
                         <div className="flex justify-end gap-2">
-                          <Button variant="outline" size="sm" onClick={() => router.push(`/obras/${obraId}/rdi/${rdi.id}`)}>
+                          <Button variant="outline" size="sm" onClick={() => router.push(`/rdi/${obraId}/${rdi.id}`)}>
                             Ver
                           </Button>
                           <Button
