@@ -4,7 +4,7 @@ import React, { useState, useEffect, FormEvent } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { useAuth } from '@/context/AuthContext';
 import { Rdi, RdiPrioridad, RdiEstado, Obra } from '@/types/pcg';
-import { createRdi, listRdiByObra } from '@/lib/rdi/rdiService';
+import { createRdi, listRdiByObra, uploadAndAddRdiAdjunto } from '@/lib/rdi/rdiService';
 import { getDoc, doc } from 'firebase/firestore';
 import { firebaseDb } from '@/lib/firebaseClient';
 import { useToast } from '@/hooks/use-toast';
@@ -67,6 +67,11 @@ export default function RdiPage() {
   const [diasAumentoSolicitados, setDiasAumentoSolicitados] = useState<number | null>(null);
   const [paraCliente, setParaCliente] = useState(false);
   
+  // Estado para adjuntos
+  const [isAdjuntoModalOpen, setIsAdjuntoModalOpen] = useState(false);
+  const [rdiSeleccionada, setRdiSeleccionada] = useState<Rdi | null>(null);
+  const [archivoAdjunto, setArchivoAdjunto] = useState<File | null>(null);
+  const [isUploadingAdjunto, setIsUploadingAdjunto] = useState(false);
 
   useEffect(() => {
     if (!obraId || !companyId) return;
@@ -74,9 +79,13 @@ export default function RdiPage() {
     const fetchData = async () => {
       setLoading(true);
       try {
+        const obraDocRef = doc(firebaseDb, "obras", obraId);
+        const obraDataPromise = getDoc(obraDocRef);
+        const rdiListPromise = listRdiByObra(companyId, obraId);
+        
         const [obraData, rdiList] = await Promise.all([
-          getDoc(doc(firebaseDb, "obras", obraId)),
-          listRdiByObra(companyId, obraId),
+            obraDataPromise,
+            rdiListPromise,
         ]);
         
         if (obraData.exists()) {
@@ -131,7 +140,7 @@ export default function RdiPage() {
         userId: user.uid,
         nombre: user.displayName || user.email || 'Usuario desconocido',
         email: user.email || '',
-        cargo: '' // TODO: Obtener cargo del perfil de usuario si existe
+        cargo: ''
       };
 
       const destinatario = {
@@ -161,6 +170,57 @@ export default function RdiPage() {
       toast({ variant: "destructive", title: "Error", description: "No se pudo crear el RDI." });
     } finally {
       setIsSaving(false);
+    }
+  };
+
+  const handleOpenAdjuntoModal = (rdi: Rdi) => {
+    setRdiSeleccionada(rdi);
+    setArchivoAdjunto(null);
+    setIsAdjuntoModalOpen(true);
+  };
+
+  const handleUploadAdjunto = async (e: FormEvent) => {
+    e.preventDefault();
+    if (!user || !companyId || !obraId || !rdiSeleccionada || !archivoAdjunto) {
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "Faltan datos o no se ha seleccionado archivo.",
+      });
+      return;
+    }
+  
+    try {
+      setIsUploadingAdjunto(true);
+      const rdiActualizada = await uploadAndAddRdiAdjunto({
+        companyId,
+        obraId,
+        rdiId: rdiSeleccionada.id,
+        file: archivoAdjunto,
+        subidoPorUserId: user.uid,
+      });
+  
+      // Actualizar el listado en memoria
+      setRdis(prev =>
+        prev.map(r =>
+          r.id === rdiActualizada.id ? rdiActualizada : r
+        )
+      );
+  
+      toast({
+        title: "Adjunto agregado",
+        description: "El archivo se ha subido correctamente a la RDI.",
+      });
+      setIsAdjuntoModalOpen(false);
+    } catch (error) {
+      console.error("Error uploading adjunto:", error);
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "No se pudo subir el adjunto.",
+      });
+    } finally {
+      setIsUploadingAdjunto(false);
     }
   };
 
@@ -198,7 +258,6 @@ export default function RdiPage() {
                   </DialogDescription>
                 </DialogHeader>
                 <div className="grid gap-4 py-4 max-h-[70vh] overflow-y-auto pr-4">
-                  {/* ... Campos del formulario ... */}
                   <div className="space-y-2"><Label htmlFor="titulo">Título*</Label><Input id="titulo" value={titulo} onChange={e => setTitulo(e.target.value)} /></div>
                   <div className="space-y-2"><Label htmlFor="descripcion">Descripción*</Label><Textarea id="descripcion" value={descripcion} onChange={e => setDescripcion(e.target.value)} /></div>
                   
@@ -266,7 +325,18 @@ export default function RdiPage() {
                       <TableCell><Badge variant="outline" className={cn(estadoColors[rdi.estado])}>{rdi.estado}</Badge></TableCell>
                       <TableCell>{rdi.createdAt.toDate().toLocaleDateString()}</TableCell>
                       <TableCell className="text-right">
-                        <Button variant="outline" size="sm">Ver</Button>
+                        <div className="flex justify-end gap-2">
+                          <Button variant="outline" size="sm">
+                            Ver
+                          </Button>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => handleOpenAdjuntoModal(rdi)}
+                          >
+                            Adjuntar archivo
+                          </Button>
+                        </div>
                       </TableCell>
                     </TableRow>
                   ))
@@ -276,8 +346,50 @@ export default function RdiPage() {
           </div>
         </CardContent>
       </Card>
+      
+      <Dialog open={isAdjuntoModalOpen} onOpenChange={setIsAdjuntoModalOpen}>
+        <DialogContent className="sm:max-w-md">
+          <form onSubmit={handleUploadAdjunto}>
+            <DialogHeader>
+              <DialogTitle>Adjuntar archivo a RDI</DialogTitle>
+              <DialogDescription>
+                {rdiSeleccionada
+                  ? `RDI ${rdiSeleccionada.correlativo} - ${rdiSeleccionada.titulo}`
+                  : "Seleccione un archivo para adjuntar."}
+              </DialogDescription>
+            </DialogHeader>
+
+            <div className="space-y-4 py-2">
+              <Label htmlFor="archivo-rdi">Archivo (imagen o PDF)</Label>
+              <Input
+                id="archivo-rdi"
+                type="file"
+                accept="image/*,application/pdf"
+                onChange={(e) => {
+                  const file = e.target.files?.[0] ?? null;
+                  setArchivoAdjunto(file);
+                }}
+              />
+            </div>
+
+            <DialogFooter>
+              <Button
+                type="button"
+                variant="ghost"
+                onClick={() => setIsAdjuntoModalOpen(false)}
+              >
+                Cancelar
+              </Button>
+              <Button type="submit" disabled={isUploadingAdjunto || !archivoAdjunto}>
+                {isUploadingAdjunto && (
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                )}
+                Subir adjunto
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
-
-    
