@@ -19,7 +19,8 @@ import {
   LogOut,
   Users as UsersIcon,
   DollarSign,
-  BookCopy, // Añadido para el nuevo módulo
+  BookCopy,
+  MessageSquare, // Añadido para RDI
 } from 'lucide-react';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import {
@@ -45,6 +46,7 @@ const navItemsBase = [
   { href: '/prevencion', label: 'Prevención', icon: ShieldCheck, roles: ['superadmin', 'admin_empresa', 'jefe_obra', 'prevencionista'] },
   // Nueva ruta para el módulo de documentos
   { href: '/admin/documentos/proyecto', label: 'Documentos', icon: BookCopy, roles: ['superadmin', 'admin_empresa', 'prevencionista'] },
+  { href: '/obras', label: 'RDI', icon: MessageSquare, roles: ['superadmin', 'admin_empresa', 'jefe_obra', 'prevencionista'] },
 ];
 
 const adminNavItems = [
