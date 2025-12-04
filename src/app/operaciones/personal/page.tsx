@@ -9,7 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { Trash2, Edit, PlusCircle } from 'lucide-react';
+import { Trash2, Edit, PlusCircle, ArrowLeft } from 'lucide-react';
 import { firebaseDb } from '@/lib/firebaseClient';
 import {
   collection,
@@ -22,10 +22,14 @@ import {
   doc,
   serverTimestamp,
   Timestamp,
-  getDocs
+  getDocs,
+  where
 } from 'firebase/firestore';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Badge } from '@/components/ui/badge';
+import { useAuth } from '@/context/AuthContext';
+import { useRouter } from 'next/navigation';
+import Link from 'next/link';
 
 // --- Tipos ---
 type Obra = {
@@ -49,6 +53,9 @@ export interface PersonalObra {
 
 // --- Componente Principal ---
 export default function PersonalPage() {
+  const { user, companyId, role } = useAuth();
+  const router = useRouter();
+
   const [obras, setObras] = useState<Obra[]>([]);
   const [obraSeleccionadaId, setObraSeleccionadaId] = useState<string>("");
   const [personal, setPersonal] = useState<PersonalObra[]>([]);
@@ -62,11 +69,19 @@ export default function PersonalPage() {
 
   // Cargar Obras desde Firestore
   useEffect(() => {
+    if (!companyId && role !== 'superadmin') return;
+    
     async function cargarObras() {
       setLoadingObras(true);
       try {
         const colRef = collection(firebaseDb, "obras");
-        const q = query(colRef, orderBy("nombreFaena"));
+        let q;
+        if(role === 'superadmin') {
+            q = query(colRef, orderBy("nombreFaena"));
+        } else {
+            q = query(colRef, where("empresaId", "==", companyId), orderBy("nombreFaena"));
+        }
+        
         const snapshot = await getDocs(q);
         const data: Obra[] = snapshot.docs.map((doc) => ({
           id: doc.id,
@@ -84,7 +99,7 @@ export default function PersonalPage() {
       }
     }
     cargarObras();
-  }, []);
+  }, [companyId, role]);
 
   // Cargar personal en tiempo real
   useEffect(() => {
@@ -199,8 +214,11 @@ export default function PersonalPage() {
   
   return (
     <div className="space-y-8">
+      <Button asChild variant="outline" size="sm">
+        <Link href="/operaciones"><ArrowLeft className="mr-2 h-4 w-4" />Volver a Operaciones</Link>
+      </Button>
       <div>
-        <h1 className="text-4xl font-bold font-headline tracking-tight">Personal de Obra – PCG 2.0</h1>
+        <h1 className="text-4xl font-bold font-headline tracking-tight">Personal de Obra</h1>
         <p className="mt-2 text-lg text-muted-foreground">
           Gestione el plantel de trabajadores y su estado para cada obra. Los datos se guardan en tiempo real en Firestore.
         </p>
@@ -238,7 +256,7 @@ export default function PersonalPage() {
               {loadingPersonal ? "Cargando personal..." : `Mostrando ${personal.length} personas en la obra.`}
             </CardDescription>
           </div>
-          <Button onClick={() => handleOpenDialog()}>
+          <Button onClick={() => handleOpenDialog()} disabled={!obraSeleccionadaId}>
             <PlusCircle className="mr-2 h-4 w-4" />
             Agregar Personal
           </Button>
