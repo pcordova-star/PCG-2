@@ -74,14 +74,14 @@ export default function RdiPage() {
   const [isUploadingAdjunto, setIsUploadingAdjunto] = useState(false);
 
   useEffect(() => {
-    if (!obraId || !companyId) return;
+    if (!obraId) return;
 
     const fetchData = async () => {
       setLoading(true);
       try {
         const obraDocRef = doc(firebaseDb, "obras", obraId);
         const obraDataPromise = getDoc(obraDocRef);
-        const rdiListPromise = listRdiByObra(companyId, obraId);
+        const rdiListPromise = listRdiByObra(obraId);
         
         const [obraData, rdiList] = await Promise.all([
             obraDataPromise,
@@ -105,7 +105,7 @@ export default function RdiPage() {
     };
 
     fetchData();
-  }, [obraId, companyId, toast]);
+  }, [obraId, toast]);
 
   const resetForm = () => {
     setTitulo('');
@@ -181,7 +181,7 @@ export default function RdiPage() {
 
   const handleUploadAdjunto = async (e: FormEvent) => {
     e.preventDefault();
-    if (!user || !companyId || !obraId || !rdiSeleccionada || !archivoAdjunto) {
+    if (!user || !obraId || !rdiSeleccionada || !archivoAdjunto) {
       toast({
         variant: "destructive",
         title: "Error",
@@ -193,7 +193,6 @@ export default function RdiPage() {
     try {
       setIsUploadingAdjunto(true);
       const rdiActualizada = await uploadAndAddRdiAdjunto({
-        companyId,
         obraId,
         rdiId: rdiSeleccionada.id,
         file: archivoAdjunto,
@@ -326,7 +325,7 @@ export default function RdiPage() {
                       <TableCell>{rdi.createdAt.toDate().toLocaleDateString()}</TableCell>
                       <TableCell className="text-right">
                         <div className="flex justify-end gap-2">
-                          <Button variant="outline" size="sm">
+                          <Button variant="outline" size="sm" onClick={() => router.push(`/obras/${obraId}/rdi/${rdi.id}`)}>
                             Ver
                           </Button>
                           <Button

@@ -14,21 +14,38 @@ import {
   where,
   writeBatch,
   arrayUnion,
+  runTransaction,
 } from "firebase/firestore";
 import type { Rdi, RdiAdjunto, RdiPrioridad, RdiEstado, RdiAdjuntoTipo } from "@/types/pcg";
 import { getDownloadURL, ref, uploadBytes } from "firebase/storage";
 
 /**
  * Obtiene la referencia a la subcolección de RDI para una obra específica.
- * @param companyId - El ID de la empresa.
  * @param obraId - El ID de la obra.
  * @returns La referencia a la colección de Firestore.
  */
-function getRdiCollectionRef(companyId: string, obraId: string) {
-  // Nota: La ruta correcta según el modelo es directamente bajo /obras.
-  // Si la empresa es necesaria para la seguridad, se incluye en el documento.
+function getRdiCollectionRef(obraId: string) {
   return collection(firebaseDb, "obras", obraId, "rdi");
 }
+
+async function getNextRdiNumber(obraId: string): Promise<number> {
+    const counterRef = doc(firebaseDb, "obras", obraId, "counters", "rdi");
+  
+    const nextNumber = await runTransaction(firebaseDb, async (tx) => {
+      const snap = await tx.get(counterRef);
+      let current = 0;
+      if (snap.exists()) {
+        const data = snap.data() as { ultimoNumero?: number };
+        current = data.ultimoNumero ?? 0;
+      }
+      const nuevo = current + 1;
+      tx.set(counterRef, { ultimoNumero: nuevo }, { merge: true });
+      return nuevo;
+    });
+  
+    return nextNumber;
+}
+
 
 /**
  * Crea un nuevo Requerimiento de Información (RDI).
@@ -52,10 +69,9 @@ export async function createRdi(input: {
   plazoRespuestaDias?: number | null;
   paraCliente?: boolean;
 }): Promise<Rdi> {
-  const rdiCollection = getRdiCollectionRef(input.companyId, input.obraId);
-
-  // Generar un correlativo simple
-  const correlativo = `RDI-${Date.now().toString().slice(-6)}`;
+  const rdiCollection = getRdiCollectionRef(input.obraId);
+  const numero = await getNextRdiNumber(input.obraId);
+  const correlativo = `RDI-${String(numero).padStart(3, "0")}`;
 
   const newRdiData = {
     companyId: input.companyId,
@@ -99,12 +115,11 @@ export async function createRdi(input: {
 
 /**
  * Lista todos los RDI de una obra, ordenados por fecha de creación descendente.
- * @param companyId - El ID de la empresa.
  * @param obraId - El ID de la obra.
  * @returns Un array de documentos Rdi.
  */
-export async function listRdiByObra(companyId: string, obraId: string): Promise<Rdi[]> {
-  const rdiCollection = getRdiCollectionRef(companyId, obraId);
+export async function listRdiByObra(obraId: string): Promise<Rdi[]> {
+  const rdiCollection = getRdiCollectionRef(obraId);
   const q = query(rdiCollection, orderBy("createdAt", "desc"));
   const snapshot = await getDocs(q);
   
@@ -115,13 +130,12 @@ export async function listRdiByObra(companyId: string, obraId: string): Promise<
 
 /**
  * Obtiene un RDI específico por su ID.
- * @param companyId - El ID de la empresa.
  * @param obraId - El ID de la obra.
  * @param rdiId - El ID del RDI a obtener.
  * @returns El documento RDI o null si no existe.
  */
-export async function getRdiById(companyId: string, obraId: string, rdiId: string): Promise<Rdi | null> {
-  const rdiDocRef = doc(getRdiCollectionRef(companyId, obraId), rdiId);
+export async function getRdiById(obraId: string, rdiId: string): Promise<Rdi | null> {
+  const rdiDocRef = doc(getRdiCollectionRef(obraId), rdiId);
   const docSnap = await getDoc(rdiDocRef);
 
   if (!docSnap.exists()) return null;
@@ -131,13 +145,12 @@ export async function getRdiById(companyId: string, obraId: string, rdiId: strin
 
 /**
  * Actualiza un RDI existente con datos parciales.
- * @param companyId - El ID de la empresa.
  * @param obraId - El ID de la obra.
  * @param rdiId - El ID del RDI a actualizar.
  * @param data - Los campos a actualizar.
  */
-export async function updateRdi(companyId: string, obraId: string, rdiId: string, data: Partial<Omit<Rdi, 'id'>>): Promise<void> {
-  const rdiDocRef = doc(getRdiCollectionRef(companyId, obraId), rdiId);
+export async function updateRdi(obraId: string, rdiId: string, data: Partial<Omit<Rdi, 'id'>>): Promise<void> {
+  const rdiDocRef = doc(getRdiCollectionRef(obraId), rdiId);
   await updateDoc(rdiDocRef, {
     ...data,
     updatedAt: serverTimestamp(),
@@ -147,16 +160,15 @@ export async function updateRdi(companyId: string, obraId: string, rdiId: string
 /**
  * Sube un archivo a Firebase Storage y luego agrega su metadata como un adjunto al RDI en Firestore.
  * @param input - Datos necesarios para la subida y actualización.
- * @returns La metadata del adjunto que fue creado y guardado.
+ * @returns El RDI actualizado
  */
 export async function uploadAndAddRdiAdjunto(input: {
-    companyId: string;
     obraId: string;
     rdiId: string;
     file: File;
     subidoPorUserId: string;
-}): Promise<RdiAdjunto> {
-    const { companyId, obraId, rdiId, file, subidoPorUserId } = input;
+}): Promise<Rdi> {
+    const { obraId, rdiId, file, subidoPorUserId } = input;
 
     // 1. Crear una ruta única para el archivo en Storage
     const storagePath = `rdis/${obraId}/${rdiId}/${Date.now()}-${file.name}`;
@@ -187,25 +199,26 @@ export async function uploadAndAddRdiAdjunto(input: {
     };
 
     // 6. Actualizar el documento RDI en Firestore
-    const rdiDocRef = doc(getRdiCollectionRef(companyId, obraId), rdiId);
+    const rdiDocRef = doc(getRdiCollectionRef(obraId), rdiId);
     await updateDoc(rdiDocRef, {
         adjuntos: arrayUnion(nuevoAdjunto),
         tieneAdjuntos: true,
         updatedAt: serverTimestamp(),
     });
-
-    return nuevoAdjunto;
+    
+    // 7. Devolver el documento actualizado
+    const updatedDoc = await getDoc(rdiDocRef);
+    return { id: updatedDoc.id, ...updatedDoc.data() } as Rdi;
 }
 
 /**
  * Registra la respuesta a un RDI.
- * @param companyId - El ID de la empresa.
  * @param obraId - El ID de la obra.
  * @param rdiId - El ID del RDI.
  * @param respuestaTexto - El texto de la respuesta.
  */
-export async function responderRdi(companyId: string, obraId: string, rdiId: string, respuestaTexto: string): Promise<void> {
-  const rdiDocRef = doc(getRdiCollectionRef(companyId, obraId), rdiId);
+export async function responderRdi(obraId: string, rdiId: string, respuestaTexto: string): Promise<void> {
+  const rdiDocRef = doc(getRdiCollectionRef(obraId), rdiId);
   await updateDoc(rdiDocRef, {
     respuestaTexto,
     clienteRespondio: true,
