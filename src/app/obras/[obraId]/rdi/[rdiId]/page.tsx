@@ -15,7 +15,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
-import { ArrowLeft, Loader2, Save, Trash2 } from "lucide-react";
+import { ArrowLeft, Loader2, Save, Trash2, FileText } from "lucide-react";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { cn } from "@/lib/utils";
 
@@ -38,7 +38,7 @@ const estadoColors: Record<RdiEstado, string> = {
 export default function RdiDetailPage() {
   const params = useParams();
   const router = useRouter();
-  const { user, companyId } = useAuth();
+  const { user } = useAuth();
   const { toast } = useToast();
 
   const obraId = params.obraId as string;
@@ -132,6 +132,14 @@ export default function RdiDetailPage() {
             </div>
         </div>
         <div className="flex gap-2">
+             <Button
+                variant="outline"
+                size="sm"
+                onClick={() => router.push(`/obras/${obraId}/rdi/${rdi.id}/imprimir`)}
+                >
+                <FileText className="mr-2 h-4 w-4" />
+                Imprimir PDF
+            </Button>
              <AlertDialog>
                 <AlertDialogTrigger asChild>
                     <Button variant="destructive" size="sm">Anular RDI</Button>
