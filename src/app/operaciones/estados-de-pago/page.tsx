@@ -4,7 +4,7 @@
 import React, { useEffect, useState, useMemo, Suspense } from "react";
 import { useAuth } from "@/context/AuthContext";
 import { useRouter, useSearchParams } from 'next/navigation';
-import { collection, getDocs, query, orderBy, addDoc, doc, deleteDoc, serverTimestamp, getDoc, onSnapshot } from "firebase/firestore";
+import { collection, getDocs, query, orderBy, addDoc, doc, deleteDoc, serverTimestamp, getDoc, onSnapshot, where } from "firebase/firestore";
 import { firebaseDb } from "@/lib/firebaseClient";
 import { useActividadAvance } from "@/app/operaciones/programacion/hooks/useActividadAvance";
 import { ActividadProgramada } from "@/app/operaciones/programacion/page";
@@ -56,7 +56,7 @@ function formatCurrency(value: number) {
 }
 
 function EstadosDePagoPageInner() {
-  const { user, companyId, loading: loadingAuth } = useAuth();
+  const { user, companyId, role, loading: loadingAuth } = useAuth();
   const router = useRouter();
   const searchParams = useSearchParams();
   const { toast } = useToast();
@@ -84,12 +84,20 @@ function EstadosDePagoPageInner() {
   }, [loadingAuth, user, router]);
 
   useEffect(() => {
-    if (!user) return;
+    if (!user || (!companyId && role !== 'superadmin')) return;
+    
     async function cargarObras() {
       try {
         setError(null);
-        const colRef = collection(firebaseDb, "obras");
-        const snapshot = await getDocs(colRef);
+        const obrasRef = collection(firebaseDb, "obras");
+        let q;
+        if (role === 'superadmin') {
+            q = query(obrasRef, orderBy("nombreFaena"));
+        } else {
+            q = query(obrasRef, where("empresaId", "==", companyId), orderBy("nombreFaena"));
+        }
+
+        const snapshot = await getDocs(q);
         const data: Obra[] = snapshot.docs.map((doc) => ({
           id: doc.id,
           ...doc.data(),
@@ -122,7 +130,7 @@ function EstadosDePagoPageInner() {
 
     cargarObras();
     cargarEmpresa();
-  }, [user, searchParams, companyId]);
+  }, [user, searchParams, companyId, role]);
 
   useEffect(() => {
     if (!obraSeleccionadaId || !user) {
