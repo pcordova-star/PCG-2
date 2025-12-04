@@ -20,11 +20,11 @@ export default function OperacionesPage() {
       linkText: "Ir a Estados de Pago"
     },
     {
-      title: "Presupuestos",
-      description: "Administra tu catálogo de ítems y crea presupuestos por obra.",
+      title: "Itemizados",
+      description: "Administra tu catálogo de ítems y crea itemizados por obra.",
       href: "/operaciones/presupuestos",
       icon: BookCopy,
-      linkText: "Ir a Presupuestos"
+      linkText: "Ir a Itemizados"
     },
     {
       title: "Personal de Obra",
