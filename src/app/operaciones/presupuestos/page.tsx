@@ -17,6 +17,7 @@ import { collection, addDoc, getDocs, doc, updateDoc, deleteDoc, query, orderBy,
 import { firebaseDb } from '@/lib/firebaseClient';
 import { useToast } from "@/hooks/use-toast";
 import Link from 'next/link';
+import { useAuth } from '@/context/AuthContext';
 
 // --- Tipos de Datos ---
 type Obra = { id: string; nombreFaena: string; };
@@ -210,18 +211,28 @@ function CatalogoTab() {
     );
 }
 
-// --- Componente de Presupuestos ---
+// --- Componente de Itemizados por Obra ---
 function PresupuestosTab() {
     const router = useRouter();
     const { toast } = useToast();
+    const { companyId, role } = useAuth();
     const [obras, setObras] = useState<Obra[]>([]);
     const [obraSeleccionadaId, setObraSeleccionadaId] = useState<string>('');
     const [presupuestos, setPresupuestos] = useState<Presupuesto[]>([]);
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
+        if (!companyId && role !== 'superadmin') return;
+
         const fetchObras = async () => {
-            const q = query(collection(firebaseDb, "obras"), orderBy("nombreFaena"));
+            const obrasRef = collection(firebaseDb, "obras");
+            let q;
+            if (role === 'superadmin') {
+                q = query(obrasRef, orderBy("nombreFaena"));
+            } else {
+                q = query(obrasRef, where("empresaId", "==", companyId), orderBy("nombreFaena"));
+            }
+            
             const snapshot = await getDocs(q);
             const obrasData = snapshot.docs.map(doc => ({ id: doc.id, nombreFaena: doc.data().nombreFaena } as Obra));
             setObras(obrasData);
@@ -230,7 +241,7 @@ function PresupuestosTab() {
             }
         };
         fetchObras();
-    }, []);
+    }, [companyId, role]);
 
     useEffect(() => {
         if (!obraSeleccionadaId) {
