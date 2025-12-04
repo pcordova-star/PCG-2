@@ -122,6 +122,7 @@ function LayoutLogic({ children }: { children: React.ReactNode }) {
     const isActive = (href: string) => {
         if (href === '/dashboard' || href === '/admin/dashboard') return pathname === href;
         if (href === '/operaciones') return pathname === '/operaciones' && !pathname.startsWith('/operaciones/estados-de-pago');
+        if (href === '/obras' && pathname.includes('/rdi')) return true;
         return pathname.startsWith(href);
     };
     

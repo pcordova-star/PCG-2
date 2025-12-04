@@ -22,6 +22,7 @@ import {
   Camera,
   Newspaper,
   Siren,
+  MessageSquare,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useEffect, useState } from 'react';
@@ -91,6 +92,16 @@ const allMainModules = [
     icon: BookCopy,
     linkText: 'Ir a Documentos',
     roles: ['superadmin', 'admin_empresa', 'prevencionista']
+  },
+  {
+    id: 'rdi',
+    title: 'Requerimientos (RDI)',
+    description: 'Gestiona consultas, solicitudes de información y respuestas con mandantes y subcontratos.',
+    href: '/obras',
+    icon: MessageSquare,
+    linkText: 'Ir a RDI',
+    tooltip: 'Necesitas una obra para gestionar sus RDI.',
+    roles: ['superadmin', 'admin_empresa', 'jefe_obra', 'prevencionista']
   }
 ];
 
@@ -110,6 +121,14 @@ const quickAccessModules = [
         href: '/operaciones/avance-en-terreno',
         icon: ClipboardPlus,
         color: 'green' as const,
+    },
+     {
+        id: 'rdi',
+        title: 'Requerimientos (RDI)',
+        description: 'Crea y gestiona consultas de información (RDI) con mandantes, proyectistas o subcontratos.',
+        href: '/obras',
+        icon: MessageSquare,
+        color: 'orange' as const,
     },
 ];
 
@@ -272,7 +291,9 @@ export default function DashboardPage() {
   
   const handleQuickAccessClick = (target: string) => {
     if (obras.length === 1) {
-        router.push(`${target}?obraId=${obras[0].id}`);
+        const obraId = obras[0].id;
+        const finalTarget = target === '/obras' ? `/obras/${obraId}/rdi` : `${target}?obraId=${obraId}`;
+        router.push(finalTarget);
     } else {
         setQuickAccessTarget(target);
         setIsObraModalOpen(true);
@@ -281,7 +302,8 @@ export default function DashboardPage() {
 
   const handleObraSelected = (obraId: string) => {
       if (obraId && quickAccessTarget) {
-          router.push(`${quickAccessTarget}?obraId=${obraId}`);
+          const finalTarget = quickAccessTarget === '/obras' ? `/obras/${obraId}/rdi` : `${quickAccessTarget}?obraId=${obraId}`;
+          router.push(finalTarget);
       }
       setIsObraModalOpen(false);
   }
@@ -400,14 +422,14 @@ export default function DashboardPage() {
                   onClick={() => handleQuickAccessClick('/prevencion/hallazgos/crear')}
               />
          ) : (
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 md:gap-6">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6">
                 {quickAccessModules.map((mod) => (
                     <QuickAccessCard
                         key={mod.id}
                         title={mod.title}
                         description={mod.description}
                         icon={mod.icon}
-                        color={mod.color}
+                        color={mod.color as any}
                         onClick={() => handleQuickAccessClick(mod.href)}
                     />
                 ))}
