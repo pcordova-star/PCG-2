@@ -1,5 +1,5 @@
 // src/lib/rdi/rdiService.ts
-import { firebaseDb } from "@/lib/firebaseClient";
+import { firebaseDb, firebaseStorage } from "@/lib/firebaseClient";
 import {
   collection,
   doc,
@@ -15,7 +15,8 @@ import {
   writeBatch,
   arrayUnion,
 } from "firebase/firestore";
-import type { Rdi, RdiAdjunto, RdiPrioridad, RdiEstado } from "@/types/pcg";
+import type { Rdi, RdiAdjunto, RdiPrioridad, RdiEstado, RdiAdjuntoTipo } from "@/types/pcg";
+import { getDownloadURL, ref, uploadBytes } from "firebase/storage";
 
 /**
  * Obtiene la referencia a la subcolección de RDI para una obra específica.
@@ -144,26 +145,56 @@ export async function updateRdi(companyId: string, obraId: string, rdiId: string
 }
 
 /**
- * Agrega un nuevo adjunto a un RDI existente.
- * @param companyId - El ID de la empresa.
- * @param obraId - El ID de la obra.
- * @param rdiId - El ID del RDI.
- * @param adjuntoData - Los datos del adjunto a agregar.
+ * Sube un archivo a Firebase Storage y luego agrega su metadata como un adjunto al RDI en Firestore.
+ * @param input - Datos necesarios para la subida y actualización.
+ * @returns La metadata del adjunto que fue creado y guardado.
  */
-export async function addRdiAdjunto(companyId: string, obraId: string, rdiId: string, adjuntoData: Omit<RdiAdjunto, 'id' | 'fechaSubida'>): Promise<void> {
-  const rdiDocRef = doc(getRdiCollectionRef(companyId, obraId), rdiId);
+export async function uploadAndAddRdiAdjunto(input: {
+    companyId: string;
+    obraId: string;
+    rdiId: string;
+    file: File;
+    subidoPorUserId: string;
+}): Promise<RdiAdjunto> {
+    const { companyId, obraId, rdiId, file, subidoPorUserId } = input;
 
-  const nuevoAdjunto: RdiAdjunto = {
-    ...adjuntoData,
-    id: crypto.randomUUID(),
-    fechaSubida: Timestamp.now(),
-  };
+    // 1. Crear una ruta única para el archivo en Storage
+    const storagePath = `rdis/${obraId}/${rdiId}/${Date.now()}-${file.name}`;
+    const storageRef = ref(firebaseStorage, storagePath);
 
-  await updateDoc(rdiDocRef, {
-    adjuntos: arrayUnion(nuevoAdjunto),
-    tieneAdjuntos: true,
-    updatedAt: serverTimestamp(),
-  });
+    // 2. Subir el archivo
+    await uploadBytes(storageRef, file);
+
+    // 3. Obtener la URL de descarga
+    const downloadUrl = await getDownloadURL(storageRef);
+
+    // 4. Determinar el tipo de adjunto
+    const getFileType = (file: File): RdiAdjuntoTipo => {
+        if (file.type.startsWith("image/")) return "imagen";
+        if (file.type === "application/pdf") return "pdf";
+        return "otro";
+    };
+
+    // 5. Crear el objeto de metadata del adjunto
+    const nuevoAdjunto: RdiAdjunto = {
+        id: crypto.randomUUID(),
+        nombreArchivo: file.name,
+        tipo: getFileType(file),
+        storagePath: storagePath,
+        downloadUrl: downloadUrl,
+        subidoPorUserId: subidoPorUserId,
+        fechaSubida: Timestamp.now(),
+    };
+
+    // 6. Actualizar el documento RDI en Firestore
+    const rdiDocRef = doc(getRdiCollectionRef(companyId, obraId), rdiId);
+    await updateDoc(rdiDocRef, {
+        adjuntos: arrayUnion(nuevoAdjunto),
+        tieneAdjuntos: true,
+        updatedAt: serverTimestamp(),
+    });
+
+    return nuevoAdjunto;
 }
 
 /**
