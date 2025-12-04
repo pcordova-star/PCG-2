@@ -374,3 +374,84 @@ export interface DocumentDistribution {
     method: "email";
     sentAt: Timestamp;
 }
+
+// --- MÓDULO DE RDI ---
+
+export type RdiPrioridad = 'baja' | 'media' | 'alta' | 'critica';
+
+export type RdiEstado = 'borrador' | 'enviada' | 'respondida' | 'cerrada' | 'anulada';
+
+export type RdiAdjuntoTipo = 'imagen' | 'pdf' | 'otro';
+
+export interface RdiAdjunto {
+  id: string;
+  nombreArchivo: string;
+  tipo: RdiAdjuntoTipo;
+  storagePath: string;
+  downloadUrl: string;
+  subidoPorUserId: string;
+  fechaSubida: Timestamp;
+}
+
+export interface Rdi {
+  id: string; // id del documento en Firestore
+  companyId: string;
+  obraId: string;
+  correlativo: string; // ej: "RDI-001"
+  titulo: string;
+  descripcion: string;
+  tipo: 'a_mandante' | 'a_contratista' | 'interna';
+
+  // Especialidad
+  especialidad: 'arquitectura' | 'estructuras' | 'electrica' | 'sanitaria' | 'climatizacion' | 'otra';
+
+  prioridad: RdiPrioridad;
+  estado: RdiEstado;
+
+  // Referencias a personas
+  solicitante: {
+    userId: string;
+    nombre: string;
+    email: string;
+    cargo: string;
+  };
+  destinatario: {
+    nombre: string;
+    email: string;
+    empresa: string;
+    cargo: string;
+  };
+
+  // Relación con plano / documento técnico
+  planoId: string | null; // id del plano o documento técnico relacionado
+
+  // Fechas y plazos
+  fechaEmision: Timestamp;
+  fechaLimiteRespuesta: Timestamp | null;
+  plazoRespuestaDias: number | null;
+
+  // Impacto en el programa (plazo de la obra)
+  afectaPlazo: boolean;
+  diasAumentoSolicitados: number | null;
+  diasAumentoAprobados: number | null;
+
+  // Respuesta del cliente
+  respuestaTexto: string | null;
+  clienteRespondio: boolean;
+  fechaRespuestaCliente: Timestamp | null;
+
+  // Adjuntos
+  adjuntos: RdiAdjunto[];
+  tieneAdjuntos: boolean;
+
+  // Notificación al cliente
+  paraCliente: boolean; // si debe aparecer en dashboard del cliente
+  emailClienteNotificado: boolean;
+  fechaNotificacionEmail: Timestamp | null;
+
+  // Metadatos
+  createdAt: Timestamp;
+  updatedAt: Timestamp;
+  closedAt: Timestamp | null;
+  deleted: boolean;
+}
