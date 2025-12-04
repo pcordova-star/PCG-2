@@ -490,4 +490,10 @@ export interface Rdi {
   updatedAt: Timestamp;
   closedAt: Timestamp | null;
   deleted: boolean;
+  
+  // --- Adicional / Itemizado asociado ---
+  tieneAdicional?: boolean;             // true si esta RDI ya generó un adicional
+  adicionalId?: string | null;         // id del itemizado/adicional en su colección
+  adicionalEstado?: 'borrador' | 'enviado' | 'aprobado' | 'rechazado' | null;
+  adicionalMontoTotal?: number | null; // monto total del adicional asociado, si aplica
 }

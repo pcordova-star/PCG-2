@@ -15,7 +15,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
-import { ArrowLeft, Loader2, Save, Trash2, FileText } from "lucide-react";
+import { ArrowLeft, Loader2, Save, Trash2, FileText, DollarSign } from "lucide-react";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { cn } from "@/lib/utils";
 
@@ -106,6 +106,18 @@ export default function RdiDetailPage() {
     setRdi(prev => prev ? { ...prev, destinatario: { ...prev.destinatario, [field]: value } } : null);
   };
 
+  const handleAdicionalAction = () => {
+    if (!obraId || !rdi) return;
+
+    if (rdi.tieneAdicional && rdi.adicionalId) {
+        // Si ya existe, redirige a la página de edición del itemizado
+        router.push(`/operaciones/presupuestos/${rdi.adicionalId}`);
+    } else {
+        // Si no existe, redirige a la página de creación de un nuevo itemizado, pasando el rdiId
+        router.push(`/operaciones/presupuestos/nuevo?obraId=${obraId}&rdiId=${rdi.id}`);
+    }
+  };
+
   if (loading) {
     return <div className="p-8 text-center"><Loader2 className="animate-spin" /> Cargando RDI...</div>;
   }
@@ -132,6 +144,14 @@ export default function RdiDetailPage() {
             </div>
         </div>
         <div className="flex gap-2">
+            <Button
+                variant="outline"
+                size="sm"
+                onClick={handleAdicionalAction}
+            >
+                <DollarSign className="mr-2 h-4 w-4" />
+                {rdi.tieneAdicional ? "Ver Adicional Asociado" : "Crear Adicional desde RDI"}
+            </Button>
              <Button
                 variant="outline"
                 size="sm"

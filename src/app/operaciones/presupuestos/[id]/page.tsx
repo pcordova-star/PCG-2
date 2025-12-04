@@ -10,7 +10,7 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { ArrowLeft, Trash2, Loader2, Save, PlusCircle, FolderPlus, FilePlus, Type } from 'lucide-react';
-import { collection, doc, getDoc, setDoc, addDoc, serverTimestamp, query, orderBy, getDocs, Timestamp, where, writeBatch } from 'firebase/firestore';
+import { collection, doc, getDoc, setDoc, addDoc, serverTimestamp, query, orderBy, getDocs, Timestamp, where, writeBatch, updateDoc } from 'firebase/firestore';
 import { firebaseDb } from '@/lib/firebaseClient';
 import { useToast } from "@/hooks/use-toast";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
@@ -18,7 +18,7 @@ import { cn } from '@/lib/utils';
 import Link from 'next/link';
 import { generarPresupuestoPdf, HierarchicalItem as PdfHierarchicalItem, DatosEmpresa, DatosObra, DatosPresupuesto } from '@/lib/pdf/generarPresupuestoPdf';
 import { useAuth } from '@/context/AuthContext';
-import { Company } from '@/types/pcg';
+import { Company, Rdi } from '@/types/pcg';
 
 // --- Tipos ---
 type Obra = { id: string; nombreFaena: string; direccion?: string; };
@@ -52,6 +52,7 @@ type Presupuesto = {
     observaciones: string;
     gastosGeneralesPorcentaje?: number;
     items: Omit<PresupuestoItem, 'id'>[];
+    rdiId?: string | null; // Campo para vincular a una RDI
 };
 
 function formatoMoneda(value: number) {
@@ -76,6 +77,7 @@ export default function PresupuestoEditPage() {
     const { id: presupuestoId } = useParams<{ id: string }>();
     const searchParams = useSearchParams();
     const obraIdFromQuery = searchParams.get('obraId');
+    const rdiIdFromQuery = searchParams.get('rdiId'); // Nuevo
     const router = useRouter();
     const { toast } = useToast();
 
@@ -87,8 +89,10 @@ export default function PresupuestoEditPage() {
         moneda: 'CLP',
         observaciones: '',
         gastosGeneralesPorcentaje: 25,
+        rdiId: rdiIdFromQuery || null,
     });
     const [items, setItems] = useState<PresupuestoItem[]>([]);
+    const [rdiDeOrigen, setRdiDeOrigen] = useState<Rdi | null>(null); // Nuevo
     
     const [dialogOpen, setDialogOpen] = useState(false);
     const [currentItem, setCurrentItem] = useState<PresupuestoItem | null>(null);
@@ -121,6 +125,22 @@ export default function PresupuestoEditPage() {
                     setCompany(companySnap.data() as Company);
                 }
             }
+
+            if (rdiIdFromQuery && obraIdFromQuery) {
+                const rdiRef = doc(firebaseDb, "obras", obraIdFromQuery, "rdi", rdiIdFromQuery);
+                const rdiSnap = await getDoc(rdiRef);
+                if (rdiSnap.exists()) {
+                    const rdiData = rdiSnap.data() as Rdi;
+                    setRdiDeOrigen(rdiData);
+                    setPresupuesto(prev => ({
+                        ...prev,
+                        obraId: obraIdFromQuery,
+                        nombre: `Adicional RDI ${rdiData.correlativo}: ${rdiData.titulo}`,
+                        observaciones: rdiData.descripcion,
+                        rdiId: rdiIdFromQuery,
+                    }));
+                }
+            }
             
             if (presupuestoId !== 'nuevo') {
                 const docRef = doc(firebaseDb, "presupuestos", presupuestoId);
@@ -133,14 +153,14 @@ export default function PresupuestoEditPage() {
                     toast({ variant: "destructive", title: "Error", description: "Itemizado no encontrado." });
                     router.push('/operaciones/presupuestos');
                 }
-            } else {
+            } else if (!rdiIdFromQuery) { // Solo si no es un adicional de RDI
                 const initialObraId = obraIdFromQuery || obrasData[0]?.id || '';
                 setPresupuesto(prev => ({ ...prev, obraId: initialObraId, nombre: 'Nuevo Itemizado Sin Título', gastosGeneralesPorcentaje: 25 }));
             }
             setLoading(false);
         };
         fetchInitialData();
-    }, [presupuestoId, router, toast, obraIdFromQuery, companyId, role]);
+    }, [presupuestoId, router, toast, obraIdFromQuery, companyId, role, rdiIdFromQuery]);
     
     const { hierarchicalItems, totalPresupuesto } = useMemo(() => {
     if (!items) return { hierarchicalItems: [], totalPresupuesto: 0 };
@@ -278,13 +298,27 @@ export default function PresupuestoEditPage() {
         };
 
         try {
+            let itemizadoId: string;
             if (presupuesto.id) {
-                await setDoc(doc(firebaseDb, "presupuestos", presupuesto.id), dataToSave, { merge: true });
+                itemizadoId = presupuesto.id;
+                await setDoc(doc(firebaseDb, "presupuestos", itemizadoId), dataToSave, { merge: true });
             } else {
                 dataToSave.fechaCreacion = serverTimestamp();
-                await addDoc(collection(firebaseDb, "presupuestos"), dataToSave);
+                const docRef = await addDoc(collection(firebaseDb, "presupuestos"), dataToSave);
+                itemizadoId = docRef.id;
             }
             
+            // Si el itemizado viene de una RDI, actualizar la RDI
+            if (rdiIdFromQuery && presupuesto.obraId) {
+                const rdiRef = doc(firebaseDb, "obras", presupuesto.obraId, "rdi", rdiIdFromQuery);
+                await updateDoc(rdiRef, {
+                    tieneAdicional: true,
+                    adicionalId: itemizadoId,
+                    adicionalEstado: 'borrador', // O el estado inicial que corresponda
+                    adicionalMontoTotal: totalPresupuesto,
+                });
+            }
+
             // Lógica para actualizar el catálogo después de guardar
             await actualizarCatalogoDesdePresupuesto(items);
 
@@ -409,6 +443,9 @@ export default function PresupuestoEditPage() {
                 <Button variant="outline" size="icon" onClick={() => router.push('/operaciones/presupuestos')}><ArrowLeft /></Button>
                 <div>
                     <h1 className="text-2xl font-bold">{presupuestoId === 'nuevo' ? "Nuevo Itemizado" : "Editar Itemizado"}</h1>
+                    {rdiDeOrigen && (
+                        <p className="text-sm text-muted-foreground">Originado desde <Link href={`/rdi/${rdiDeOrigen.obraId}/${rdiDeOrigen.id}`} className="font-semibold text-primary hover:underline">RDI {rdiDeOrigen.correlativo}</Link></p>
+                    )}
                 </div>
             </header>
 
@@ -417,7 +454,7 @@ export default function PresupuestoEditPage() {
                 <CardContent className="grid grid-cols-1 md:grid-cols-3 gap-4">
                     <div className="space-y-2">
                         <Label>Obra*</Label>
-                        <Select value={presupuesto.obraId} onValueChange={(val) => setPresupuesto(p => ({...p, obraId: val}))} disabled={!!presupuesto.id}>
+                        <Select value={presupuesto.obraId} onValueChange={(val) => setPresupuesto(p => ({...p, obraId: val}))} disabled={!!presupuesto.id || !!rdiIdFromQuery}>
                             <SelectTrigger><SelectValue placeholder="Seleccionar obra..." /></SelectTrigger>
                             <SelectContent>{obras.map(o => <SelectItem key={o.id} value={o.id}>{o.nombreFaena}</SelectItem>)}</SelectContent>
                         </Select>
