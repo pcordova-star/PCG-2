@@ -1,4 +1,4 @@
-// src/app/obras/[obraId]/rdi/[rdiId]/imprimir/page.tsx
+// src/app/rdi/[obraId]/[rdiId]/imprimir/page.tsx
 "use client";
 
 import { useEffect, useState } from "react";
@@ -81,6 +81,7 @@ function RdiPrintPage() {
         <style jsx global>{`
             @media print {
                 body { background-color: #fff; color: #000; }
+                .print\\:hidden { display: none !important; }
             }
         `}</style>
       

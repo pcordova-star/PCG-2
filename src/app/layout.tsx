@@ -45,7 +45,7 @@ const navItemsBase = [
   { href: '/operaciones/estados-de-pago', label: 'Estados de Pago', icon: FileText, roles: ['superadmin', 'admin_empresa', 'jefe_obra'] },
   { href: '/prevencion', label: 'Prevención', icon: ShieldCheck, roles: ['superadmin', 'admin_empresa', 'jefe_obra', 'prevencionista'] },
   { href: '/admin/documentos/proyecto', label: 'Documentos', icon: BookCopy, roles: ['superadmin', 'admin_empresa', 'prevencionista'] },
-  { href: '/obras/rdi', label: 'RDI', icon: MessageSquare, roles: ['superadmin', 'admin_empresa', 'jefe_obra', 'prevencionista'] },
+  { href: '/rdi', label: 'RDI', icon: MessageSquare, roles: ['superadmin', 'admin_empresa', 'jefe_obra', 'prevencionista'] },
 ];
 
 const adminNavItems = [
@@ -121,8 +121,8 @@ function LayoutLogic({ children }: { children: React.ReactNode }) {
     const isActive = (href: string) => {
         if (href === '/dashboard' || href === '/admin/dashboard') return pathname === href;
         if (href === '/operaciones') return pathname === '/operaciones' && !pathname.startsWith('/operaciones/estados-de-pago');
-        if (href === '/obras/rdi' && pathname.includes('/rdi')) return true;
-        if (href === '/obras' && !pathname.includes('/rdi')) return pathname.startsWith('/obras');
+        if (href === '/rdi' && pathname.startsWith('/rdi')) return true;
+        if (href === '/obras') return pathname.startsWith('/obras');
         return pathname.startsWith(href);
     };
     
