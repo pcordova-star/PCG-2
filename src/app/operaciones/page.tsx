@@ -1,7 +1,7 @@
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
-import { Users, GanttChartSquare, DollarSign, BookCopy } from 'lucide-react';
+import { Users, GanttChartSquare, DollarSign, BookCopy, ArrowLeft } from 'lucide-react';
 
 export default function OperacionesPage() {
   const modules = [
@@ -37,6 +37,9 @@ export default function OperacionesPage() {
 
   return (
     <div className="space-y-8">
+       <Button asChild variant="outline" size="sm">
+          <Link href="/dashboard"><ArrowLeft className="mr-2 h-4 w-4" />Volver al Dashboard</Link>
+      </Button>
       <div className="space-y-4 max-w-3xl">
         <h1 className="text-4xl font-bold font-headline tracking-tight">Módulo de Operaciones</h1>
         <p className="text-lg text-muted-foreground">
