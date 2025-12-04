@@ -158,7 +158,7 @@ const allMainModules = [
     id: 'rdi',
     title: 'Requerimientos (RDI)',
     description: 'Gestiona consultas, solicitudes de información y respuestas con mandantes y subcontratos.',
-    href: '/obras/rdi',
+    href: '/obras',
     icon: MessageSquare,
     linkText: 'Ir a RDI',
     tooltip: 'Necesitas una obra para gestionar sus RDI.',
