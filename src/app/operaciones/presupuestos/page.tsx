@@ -130,7 +130,7 @@ function CatalogoTab() {
             <CardHeader className="flex-row justify-between items-center">
                 <div>
                     <CardTitle>Catálogo de Ítems</CardTitle>
-                    <CardDescription>Administra las partidas y precios base para tus presupuestos.</CardDescription>
+                    <CardDescription>Administra las partidas y precios base para tus itemizados.</CardDescription>
                 </div>
                 <Button onClick={() => handleOpenDialog()}><PlusCircle className="mr-2" /> Nuevo Ítem</Button>
             </CardHeader>
@@ -246,7 +246,7 @@ function PresupuestosTab() {
             setLoading(false);
         }, (error) => {
             console.error("Error fetching presupuestos:", error);
-            toast({ variant: "destructive", title: "Error", description: "No se pudieron cargar los presupuestos." });
+            toast({ variant: "destructive", title: "Error", description: "No se pudieron cargar los itemizados." });
             setLoading(false);
         });
         return () => unsubscribe();
@@ -255,7 +255,7 @@ function PresupuestosTab() {
     const handleDuplicar = async (presupuestoId: string) => {
         const presupuestoOriginal = await getDoc(doc(firebaseDb, "presupuestos", presupuestoId));
         if (!presupuestoOriginal.exists()) {
-            toast({ variant: "destructive", title: "Error", description: "No se encontró el presupuesto a duplicar." });
+            toast({ variant: "destructive", title: "Error", description: "No se encontró el itemizado a duplicar." });
             return;
         }
         const data = presupuestoOriginal.data();
@@ -267,21 +267,21 @@ function PresupuestosTab() {
                 nombre: nuevoNombre,
                 fechaCreacion: serverTimestamp()
             });
-            toast({ title: "Éxito", description: `Presupuesto duplicado. Ahora puedes editar la copia.` });
+            toast({ title: "Éxito", description: `Itemizado duplicado. Ahora puedes editar la copia.` });
             router.push(`/operaciones/presupuestos/${docRef.id}`);
         } catch (error) {
             console.error("Error duplicating budget:", error);
-            toast({ variant: "destructive", title: "Error", description: "No se pudo duplicar el presupuesto." });
+            toast({ variant: "destructive", title: "Error", description: "No se pudo duplicar el itemizado." });
         }
     };
     
     const handleDelete = async (presupuestoId: string) => {
         try {
             await deleteDoc(doc(firebaseDb, "presupuestos", presupuestoId));
-            toast({title: "Éxito", description: "Presupuesto eliminado correctamente."});
+            toast({title: "Éxito", description: "Itemizado eliminado correctamente."});
         } catch (error) {
             console.error("Error deleting budget:", error);
-            toast({variant: "destructive", title: "Error", description: "No se pudo eliminar el presupuesto."});
+            toast({variant: "destructive", title: "Error", description: "No se pudo eliminar el itemizado."});
         }
     }
 
@@ -290,10 +290,10 @@ function PresupuestosTab() {
         <Card>
             <CardHeader className="flex-row justify-between items-center">
                 <div>
-                    <CardTitle>Presupuestos por Obra</CardTitle>
-                    <CardDescription>Crea, edita y gestiona presupuestos para cada obra.</CardDescription>
+                    <CardTitle>Itemizados por Obra</CardTitle>
+                    <CardDescription>Crea, edita y gestiona itemizados para cada obra.</CardDescription>
                 </div>
-                <Button onClick={() => router.push('/operaciones/presupuestos/nuevo')}><PlusCircle className="mr-2" /> Nuevo Presupuesto</Button>
+                <Button onClick={() => router.push('/operaciones/presupuestos/nuevo')}><PlusCircle className="mr-2" /> Nuevo Itemizado</Button>
             </CardHeader>
             <CardContent>
                 <div className="max-w-md mb-4">
@@ -323,7 +323,7 @@ function PresupuestosTab() {
                                                 <Button variant="ghost" size="icon" className="text-destructive hover:text-destructive"><Trash2 className="h-4 w-4" /></Button>
                                             </AlertDialogTrigger>
                                             <AlertDialogContent>
-                                                <AlertDialogHeader><AlertDialogTitle>¿Eliminar Presupuesto?</AlertDialogTitle><AlertDialogDescription>Esta acción no se puede deshacer.</AlertDialogDescription></AlertDialogHeader>
+                                                <AlertDialogHeader><AlertDialogTitle>¿Eliminar Itemizado?</AlertDialogTitle><AlertDialogDescription>Esta acción no se puede deshacer.</AlertDialogDescription></AlertDialogHeader>
                                                 <AlertDialogFooter>
                                                     <AlertDialogCancel>Cancelar</AlertDialogCancel>
                                                     <AlertDialogAction onClick={() => handleDelete(p.id)}>Eliminar</AlertDialogAction>
@@ -351,13 +351,13 @@ export default function PresupuestosPage() {
             <header className="flex items-center gap-4">
                 <Button variant="outline" size="icon" onClick={() => router.push('/operaciones')}><ArrowLeft /></Button>
                 <div>
-                    <h1 className="text-2xl font-bold">Presupuestos</h1>
-                    <p className="text-muted-foreground">Administra tu catálogo de ítems y crea presupuestos por obra.</p>
+                    <h1 className="text-2xl font-bold">Itemizados</h1>
+                    <p className="text-muted-foreground">Administra tu catálogo de ítems y crea itemizados por obra.</p>
                 </div>
             </header>
             <Tabs defaultValue="presupuestos" className="w-full">
                 <TabsList>
-                    <TabsTrigger value="presupuestos">Presupuestos por Obra</TabsTrigger>
+                    <TabsTrigger value="presupuestos">Itemizados por Obra</TabsTrigger>
                     <TabsTrigger value="catalogo">Catálogo de Ítems</TabsTrigger>
                 </TabsList>
                 <TabsContent value="presupuestos">
