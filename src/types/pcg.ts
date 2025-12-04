@@ -93,6 +93,42 @@ export interface Obra {
   adminContratoNombre?: string;
 }
 
+export interface ActividadProgramada {
+  id: string;
+  obraId: string;
+  nombreActividad: string;
+  fechaInicio: string;
+  fechaFin: string;
+  precioContrato: number; 
+  unidad: string;
+  cantidad: number;
+  avanceProgramado?: number;
+};
+
+export interface AvanceDiario {
+  id: string;
+  obraId: string;
+  actividadId: string;
+  fecha: Timestamp;
+  cantidadEjecutada?: number;
+  porcentajeAvance?: number;
+  comentario: string;
+  fotos?: string[];
+  visibleCliente: boolean;
+  creadoPor: {
+    uid: string;
+    displayName: string;
+  };
+  tipoRegistro?: 'CANTIDAD' | 'FOTOGRAFICO';
+};
+
+export interface Presupuesto {
+    id: string;
+    nombre: string;
+    fechaCreacion: Timestamp;
+    items: any[];
+};
+
 export interface IPERRegistro {
   id: string;
   correlativo?: number;
