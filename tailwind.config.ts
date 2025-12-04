@@ -7,6 +7,17 @@ export default {
     './src/components/**/*.{js,ts,jsx,tsx,mdx}',
     './src/app/**/*.{js,ts,jsx,tsx,mdx}',
   ],
+  safelist: [
+    'bg-blue-100',
+    'text-blue-600',
+    'border-blue-500',
+    'bg-green-100',
+    'text-green-600',
+    'border-green-500',
+    'bg-purple-100',
+    'text-purple-600',
+    'border-purple-500',
+  ],
   theme: {
     extend: {
       fontFamily: {
@@ -48,6 +59,18 @@ export default {
         border: 'hsl(var(--border))',
         input: 'hsl(var(--input))',
         ring: 'hsl(var(--ring))',
+        blue: {
+            '100': 'hsl(220 90% 95%)',
+            '600': 'hsl(220 80% 50%)',
+        },
+        green: {
+            '100': 'hsl(140 90% 95%)',
+            '600': 'hsl(140 80% 40%)',
+        },
+        purple: {
+            '100': 'hsl(260 90% 95%)',
+            '600': 'hsl(260 80% 55%)',
+        },
         chart: {
           '1': 'hsl(var(--chart-1))',
           '2': 'hsl(var(--chart-2))',
