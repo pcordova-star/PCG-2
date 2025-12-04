@@ -23,6 +23,8 @@ import {
   Newspaper,
   Siren,
   MessageSquare,
+  TrendingUp,
+  DollarSign,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useEffect, useState } from 'react';
@@ -30,19 +32,78 @@ import { collection, getDocs, query, where, doc, getDoc, collectionGroup, limit,
 import { firebaseDb } from '@/lib/firebaseClient';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useAuth } from '@/context/AuthContext';
-import { Company, Obra, Hallazgo } from '@/types/pcg';
+import { Company, Obra, Hallazgo, Rdi, AvanceDiario, Presupuesto } from '@/types/pcg';
 import { PcgLogo } from '@/components/branding/PcgLogo';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { QuickAccessCard } from '@/components/dashboard/QuickAccessCard';
 import { ObraSelectionModal } from '@/components/dashboard/ObraSelectionModal';
 import { useRouter } from 'next/navigation';
 import { Badge } from '@/components/ui/badge';
+import { motion } from 'framer-motion';
 
-type SummaryData = {
-  obrasActivas: number | null;
-  tareasEnProgreso: number | null;
-  alertasSeguridad: number | null;
+// Definición de tipos para los nuevos items del mural
+type ActivityItem = {
+  type: 'rdi' | 'avance' | 'edp';
+  id: string;
+  obraId: string;
+  obraNombre: string;
+  fecha: Date;
+  titulo: string;
+  descripcion: string;
+  valor?: string;
+  estado?: string;
+  href: string;
 };
+
+// Nuevo componente para las tarjetas de actividad
+const ActivityCard = ({ item }: { item: ActivityItem }) => {
+  const config = {
+    rdi: {
+      icon: MessageSquare,
+      color: "blue",
+    },
+    avance: {
+      icon: TrendingUp,
+      color: "green",
+    },
+    edp: {
+      icon: DollarSign,
+      color: "purple",
+    }
+  };
+
+  const Icon = config[item.type].icon;
+  const color = config[item.type].color;
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.3 }}
+      className="flex items-start gap-4 p-4 border-l-4 rounded-r-lg bg-card shadow-sm hover:bg-muted/50"
+      style={{ borderColor: `hsl(var(--${color}))` }}
+    >
+      <div className={`p-2 bg-${color}-100 rounded-full`}>
+        <Icon className={`h-6 w-6 text-${color}-600`} />
+      </div>
+      <div className="flex-1">
+        <div className="flex justify-between items-center">
+            <p className="font-semibold text-sm">{item.titulo}</p>
+            {item.estado && <Badge variant="outline">{item.estado}</Badge>}
+        </div>
+        <p className="text-xs text-muted-foreground">{item.obraNombre} - {item.fecha.toLocaleDateString('es-CL')}</p>
+        <div className="flex justify-between items-end mt-2">
+            <p className="text-sm text-muted-foreground">{item.descripcion}</p>
+            {item.valor && <p className="text-sm font-bold text-primary">{item.valor}</p>}
+        </div>
+      </div>
+       <Button asChild variant="ghost" size="sm">
+            <Link href={item.href}>Ver</Link>
+        </Button>
+    </motion.div>
+  );
+};
+
 
 const allMainModules = [
   {
@@ -150,16 +211,11 @@ export default function DashboardPage() {
   const { user, role, companyId, loading: authLoading } = useAuth();
   const router = useRouter();
 
-  const [summaryData, setSummaryData] = useState<SummaryData>({
-    obrasActivas: null,
-    tareasEnProgreso: null,
-    alertasSeguridad: null,
-  });
   const [company, setCompany] = useState<Company | null>(null);
   const [loading, setLoading] = useState(true);
   const [hasObras, setHasObras] = useState(false);
   const [obras, setObras] = useState<Obra[]>([]);
-  const [muralItems, setMuralItems] = useState<Hallazgo[]>([]);
+  const [muralItems, setMuralItems] = useState<ActivityItem[]>([]);
   const [isObraModalOpen, setIsObraModalOpen] = useState(false);
   const [quickAccessTarget, setQuickAccessTarget] = useState('');
 
@@ -178,7 +234,7 @@ export default function DashboardPage() {
         const isSuperAdmin = role === 'superadmin';
 
         try {
-            // 1. Fetch Company Data (if not superadmin)
+            // 1. Fetch Company Data
             if (!isSuperAdmin && companyId) {
                 const companyRef = doc(firebaseDb, "companies", companyId);
                 const companySnap = await getDoc(companyRef);
@@ -187,7 +243,7 @@ export default function DashboardPage() {
                 }
             }
             
-            // 1.5 Fetch Obras for selectors
+            // 2. Fetch Obras
             const obrasRef = collection(firebaseDb, 'obras');
             const qObrasConstraints = isSuperAdmin ? [] : [where('empresaId', '==', companyId)];
             const obrasQuery = query(obrasRef, ...qObrasConstraints);
@@ -196,88 +252,72 @@ export default function DashboardPage() {
             setObras(obrasList);
             setHasObras(obrasList.length > 0);
             const obrasIds = obrasList.map(doc => doc.id);
+            const obrasMap = new Map(obrasList.map(o => [o.id, o.nombreFaena]));
 
+            if (obrasIds.length === 0) {
+                setMuralItems([]);
+                setLoading(false);
+                return;
+            }
 
-            // 2. Fetch Summary Data & Mural
-            const [obrasActivas, tareasEnProgreso, alertasSeguridad, muralData] = await Promise.all([
-                // Obras Activas
-                (async () => {
-                    return obrasList.filter(o => o.estado === 'Activa').length;
-                })(),
-                // Tareas en Progreso
-                (async () => {
-                    try {
-                        if (obrasList.length === 0) return 0;
-                
-                        const CHUNK_SIZE = 30;
-                        let totalTareas = 0;
-
-                        for (let i = 0; i < obrasIds.length; i += CHUNK_SIZE) {
-                            const chunkIds = obrasIds.slice(i, i + CHUNK_SIZE);
-                             const q = query(
-                                collectionGroup(firebaseDb, 'actividades'), 
-                                where('obraId', 'in', chunkIds),
-                                where('estado', '!=', 'Completada')
-                            );
-                            const snapshot = await getDocs(q);
-                            totalTareas += snapshot.size;
-                        }
-
-                        return totalTareas;
-
-                    } catch (error) {
-                        console.warn("Error fetching in-progress tasks:", error);
-                        return 0;
-                    }
-                })(),
-                // Alertas de Seguridad
-                (async () => {
-                    try {
-                        const alertasRef = collection(firebaseDb, 'investigacionesIncidentes');
-                        const qAlertasConstraints = [where('estadoCierre', '==', 'Abierto')];
-                         if (!isSuperAdmin && companyId) {
-                            qAlertasConstraints.push(where('empresaId', '==', companyId));
-                        }
-                        const alertasQuery = query(alertasRef, ...qAlertasConstraints);
-                        const alertasSnap = await getDocs(alertasQuery);
-                        return alertasSnap.size;
-                    } catch (error) {
-                        console.warn("Error fetching security alerts:", error);
-                        return 0;
-                    }
-                })(),
-                // Mural Items (Hallazgos Cerrados)
-                 (async () => {
-                    if (obrasIds.length === 0) return [];
-                    try {
-                        const hallazgosRef = collection(firebaseDb, 'hallazgos');
-                        const qMural = query(
-                            hallazgosRef,
-                            where('obraId', 'in', obrasIds),
-                            where('estado', '==', 'cerrado'),
-                            where('criticidad', 'in', ['media', 'baja']),
-                            orderBy('createdAt', 'desc'),
-                            limit(3)
-                        );
-                        const muralSnap = await getDocs(qMural);
-                        return muralSnap.docs.map(doc => ({id: doc.id, ...doc.data() } as Hallazgo));
-                    } catch (error) {
-                        console.warn("Error fetching mural items:", error);
-                        return [];
-                    }
-                })()
+            // 3. Fetch Mural Data (RDIs, Avances, EDPs)
+            const [rdiSnap, avancesSnap, edpSnap] = await Promise.all([
+                getDocs(query(collectionGroup(firebaseDb, 'rdi'), where('obraId', 'in', obrasIds), orderBy('createdAt', 'desc'), limit(3))),
+                getDocs(query(collectionGroup(firebaseDb, 'avancesDiarios'), where('obraId', 'in', obrasIds), orderBy('fecha', 'desc'), limit(3))),
+                getDocs(query(collectionGroup(firebaseDb, 'estadosDePago'), where('obraId', 'in', obrasIds), orderBy('creadoEn', 'desc'), limit(2)))
             ]);
-            
-            setSummaryData({
-              obrasActivas: obrasActivas ?? 0,
-              tareasEnProgreso: tareasEnProgreso ?? 0,
-              alertasSeguridad: alertasSeguridad ?? 0,
+
+            const rdiItems: ActivityItem[] = rdiSnap.docs.map(d => {
+                const rdi = d.data() as Rdi;
+                return {
+                    type: 'rdi',
+                    id: d.id,
+                    obraId: rdi.obraId,
+                    obraNombre: obrasMap.get(rdi.obraId) || 'Obra desconocida',
+                    fecha: rdi.createdAt.toDate(),
+                    titulo: `RDI: ${rdi.correlativo}`,
+                    descripcion: rdi.titulo,
+                    estado: rdi.estado,
+                    href: `/obras/${rdi.obraId}/rdi/${d.id}`
+                };
             });
-            setMuralItems(muralData);
+
+            const avanceItems: ActivityItem[] = avancesSnap.docs.map(d => {
+                const avance = d.data() as AvanceDiario;
+                return {
+                    type: 'avance',
+                    id: d.id,
+                    obraId: avance.obraId,
+                    obraNombre: obrasMap.get(avance.obraId) || 'Obra desconocida',
+                    fecha: avance.fecha.toDate(),
+                    titulo: `Avance Diario`,
+                    descripcion: avance.comentario || 'Registro de avance.',
+                    valor: `${avance.porcentajeAvance?.toFixed(1) || 0}%`,
+                    href: `/operaciones/programacion?obraId=${avance.obraId}`
+                };
+            });
+            
+            const edpItems: ActivityItem[] = edpSnap.docs.map(d => {
+                const edp = d.data() as any; // Tipo Presupuesto (EDP)
+                return {
+                    type: 'edp',
+                    id: d.id,
+                    obraId: edp.obraId,
+                    obraNombre: obrasMap.get(edp.obraId) || 'Obra desconocida',
+                    fecha: edp.creadoEn.toDate(),
+                    titulo: `Estado de Pago`,
+                    descripcion: `Correlativo EDP-${String(edp.correlativo).padStart(3, '0')}`,
+                    valor: edp.total.toLocaleString('es-CL', {style: 'currency', currency: 'CLP'}),
+                    href: `/operaciones/estados-de-pago?obraId=${edp.obraId}`
+                };
+            });
+
+            const allItems = [...rdiItems, ...avanceItems, ...edpItems];
+            allItems.sort((a, b) => b.fecha.getTime() - a.fecha.getTime());
+            setMuralItems(allItems.slice(0, 5));
 
         } catch (error) {
-            console.error("Error fetching dashboard summary data:", error);
-            setSummaryData({ obrasActivas: 0, tareasEnProgreso: 0, alertasSeguridad: 0 });
+            console.error("Error fetching dashboard data:", error);
             setMuralItems([]);
         } finally {
             setLoading(false);
@@ -307,27 +347,6 @@ export default function DashboardPage() {
       }
       setIsObraModalOpen(false);
   }
-  
-  const summaryCards = [
-    {
-      id: 'tour-step-obras-activas',
-      title: 'Obras Activas',
-      value: summaryData.obrasActivas,
-      icon: Building,
-    },
-    {
-      id: 'tour-step-tareas-progreso',
-      title: 'Tareas en Progreso',
-      value: summaryData.tareasEnProgreso,
-      icon: ListChecks,
-    },
-    {
-      id: 'tour-step-alertas-seguridad',
-      title: 'Alertas de Seguridad',
-      value: summaryData.alertasSeguridad,
-      icon: AlertTriangle,
-    },
-  ];
 
   const renderModuleCard = (mod: typeof allMainModules[0]) => {
     const isObraCard = mod.title === 'Obras';
@@ -363,7 +382,6 @@ export default function DashboardPage() {
       );
     }
     
-    // El tooltip de "Obras" es siempre útil
     if (isObraCard) {
         return (
              <Tooltip key={mod.title}>
@@ -381,7 +399,6 @@ export default function DashboardPage() {
   return (
     <div className="min-h-screen bg-slate-50">
       <div className="flex flex-col gap-4 md:gap-6 p-4 md:p-6">
-        {/* --- CABECERA PERSONALIZADA --- */}
         <header className='rounded-xl border bg-card text-card-foreground shadow-sm p-6'>
             {authLoading || loading ? (
                 <div className="space-y-2">
@@ -412,7 +429,6 @@ export default function DashboardPage() {
             )}
         </header>
 
-        {/* --- ACCESOS RÁPIDOS --- */}
          {isPrevencionista ? (
              <QuickAccessCard
                   title="Hallazgo de seguridad"
@@ -436,7 +452,6 @@ export default function DashboardPage() {
             </div>
         )}
 
-        {/* Accesos a módulos principales */}
           <div>
               <h2 className="text-2xl font-semibold mb-4">Módulos Principales</h2>
               <TooltipProvider delayDuration={100}>
@@ -446,42 +461,28 @@ export default function DashboardPage() {
               </TooltipProvider>
           </div>
 
-        {/* Diario Mural */}
         <Card>
             <CardHeader>
                 <div className="flex items-center gap-3">
                     <Newspaper className="h-6 w-6 text-primary"/>
-                    <CardTitle>Diario Mural</CardTitle>
+                    <CardTitle>Diario Mural de Actividad</CardTitle>
                 </div>
-                <CardDescription>Últimos hallazgos cerrados, aprendizajes y noticias para todo el equipo.</CardDescription>
+                <CardDescription>Última actividad registrada en tus obras.</CardDescription>
             </CardHeader>
             <CardContent>
                 {loading ? (
                     <div className="space-y-4">
-                        <Skeleton className="h-10 w-full" />
-                        <Skeleton className="h-10 w-full" />
-                        <Skeleton className="h-10 w-full" />
+                        <Skeleton className="h-16 w-full" />
+                        <Skeleton className="h-16 w-full" />
+                        <Skeleton className="h-16 w-full" />
                     </div>
                 ) : muralItems.length === 0 ? (
                     <div className="text-center py-8 bg-muted/50 rounded-lg">
-                        <p className="text-muted-foreground">No hay anuncios o hallazgos recientes para mostrar.</p>
+                        <p className="text-muted-foreground">No hay actividad reciente para mostrar en tus obras.</p>
                     </div>
                 ) : (
                     <div className="space-y-3">
-                        {muralItems.map(item => (
-                            <div key={item.id} className="flex items-center justify-between p-3 border rounded-lg bg-slate-50">
-                                <div>
-                                    <Badge variant={item.criticidad === 'baja' ? 'default' : 'secondary'}>{item.tipoRiesgo}</Badge>
-                                    <p className="font-medium mt-1">{item.descripcion}</p>
-                                    <p className="text-xs text-muted-foreground">
-                                        Registrado el {item.createdAt?.toDate().toLocaleDateString('es-CL')}
-                                    </p>
-                                </div>
-                                <Badge variant="outline" className="bg-green-100 text-green-800 border-green-200">
-                                    Cerrado
-                                </Badge>
-                            </div>
-                        ))}
+                        {muralItems.map(item => <ActivityCard key={item.id} item={item} />)}
                     </div>
                 )}
             </CardContent>
