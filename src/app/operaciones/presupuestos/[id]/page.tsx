@@ -120,12 +120,12 @@ export default function PresupuestoEditPage() {
                     setPresupuesto({ ...data, id: docSnap.id, gastosGeneralesPorcentaje: data.gastosGeneralesPorcentaje ?? 25 });
                     setItems(data.items.map(item => ({ ...item, id: crypto.randomUUID() })));
                 } else {
-                    toast({ variant: "destructive", title: "Error", description: "Presupuesto no encontrado." });
+                    toast({ variant: "destructive", title: "Error", description: "Itemizado no encontrado." });
                     router.push('/operaciones/presupuestos');
                 }
             } else {
                 const initialObraId = obraIdFromQuery || obrasData[0]?.id || '';
-                setPresupuesto(prev => ({ ...prev, obraId: initialObraId, nombre: 'Nuevo Presupuesto Sin Título', gastosGeneralesPorcentaje: 25 }));
+                setPresupuesto(prev => ({ ...prev, obraId: initialObraId, nombre: 'Nuevo Itemizado Sin Título', gastosGeneralesPorcentaje: 25 }));
             }
             setLoading(false);
         };
@@ -248,7 +248,7 @@ export default function PresupuestoEditPage() {
         
         try {
             await batch.commit();
-            toast({ title: "Catálogo actualizado", description: "El catálogo de ítems se ha actualizado con los precios de este presupuesto." });
+            toast({ title: "Catálogo actualizado", description: "El catálogo de ítems se ha actualizado con los precios de este itemizado." });
         } catch (error) {
             console.error("Error updating catalog from budget:", error);
             toast({ variant: "destructive", title: "Error de catálogo", description: "No se pudo actualizar el catálogo de ítems." });
@@ -257,7 +257,7 @@ export default function PresupuestoEditPage() {
 
     const handleSave = async () => {
         if (!presupuesto.obraId || !presupuesto.nombre) {
-            toast({ variant: "destructive", title: "Error", description: "La obra y el nombre del presupuesto son obligatorios." });
+            toast({ variant: "destructive", title: "Error", description: "La obra y el nombre del itemizado son obligatorios." });
             return;
         }
         setIsSaving(true);
@@ -278,11 +278,11 @@ export default function PresupuestoEditPage() {
             // Lógica para actualizar el catálogo después de guardar
             await actualizarCatalogoDesdePresupuesto(items);
 
-            toast({ title: "Éxito", description: "Presupuesto guardado correctamente." });
+            toast({ title: "Éxito", description: "Itemizado guardado correctamente." });
             router.push('/operaciones/presupuestos');
         } catch (error) {
             console.error("Error saving budget:", error);
-            toast({ variant: "destructive", title: "Error", description: "No se pudo guardar el presupuesto." });
+            toast({ variant: "destructive", title: "Error", description: "No se pudo guardar el itemizado." });
         } finally {
             setIsSaving(false);
         }
@@ -398,7 +398,7 @@ export default function PresupuestoEditPage() {
             <header className="flex items-center gap-4">
                 <Button variant="outline" size="icon" onClick={() => router.push('/operaciones/presupuestos')}><ArrowLeft /></Button>
                 <div>
-                    <h1 className="text-2xl font-bold">{presupuestoId === 'nuevo' ? "Nuevo Presupuesto" : "Editar Presupuesto"}</h1>
+                    <h1 className="text-2xl font-bold">{presupuestoId === 'nuevo' ? "Nuevo Itemizado" : "Editar Itemizado"}</h1>
                 </div>
             </header>
 
@@ -413,7 +413,7 @@ export default function PresupuestoEditPage() {
                         </Select>
                     </div>
                     <div className="space-y-2">
-                        <Label>Nombre del Presupuesto*</Label>
+                        <Label>Nombre del Itemizado*</Label>
                         <Input value={presupuesto.nombre} onChange={e => setPresupuesto(p => ({...p, nombre: e.target.value}))} />
                     </div>
                     <div className="space-y-2">
@@ -425,7 +425,7 @@ export default function PresupuestoEditPage() {
 
             <Card>
                 <CardHeader>
-                    <CardTitle>Ítems del Presupuesto</CardTitle>
+                    <CardTitle>Ítems del Itemizado</CardTitle>
                     <div className="flex gap-2 mt-2">
                          <Button size="sm" onClick={() => handleAddNewItem('chapter', null)}><FolderPlus className="mr-2"/>Agregar Título Principal</Button>
                     </div>
@@ -504,7 +504,7 @@ export default function PresupuestoEditPage() {
                 </Button>
                 <Button onClick={handleSave} disabled={isSaving}>
                     {isSaving ? <Loader2 className="animate-spin mr-2"/> : <Save className="mr-2"/>}
-                    {isSaving ? "Guardando..." : "Guardar Presupuesto"}
+                    {isSaving ? "Guardando..." : "Guardar Itemizado"}
                 </Button>
             </div>
 
