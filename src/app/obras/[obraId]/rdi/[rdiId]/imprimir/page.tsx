@@ -13,7 +13,7 @@ import { Button } from "@/components/ui/button";
 
 function RdiPrintPage() {
   const params = useParams();
-  const { user, companyId } = useAuth(); // Obtener companyId del contexto
+  const { user } = useAuth(); // No necesitamos companyId aquí
 
   const obraId = params.obraId as string;
   const rdiId = params.rdiId as string;
@@ -25,7 +25,7 @@ function RdiPrintPage() {
 
   useEffect(() => {
     // Asegurarse de tener todos los IDs necesarios
-    if (!companyId || !obraId || !rdiId || !user) {
+    if (!obraId || !rdiId || !user) {
         if (!loading) setLoading(true); // Mostrar carga si los IDs aparecen más tarde
         return;
     }
@@ -33,7 +33,8 @@ function RdiPrintPage() {
     const fetchData = async () => {
       setLoading(true);
       try {
-        const rdiData = await getRdiById(companyId, obraId, rdiId); // Usar companyId
+        // La función ahora solo necesita obraId y rdiId
+        const rdiData = await getRdiById(obraId, rdiId); 
         if (!rdiData) {
           throw new Error("RDI no encontrado.");
         }
@@ -53,7 +54,7 @@ function RdiPrintPage() {
       }
     };
     fetchData();
-  }, [companyId, obraId, rdiId, user]);
+  }, [obraId, rdiId, user]);
   
   if (loading) {
     return <div className="flex justify-center items-center h-screen"><Loader2 className="animate-spin mr-2" />Cargando documento...</div>;
