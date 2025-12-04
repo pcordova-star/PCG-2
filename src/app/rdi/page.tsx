@@ -39,7 +39,7 @@ export default function RdiRedirectPage() {
             const snapshot = await getDocs(q);
             if (!snapshot.empty) {
                 const obraMasReciente = snapshot.docs[0];
-                router.replace(`/obras/${obraMasReciente.id}/rdi`);
+                router.replace(`/rdi/${obraMasReciente.id}`);
             } else {
                 // No hay obras, redirigir a la página principal de obras para que pueda crear una.
                 router.replace('/obras');

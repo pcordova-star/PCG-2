@@ -1,4 +1,4 @@
-// src/app/obras/[obraId]/rdi/[rdiId]/page.tsx
+// src/app/rdi/[obraId]/[rdiId]/page.tsx
 "use client";
 
 import { useEffect, useState } from "react";
@@ -135,7 +135,7 @@ export default function RdiDetailPage() {
              <Button
                 variant="outline"
                 size="sm"
-                onClick={() => router.push(`/obras/${obraId}/rdi/${rdi.id}/imprimir`)}
+                onClick={() => router.push(`/rdi/${obraId}/${rdi.id}/imprimir`)}
                 >
                 <FileText className="mr-2 h-4 w-4" />
                 Imprimir PDF
