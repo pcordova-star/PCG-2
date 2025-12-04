@@ -6,7 +6,7 @@ import { useParams, useRouter } from 'next/navigation';
 import { useAuth } from '@/context/AuthContext';
 import { Rdi, RdiPrioridad, RdiEstado, Obra } from '@/types/pcg';
 import { createRdi, listRdiByObra, uploadAndAddRdiAdjunto } from '@/lib/rdi/rdiService';
-import { getDoc, doc } from 'firebase/firestore';
+import { getDoc, doc, collection, getDocs, where, query, orderBy } from 'firebase/firestore';
 import { firebaseDb } from '@/lib/firebaseClient';
 import { useToast } from '@/hooks/use-toast';
 
@@ -47,6 +47,7 @@ export default function RdiListPage() {
 
   const obraId = params.obraId as string;
 
+  const [obras, setObras] = useState<Obra[]>([]);
   const [obra, setObra] = useState<Obra | null>(null);
   const [rdis, setRdis] = useState<Rdi[]>([]);
   const [loading, setLoading] = useState(true);
@@ -75,7 +76,31 @@ export default function RdiListPage() {
   const [isUploadingAdjunto, setIsUploadingAdjunto] = useState(false);
 
   useEffect(() => {
-    if (!obraId) return;
+    if (!companyId && role !== 'superadmin') return;
+
+    const fetchObras = async () => {
+      let q;
+      const obrasRef = collection(firebaseDb, "obras");
+      if (role === 'superadmin') {
+        q = query(obrasRef, orderBy("nombreFaena"));
+      } else {
+        q = query(obrasRef, where("empresaId", "==", companyId), orderBy("nombreFaena"));
+      }
+      const snapshot = await getDocs(q);
+      const obrasList = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Obra));
+      setObras(obrasList);
+    };
+
+    fetchObras();
+  }, [companyId, role]);
+
+
+  useEffect(() => {
+    if (!obraId) {
+      setRdis([]);
+      setLoading(false);
+      return;
+    };
 
     const fetchData = async () => {
       setLoading(true);
@@ -107,6 +132,10 @@ export default function RdiListPage() {
 
     fetchData();
   }, [obraId, toast]);
+
+  const handleObraChange = (newObraId: string) => {
+    router.push(`/rdi/${newObraId}`);
+  };
 
   const resetForm = () => {
     setTitulo('');
@@ -237,6 +266,23 @@ export default function RdiListPage() {
       </header>
 
       <Card>
+        <CardHeader>
+          <CardTitle>Selección de Obra</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="max-w-md">
+            <Label htmlFor="obra-select">Obra Activa</Label>
+            <Select value={obraId} onValueChange={handleObraChange}>
+              <SelectTrigger id="obra-select"><SelectValue placeholder="Seleccione una obra..." /></SelectTrigger>
+              <SelectContent>
+                {obras.map(o => <SelectItem key={o.id} value={o.id}>{o.nombreFaena}</SelectItem>)}
+              </SelectContent>
+            </Select>
+          </div>
+        </CardContent>
+      </Card>
+
+      <Card>
         <CardHeader className="flex flex-row items-center justify-between">
           <div>
             <CardTitle>Listado de RDI - {obra?.nombreFaena || 'Cargando...'}</CardTitle>
@@ -244,7 +290,7 @@ export default function RdiListPage() {
           </div>
           <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
             <DialogTrigger asChild>
-              <Button onClick={() => setIsModalOpen(true)}>
+              <Button onClick={() => setIsModalOpen(true)} disabled={!obraId}>
                 <PlusCircle className="mr-2 h-4 w-4" />
                 Nueva RDI
               </Button>
