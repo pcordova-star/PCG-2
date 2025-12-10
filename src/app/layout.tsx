@@ -21,6 +21,7 @@ import {
   DollarSign,
   BookCopy,
   MessageSquare, // Añadido para RDI
+  BrainCircuit,
 } from 'lucide-react';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import {
@@ -42,6 +43,7 @@ const navItemsBase = [
   { href: '/dashboard', label: 'Dashboard', icon: Home, roles: ['superadmin', 'admin_empresa', 'jefe_obra', 'prevencionista'] },
   { href: '/obras', label: 'Obras', icon: HardHat, roles: ['superadmin', 'admin_empresa', 'jefe_obra', 'prevencionista'] },
   { href: '/operaciones', label: 'Operaciones', icon: Activity, roles: ['superadmin', 'admin_empresa', 'jefe_obra'] },
+  { href: '/cubicacion/analisis-planos', label: 'Análisis de Planos (IA)', icon: BrainCircuit, roles: ['superadmin', 'admin_empresa', 'jefe_obra']},
   { href: '/operaciones/estados-de-pago', label: 'Estados de Pago', icon: FileText, roles: ['superadmin', 'admin_empresa', 'jefe_obra'] },
   { href: '/prevencion', label: 'Prevención', icon: ShieldCheck, roles: ['superadmin', 'admin_empresa', 'jefe_obra', 'prevencionista'] },
   { href: '/admin/documentos/proyecto', label: 'Documentos', icon: BookCopy, roles: ['superadmin', 'admin_empresa', 'prevencionista'] },
