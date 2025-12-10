@@ -9,7 +9,7 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Checkbox } from '@/components/ui/checkbox';
 import { useToast } from '@/hooks/use-toast';
-import type { AnalisisPlanoInput, AnalisisPlanoOutput } from "@/types/analisis-planos";
+import type { AnalisisPlanoOutput } from "@/types/analisis-planos";
 import { ArrowLeft, Loader2, Wand2, TableIcon, StickyNote, FileUp, Building, Droplets, Zap } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
@@ -151,14 +151,17 @@ export default function AnalisisPlanosPage() {
       setCargando(true);
       setResultado("");
 
+      // Sube el archivo a Firebase Storage
       const { url, contentType } = await uploadPlanoToStorage(
         planoFile,
         company?.id ?? "no-company",
         user?.uid ?? "anon"
       );
 
+      // Construye el prompt usando la lógica actual (checkbox de “Superficie útil”, etc.)
       const prompt = construirPromptDesdeChecksYNotas();
 
+      // Llama al API de Next enviando SOLO la URL y el tipo de archivo
       const res = await fetch("/api/analizar-plano", {
         method: "POST",
         headers: {
