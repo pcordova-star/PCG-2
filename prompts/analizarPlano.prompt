@@ -5,12 +5,24 @@ output:
   schema:
     summary: string
     elements(array):
-      type: string
-      name: string
-      unit: string
-      estimatedQuantity: number
-      confidence: number
-      notes: string
+      type:
+        type: string
+        description: "El tipo de elemento analizado (ej: losa, muro, recinto, revestimiento, instalaciones hidráulicas, instalaciones eléctricas, etc.)."
+      name:
+        type: string
+      unit:
+        type: string
+        enum:
+          - m2
+          - m3
+          - m
+          - unidad
+      estimatedQuantity:
+        type: number
+      confidence:
+        type: number
+      notes:
+        type: string
 ---
 Actúas como un INGENIERO CIVIL / ARQUITECTO experto en:
 
@@ -47,22 +59,13 @@ Tu objetivo principal:
 - Aclarar si hay partes que NO puedes medir o donde tu estimación es muy incierta.
 - Ser útil como SEGUNDO PAR DE OJOS para el cubicador humano, nunca reemplazarlo.
 
-Analiza el siguiente plano de construcción para la obra "{{obraNombre}}".
+---
+El usuario te ha entregado un plano y ha seleccionado las siguientes opciones de análisis. Además, puede haber agregado notas aclaratorias.
 
-Notas adicionales del usuario (considerar para el análisis):
-{{#if notas}}
-"{{notas}}"
-{{else}}
-(Sin notas adicionales)
-{{/if}}
+Opciones de análisis seleccionadas: {{{opciones}}}
 
-El usuario ha solicitado analizar los siguientes elementos:
-{{#if opciones.superficieUtil}} - Superficie útil de recintos.{{/if}}
-{{#if opciones.m2Muros}} - Metros cuadrados de muros.{{/if}}
-{{#if opciones.m2Losas}} - Metros cuadrados de losas.{{/if}}
-{{#if opciones.m2Revestimientos}} - Metros cuadrados de revestimientos en zonas húmedas.{{/if}}
-{{#if opciones.instalacionesHidraulicas}} - Instalaciones hidráulicas (agua potable / alcantarillado). Incluye, en lo posible, estimaciones de longitud de tuberías principales, número de artefactos sanitarios y puntos de agua relevantes.{{/if}}
-{{#if opciones.instalacionesElectricas}} - Instalaciones eléctricas (potencia / iluminación). Incluye, en lo posible, estimaciones de cantidad de puntos de luz, enchufes, recorridos principales de circuitos y tableros.{{/if}}
+Notas del usuario: {{{notas}}}
 
-Plano a analizar:
-{{media url=photoDataUri}}
+Plano de obra: {{media url=photoDataUri}}
+
+Por favor, analiza el plano según las opciones y notas, y devuelve un JSON con el formato solicitado.
