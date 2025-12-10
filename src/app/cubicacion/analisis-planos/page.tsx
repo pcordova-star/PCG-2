@@ -17,9 +17,8 @@ import { Progress } from '@/components/ui/progress';
 import { motion } from 'framer-motion';
 import { useAuth } from '@/context/AuthContext';
 import { uploadPlanoToStorage } from '@/lib/cubicacion/uploadPlano';
-
-const ANALIZAR_PDF_FUNCTION_URL =
-  "https://southamerica-west1-pcg-2-8bf1b.cloudfunctions.net/analizarPdfPlano";
+import { httpsCallable, HttpsCallableResult } from 'firebase/functions';
+import { firebaseFunctions } from '@/lib/firebaseClient';
 
 type OpcionesDeAnalisis = {
   superficieUtil: boolean;
@@ -163,23 +162,20 @@ export default function AnalisisPlanosPage() {
       // 2) Construir prompt con la lógica existente (checkbox + notas)
       const prompt = construirPromptDesdeChecksYNotas();
 
-      let apiResponse: Response;
+      let analysisResult: any;
 
       if (contentType === "application/pdf") {
         // 3A) Caso PDF → llamar a Cloud Function
-        apiResponse = await fetch(ANALIZAR_PDF_FUNCTION_URL, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            fileUrl: url,
-            prompt,
-          }),
-        });
+        const analizarPdfPlano = httpsCallable(firebaseFunctions, 'analizarPdfPlano');
+        const result = await analizarPdfPlano({ fileUrl: url, prompt }) as HttpsCallableResult<any>;
+        if (result.data.ok) {
+            analysisResult = result.data.analysis;
+        } else {
+            throw new Error(result.data.error || "Error en la función de análisis de PDF.");
+        }
       } else {
         // 3B) Caso imagen → usar API de Next ya existente
-        apiResponse = await fetch("/api/analizar-plano", {
+        const res = await fetch("/api/analizar-plano", {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
@@ -190,17 +186,15 @@ export default function AnalisisPlanosPage() {
             prompt,
           }),
         });
+        const body = await res.json();
+        if (!res.ok || body.error) {
+            const message = body.error || "Ocurrió un error durante el análisis del plano.";
+            throw new Error(message);
+        }
+        analysisResult = body.analysis;
       }
-
-      const body = await apiResponse.json();
-
-      if (!apiResponse.ok || body.error) {
-        const message =
-          body.error || "Ocurrió un error durante el análisis del plano.";
-        throw new Error(message);
-      }
-
-      setResultado(body.analysis ?? "La IA no devolvió resultado.");
+      
+      setResultado(analysisResult ?? "La IA no devolvió resultado.");
     } catch (err: any) {
       console.error("Error al analizar el plano:", err);
       setResultado(err.message ?? "Ocurrió un error durante el análisis del plano.");
