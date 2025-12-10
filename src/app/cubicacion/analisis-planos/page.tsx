@@ -1,7 +1,7 @@
 // src/app/cubicacion/analisis-planos/page.tsx
 "use client";
 
-import React, { useState, FormEvent } from 'react';
+import React, { useState, FormEvent, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -14,6 +14,8 @@ import { ArrowLeft, Loader2, Wand2, TableIcon, StickyNote, FileUp, Building, Dro
 import { useRouter } from 'next/navigation';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
+import { Progress } from '@/components/ui/progress';
+import { motion } from 'framer-motion';
 
 type OpcionesDeAnalisis = {
   superficieUtil: boolean;
@@ -32,6 +34,15 @@ function fileToDataUri(file: File): Promise<string> {
     reader.readAsDataURL(file);
   });
 }
+
+const progressSteps = [
+  { percent: 0, text: "Iniciando conexión segura..." },
+  { percent: 15, text: "Cargando plano en el motor de IA..." },
+  { percent: 40, text: "Analizando estructura y recintos..." },
+  { percent: 65, text: "Extrayendo mediciones y cubicaciones..." },
+  { percent: 85, text: "Compilando el informe de resultados..." },
+  { percent: 95, text: "Finalizando análisis, casi listo..." },
+];
 
 export default function AnalisisPlanosPage() {
   const router = useRouter();
@@ -52,6 +63,46 @@ export default function AnalisisPlanosPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [resultado, setResultado] = useState<AnalisisPlanoOutput | null>(null);
+
+  // Estados para la barra de progreso animada
+  const [progress, setProgress] = useState(0);
+  const [progressText, setProgressText] = useState("Iniciando...");
+
+  useEffect(() => {
+    let timer: NodeJS.Timeout;
+    if (loading) {
+      setProgress(0);
+      setProgressText("Iniciando conexión...");
+
+      // Simula el progreso
+      const totalDuration = 45000; // 45 segundos para simular
+      let currentTime = 0;
+
+      const updateProgress = () => {
+        const simulatedProgress = (currentTime / totalDuration) * 100;
+        
+        // No pasar del 95% hasta que la respuesta real llegue
+        const displayProgress = Math.min(simulatedProgress, 95);
+        setProgress(displayProgress);
+
+        const currentStep = progressSteps.slice().reverse().find(step => displayProgress >= step.percent);
+        if (currentStep) {
+            setProgressText(currentStep.text);
+        }
+
+        currentTime += 100;
+        if (displayProgress < 95) {
+          timer = setTimeout(updateProgress, 100 + Math.random() * 200); // Intervalo variable
+        }
+      };
+
+      timer = setTimeout(updateProgress, 100);
+    }
+
+    return () => {
+      if (timer) clearTimeout(timer);
+    };
+  }, [loading]);
 
   const handleCheckboxChange = (key: keyof OpcionesDeAnalisis) => {
     setOpciones(prev => ({ ...prev, [key]: !prev[key] }));
@@ -125,6 +176,7 @@ export default function AnalisisPlanosPage() {
       }
 
       const analisisResult = (await res.json()) as AnalisisPlanoOutput;
+      setProgress(100);
       setResultado(analisisResult);
     } catch (err: any) {
       console.error("Error al analizar el plano:", err);
@@ -223,11 +275,16 @@ export default function AnalisisPlanosPage() {
             </CardHeader>
             <CardContent>
               {loading && (
-                <div className="text-center py-12">
-                  <Loader2 className="h-10 w-10 animate-spin text-primary mx-auto mb-4" />
-                  <p className="text-muted-foreground">La IA está procesando el plano...</p>
-                  <p className="text-xs text-muted-foreground/70">(Esto puede tardar hasta un minuto)</p>
-                </div>
+                 <motion.div
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.5 }}
+                    className="text-center py-8 space-y-4"
+                  >
+                    <Progress value={progress} className="w-full h-2" />
+                    <p className="text-sm font-medium text-primary animate-pulse">{progressText}</p>
+                    <p className="text-xs text-muted-foreground/80">(El análisis puede tardar hasta un minuto)</p>
+                </motion.div>
               )}
               {error && <p className="text-destructive font-medium">{error}</p>}
               {resultado && (
