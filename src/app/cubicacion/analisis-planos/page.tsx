@@ -11,10 +11,12 @@ import { Textarea } from '@/components/ui/textarea';
 import { Checkbox } from '@/components/ui/checkbox';
 import { ArrowLeft, BrainCircuit, Loader2, Upload } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
-import { firebaseDb } from '@/lib/firebaseClient';
-import { collection, query, where, getDocs, orderBy } from 'firebase/firestore';
+import { firebaseDb, firebaseStorage } from '@/lib/firebaseClient';
+import { collection, query, where, getDocs, orderBy, addDoc, serverTimestamp, doc } from 'firebase/firestore';
+import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { Obra } from '@/types/pcg';
 import { useRouter } from 'next/navigation';
+import { useToast } from '@/hooks/use-toast';
 
 type AnalisisOpciones = {
   superficieUtil: boolean;
@@ -23,9 +25,16 @@ type AnalisisOpciones = {
   m2Revestimientos: boolean;
 };
 
+type ResultadoAnalisis = {
+  id: string;
+  status: 'pendiente_ia' | 'en_proceso' | 'completado' | 'error';
+  mensaje: string;
+}
+
 export default function AnalisisPlanosPage() {
   const { user, companyId, role, loading: authLoading } = useAuth();
   const router = useRouter();
+  const { toast } = useToast();
   
   const [obras, setObras] = useState<Obra[]>([]);
   const [selectedObraId, setSelectedObraId] = useState<string>('');
@@ -40,7 +49,7 @@ export default function AnalisisPlanosPage() {
   const [isAnalizando, setIsAnalizando] = useState(false);
   
   // Placeholder for results
-  const [resultados, setResultados] = useState<string | null>(null);
+  const [resultado, setResultado] = useState<ResultadoAnalisis | null>(null);
 
   useEffect(() => {
     if (authLoading) return;
@@ -76,12 +85,74 @@ export default function AnalisisPlanosPage() {
   };
 
   const handleAnalizar = async () => {
-    // Lógica de análisis con IA se implementará aquí en el futuro
+    if (!selectedObraId || !planoFile || !user || !companyId) {
+        toast({
+            variant: "destructive",
+            title: "Faltan datos",
+            description: "Por favor, selecciona una obra y un archivo de plano.",
+        });
+        return;
+    }
+    
     setIsAnalizando(true);
-    // Simulación de análisis
-    await new Promise(resolve => setTimeout(resolve, 2000));
-    setResultados("El análisis ha finalizado. (Placeholder de resultados)");
-    setIsAnalizando(false);
+    setResultado(null);
+
+    try {
+        // 1. Crear una referencia para el nuevo documento de análisis y obtener su ID
+        const newAnalysisRef = doc(collection(firebaseDb, "analisisPlanos"));
+        const nuevoIdAnalisis = newAnalysisRef.id;
+
+        // 2. Subir el archivo a Firebase Storage
+        const storagePath = `analisis-planos/${companyId}/${selectedObraId}/${nuevoIdAnalisis}/${planoFile.name}`;
+        const fileRef = ref(firebaseStorage, storagePath);
+        const uploadResult = await uploadBytes(fileRef, planoFile);
+        const downloadURL = await getDownloadURL(uploadResult.ref);
+
+        // 3. Guardar metadatos en Firestore
+        const analisisData = {
+            companyId,
+            obraId: selectedObraId,
+            storagePath,
+            downloadURL,
+            nombreArchivoOriginal: planoFile.name,
+            opcionesAnalisis,
+            notas,
+            userId: user.uid,
+            userEmail: user.email,
+            createdAt: serverTimestamp(),
+            updatedAt: serverTimestamp(),
+            status: 'pendiente_ia',
+            resultado: null, // Campo para los resultados de la IA
+        };
+
+        await addDoc(collection(firebaseDb, "analisisPlanos"), analisisData);
+
+        toast({
+            title: "Plano cargado con éxito",
+            description: "El análisis ha sido registrado y está listo para ser procesado por la IA.",
+        });
+        
+        setResultado({
+            id: nuevoIdAnalisis,
+            status: 'pendiente_ia',
+            mensaje: "Plano cargado y análisis registrado. Recibirás una notificación cuando los resultados estén listos."
+        });
+
+    } catch (error) {
+        console.error("Error al analizar el plano:", error);
+        toast({
+            variant: "destructive",
+            title: "Error de carga",
+            description: "No se pudo subir el plano o registrar el análisis. Inténtalo de nuevo.",
+        });
+        setResultado({
+             id: 'error',
+             status: 'error',
+             mensaje: "Ocurrió un error. Revisa la consola para más detalles."
+        });
+    } finally {
+        setIsAnalizando(false);
+    }
   };
 
   const isBotonHabilitado = selectedObraId && planoFile && Object.values(opcionesAnalisis).some(v => v);
@@ -178,8 +249,11 @@ export default function AnalisisPlanosPage() {
                     <Loader2 className="h-8 w-8 mx-auto animate-spin" />
                     <p>Procesando el plano...</p>
                  </div>
-              ) : resultados ? (
-                <div className="text-sm">{resultados}</div>
+              ) : resultado ? (
+                <div className="text-sm text-center">
+                    <p>{resultado.mensaje}</p>
+                    {resultado.status === 'pendiente_ia' && <p className='mt-2 text-xs font-mono text-muted-foreground'>ID Análisis: {resultado.id}</p>}
+                </div>
               ) : (
                 <div className="text-center text-muted-foreground">
                   <p>Aquí se mostrarán los resultados del análisis una vez que se complete.</p>
