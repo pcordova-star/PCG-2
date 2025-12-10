@@ -16,6 +16,8 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { motion } from 'framer-motion';
+import { useAuth } from '@/context/AuthContext';
+import { uploadPlanoToStorage } from '@/lib/cubicacion/uploadPlano';
 
 type OpcionesDeAnalisis = {
   superficieUtil: boolean;
@@ -25,15 +27,6 @@ type OpcionesDeAnalisis = {
   instalacionesHidraulicas: boolean;
   instalacionesElectricas: boolean;
 };
-
-function fileToDataUri(file: File): Promise<string> {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = () => resolve(reader.result as string);
-    reader.onerror = (err) => reject(err);
-    reader.readAsDataURL(file);
-  });
-}
 
 const progressSteps = [
   { percent: 0, text: "Iniciando conexión segura..." },
@@ -47,6 +40,7 @@ const progressSteps = [
 export default function AnalisisPlanosPage() {
   const router = useRouter();
   const { toast } = useToast();
+  const { user, company } = useAuth();
   
   const [opciones, setOpciones] = useState<OpcionesDeAnalisis>({
     superficieUtil: false,
@@ -60,9 +54,8 @@ export default function AnalisisPlanosPage() {
   const [planoFile, setPlanoFile] = useState<File | null>(null);
   const [notas, setNotas] = useState('');
   
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [resultado, setResultado] = useState<AnalisisPlanoOutput | null>(null);
+  const [cargando, setCargando] = useState(false);
+  const [resultado, setResultado] = useState<string>("");
 
   // Estados para la barra de progreso animada
   const [progress, setProgress] = useState(0);
@@ -70,7 +63,7 @@ export default function AnalisisPlanosPage() {
 
   useEffect(() => {
     let timer: NodeJS.Timeout;
-    if (loading) {
+    if (cargando) {
       setProgress(0);
       setProgressText("Iniciando conexión...");
 
@@ -102,7 +95,7 @@ export default function AnalisisPlanosPage() {
     return () => {
       if (timer) clearTimeout(timer);
     };
-  }, [loading]);
+  }, [cargando]);
 
   const handleCheckboxChange = (key: keyof OpcionesDeAnalisis) => {
     setOpciones(prev => ({ ...prev, [key]: !prev[key] }));
@@ -123,73 +116,75 @@ export default function AnalisisPlanosPage() {
     }
   };
 
-  const handleSubmit = async (e: FormEvent) => {
-    e.preventDefault();
-    setError(null);
-    setResultado(null);
+  const construirPromptDesdeChecksYNotas = (): string => {
+    const opcionesSeleccionadas = Object.entries(opciones)
+      .filter(([_, value]) => value)
+      .map(([key]) => {
+        switch (key) {
+          case 'superficieUtil': return 'Superficie útil por recinto';
+          case 'm2Muros': return 'Metros cuadrados de muros';
+          case 'm2Losas': return 'Metros cuadrados de losas';
+          case 'm2Revestimientos': return 'Metros cuadrados de revestimientos en zonas húmedas';
+          case 'instalacionesHidraulicas': return 'Análisis de instalaciones hidráulicas';
+          case 'instalacionesElectricas': return 'Análisis de instalaciones eléctricas';
+          default: return '';
+        }
+      })
+      .filter(Boolean);
+
+    let prompt = `Analiza este plano de construcción. Extrae la siguiente información: ${opcionesSeleccionadas.join(', ')}.`;
+    if (notas) {
+      prompt += ` Considera las siguientes notas adicionales: ${notas}`;
+    }
+    return prompt;
+  };
+
+  const handleSubmit = async (event: React.FormEvent) => {
+    event.preventDefault();
 
     if (!planoFile) {
-      toast({
-        variant: "destructive",
-        title: "Falta el plano",
-        description: "Debes subir un archivo de plano (PDF o imagen).",
-      });
+      setResultado("Debes seleccionar un plano antes de iniciar el análisis.");
       return;
     }
-
-    const opcionesSeleccionadasValues = Object.entries(opciones)
-      .filter(([_, value]) => value)
-      .map(([key]) => key);
-
-    if (opcionesSeleccionadasValues.length === 0) {
-      toast({
-        variant: "destructive",
-        title: "Sin selección",
-        description: "Debes seleccionar al menos una opción de análisis.",
-      });
-      return;
-    }
-
-    setLoading(true);
 
     try {
-      const photoDataUri = await fileToDataUri(planoFile);
+      setCargando(true);
+      setResultado("");
 
-      const input: AnalisisPlanoInput = {
-        photoDataUri,
-        opcionesSeleccionadas: opcionesSeleccionadasValues,
-        notasUsuario: notas,
-        obraId: "temp-obra-id",
-      };
+      const { url, contentType } = await uploadPlanoToStorage(
+        planoFile,
+        company?.id ?? "no-company",
+        user?.uid ?? "anon"
+      );
+
+      const prompt = construirPromptDesdeChecksYNotas();
 
       const res = await fetch("/api/analizar-plano", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(input),
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          fileUrl: url,
+          fileType: contentType,
+          prompt,
+        }),
       });
 
-      if (!res.ok) {
-        const body = await res.json().catch(() => null);
+      const body = await res.json();
+
+      if (!res.ok || body.error) {
         const message =
-          body?.error || "Ocurrió un error durante el análisis del plano.";
+          body.error || "Ocurrió un error durante el análisis del plano.";
         throw new Error(message);
       }
 
-      const analisisResult = (await res.json()) as AnalisisPlanoOutput;
-      setProgress(100);
-      setResultado(analisisResult);
+      setResultado(body.analysis ?? "La IA no devolvió resultado.");
     } catch (err: any) {
       console.error("Error al analizar el plano:", err);
-      const message =
-        err?.message || "Ocurrió un error desconocido durante el análisis.";
-      setError(message);
-      toast({
-        variant: "destructive",
-        title: "Error de análisis",
-        description: message,
-      });
+      setResultado(err.message ?? "Ocurrió un error durante el análisis del plano.");
     } finally {
-      setLoading(false);
+      setCargando(false);
     }
   };
 
@@ -262,9 +257,9 @@ export default function AnalisisPlanosPage() {
             </CardContent>
           </Card>
 
-          <Button type="submit" size="lg" className="w-full" disabled={loading}>
-            {loading ? <Loader2 className="mr-2 h-5 w-5 animate-spin" /> : <Wand2 className="mr-2 h-5 w-5" />}
-            {loading ? 'Analizando plano...' : 'Iniciar Análisis con IA'}
+          <Button type="submit" size="lg" className="w-full" disabled={cargando}>
+            {cargando ? <Loader2 className="mr-2 h-5 w-5 animate-spin" /> : <Wand2 className="mr-2 h-5 w-5" />}
+            {cargando ? 'Analizando plano...' : 'Iniciar Análisis con IA'}
           </Button>
         </form>
 
@@ -274,7 +269,7 @@ export default function AnalisisPlanosPage() {
               <CardTitle className="flex items-center gap-2"><TableIcon /> Resultado del Análisis</CardTitle>
             </CardHeader>
             <CardContent>
-              {loading && (
+              {cargando && (
                  <motion.div
                     initial={{ opacity: 0, y: 10 }}
                     animate={{ opacity: 1, y: 0 }}
@@ -286,49 +281,12 @@ export default function AnalisisPlanosPage() {
                     <p className="text-xs text-muted-foreground/80">(El análisis puede tardar hasta un minuto)</p>
                 </motion.div>
               )}
-              {error && <p className="text-destructive font-medium">{error}</p>}
               {resultado && (
-                <div className="space-y-4">
-                  <div>
-                    <h3 className="font-semibold">Resumen de la IA</h3>
-                    <p className="text-sm text-muted-foreground bg-muted/50 p-3 rounded-md mt-1">{resultado.summary}</p>
-                  </div>
-                  <div>
-                    <h3 className="font-semibold mb-2">Elementos Analizados</h3>
-                    <div className="border rounded-lg overflow-hidden">
-                      <Table>
-                        <TableHeader>
-                          <TableRow>
-                            <TableHead>Tipo</TableHead>
-                            <TableHead>Nombre</TableHead>
-                            <TableHead className="text-right">Cantidad</TableHead>
-                            <TableHead>Confianza</TableHead>
-                          </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                          {resultado.elements.map((el, i) => {
-                            const config = tipoElementoConfig[el.type.toLowerCase()] || tipoElementoConfig.default;
-                            return (
-                              <TableRow key={i}>
-                                <TableCell>
-                                    <Badge variant="outline" className="flex items-center gap-1.5">
-                                        <config.icon className={`h-3 w-3 ${config.color}`} />
-                                        {el.type}
-                                    </Badge>
-                                </TableCell>
-                                <TableCell className="text-xs">{el.name}</TableCell>
-                                <TableCell className="text-right font-mono text-xs">{el.estimatedQuantity.toFixed(2)} {el.unit}</TableCell>
-                                <TableCell className="text-right text-xs">{(el.confidence * 100).toFixed(0)}%</TableCell>
-                              </TableRow>
-                            );
-                          })}
-                        </TableBody>
-                      </Table>
-                    </div>
-                  </div>
+                <div className="prose prose-sm max-w-none text-muted-foreground">
+                    <pre className="whitespace-pre-wrap">{resultado}</pre>
                 </div>
               )}
-              {!loading && !resultado && !error && (
+              {!cargando && !resultado && (
                 <div className="text-center py-12 text-muted-foreground">
                   <p>Los resultados del análisis aparecerán aquí.</p>
                 </div>
