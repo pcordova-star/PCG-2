@@ -9,7 +9,6 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Checkbox } from '@/components/ui/checkbox';
 import { useToast } from '@/hooks/use-toast';
-import type { AnalisisPlanoOutput } from "@/types/analisis-planos";
 import { ArrowLeft, Loader2, Wand2, TableIcon, StickyNote, FileUp, Building, Droplets, Zap } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
@@ -144,30 +143,28 @@ export default function AnalisisPlanosPage() {
 
   const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
-  
+
     if (!planoFile) {
       setResultado("Debes seleccionar un plano antes de iniciar el análisis.");
       return;
     }
-  
+
     try {
       setCargando(true);
       setResultado("");
-  
+
       // 1) Subir archivo a Storage
       const { url, contentType } = await uploadPlanoToStorage(
         planoFile,
         company?.id ?? "no-company",
         user?.uid ?? "anon"
       );
-  
+
       // 2) Construir prompt con la lógica existente (checkbox + notas)
-      const prompt = construirPromptDesdeChecksYNotas
-        ? construirPromptDesdeChecksYNotas()
-        : notas || "Analiza este plano de construcción.";
-  
+      const prompt = construirPromptDesdeChecksYNotas();
+
       let apiResponse: Response;
-  
+
       if (contentType === "application/pdf") {
         // 3A) Caso PDF → llamar a Cloud Function
         apiResponse = await fetch(ANALIZAR_PDF_FUNCTION_URL, {
@@ -194,15 +191,15 @@ export default function AnalisisPlanosPage() {
           }),
         });
       }
-  
+
       const body = await apiResponse.json();
-  
+
       if (!apiResponse.ok || body.error) {
         const message =
           body.error || "Ocurrió un error durante el análisis del plano.";
         throw new Error(message);
       }
-  
+
       setResultado(body.analysis ?? "La IA no devolvió resultado.");
     } catch (err: any) {
       console.error("Error al analizar el plano:", err);
