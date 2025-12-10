@@ -25,6 +25,8 @@ type AnalisisOpciones = {
   m2Muros: boolean;
   m2Losas: boolean;
   m2Revestimientos: boolean;
+  instalacionesHidraulicas: boolean;
+  instalacionesElectricas: boolean;
 };
 
 export default function AnalisisPlanosPage() {
@@ -40,6 +42,8 @@ export default function AnalisisPlanosPage() {
     m2Muros: false,
     m2Losas: false,
     m2Revestimientos: false,
+    instalacionesHidraulicas: false,
+    instalacionesElectricas: false,
   });
   const [notas, setNotas] = useState('');
   const [isAnalizando, setIsAnalizando] = useState(false);
@@ -180,11 +184,19 @@ export default function AnalisisPlanosPage() {
               <CardDescription>Selecciona qué elementos quieres que la IA analice y extraiga del plano.</CardDescription>
             </CardHeader>
             <CardContent className="space-y-3">
-              <div className="grid grid-cols-2 gap-4">
-                <Label className="flex items-center gap-2 font-normal"><Checkbox checked={opcionesAnalisis.superficieUtil} onCheckedChange={() => handleCheckboxChange('superficieUtil')} /><span>Superficie útil por recinto</span></Label>
-                <Label className="flex items-center gap-2 font-normal"><Checkbox checked={opcionesAnalisis.m2Muros} onCheckedChange={() => handleCheckboxChange('m2Muros')} /><span>m² de muros</span></Label>
-                <Label className="flex items-center gap-2 font-normal"><Checkbox checked={opcionesAnalisis.m2Losas} onCheckedChange={() => handleCheckboxChange('m2Losas')} /><span>m² de losas</span></Label>
-                <Label className="flex items-center gap-2 font-normal"><Checkbox checked={opcionesAnalisis.m2Revestimientos} onCheckedChange={() => handleCheckboxChange('m2Revestimientos')} /><span>m² de revestimientos (baños/cocinas)</span></Label>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                      <p className="font-medium text-sm">Arquitectura / Obra Gruesa</p>
+                      <Label className="flex items-center gap-2 font-normal"><Checkbox checked={opcionesAnalisis.superficieUtil} onCheckedChange={() => handleCheckboxChange('superficieUtil')} /><span>Superficie útil por recinto</span></Label>
+                      <Label className="flex items-center gap-2 font-normal"><Checkbox checked={opcionesAnalisis.m2Muros} onCheckedChange={() => handleCheckboxChange('m2Muros')} /><span>m² de muros</span></Label>
+                      <Label className="flex items-center gap-2 font-normal"><Checkbox checked={opcionesAnalisis.m2Losas} onCheckedChange={() => handleCheckboxChange('m2Losas')} /><span>m² de losas</span></Label>
+                      <Label className="flex items-center gap-2 font-normal"><Checkbox checked={opcionesAnalisis.m2Revestimientos} onCheckedChange={() => handleCheckboxChange('m2Revestimientos')} /><span>m² de revestimientos (baños/cocinas)</span></Label>
+                  </div>
+                   <div className="space-y-2">
+                      <p className="font-medium text-sm">Instalaciones</p>
+                      <Label className="flex items-center gap-2 font-normal"><Checkbox checked={opcionesAnalisis.instalacionesHidraulicas} onCheckedChange={() => handleCheckboxChange('instalacionesHidraulicas')} /><span>Instalaciones hidráulicas</span></Label>
+                      <Label className="flex items-center gap-2 font-normal"><Checkbox checked={opcionesAnalisis.instalacionesElectricas} onCheckedChange={() => handleCheckboxChange('instalacionesElectricas')} /><span>Instalaciones eléctricas</span></Label>
+                  </div>
               </div>
               <div className="pt-4">
                 <Label htmlFor="ia-notes">Notas para la IA (escala, altura de muros, etc.)</Label>
@@ -242,7 +254,7 @@ export default function AnalisisPlanosPage() {
                                 <TableRow key={i}>
                                     <TableCell className="text-xs">
                                         <p className="font-medium">{el.name}</p>
-                                        <p className="text-muted-foreground capitalize">{el.type} - {el.notes}</p>
+                                        <p className="text-muted-foreground capitalize">{el.type.replace(/_/g, ' ')} - {el.notes}</p>
                                     </TableCell>
                                     <TableCell className="text-right font-mono">{el.estimatedQuantity.toFixed(2)} {el.unit}</TableCell>
                                     <TableCell className="text-right text-xs font-semibold" style={{ color: `hsl(120, ${el.confidence * 100}%, 35%)` }}>
