@@ -36,9 +36,9 @@ export type AnalisisPlanoInput = z.infer<typeof AnalisisPlanoInputSchema>;
 
 // Esquema para un elemento individual del resultado del análisis.
 const ElementoAnalizadoSchema = z.object({
-    type: z.enum(["losa", "muro", "recinto", "revestimiento", "instalacion_hidraulica", "instalacion_electrica"]).describe("El tipo de elemento analizado."),
+    type: z.string().describe("El tipo de elemento analizado (ej: Losa, Muro, Recinto, Revestimiento, Instalación Hidráulica)."),
     name: z.string().describe("Nombre o descripción del elemento (ej: Losa nivel 1, Muros perimetrales, Baño depto tipo A, Punto de luz tipo A)."),
-    unit: z.enum(["m2", "m3", "m", "unidad"]).describe("Unidad de medida de la cantidad estimada."),
+    unit: z.string().describe("Unidad de medida de la cantidad estimada (ej: m², m³, m, unidad)."),
     estimatedQuantity: z.number().describe("La cantidad numérica estimada para el elemento."),
     confidence: z.number().min(0).max(1).describe("Un valor de 0 a 1 que representa la confianza de la IA en la estimación."),
     notes: z.string().describe("Aclaraciones o supuestos utilizados por la IA para la estimación."),
