@@ -10,6 +10,7 @@
     "export": "next build"
   },
   "dependencies": {
+    "@google/generative-ai": "latest",
     "@genkit-ai/core": "^1.0.0",
     "@genkit-ai/google-genai": "^1.0.0",
     "@hookform/resolvers": "^4.1.3",
