@@ -38,7 +38,7 @@ export default function AnalisisPlanosPage() {
   const [selectedObraId, setSelectedObraId] = useState<string>('');
   const [planoFile, setPlanoFile] = useState<File | null>(null);
   const [opcionesAnalisis, setOpcionesAnalisis] = useState<AnalisisOpciones>({
-    superficieUtil: true,
+    superficieUtil: false,
     m2Muros: false,
     m2Losas: false,
     m2Revestimientos: false,
