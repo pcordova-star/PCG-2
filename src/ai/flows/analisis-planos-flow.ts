@@ -16,6 +16,8 @@ const OpcionesAnalisisSchema = z.object({
   m2Muros: z.boolean().describe("Estimar los metros cuadrados totales de muros."),
   m2Losas: z.boolean().describe("Estimar los metros cuadrados totales de losas."),
   m2Revestimientos: z.boolean().describe("Estimar los metros cuadrados de revestimientos en zonas húmedas como baños y cocinas."),
+  instalacionesHidraulicas: z.boolean().describe("Analizar instalaciones hidráulicas (agua potable / alcantarillado)."),
+  instalacionesElectricas: z.boolean().describe("Analizar instalaciones eléctricas (potencia / iluminación)."),
 });
 
 // Esquema de entrada para el flujo de Genkit.
@@ -34,9 +36,9 @@ export type AnalisisPlanoInput = z.infer<typeof AnalisisPlanoInputSchema>;
 
 // Esquema para un elemento individual del resultado del análisis.
 const ElementoAnalizadoSchema = z.object({
-    type: z.enum(["losa", "muro", "recinto", "revestimiento"]).describe("El tipo de elemento analizado."),
-    name: z.string().describe("Nombre o descripción del elemento (ej: Losa nivel 1, Muros perimetrales, Baño depto tipo A)."),
-    unit: z.enum(["m2", "m3"]).describe("Unidad de medida de la cantidad estimada."),
+    type: z.enum(["losa", "muro", "recinto", "revestimiento", "instalacion_hidraulica", "instalacion_electrica"]).describe("El tipo de elemento analizado."),
+    name: z.string().describe("Nombre o descripción del elemento (ej: Losa nivel 1, Muros perimetrales, Baño depto tipo A, Punto de luz tipo A)."),
+    unit: z.enum(["m2", "m3", "m", "unidad"]).describe("Unidad de medida de la cantidad estimada."),
     estimatedQuantity: z.number().describe("La cantidad numérica estimada para el elemento."),
     confidence: z.number().min(0).max(1).describe("Un valor de 0 a 1 que representa la confianza de la IA en la estimación."),
     notes: z.string().describe("Aclaraciones o supuestos utilizados por la IA para la estimación."),
@@ -68,11 +70,19 @@ const prompt = ai.definePrompt({
 **Tarea:**
 Analiza la imagen del plano adjunto y realiza las siguientes cubicaciones según las opciones solicitadas. Responde SIEMPRE en el formato JSON especificado.
 
-**Opciones solicitadas:**
+**Opciones de Arquitectura/Obra Gruesa:**
 - Superficie útil por recinto: {{{opciones.superficieUtil}}}
 - Metros cuadrados de muros: {{{opciones.m2Muros}}}
 - Metros cuadrados de losas: {{{opciones.m2Losas}}}
 - Metros cuadrados de revestimientos (baños/cocinas): {{{opciones.m2Revestimientos}}}
+
+**Opciones de Instalaciones:**
+- Instalaciones hidráulicas (agua potable/alcantarillado): {{{opciones.instalacionesHidraulicas}}}
+- Instalaciones eléctricas (potencia/iluminación): {{{opciones.instalacionesElectricas}}}
+
+**Instrucciones específicas por tipo de análisis:**
+- Si se solicita análisis de **instalaciones hidráulicas**, incluye estimaciones de longitud de tuberías principales, número de artefactos sanitarios y puntos de agua relevantes. La unidad puede ser "m" o "unidad".
+- Si se solicita análisis de **instalaciones eléctricas**, incluye estimaciones de cantidad de puntos de luz, enchufes, recorridos principales de circuitos y tableros. La unidad puede ser "m" o "unidad".
 
 Para cada elemento que estimes, proporciona un nivel de confianza entre 0 y 1. Si no puedes determinar una cantidad con certeza, usa una confianza baja y explícalo en las notas del elemento.
 
