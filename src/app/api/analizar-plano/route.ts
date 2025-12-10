@@ -27,11 +27,26 @@ export async function POST(req: Request) {
       );
     }
 
-    const body = await req.json();
+    const body: any = await req.json();
 
-    // Esperamos un dataURL de imagen (PNG/JPG)
-    const dataUrl: string | undefined =
-      body.imageDataUrl || body.fileDataUrl || body.imageBase64;
+    // Intentamos varios nombres posibles
+    let dataUrl: string | undefined =
+      body.imageDataUrl ||
+      body.fileDataUrl ||
+      body.imageBase64 ||
+      body.file ||
+      body.plano ||
+      body.planoBase64;
+
+    // Si aún no hay nada, buscamos cualquier string que parezca data:image
+    if (!dataUrl) {
+      const candidate = Object.values(body).find(
+        (v) => typeof v === "string" && v.startsWith("data:image")
+      );
+      if (typeof candidate === "string") {
+        dataUrl = candidate;
+      }
+    }
 
     if (!dataUrl) {
       return NextResponse.json(
@@ -53,6 +68,7 @@ export async function POST(req: Request) {
     }
 
     const model = genAI.getGenerativeModel({
+      // Importante: SIN "-latest"
       model: "gemini-1.5-flash",
     });
 
