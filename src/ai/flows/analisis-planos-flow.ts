@@ -7,7 +7,7 @@
  * - AnalisisPlanoOutput: Tipo de salida (JSON estructurado) para la función.
  */
 
-import { ai } from '@/ai/genkit';
+import { ai, geminiFlashModel } from '@/ai/genkit';
 import { z } from 'zod';
 
 // Esquema para las opciones de análisis que el usuario puede seleccionar.
@@ -59,6 +59,7 @@ export async function analizarPlano(input: AnalisisPlanoInput): Promise<Analisis
 // Definición del prompt para Genkit.
 const prompt = ai.definePrompt({
   name: 'analizarPlanoPrompt',
+  model: geminiFlashModel,
   input: { schema: AnalisisPlanoInputSchema },
   output: { schema: AnalisisPlanoOutputSchema },
   prompt: `Actúas como un INGENIERO CIVIL / ARQUITECTO experto en:
