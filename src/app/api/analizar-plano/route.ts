@@ -1,7 +1,10 @@
 // src/app/api/analizar-plano/route.ts
 import { NextResponse } from "next/server";
 import { GoogleGenerativeAI } from "@google/generative-ai";
-import type { AnalisisPlanoInput, AnalisisPlanoOutput } from "@/types/analisis-planos";
+import type {
+  AnalisisPlanoInput,
+  AnalisisPlanoOutput,
+} from "@/types/analisis-planos";
 
 function parseDataUri(dataUri: string): { mimeType: string; base64Data: string } {
   const [meta, base64Data] = dataUri.split(",");
@@ -18,7 +21,7 @@ Debes seguir estas reglas estrictamente:
 1. Analiza la imagen (plano) que se entrega como primer input del modelo.
 2. Considera las opciones del usuario (opcionesSeleccionadas).
 3. Usa las notas del usuario (notasUsuario) para mejorar la precisión.
-4. Tu respuesta DEBE ser SOLO un JSON válido, sin texto adicional, que siga exactamente este esquema:
+4. Tu respuesta DEBE ser SOLO un JSON válido, sin texto adicional ni backticks, que siga exactamente este esquema:
 
 {
   "summary": "string",
@@ -34,29 +37,27 @@ Debes seguir estas reglas estrictamente:
   ]
 }
 
-No incluyas bloques de código, ni texto explicativo, ni backticks. Solo el JSON.
-
-Define:
 - "type": valores como "recinto", "muro", "losa", "revestimiento", "instalaciones hidráulicas", "instalaciones eléctricas", etc.
 - "unit": usa "m²", "m³", "m", "unidad" según corresponda.
 - "confidence": valor entre 0 y 1.
 - "notes": explica supuestos (altura de muro, calidad del plano, descuentos de vanos, etc.).
 
+No expliques nada fuera de ese JSON.
 `;
 
+// Nota: este endpoint corre en Vercel (Node), NO usar Genkit ni flows.
 export async function POST(req: Request) {
   try {
     const body = (await req.json()) as AnalisisPlanoInput;
-    const { photoDataUri, opcionesSeleccionadas, notasUsuario, obraId } = body;
 
-    if (!photoDataUri) {
+    if (!body?.photoDataUri) {
       return NextResponse.json(
         { error: "photoDataUri es requerido" },
         { status: 400 }
       );
     }
 
-    const { mimeType, base64Data } = parseDataUri(photoDataUri);
+    const { mimeType, base64Data } = parseDataUri(body.photoDataUri);
 
     const apiKey = process.env.GEMINI_API_KEY;
     if (!apiKey) {
@@ -68,14 +69,15 @@ export async function POST(req: Request) {
     }
 
     const genAI = new GoogleGenerativeAI(apiKey);
+    // Usa un modelo seguro, el nombre depende del SDK; este suele existir
     const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
 
     const prompt = `
 ${BASE_PROMPT}
 
-Opciones solicitadas: ${JSON.stringify(opcionesSeleccionadas)}
-Notas del usuario: ${notasUsuario || "Sin notas adicionales."}
-ID de obra (para contexto, no para mostrar): ${obraId}
+Opciones solicitadas: ${JSON.stringify(body.opcionesSeleccionadas)}
+Notas del usuario: ${body.notasUsuario || "Sin notas adicionales."}
+ID de obra (solo contexto, no es necesario mostrarlo): ${body.obraId}
 `;
 
     const result = await model.generateContent([
@@ -88,21 +90,33 @@ ID de obra (para contexto, no para mostrar): ${obraId}
       { text: prompt },
     ]);
 
-    const text = result.response.text();
+    const rawText = result.response.text().trim();
+    console.log("Gemini raw response:", rawText);
+
+    let cleaned = rawText;
+
+    // Por si el modelo insiste en poner ```json ... ```
+    cleaned = cleaned
+      .replace(/^```json/i, "")
+      .replace(/^```/i, "")
+      .replace(/```$/i, "")
+      .trim();
 
     let parsed: AnalisisPlanoOutput;
     try {
-      parsed = JSON.parse(text) as AnalisisPlanoOutput;
+      parsed = JSON.parse(cleaned) as AnalisisPlanoOutput;
     } catch (err) {
-      console.error("Respuesta de IA no es JSON válido:", text);
+      console.error("No se pudo parsear la respuesta de IA como JSON:", cleaned);
       throw new Error("La IA no devolvió un JSON válido.");
     }
 
     return NextResponse.json(parsed);
-  } catch (error) {
+  } catch (error: any) {
     console.error("Error en /api/analizar-plano:", error);
+    const message =
+      error?.message || "Error interno en el análisis de planos";
     return NextResponse.json(
-      { error: "Error interno en el análisis de planos" },
+      { error: message },
       { status: 500 }
     );
   }
