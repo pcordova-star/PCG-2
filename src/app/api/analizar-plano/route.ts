@@ -6,11 +6,48 @@ import type {
   AnalisisPlanoOutput,
 } from "@/types/analisis-planos";
 
-function parseDataUri(dataUri: string): { mimeType: string; base64Data: string } {
+import * as pdfjsLib from "pdfjs-dist/legacy/build/pdf.js";
+import { createCanvas } from "canvas";
+
+// Necesario para que pdfjs funcione en Node
+// @ts-ignore
+pdfjsLib.GlobalWorkerOptions.workerSrc =
+  "pdfjs-dist/legacy/build/pdf.worker.js";
+
+function parseDataUri(
+  dataUri: string
+): { mimeType: string; base64Data: string } {
   const [meta, base64Data] = dataUri.split(",");
   const mimeMatch = meta.match(/data:(.*);base64/);
   const mimeType = mimeMatch?.[1] ?? "application/octet-stream";
   return { mimeType, base64Data };
+}
+
+// Convierte la primera página de un PDF (base64) a PNG (base64)
+async function pdfFirstPageToPngBase64(
+  pdfBase64: string
+): Promise<{ mimeType: string; base64Data: string }> {
+  const pdfBuffer = Buffer.from(pdfBase64, "base64");
+
+  const loadingTask = pdfjsLib.getDocument({ data: pdfBuffer });
+  const pdf = await loadingTask.promise;
+  const page = await pdf.getPage(1); // primera página
+
+  const viewport = page.getViewport({ scale: 2 }); // escala 2x para mejor resolución
+  const canvas = createCanvas(viewport.width, viewport.height);
+  const context = canvas.getContext("2d");
+
+  const renderContext = {
+    canvasContext: context,
+    viewport,
+  };
+
+  await page.render(renderContext).promise;
+
+  const pngBuffer = canvas.toBuffer("image/png");
+  const base64Data = pngBuffer.toString("base64");
+
+  return { mimeType: "image/png", base64Data };
 }
 
 const BASE_PROMPT = `
@@ -45,7 +82,7 @@ Debes seguir estas reglas estrictamente:
 No expliques nada fuera de ese JSON.
 `;
 
-// Nota: este endpoint corre en Vercel (Node), NO usar Genkit ni flows.
+// Endpoint que corre en Vercel (Node). No usa Genkit ni flows.
 export async function POST(req: Request) {
   try {
     const body = (await req.json()) as AnalisisPlanoInput;
@@ -57,7 +94,36 @@ export async function POST(req: Request) {
       );
     }
 
-    const { mimeType, base64Data } = parseDataUri(body.photoDataUri);
+    let { mimeType, base64Data } = parseDataUri(body.photoDataUri);
+
+    // Si es PDF, convertimos la primera página a PNG
+    if (mimeType === "application/pdf") {
+      try {
+        const converted = await pdfFirstPageToPngBase64(base64Data);
+        mimeType = converted.mimeType;
+        base64Data = converted.base64Data;
+      } catch (err) {
+        console.error("Error al convertir PDF a imagen:", err);
+        return NextResponse.json(
+          {
+            error:
+              "No se pudo procesar el PDF. Intenta con un archivo más liviano o una imagen del plano.",
+          },
+          { status: 500 }
+        );
+      }
+    }
+
+    // Validamos que ahora tengamos una imagen
+    if (!mimeType.startsWith("image/")) {
+      return NextResponse.json(
+        {
+          error:
+            "Formato de archivo no soportado. Sube una imagen (JPG, PNG) o un PDF válido.",
+        },
+        { status: 400 }
+      );
+    }
 
     const apiKey = process.env.GEMINI_API_KEY;
     if (!apiKey) {
@@ -69,8 +135,8 @@ export async function POST(req: Request) {
     }
 
     const genAI = new GoogleGenerativeAI(apiKey);
-    // Usa un modelo seguro, el nombre depende del SDK; este suele existir
-    const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash-latest" });
+    // Modelo soportado por tu API key para imagen + texto
+    const model = genAI.getGenerativeModel({ model: "gemini-pro-vision" });
 
     const prompt = `
 ${BASE_PROMPT}
@@ -94,8 +160,6 @@ ID de obra (solo contexto, no es necesario mostrarlo): ${body.obraId}
     console.log("Gemini raw response:", rawText);
 
     let cleaned = rawText;
-
-    // Por si el modelo insiste en poner ```json ... ```
     cleaned = cleaned
       .replace(/^```json/i, "")
       .replace(/^```/i, "")
@@ -115,9 +179,6 @@ ID de obra (solo contexto, no es necesario mostrarlo): ${body.obraId}
     console.error("Error en /api/analizar-plano:", error);
     const message =
       error?.message || "Error interno en el análisis de planos";
-    return NextResponse.json(
-      { error: message },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: message }, { status: 500 });
   }
 }
