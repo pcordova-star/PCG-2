@@ -9,7 +9,7 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Checkbox } from '@/components/ui/checkbox';
 import { useToast } from '@/hooks/use-toast';
-import { AnalisisPlanoInput, AnalisisPlanoOutput, analizarPlano } from '@/ai/flows/analisis-planos-flow';
+import type { AnalisisPlanoInput, AnalisisPlanoOutput } from "@/types/analisis-planos";
 import { ArrowLeft, Loader2, Wand2, TableIcon, StickyNote, FileUp, Building, Droplets, Zap } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
@@ -23,6 +23,15 @@ type OpcionesDeAnalisis = {
   instalacionesHidraulicas: boolean;
   instalacionesElectricas: boolean;
 };
+
+function fileToDataUri(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result as string);
+    reader.onerror = (err) => reject(err);
+    reader.readAsDataURL(file);
+  });
+}
 
 export default function AnalisisPlanosPage() {
   const router = useRouter();
@@ -69,41 +78,64 @@ export default function AnalisisPlanosPage() {
     setResultado(null);
 
     if (!planoFile) {
-      toast({ variant: 'destructive', title: 'Falta el plano', description: 'Debes subir un archivo de plano (PDF o imagen).' });
+      toast({
+        variant: "destructive",
+        title: "Falta el plano",
+        description: "Debes subir un archivo de plano (PDF o imagen).",
+      });
       return;
     }
 
-    if (!Object.values(opciones).some(v => v)) {
-      toast({ variant: 'destructive', title: 'Sin selección', description: 'Debes seleccionar al menos una opción de análisis.' });
+    const opcionesSeleccionadasValues = Object.entries(opciones)
+      .filter(([_, value]) => value)
+      .map(([key]) => key);
+
+    if (opcionesSeleccionadasValues.length === 0) {
+      toast({
+        variant: "destructive",
+        title: "Sin selección",
+        description: "Debes seleccionar al menos una opción de análisis.",
+      });
       return;
     }
 
     setLoading(true);
 
     try {
-      const reader = new FileReader();
-      reader.readAsDataURL(planoFile);
-      reader.onload = async () => {
-        const photoDataUri = reader.result as string;
+      const photoDataUri = await fileToDataUri(planoFile);
 
-        const input: AnalisisPlanoInput = {
-          photoDataUri,
-          opciones,
-          notas,
-          obraId: 'temp-obra-id', // Placeholder, ajustar si se integra con obras
-          obraNombre: 'Obra de Ejemplo',
-        };
+      const input: AnalisisPlanoInput = {
+        photoDataUri,
+        opcionesSeleccionadas: opcionesSeleccionadasValues,
+        notasUsuario: notas,
+        obraId: "temp-obra-id",
+      };
 
-        const analisisResult = await analizarPlano(input);
-        setResultado(analisisResult);
-      };
-      reader.onerror = (error) => {
-        throw new Error('No se pudo leer el archivo: ' + error);
-      };
+      const res = await fetch("/api/analizar-plano", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(input),
+      });
+
+      if (!res.ok) {
+        const body = await res.json().catch(() => null);
+        const message =
+          body?.error || "Ocurrió un error durante el análisis del plano.";
+        throw new Error(message);
+      }
+
+      const analisisResult = (await res.json()) as AnalisisPlanoOutput;
+      setResultado(analisisResult);
     } catch (err: any) {
       console.error("Error al analizar el plano:", err);
-      setError(err.message || 'Ocurrió un error desconocido durante el análisis.');
-      toast({ variant: 'destructive', title: 'Error de análisis', description: err.message });
+      const message =
+        err?.message || "Ocurrió un error desconocido durante el análisis.";
+      setError(message);
+      toast({
+        variant: "destructive",
+        title: "Error de análisis",
+        description: message,
+      });
     } finally {
       setLoading(false);
     }
@@ -114,8 +146,9 @@ export default function AnalisisPlanosPage() {
     muro: { icon: Building, color: 'text-gray-500' },
     losa: { icon: Building, color: 'text-gray-600' },
     revestimiento: { icon: Building, color: 'text-purple-500' },
-    instalacion_hidraulica: { icon: Droplets, color: 'text-sky-500' },
-    instalacion_electrica: { icon: Zap, color: 'text-yellow-500' },
+    "instalaciones hidráulicas": { icon: Droplets, color: 'text-sky-500' },
+    "instalaciones eléctricas": { icon: Zap, color: 'text-yellow-500' },
+    "arquitectura": { icon: Building, color: 'text-orange-500'},
     default: { icon: StickyNote, color: 'text-gray-400' },
   }
 
@@ -217,13 +250,13 @@ export default function AnalisisPlanosPage() {
                         </TableHeader>
                         <TableBody>
                           {resultado.elements.map((el, i) => {
-                            const config = tipoElementoConfig[el.type] || tipoElementoConfig.default;
+                            const config = tipoElementoConfig[el.type.toLowerCase()] || tipoElementoConfig.default;
                             return (
                               <TableRow key={i}>
                                 <TableCell>
                                     <Badge variant="outline" className="flex items-center gap-1.5">
                                         <config.icon className={`h-3 w-3 ${config.color}`} />
-                                        {el.type.replace(/_/g, ' ')}
+                                        {el.type}
                                     </Badge>
                                 </TableCell>
                                 <TableCell className="text-xs">{el.name}</TableCell>
