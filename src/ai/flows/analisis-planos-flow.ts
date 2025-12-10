@@ -57,7 +57,7 @@ export async function analizarPlano(input: AnalisisPlanoInput): Promise<Analisis
 }
 
 // Definición del prompt para Genkit.
-const prompt = ai.definePrompt({
+const analizarPlanoPrompt = ai.definePrompt({
   name: 'analizarPlanoPrompt',
   model: geminiFlashModel,
   input: { schema: AnalisisPlanoInputSchema },
@@ -131,7 +131,7 @@ const analisisPlanoFlow = ai.defineFlow(
     outputSchema: AnalisisPlanoOutputSchema,
   },
   async (input) => {
-    const { output } = await prompt(input);
+    const { output } = await analizarPlanoPrompt(input);
     if (!output) {
       throw new Error("La IA no devolvió una respuesta válida.");
     }
