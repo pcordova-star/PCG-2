@@ -14,10 +14,13 @@
   },
   "main": "lib/index.js",
   "dependencies": {
+    "@google/generative-ai": "^0.11.0",
+    "canvas": "^2.11.2",
     "cors": "^2.8.5",
     "firebase-admin": "^13.6.0",
     "firebase-functions": "^7.0.0",
     "heic-convert": "^2.1.0",
+    "pdfjs-dist": "^4.5.136",
     "sharp": "^0.33.4",
     "zod": "^3.25.76"
   },

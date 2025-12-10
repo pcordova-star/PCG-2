@@ -19,6 +19,9 @@ import { motion } from 'framer-motion';
 import { useAuth } from '@/context/AuthContext';
 import { uploadPlanoToStorage } from '@/lib/cubicacion/uploadPlano';
 
+const ANALIZAR_PDF_FUNCTION_URL =
+  "https://southamerica-west1-pcg-2-8bf1b.cloudfunctions.net/analizarPdfPlano";
+
 type OpcionesDeAnalisis = {
   superficieUtil: boolean;
   m2Muros: boolean;
@@ -141,47 +144,65 @@ export default function AnalisisPlanosPage() {
 
   const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
-
+  
     if (!planoFile) {
       setResultado("Debes seleccionar un plano antes de iniciar el análisis.");
       return;
     }
-
+  
     try {
       setCargando(true);
       setResultado("");
-
-      // Sube el archivo a Firebase Storage
+  
+      // 1) Subir archivo a Storage
       const { url, contentType } = await uploadPlanoToStorage(
         planoFile,
         company?.id ?? "no-company",
         user?.uid ?? "anon"
       );
-
-      // Construye el prompt usando la lógica actual (checkbox de “Superficie útil”, etc.)
-      const prompt = construirPromptDesdeChecksYNotas();
-
-      // Llama al API de Next enviando SOLO la URL y el tipo de archivo
-      const res = await fetch("/api/analizar-plano", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          fileUrl: url,
-          fileType: contentType,
-          prompt,
-        }),
-      });
-
-      const body = await res.json();
-
-      if (!res.ok || body.error) {
+  
+      // 2) Construir prompt con la lógica existente (checkbox + notas)
+      const prompt = construirPromptDesdeChecksYNotas
+        ? construirPromptDesdeChecksYNotas()
+        : notas || "Analiza este plano de construcción.";
+  
+      let apiResponse: Response;
+  
+      if (contentType === "application/pdf") {
+        // 3A) Caso PDF → llamar a Cloud Function
+        apiResponse = await fetch(ANALIZAR_PDF_FUNCTION_URL, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            fileUrl: url,
+            prompt,
+          }),
+        });
+      } else {
+        // 3B) Caso imagen → usar API de Next ya existente
+        apiResponse = await fetch("/api/analizar-plano", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            fileUrl: url,
+            fileType: contentType,
+            prompt,
+          }),
+        });
+      }
+  
+      const body = await apiResponse.json();
+  
+      if (!apiResponse.ok || body.error) {
         const message =
           body.error || "Ocurrió un error durante el análisis del plano.";
         throw new Error(message);
       }
-
+  
       setResultado(body.analysis ?? "La IA no devolvió resultado.");
     } catch (err: any) {
       console.error("Error al analizar el plano:", err);
