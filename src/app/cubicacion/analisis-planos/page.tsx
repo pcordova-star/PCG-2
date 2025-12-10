@@ -17,6 +17,8 @@ import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { Obra } from '@/types/pcg';
 import { useRouter } from 'next/navigation';
 import { useToast } from '@/hooks/use-toast';
+import { analizarPlano, AnalisisPlanoOutput } from '@/ai/flows/analisis-planos-flow';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 
 type AnalisisOpciones = {
   superficieUtil: boolean;
@@ -24,12 +26,6 @@ type AnalisisOpciones = {
   m2Losas: boolean;
   m2Revestimientos: boolean;
 };
-
-type ResultadoAnalisis = {
-  id: string;
-  status: 'pendiente_ia' | 'en_proceso' | 'completado' | 'error';
-  mensaje: string;
-}
 
 export default function AnalisisPlanosPage() {
   const { user, companyId, role, loading: authLoading } = useAuth();
@@ -47,9 +43,7 @@ export default function AnalisisPlanosPage() {
   });
   const [notas, setNotas] = useState('');
   const [isAnalizando, setIsAnalizando] = useState(false);
-  
-  // Placeholder for results
-  const [resultado, setResultado] = useState<ResultadoAnalisis | null>(null);
+  const [resultado, setResultado] = useState<AnalisisPlanoOutput | null>(null);
 
   useEffect(() => {
     if (authLoading) return;
@@ -98,57 +92,38 @@ export default function AnalisisPlanosPage() {
     setResultado(null);
 
     try {
-        // 1. Crear una referencia para el nuevo documento de análisis y obtener su ID
-        const newAnalysisRef = doc(collection(firebaseDb, "analisisPlanos"));
-        const nuevoIdAnalisis = newAnalysisRef.id;
+        const reader = new FileReader();
+        reader.readAsDataURL(planoFile);
+        reader.onload = async () => {
+            const dataUri = reader.result as string;
 
-        // 2. Subir el archivo a Firebase Storage
-        const storagePath = `analisis-planos/${companyId}/${selectedObraId}/${nuevoIdAnalisis}/${planoFile.name}`;
-        const fileRef = ref(firebaseStorage, storagePath);
-        const uploadResult = await uploadBytes(fileRef, planoFile);
-        const downloadURL = await getDownloadURL(uploadResult.ref);
+            const resultadoIa = await analizarPlano({
+                photoDataUri: dataUri,
+                opciones: opcionesAnalisis,
+                notas,
+                obraId: selectedObraId,
+                obraNombre: obras.find(o => o.id === selectedObraId)?.nombreFaena || 'N/A',
+            });
+            
+            setResultado(resultadoIa);
 
-        // 3. Guardar metadatos en Firestore
-        const analisisData = {
-            companyId,
-            obraId: selectedObraId,
-            storagePath,
-            downloadURL,
-            nombreArchivoOriginal: planoFile.name,
-            opcionesAnalisis,
-            notas,
-            userId: user.uid,
-            userEmail: user.email,
-            createdAt: serverTimestamp(),
-            updatedAt: serverTimestamp(),
-            status: 'pendiente_ia',
-            resultado: null, // Campo para los resultados de la IA
+            toast({
+                title: "Análisis con IA completado",
+                description: "Se han generado las estimaciones de cubicación.",
+            });
         };
 
-        await addDoc(collection(firebaseDb, "analisisPlanos"), analisisData);
-
-        toast({
-            title: "Plano cargado con éxito",
-            description: "El análisis ha sido registrado y está listo para ser procesado por la IA.",
-        });
-        
-        setResultado({
-            id: nuevoIdAnalisis,
-            status: 'pendiente_ia',
-            mensaje: "Plano cargado y análisis registrado. Recibirás una notificación cuando los resultados estén listos."
-        });
-
+        reader.onerror = (error) => {
+            console.error("Error al leer el archivo:", error);
+            throw new Error("No se pudo procesar el archivo del plano.");
+        }
+    
     } catch (error) {
         console.error("Error al analizar el plano:", error);
         toast({
             variant: "destructive",
-            title: "Error de carga",
-            description: "No se pudo subir el plano o registrar el análisis. Inténtalo de nuevo.",
-        });
-        setResultado({
-             id: 'error',
-             status: 'error',
-             mensaje: "Ocurrió un error. Revisa la consola para más detalles."
+            title: "Error de Análisis",
+            description: "No se pudo completar el análisis con IA. Inténtalo de nuevo.",
         });
     } finally {
         setIsAnalizando(false);
@@ -242,20 +217,44 @@ export default function AnalisisPlanosPage() {
           <Card className="sticky top-24">
             <CardHeader>
               <CardTitle>3. Resultados del Análisis</CardTitle>
+              <CardDescription className="text-xs">Resultados solo como referencia. No reemplazan la cubicación oficial del proyecto.</CardDescription>
             </CardHeader>
-            <CardContent className="min-h-[200px] flex items-center justify-center">
+            <CardContent className="min-h-[200px]">
               {isAnalizando ? (
-                 <div className="text-center text-muted-foreground space-y-2">
-                    <Loader2 className="h-8 w-8 mx-auto animate-spin" />
-                    <p>Procesando el plano...</p>
+                 <div className="flex flex-col items-center justify-center text-center text-muted-foreground space-y-2 h-full">
+                    <Loader2 className="h-8 w-8 mx-auto animate-spin text-primary" />
+                    <p>La IA está procesando el plano...</p>
+                    <p className="text-xs">Esto puede tardar unos segundos.</p>
                  </div>
               ) : resultado ? (
-                <div className="text-sm text-center">
-                    <p>{resultado.mensaje}</p>
-                    {resultado.status === 'pendiente_ia' && <p className='mt-2 text-xs font-mono text-muted-foreground'>ID Análisis: {resultado.id}</p>}
+                <div className="space-y-4">
+                    <p className="text-sm italic p-3 bg-muted rounded-md">{resultado.summary}</p>
+                    <Table>
+                        <TableHeader>
+                            <TableRow>
+                                <TableHead>Elemento</TableHead>
+                                <TableHead className="text-right">Cantidad</TableHead>
+                                <TableHead className="text-right">Confianza</TableHead>
+                            </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                            {resultado.elements.map((el, i) => (
+                                <TableRow key={i}>
+                                    <TableCell className="text-xs">
+                                        <p className="font-medium">{el.name}</p>
+                                        <p className="text-muted-foreground capitalize">{el.type} - {el.notes}</p>
+                                    </TableCell>
+                                    <TableCell className="text-right font-mono">{el.estimatedQuantity.toFixed(2)} {el.unit}</TableCell>
+                                    <TableCell className="text-right text-xs font-semibold" style={{ color: `hsl(120, ${el.confidence * 100}%, 35%)` }}>
+                                        {(el.confidence * 100).toFixed(0)}%
+                                    </TableCell>
+                                </TableRow>
+                            ))}
+                        </TableBody>
+                    </Table>
                 </div>
               ) : (
-                <div className="text-center text-muted-foreground">
+                <div className="flex items-center justify-center text-center text-muted-foreground h-full">
                   <p>Aquí se mostrarán los resultados del análisis una vez que se complete.</p>
                 </div>
               )}
