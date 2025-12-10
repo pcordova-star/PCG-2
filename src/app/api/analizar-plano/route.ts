@@ -6,6 +6,14 @@ import type {
   AnalisisPlanoOutput,
 } from "@/types/analisis-planos";
 
+import * as pdfjsLib from "pdfjs-dist";
+import { createCanvas } from "canvas";
+
+// Necesario para que pdfjs funcione en Node
+// @ts-ignore
+pdfjsLib.GlobalWorkerOptions.workerSrc =
+  "pdfjs-dist/build/pdf.worker.mjs";
+
 function parseDataUri(
   dataUri: string
 ): { mimeType: string; base64Data: string } {
@@ -13,6 +21,33 @@ function parseDataUri(
   const mimeMatch = meta.match(/data:(.*);base64/);
   const mimeType = mimeMatch?.[1] ?? "application/octet-stream";
   return { mimeType, base64Data };
+}
+
+// Convierte la primera página de un PDF (base64) a PNG (base64)
+async function pdfFirstPageToPngBase64(
+  pdfBase64: string
+): Promise<{ mimeType: string; base64Data: string }> {
+  const pdfBuffer = Buffer.from(pdfBase64, "base64");
+
+  const loadingTask = pdfjsLib.getDocument({ data: pdfBuffer });
+  const pdf = await loadingTask.promise;
+  const page = await pdf.getPage(1); // primera página
+
+  const viewport = page.getViewport({ scale: 2 }); // escala 2x para mejor resolución
+  const canvas = createCanvas(viewport.width, viewport.height);
+  const context = canvas.getContext("2d");
+
+  const renderContext = {
+    canvasContext: context,
+    viewport,
+  };
+
+  await page.render(renderContext).promise;
+
+  const pngBuffer = canvas.toBuffer("image/png");
+  const base64Data = pngBuffer.toString("base64");
+
+  return { mimeType: "image/png", base64Data };
 }
 
 const BASE_PROMPT = `
@@ -59,14 +94,32 @@ export async function POST(req: Request) {
       );
     }
 
-    const { mimeType, base64Data } = parseDataUri(body.photoDataUri);
+    let { mimeType, base64Data } = parseDataUri(body.photoDataUri);
 
-    // Esta versión simplificada solo acepta imágenes.
+    // Si es PDF, convertimos la primera página a PNG
+    if (mimeType === "application/pdf") {
+      try {
+        const converted = await pdfFirstPageToPngBase64(base64Data);
+        mimeType = converted.mimeType;
+        base64Data = converted.base64Data;
+      } catch (err) {
+        console.error("Error al convertir PDF a imagen:", err);
+        return NextResponse.json(
+          {
+            error:
+              "No se pudo procesar el PDF. Intenta con un archivo más liviano o una imagen del plano.",
+          },
+          { status: 500 }
+        );
+      }
+    }
+
+    // Validamos que ahora tengamos una imagen
     if (!mimeType.startsWith("image/")) {
       return NextResponse.json(
         {
           error:
-            "Por ahora, solo se pueden analizar imágenes (JPG, PNG). Por favor, convierte tu PDF a una imagen y vuelve a intentarlo.",
+            "Formato de archivo no soportado. Sube una imagen (JPG, PNG) o un PDF válido.",
         },
         { status: 400 }
       );
@@ -82,6 +135,7 @@ export async function POST(req: Request) {
     }
 
     const genAI = new GoogleGenerativeAI(apiKey);
+    // Modelo soportado por tu API key para imagen + texto
     const model = genAI.getGenerativeModel({ model: "gemini-pro-vision" });
 
     const prompt = `
@@ -125,9 +179,6 @@ ID de obra (solo contexto, no es necesario mostrarlo): ${body.obraId}
     console.error("Error en /api/analizar-plano:", error);
     const message =
       error?.message || "Error interno en el análisis de planos";
-    return NextResponse.json(
-      { error: message },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: message }, { status: 500 });
   }
 }
