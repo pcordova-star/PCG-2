@@ -6,13 +6,12 @@ import type {
   AnalisisPlanoOutput,
 } from "@/types/analisis-planos";
 
-import * as pdfjsLib from "pdfjs-dist/legacy/build/pdf.js";
+import * as pdfjsLib from "pdfjs-dist";
 import { createCanvas } from "canvas";
 
 // Necesario para que pdfjs funcione en Node
 // @ts-ignore
-pdfjsLib.GlobalWorkerOptions.workerSrc =
-  "pdfjs-dist/legacy/build/pdf.worker.js";
+pdfjsLib.GlobalWorkerOptions.workerSrc = "pdfjs-dist/build/pdf.worker.mjs";
 
 function parseDataUri(
   dataUri: string
