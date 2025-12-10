@@ -1,20 +1,35 @@
+// src/app/api/analizar-plano/route.ts
 import { NextResponse } from "next/server";
 import { GoogleGenerativeAI } from "@google/generative-ai";
 
-function parseDataUri(
-  dataUri: string
-): { mimeType: string; base64Data: string } {
-  const [meta, base64Data] = dataUri.split(",");
-  const mimeMatch = meta.match(/data:(.*);base64/);
-  const mimeType = mimeMatch?.[1] ?? "application/octet-stream";
-  return { mimeType, base64Data };
+// ----------------- Helpers -----------------
+
+async function fetchFileAsBase64(
+  fileUrl: string
+): Promise<{ mimeType: string; base64Data: string }> {
+  const res = await fetch(fileUrl);
+  if (!res.ok) {
+    throw new Error(
+      `No se pudo descargar el archivo desde Storage. Status: ${res.status}`
+    );
+  }
+
+  const contentType = res.headers.get("content-type") ?? "application/octet-stream";
+  const arrayBuffer = await res.arrayBuffer();
+  const buffer = Buffer.from(arrayBuffer);
+  const base64Data = buffer.toString("base64");
+
+  return { mimeType: contentType, base64Data };
 }
+
+// ----------------- Gemini -----------------
 
 const apiKey =
   process.env.GEMINI_API_KEY ?? process.env.NEXT_PUBLIC_GEMINI_API_KEY ?? "";
 
-// OJO: aquí estaba el error, faltaba el `null` al final
 const genAI = apiKey ? new GoogleGenerativeAI(apiKey) : null;
+
+// ----------------- Handler -----------------
 
 export async function POST(req: Request) {
   try {
@@ -30,52 +45,50 @@ export async function POST(req: Request) {
 
     const body: any = await req.json();
 
-    // Aceptamos varios nombres por compatibilidad con el frontend
-    let dataUrl: string | undefined =
-      body.imageDataUrl ||
-      body.fileDataUrl ||
-      body.imageBase64 ||
-      body.file ||
-      body.plano ||
-      body.planoBase64;
+    const fileUrl: string | undefined = body.fileUrl;
+    const fileType: string | undefined = body.fileType;
+    const prompt: string =
+      body.prompt ??
+      "Analiza este plano de construcción y entrega un resumen de recintos, superficies y posibles inconsistencias.";
 
-    // Si aún no encontramos imagen, buscamos cualquier string que empiece con data:image
-    if (!dataUrl) {
-      const candidate = Object.values(body).find(
-        (v) => typeof v === "string" && v.startsWith("data:image")
-      );
-      if (typeof candidate === "string") {
-        dataUrl = candidate;
-      }
-    }
-
-    if (!dataUrl) {
-      return NextResponse.json(
-        { error: "No se recibió la imagen del plano." },
-        { status: 400 }
-      );
-    }
-
-    const { mimeType, base64Data } = parseDataUri(dataUrl);
-
-    if (!mimeType.startsWith("image/")) {
+    if (!fileUrl || !fileType) {
       return NextResponse.json(
         {
           error:
-            "El análisis solo acepta imágenes (PNG/JPG). Si subes un PDF, conviértelo antes a imagen.",
+            "Faltan datos del archivo. Se requiere fileUrl y fileType en el body.",
         },
         { status: 400 }
       );
     }
 
-    // Modelo compatible con v1beta para imagen + texto
+    // De momento SOLO soportamos imágenes.
+    if (!fileType.startsWith("image/")) {
+      return NextResponse.json(
+        {
+          error:
+            "Por ahora este análisis solo acepta imágenes (PNG/JPG) ya subidas a Storage. Para PDFs grandes implementaremos una función dedicada.",
+        },
+        { status: 400 }
+      );
+    }
+
+    // Descarga el archivo desde Storage y lo prepara como base64
+    const { mimeType, base64Data } = await fetchFileAsBase64(fileUrl);
+
+    if (!mimeType.startsWith("image/")) {
+      return NextResponse.json(
+        {
+          error:
+            "El archivo descargado desde Storage no es una imagen. Verifica que el plano se haya exportado como PNG/JPG.",
+        },
+        { status: 400 }
+      );
+    }
+
+    // Modelo de imagen + texto compatible
     const model = genAI.getGenerativeModel({
       model: "gemini-pro-vision",
     });
-
-    const prompt: string =
-      body.prompt ??
-      "Analiza este plano de construcción y entrega un resumen de recintos, superficies y posibles inconsistencias.";
 
     const result = await model.generateContent([
       {
