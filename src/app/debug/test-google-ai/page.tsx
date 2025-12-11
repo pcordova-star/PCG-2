@@ -1,7 +1,6 @@
 // src/app/debug/test-google-ai/page.tsx
-import { cookies } from "next/headers";
 
-export const dynamic = "force-dynamic"; // evita caché
+export const dynamic = "force-dynamic";
 
 async function testModel() {
   const apiKey = process.env.GEMINI_API_KEY;
@@ -41,39 +40,31 @@ async function testModel() {
   }
 }
 
-export default async function Page() {
-  // Detectar si el form hizo POST
-  const cookieStore = cookies();
-  const triggered = cookieStore.get("debug-trigger")?.value === "1";
-
+export default async function Page({ searchParams }: { searchParams: any }) {
+  const triggered = searchParams?.run === "1";
   let result = null;
 
   if (triggered) {
+    // Ejecuta la prueba en el servidor
     result = await testModel();
-    // limpiar cookie
-    cookieStore.set("debug-trigger", "0");
   }
 
   return (
     <div style={{ padding: 40 }}>
       <h1>Página de Debug: Google AI API</h1>
-      <p>Botón para probar conexión directa al modelo gemini-1.5-flash-latest.</p>
+      <p>Presiona el botón para probar conexión directa al modelo.</p>
 
-      {/* Form que activa la prueba */}
-      <form action={async () => {
-            "use server";
-            cookies().set("debug-trigger", "1");
-          }}>
+      <form method="GET">
+        <input type="hidden" name="run" value="1" />
         <button
           type="submit"
           style={{
             padding: "12px 24px",
             background: "black",
             color: "white",
-            borderRadius: 6,
-            marginTop: 20,
+            borderRadius: 8,
             cursor: "pointer",
-            fontWeight: "bold"
+            marginTop: 20
           }}
         >
           Probar modelo gemini-1.5-flash-latest
@@ -83,12 +74,11 @@ export default async function Page() {
       {result && (
         <pre
           style={{
+            marginTop: 30,
             background: "#111",
             color: "#0f0",
             padding: 20,
-            marginTop: 30,
             borderRadius: 8,
-            maxWidth: "100%",
             overflow: "auto"
           }}
         >
