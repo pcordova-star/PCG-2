@@ -19,6 +19,7 @@ const OpcionesAnalisisSchema = z.object({
   instalacionesHidraulicas: z.boolean().describe("Analizar instalaciones hidráulicas (agua potable / alcantarillado)."),
   instalacionesElectricas: z.boolean().describe("Analizar instalaciones eléctricas (potencia / iluminación)."),
 });
+export type OpcionesAnalisis = z.infer<typeof OpcionesAnalisisSchema>;
 
 // Esquema de entrada para el flujo de Genkit.
 const AnalisisPlanoInputSchema = z.object({
@@ -52,12 +53,40 @@ const AnalisisPlanoOutputSchema = z.object({
 export type AnalisisPlanoOutput = z.infer<typeof AnalisisPlanoOutputSchema>;
 
 // Carga del prompt desde el archivo /prompts/analizarPlano.prompt
-const analizarPlanoPrompt = ai.prompt("analizarPlano");
+const analizarPlanoPrompt = ai.definePrompt(
+  {
+    name: 'analizarPlanoPrompt',
+    input: { schema: AnalisisPlanoInputSchema },
+    output: { schema: AnalisisPlanoOutputSchema },
+    prompt: `Eres un asistente experto en análisis de planos de construcción para constructoras. Tu tarea es interpretar un plano arquitectónico o de especialidades y extraer cubicaciones según las opciones solicitadas por el usuario.
 
-// Función exportada que el frontend llamará.
-export async function analizarPlano(input: AnalisisPlanoInput): Promise<AnalisisPlanoOutput> {
-  return await analisisPlanoFlow(input);
-}
+Debes seguir estas reglas estrictamente:
+
+1. Analiza el plano proporcionado por el usuario.
+2. Considera las opciones seleccionadas por el usuario para enfocar tu análisis.
+3. Utiliza las notas adicionales del usuario para refinar tus estimaciones (ej: escala, altura de muros).
+4. Tu respuesta DEBE SER EXCLUSIVAMENTE un objeto JSON válido, sin texto adicional ni backticks. El JSON debe cumplir con el esquema de salida especificado.
+
+Detalles del esquema de salida:
+- "summary": Un resumen general y conciso de lo que pudiste analizar en el plano.
+- "elements": Un arreglo de objetos, donde cada objeto representa un elemento cubicado.
+  - "type": Tipo de elemento (ej: "Recinto", "Muro", "Losa", "Instalación Hidráulica").
+  - "name": Nombre específico del elemento (ej: "Dormitorio Principal", "Muro Perimetral Norte", "Losa Nivel 2").
+  - "unit": Unidad de medida (ej: "m²", "ml", "un").
+  - "estimatedQuantity": La cantidad numérica estimada.
+  - "confidence": Tu nivel de confianza en la estimación (de 0 a 1).
+  - "notes": Supuestos clave que usaste (ej: "Altura de muro estimada en 2.4m", "No se descuentan vanos de puertas/ventanas").
+
+Aquí está la información proporcionada por el usuario:
+- Plano: {{media url=photoDataUri}}
+- Opciones de análisis: {{{jsonStringify opciones}}}
+- Notas del usuario: {{{notas}}}
+- Obra: {{{obraNombre}}} (ID: {{{obraId}}})
+
+Genera ahora el JSON de salida.`
+  },
+);
+
 
 // Definición del flujo de Genkit.
 const analisisPlanoFlow = ai.defineFlow(
@@ -76,3 +105,9 @@ const analisisPlanoFlow = ai.defineFlow(
     return output;
   }
 );
+
+
+// Función exportada que el frontend llamará.
+export async function analizarPlano(input: AnalisisPlanoInput): Promise<AnalisisPlanoOutput> {
+  return await analisisPlanoFlow(input);
+}

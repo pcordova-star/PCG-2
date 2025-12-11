@@ -16,17 +16,7 @@ import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { motion } from 'framer-motion';
 import { useAuth } from '@/context/AuthContext';
-import { uploadPlanoToStorage } from '@/lib/cubicacion/uploadPlano';
-import type { AnalisisPlanoOutput, AnalisisPlanoElemento } from '@/types/analisis-planos';
-
-type OpcionesDeAnalisis = {
-  superficieUtil: boolean;
-  m2Muros: boolean;
-  m2Losas: boolean;
-  m2Revestimientos: boolean;
-  instalacionesHidraulicas: boolean;
-  instalacionesElectricas: boolean;
-};
+import type { AnalisisPlanoOutput, AnalisisPlanoInput, OpcionesAnalisis } from '@/ai/flows/analisis-planos-flow';
 
 const progressSteps = [
   { percent: 0, text: "Iniciando conexión segura..." },
@@ -37,12 +27,21 @@ const progressSteps = [
   { percent: 95, text: "Finalizando análisis, casi listo..." },
 ];
 
+function fileToDataUri(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result as string);
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
+}
+
 export default function AnalisisPlanosPage() {
   const router = useRouter();
   const { toast } = useToast();
   const { user, company } = useAuth();
   
-  const [opciones, setOpciones] = useState<OpcionesDeAnalisis>({
+  const [opciones, setOpciones] = useState<OpcionesAnalisis>({
     superficieUtil: false,
     m2Muros: false,
     m2Losas: false,
@@ -97,24 +96,13 @@ export default function AnalisisPlanosPage() {
     };
   }, [cargando]);
 
-  const handleCheckboxChange = (key: keyof OpcionesDeAnalisis) => {
+  const handleCheckboxChange = (key: keyof OpcionesAnalisis) => {
     setOpciones(prev => ({ ...prev, [key]: !prev[key] }));
   };
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
-      if (file.type === "application/pdf") {
-        toast({
-          variant: "destructive",
-          title: "Formato no soportado",
-          description: "Por ahora, solo se pueden analizar imágenes (JPG, PNG). Por favor, convierte tu PDF a una imagen antes de subirlo.",
-          duration: 8000,
-        });
-        e.target.value = ""; // Limpia el input
-        setPlanoFile(null);
-        return;
-      }
       if (file.size > 10 * 1024 * 1024) { // Límite de 10MB
         toast({
           variant: 'destructive',
@@ -125,29 +113,6 @@ export default function AnalisisPlanosPage() {
       }
       setPlanoFile(file);
     }
-  };
-
-  const construirPromptDesdeChecksYNotas = (): string => {
-    const opcionesSeleccionadas = Object.entries(opciones)
-      .filter(([_, value]) => value)
-      .map(([key]) => {
-        switch (key) {
-          case 'superficieUtil': return 'Superficie útil por recinto';
-          case 'm2Muros': return 'Metros cuadrados de muros';
-          case 'm2Losas': return 'Metros cuadrados de losas';
-          case 'm2Revestimientos': return 'Metros cuadrados de revestimientos en zonas húmedas';
-          case 'instalacionesHidraulicas': return 'Análisis de instalaciones hidráulicas';
-          case 'instalacionesElectricas': return 'Análisis de instalaciones eléctricas';
-          default: return '';
-        }
-      })
-      .filter(Boolean);
-
-    let prompt = `Analiza este plano de construcción. Extrae la siguiente información: ${opcionesSeleccionadas.join(', ')}.`;
-    if (notas) {
-      prompt += ` Considera las siguientes notas adicionales: ${notas}`;
-    }
-    return prompt;
   };
   
   const handleSubmit = async (event: React.FormEvent) => {
@@ -163,18 +128,20 @@ export default function AnalisisPlanosPage() {
     setResultado(null);
 
     try {
-        const { url, contentType } = await uploadPlanoToStorage(
-            planoFile,
-            company?.id ?? "no-company",
-            user?.uid ?? "anon"
-        );
+        const photoDataUri = await fileToDataUri(planoFile);
 
-        const prompt = construirPromptDesdeChecksYNotas();
+        const input: AnalisisPlanoInput = {
+            photoDataUri,
+            opciones,
+            notas,
+            obraId: company?.id ?? 'obra-desconocida', // Usamos companyId como placeholder de obraId
+            obraNombre: company?.nombreFantasia ?? 'Obra Desconocida',
+        };
 
         const apiResponse = await fetch("/api/analizar-plano", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ fileUrl: url, fileType: contentType, prompt }),
+            body: JSON.stringify(input),
         });
 
         const body = await apiResponse.json();
@@ -182,15 +149,8 @@ export default function AnalisisPlanosPage() {
         if (!apiResponse.ok || body.error) {
             throw new Error(body.error || "Ocurrió un error en el servidor de análisis.");
         }
-
-        // Se intenta parsear el resultado. Si falla, es texto plano.
-        try {
-            const parsedResult = JSON.parse(body.analysis);
-            setResultado(parsedResult);
-        } catch (e) {
-            setErrorAnalisis("La IA devolvió un formato de texto inesperado. Mostrando en bruto.");
-            setResultado({ summary: body.analysis, elements: [] });
-        }
+        
+        setResultado(body as AnalisisPlanoOutput);
 
     } catch (err: any) {
         console.error("Error al analizar el plano:", err);
@@ -228,8 +188,8 @@ export default function AnalisisPlanosPage() {
           <Card>
             <CardHeader><CardTitle>1. Sube tu plano</CardTitle></CardHeader>
             <CardContent className="space-y-2">
-              <Label htmlFor="plano-file">Archivo del plano (Imagen JPG, PNG, máx. 10MB)</Label>
-              <Input id="plano-file" type="file" accept="image/jpeg, image/png" onChange={handleFileChange} />
+              <Label htmlFor="plano-file">Archivo del plano (JPG, PNG, PDF, máx. 10MB)</Label>
+              <Input id="plano-file" type="file" accept="image/jpeg, image/png, application/pdf" onChange={handleFileChange} />
             </CardContent>
           </Card>
           
@@ -239,7 +199,7 @@ export default function AnalisisPlanosPage() {
                 <div className="grid grid-cols-2 gap-4">
                     {Object.keys(opciones).map(key => (
                          <Label key={key} className="flex items-center gap-2 p-3 border rounded-md hover:bg-muted/50 cursor-pointer">
-                            <Checkbox checked={opciones[key as keyof OpcionesDeAnalisis]} onCheckedChange={() => handleCheckboxChange(key as keyof OpcionesDeAnalisis)} />
+                            <Checkbox checked={opciones[key as keyof OpcionesAnalisis]} onCheckedChange={() => handleCheckboxChange(key as keyof OpcionesAnalisis)} />
                             <span>
                                 {
                                     {
