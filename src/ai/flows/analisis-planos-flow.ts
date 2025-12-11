@@ -4,7 +4,7 @@
  *
  * - analizarPlano: Función principal que recibe los datos del plano y las opciones, y devuelve un análisis estructurado.
  * - AnalisisPlanoInput: Tipo de entrada para la función.
- * - AnalisisPlanoOutput: Tipo de salida (JSON estructurado) para la función.
+ * - AnalisisPlanoOutput: Tipo de salida (JSON estructurado) para lafunción.
  */
 
 import { ai } from '@/ai/genkit';
@@ -23,14 +23,14 @@ const AnalisisPlanoInputWithOpcionesStringSchema = AnalisisPlanoInputSchema.exte
 const analizarPlanoPrompt = ai.definePrompt(
   {
     name: 'analizarPlanoPrompt',
-    model: 'gemini-pro-vision',
+    model: 'gemini-pro',
     input: { schema: AnalisisPlanoInputWithOpcionesStringSchema },
     output: { schema: AnalisisPlanoOutputSchema },
-    prompt: `Eres un asistente experto en análisis de planos de construcción para constructoras. Tu tarea es interpretar un plano arquitectónico o de especialidades y extraer cubicaciones según las opciones solicitadas por el usuario.
+    prompt: `Eres un asistente experto en análisis de planos de construcción para constructoras. Tu tarea es interpretar un plano (en formato imagen o PDF) y extraer cubicaciones según las opciones solicitadas por el usuario.
 
 Debes seguir estas reglas estrictamente:
 
-1. Analiza el plano proporcionado por el usuario.
+1. Analiza el contenido del plano proporcionado por el usuario.
 2. Considera las opciones seleccionadas por el usuario para enfocar tu análisis.
 3. Utiliza las notas adicionales del usuario para refinar tus estimaciones (ej: escala, altura de muros).
 4. Tu respuesta DEBE SER EXCLUSIVAMENTE un objeto JSON válido, sin texto adicional ni backticks. El JSON debe cumplir con el esquema de salida especificado.
