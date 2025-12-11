@@ -13,12 +13,17 @@ import {
     AnalisisPlanoOutputSchema,
 } from '@/types/analisis-planos';
 import type { AnalisisPlanoInput, AnalisisPlanoOutput } from '@/types/analisis-planos';
+import { z } from 'zod';
+
+const AnalisisPlanoInputWithOpcionesStringSchema = AnalisisPlanoInputSchema.extend({
+  opcionesString: z.string(),
+});
 
 // Carga del prompt desde el archivo /prompts/analizarPlano.prompt
 const analizarPlanoPrompt = ai.definePrompt(
   {
     name: 'analizarPlanoPrompt',
-    input: { schema: AnalisisPlanoInputSchema },
+    input: { schema: AnalisisPlanoInputWithOpcionesStringSchema },
     output: { schema: AnalisisPlanoOutputSchema },
     prompt: `Eres un asistente experto en análisis de planos de construcción para constructoras. Tu tarea es interpretar un plano arquitectónico o de especialidades y extraer cubicaciones según las opciones solicitadas por el usuario.
 
@@ -41,7 +46,7 @@ Detalles del esquema de salida:
 
 Aquí está la información proporcionada por el usuario:
 - Plano: {{media url=photoDataUri}}
-- Opciones de análisis: {{{jsonStringify opciones}}}
+- Opciones de análisis: {{{opcionesString}}}
 - Notas del usuario: {{{notas}}}
 - Obra: {{{obraNombre}}} (ID: {{{obraId}}})
 
@@ -58,7 +63,10 @@ const analisisPlanoFlow = ai.defineFlow(
     outputSchema: AnalisisPlanoOutputSchema,
   },
   async (input) => {
-    const { output } = await analizarPlanoPrompt(input);
+    const { output } = await analizarPlanoPrompt({
+      ...input,
+      opcionesString: JSON.stringify(input.opciones),
+    });
     
     if (!output) {
       throw new Error("La IA no devolvió una respuesta válida.");
