@@ -17,7 +17,6 @@ import { Progress } from '@/components/ui/progress';
 import { motion } from 'framer-motion';
 import { useAuth } from '@/context/AuthContext';
 import { AnalisisPlanoOutput, AnalisisPlanoInput, OpcionesAnalisis } from '@/types/analisis-planos';
-import { analizarPlano } from '@/ai/flows/analisis-planos-flow';
 
 const progressSteps = [
   { percent: 0, text: "Iniciando conexión segura..." },
@@ -144,13 +143,23 @@ export default function AnalisisPlanosPage() {
             photoDataUri,
             opciones,
             notas,
-            obraId: company?.id ?? 'obra-desconocida', // Usamos companyId como placeholder de obraId
+            obraId: company?.id ?? 'obra-desconocida',
             obraNombre: company?.nombreFantasia ?? 'Obra Desconocida',
         };
 
-        const result = await analizarPlano(input);
+        const apiResponse = await fetch('/api/analizar-plano', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(input)
+        });
+
+        const body = await apiResponse.json();
+
+        if (!apiResponse.ok) {
+            throw new Error(body.error || "Ocurrió un error en el servidor de análisis.");
+        }
         
-        setResultado(result);
+        setResultado(body as AnalisisPlanoOutput);
 
     } catch (err: any) {
         console.error("Error al analizar el plano:", err);
