@@ -23,7 +23,7 @@ const AnalisisPlanoInputWithOpcionesStringSchema = AnalisisPlanoInputSchema.exte
 const analizarPlanoPrompt = ai.definePrompt(
   {
     name: 'analizarPlanoPrompt',
-    model: 'gemini-1.5-flash-latest',
+    model: 'gemini-1.5-flash',
     input: { schema: AnalisisPlanoInputWithOpcionesStringSchema },
     output: { schema: AnalisisPlanoOutputSchema },
     prompt: `Eres un asistente experto en análisis de planos de construcción para constructoras. Tu tarea es interpretar un plano (en formato imagen) y extraer cubicaciones según las opciones solicitadas por el usuario.
