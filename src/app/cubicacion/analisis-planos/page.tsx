@@ -16,7 +16,7 @@ import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { motion } from 'framer-motion';
 import { useAuth } from '@/context/AuthContext';
-import type { AnalisisPlanoOutput, AnalisisPlanoInput, OpcionesAnalisis } from '@/ai/flows/analisis-planos-flow';
+import { AnalisisPlanoOutput, AnalisisPlanoInput, OpcionesAnalisis } from '@/types/analisis-planos';
 
 const progressSteps = [
   { percent: 0, text: "Iniciando conexión segura..." },

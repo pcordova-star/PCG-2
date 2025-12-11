@@ -8,49 +8,11 @@
  */
 
 import { ai } from '@/ai/genkit';
-import { z } from 'zod';
-
-// Esquema para las opciones de análisis que el usuario puede seleccionar.
-const OpcionesAnalisisSchema = z.object({
-  superficieUtil: z.boolean().describe("Calcular la superficie útil por cada recinto identificado."),
-  m2Muros: z.boolean().describe("Estimar los metros cuadrados totales de muros."),
-  m2Losas: z.boolean().describe("Estimar los metros cuadrados totales de losas."),
-  m2Revestimientos: z.boolean().describe("Estimar los metros cuadrados de revestimientos en zonas húmedas como baños y cocinas."),
-  instalacionesHidraulicas: z.boolean().describe("Analizar instalaciones hidráulicas (agua potable / alcantarillado)."),
-  instalacionesElectricas: z.boolean().describe("Analizar instalaciones eléctricas (potencia / iluminación)."),
-});
-export type OpcionesAnalisis = z.infer<typeof OpcionesAnalisisSchema>;
-
-// Esquema de entrada para el flujo de Genkit.
-const AnalisisPlanoInputSchema = z.object({
-  photoDataUri: z
-    .string()
-    .describe(
-      "Un plano de construcción (PDF o imagen), como un data URI que debe incluir un MIME type y usar Base64. Formato: 'data:<mimetype>;base64,<encoded_data>'."
-    ),
-  opciones: OpcionesAnalisisSchema.describe("Opciones seleccionadas por el usuario para el análisis."),
-  notas: z.string().optional().describe("Notas adicionales del usuario, como escala, altura de muros, o aclaraciones sobre el plano."),
-  obraId: z.string().describe("ID de la obra a la que pertenece el plano."),
-  obraNombre: z.string().describe("Nombre de la obra a la que pertenece el plano."),
-});
-export type AnalisisPlanoInput = z.infer<typeof AnalisisPlanoInputSchema>;
-
-// Esquema para un elemento individual del resultado del análisis.
-const ElementoAnalizadoSchema = z.object({
-    type: z.string().describe("El tipo de elemento analizado (ej: Losa, Muro, Recinto, Revestimiento, Instalación Hidráulica)."),
-    name: z.string().describe("Nombre o descripción del elemento (ej: Losa nivel 1, Muros perimetrales, Baño depto tipo A, Punto de luz tipo A)."),
-    unit: z.string().describe("Unidad de medida de la cantidad estimada (ej: m², m³, m, unidad)."),
-    estimatedQuantity: z.number().describe("La cantidad numérica estimada para el elemento."),
-    confidence: z.number().min(0).max(1).describe("Un valor de 0 a 1 que representa la confianza de la IA en la estimación."),
-    notes: z.string().describe("Aclaraciones o supuestos utilizados por la IA para la estimación."),
-});
-
-// Esquema de salida (el JSON que la IA debe devolver).
-const AnalisisPlanoOutputSchema = z.object({
-  summary: z.string().describe("Un resumen general y conciso de lo que se pudo analizar en el plano."),
-  elements: z.array(ElementoAnalizadoSchema).describe("Un arreglo de los elementos analizados con sus cantidades estimadas."),
-});
-export type AnalisisPlanoOutput = z.infer<typeof AnalisisPlanoOutputSchema>;
+import {
+    AnalisisPlanoInputSchema,
+    AnalisisPlanoOutputSchema,
+} from '@/types/analisis-planos';
+import type { AnalisisPlanoInput, AnalisisPlanoOutput } from '@/types/analisis-planos';
 
 // Carga del prompt desde el archivo /prompts/analizarPlano.prompt
 const analizarPlanoPrompt = ai.definePrompt(
