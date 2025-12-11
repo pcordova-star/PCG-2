@@ -13,6 +13,7 @@ import { cn } from "@/lib/utils";
 import { QrCode } from "lucide-react";
 import { InduccionAccesoFaena } from "@/lib/prevencionEventos";
 import { useAuth } from "@/context/AuthContext";
+import { Label } from "@/components/ui/label";
 
 
 // --- Tipos y Datos ---
