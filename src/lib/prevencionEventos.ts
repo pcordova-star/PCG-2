@@ -58,7 +58,7 @@ export interface InduccionAccesoFaena {
   id?: string;
   obraId: string;
   obraNombre?: string;
-  prevencionistaId?: string | null; // ID del usuario que generó el QR
+  generadorId?: string | null; // ID del usuario que generó el QR (admin/prevencionista)
 
   tipoVisita: "VISITA" | "PROVEEDOR" | "INSPECTOR" | "OTRO";
   nombreCompleto: string;
