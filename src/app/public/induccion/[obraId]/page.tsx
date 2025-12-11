@@ -1,466 +1,240 @@
 // src/app/public/induccion/[obraId]/page.tsx
 "use client";
 
-import React, { useEffect, useState, FormEvent } from "react";
+import React, { useEffect, useState, Suspense } from "react";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
+import { doc, getDoc } from "firebase/firestore";
+import { firebaseDb } from "@/lib/firebaseClient";
+import { guardarInduccionQR } from "@/lib/prevencionEventos";
+
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Loader2, ShieldCheck, FileText, User, Building, Phone } from "lucide-react";
-import { useToast } from "@/hooks/use-toast";
-import { guardarInduccionQR } from "@/lib/prevencionEventos";
-import { getDoc, doc } from "firebase/firestore";
-import { firebaseDb } from "@/lib/firebaseClient";
 import SignaturePad from "@/app/prevencion/hallazgos/components/SignaturePad";
+import { Loader2, CheckCircle, ShieldQuestion, ShieldX } from "lucide-react";
+import { useToast } from "@/hooks/use-toast";
+import { PcgLogo } from "@/components/branding/PcgLogo";
 
-// Tipos locales para evitar importaciones complejas en un archivo público
 interface Obra {
-  id: string;
+  id?: string;
   nombreFaena: string;
 }
 
-export default function InduccionPage() {
-  const params = useParams();
-  const searchParams = useSearchParams();
-  const router = useRouter();
-  const { toast } = useToast();
+const initialFormState = {
+  tipoVisita: "VISITA" as const,
+  nombreCompleto: "", rut: "", empresa: "", cargo: "", telefono: "", correo: "",
+  fechaIngreso: new Date().toISOString().slice(0, 10),
+  horaIngreso: new Date().toLocaleTimeString("es-CL", { hour: "2-digit", minute: "2-digit" }),
+  respuestaPregunta1: "SI" as const,
+  respuestaPregunta2: "NO" as const,
+  respuestaPregunta3: "SI" as const,
+  aceptaReglamento: false, aceptaEpp: false, aceptaTratamientoDatos: false,
+  firmaDataUrl: "",
+};
 
-  const obraId = params.obraId as string;
-  const prevencionistaId = searchParams.get("p") || null; // Captura el ID del prevencionista
+
+function InduccionForm() {
+  const { obraId } = useParams<{ obraId: string }>();
+  const searchParams = useSearchParams();
+  const generadorId = searchParams.get('g') || null;
 
   const [obra, setObra] = useState<Obra | null>(null);
   const [loadingObra, setLoadingObra] = useState(true);
   
-  const [formState, setFormState] = useState({
-    tipoVisita: "VISITA",
-    nombreCompleto: "",
-    rut: "",
-    empresa: "",
-    cargo: "",
-    telefono: "",
-    correo: "",
-    fechaIngreso: new Date().toISOString().slice(0, 10),
-    horaIngreso: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-    respuestaPregunta1: "SI",
-    respuestaPregunta2: "NO",
-    respuestaPregunta3: "SI",
-    aceptaReglamento: false,
-    aceptaEpp: false,
-    aceptaTratamientoDatos: false,
-    firmaDataUrl: "",
-  });
-
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [isSuccess, setIsSuccess] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  
+  const [formState, setFormState] = useState(initialFormState);
   const [isSignatureDrawn, setIsSignatureDrawn] = useState(false);
+  
+  const [step, setStep] = useState(1);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
+  const { toast } = useToast();
 
   useEffect(() => {
-    if (obraId) {
-      const fetchObra = async () => {
-        try {
-          const obraRef = doc(firebaseDb, "obras", obraId);
-          const obraSnap = await getDoc(obraRef);
-          if (obraSnap.exists()) {
-            setObra({ id: obraSnap.id, ...obraSnap.data() } as Obra);
-          } else {
-            setError("La obra especificada para esta inducción no fue encontrada.");
-          }
-        } catch (err) {
-          console.error("Error fetching obra:", err);
-          setError("No se pudo cargar la información de la obra.");
-        } finally {
-          setLoadingObra(false);
-        }
-      };
-      fetchObra();
-    }
+    if (!obraId) return;
+    const fetchObra = async () => {
+      setLoadingObra(true);
+      const obraRef = doc(firebaseDb, "obras", obraId);
+      const obraSnap = await getDoc(obraRef);
+      if (obraSnap.exists()) {
+        setObra({ id: obraSnap.id, ...obraSnap.data() } as Obra);
+      }
+      setLoadingObra(false);
+    };
+    fetchObra();
   }, [obraId]);
 
-  const handleInputChange = (field: keyof typeof formState, value: string | boolean) => {
-    setFormState(prev => ({ ...prev, [field]: value }));
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+    const { name, value } = e.target;
+    setFormState(prev => ({ ...prev, [name]: value }));
   };
 
-  const handleSubmit = async (e: FormEvent) => {
-    e.preventDefault();
+  const handleRadioChange = (name: string, value: any) => {
+    setFormState(prev => ({ ...prev, [name]: value }));
+  };
+  
+  const handleCheckboxChange = (name: string, checked: boolean) => {
+    setFormState(prev => ({ ...prev, [name]: checked }));
+  };
+
+  const handleSignatureChange = (dataUrl: string | null) => {
+    setFormState(prev => ({ ...prev, firmaDataUrl: dataUrl || "" }));
+  };
+
+  const validateStep = (currentStep: number): boolean => {
     setError(null);
+    switch (currentStep) {
+      case 1:
+        if (!formState.nombreCompleto || !formState.rut || !formState.empresa || !formState.cargo) {
+          setError("Todos los campos personales son obligatorios.");
+          return false;
+        }
+        return true;
+      case 2:
+        return true; // No hay validación estricta para las preguntas
+      case 3:
+        if (!formState.aceptaReglamento || !formState.aceptaEpp || !formState.aceptaTratamientoDatos) {
+            setError("Debe aceptar todos los compromisos para continuar.");
+            return false;
+        }
+        if (!isSignatureDrawn || !formState.firmaDataUrl) {
+            setError("La firma es obligatoria para completar el registro.");
+            return false;
+        }
+        return true;
+      default:
+        return false;
+    }
+  };
 
-    // Validaciones
-    if (!formState.nombreCompleto || !formState.rut || !formState.empresa || !formState.cargo) {
-      setError("Por favor, complete todos los campos de datos personales.");
-      return;
-    }
-    if (!formState.aceptaReglamento || !formState.aceptaEpp || !formState.aceptaTratamientoDatos) {
-      setError("Debe aceptar todos los compromisos y declaraciones para continuar.");
-      return;
-    }
-    if (!isSignatureDrawn || !formState.firmaDataUrl) {
-      setError("La firma es obligatoria para completar el registro.");
-      return;
-    }
-
+  const handleSubmit = async () => {
+    if (!validateStep(3)) return;
     setIsSubmitting(true);
+    setError(null);
     try {
-      await guardarInduccionQR({
-        obraId,
-        obraNombre: obra?.nombreFaena || "Obra no especificada",
-        prevencionistaId, // Guardar el ID del prevencionista
-        ...formState,
-      });
-      setIsSuccess(true);
-      toast({ title: "Registro Exitoso", description: "Su inducción de acceso ha sido guardada. ¡Bienvenido(a)!" });
-    } catch (err) {
-      console.error("Error al guardar inducción:", err);
-      setError("No se pudo guardar el registro. Por favor, inténtelo de nuevo.");
+        await guardarInduccionQR({ ...formState, obraId, obraNombre: obra?.nombreFaena || 'Desconocida', generadorId });
+        setStep(4);
+    } catch(err) {
+        console.error(err);
+        setError("No se pudo guardar el registro. Inténtelo de nuevo.");
+        toast({ variant: 'destructive', title: 'Error', description: 'Ocurrió un problema al guardar el formulario.' });
     } finally {
-      setIsSubmitting(false);
+        setIsSubmitting(false);
     }
   };
 
   if (loadingObra) {
-    return (
-      <div className="flex flex-col items-center justify-center min-h-screen">
-        <Loader2 className="animate-spin h-8 w-8" />
-        <p className="mt-2 text-muted-foreground">Cargando formulario de inducción...</p>
-      </div>
-    );
+    return <div className="text-center p-8"><Loader2 className="animate-spin"/> Cargando...</div>;
   }
-
-  if (error) {
-    return (
-      <div className="flex flex-col items-center justify-center min-h-screen text-center p-4">
-        <h2 className="text-2xl font-bold text-destructive mb-2">Error</h2>
-        <p className="text-muted-foreground">{error}</p>
-         <Button onClick={() => router.push('/')} className="mt-6">Volver al Inicio</Button>
-      </div>
-    );
-  }
-
-  if (isSuccess) {
-    return (
-      <div className="flex flex-col items-center justify-center min-h-screen text-center p-4">
-         <ShieldCheck className="h-16 w-16 text-green-500 mb-4" />
-        <h2 className="text-2xl font-bold text-primary mb-2">¡Inducción Completada!</h2>
-        <p className="text-muted-foreground max-w-md">
-          Gracias, {formState.nombreCompleto}. Tu registro ha sido guardado correctamente.
-          Ya puedes presentarte en portería para continuar con tu acceso a la obra.
-        </p>
-         <Button onClick={() => window.location.reload()} className="mt-6">Registrar a otra persona</Button>
+  
+  if (!obra) {
+     return (
+      <div className="text-center p-8 text-destructive">
+        <ShieldX className="h-12 w-12 mx-auto mb-4" />
+        <h2 className="text-xl font-bold">Obra no encontrada</h2>
+        <p>El código QR que escaneaste parece ser inválido o la obra ya no existe.</p>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-muted/40 flex items-center justify-center p-4">
-      <Card className="w-full max-w-2xl">
-        <CardHeader className="text-center">
-          <CardTitle className="text-2xl">Inducción de Acceso a Faena</CardTitle>
-          <CardDescription>Obra: {obra?.nombreFaena}</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <form onSubmit={handleSubmit} className="space-y-6">
-            
-            <Section icon={User} title="1. Datos Personales">
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <SelectField label="Tipo de Visita" value={formState.tipoVisita} onChange={v => handleInputChange('tipoVisita', v)}>
-                  <SelectItem value="VISITA">Visita</SelectItem>
-                  <SelectItem value="PROVEEDOR">Proveedor</SelectItem>
-                  <SelectItem value="INSPECTOR">Inspector</SelectItem>
-                  <SelectItem value="OTRO">Otro</SelectItem>
-                </SelectField>
-                <InputField label="Nombre Completo" value={formState.nombreCompleto} onChange={e => handleInputChange('nombreCompleto', e.target.value)} required />
-                <InputField label="RUT" value={formState.rut} onChange={e => handleInputChange('rut', e.target.value)} required />
-                <InputField label="Empresa" value={formState.empresa} onChange={e => handleInputChange('empresa', e.target.value)} required />
-                <InputField label="Cargo" value={formState.cargo} onChange={e => handleInputChange('cargo', e.target.value)} required />
-                <InputField label="Teléfono" type="tel" value={formState.telefono} onChange={e => handleInputChange('telefono', e.target.value)} />
-                <InputField label="Correo Electrónico" type="email" value={formState.correo} onChange={e => handleInputChange('correo', e.target.value)} />
-              </div>
-            </Section>
+    <Card className="w-full max-w-2xl mx-auto">
+      <CardHeader>
+        <div className="flex justify-between items-start">
+            <div>
+                <CardTitle className="text-2xl">Inducción de Acceso a Faena</CardTitle>
+                <CardDescription className="text-base">{obra?.nombreFaena}</CardDescription>
+            </div>
+            <PcgLogo size={40} />
+        </div>
+      </CardHeader>
+      <CardContent>
+        {/* Step 1: Datos Personales */}
+        {step === 1 && (
+          <div className="space-y-4">
+            <h3 className="font-semibold">Paso 1: Sus Datos</h3>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="col-span-2 space-y-2"><Label>Tipo de Visita</Label><RadioGroup defaultValue="VISITA" onValueChange={val => handleRadioChange('tipoVisita', val)} className="flex gap-4"><Label className="flex items-center gap-2"><RadioGroupItem value="VISITA"/>Visita</Label><Label className="flex items-center gap-2"><RadioGroupItem value="PROVEEDOR"/>Proveedor</Label><Label className="flex items-center gap-2"><RadioGroupItem value="INSPECTOR"/>Inspector</Label></RadioGroup></div>
+              <div className="space-y-2"><Label>Nombre Completo</Label><Input name="nombreCompleto" value={formState.nombreCompleto} onChange={handleInputChange} /></div>
+              <div className="space-y-2"><Label>RUT</Label><Input name="rut" value={formState.rut} onChange={handleInputChange} /></div>
+              <div className="space-y-2"><Label>Empresa</Label><Input name="empresa" value={formState.empresa} onChange={handleInputChange} /></div>
+              <div className="space-y-2"><Label>Cargo</Label><Input name="cargo" value={formState.cargo} onChange={handleInputChange} /></div>
+              <div className="space-y-2"><Label>Teléfono</Label><Input name="telefono" value={formState.telefono} onChange={handleInputChange} /></div>
+              <div className="space-y-2"><Label>Correo</Label><Input name="correo" type="email" value={formState.correo} onChange={handleInputChange} /></div>
+            </div>
+          </div>
+        )}
+        
+        {/* Step 2: Cuestionario */}
+        {step === 2 && (
+             <div className="space-y-6">
+                <h3 className="font-semibold">Paso 2: Cuestionario de Seguridad</h3>
+                <div className="space-y-4">
+                    <ShieldQuestion className="mx-auto h-12 w-12 text-primary" />
+                    <p className="text-center text-muted-foreground">Lea atentamente y responda según las reglas básicas de seguridad.</p>
+                </div>
+                <div className="space-y-4">
+                    <Label>1. ¿Debe respetar en todo momento las indicaciones de seguridad del personal de la obra?</Label>
+                    <RadioGroup value={formState.respuestaPregunta1} onValueChange={v => handleRadioChange('respuestaPregunta1', v)} className="flex gap-4"><Label className="flex items-center gap-2"><RadioGroupItem value="SI"/>Sí</Label><Label className="flex items-center gap-2"><RadioGroupItem value="NO"/>No</Label></RadioGroup>
+                </div>
+                <div className="space-y-4">
+                    <Label>2. ¿Está permitido caminar, detenerse o trabajar bajo cargas suspendidas por grúas o maquinaria?</Label>
+                    <RadioGroup value={formState.respuestaPregunta2} onValueChange={v => handleRadioChange('respuestaPregunta2', v)} className="flex gap-4"><Label className="flex items-center gap-2"><RadioGroupItem value="SI"/>Sí</Label><Label className="flex items-center gap-2"><RadioGroupItem value="NO"/>No</Label></RadioGroup>
+                </div>
+                 <div className="space-y-4">
+                    <Label>3. En caso de una emergencia (sismo, incendio), ¿debe dirigirse a la zona de seguridad siguiendo las vías de evacuación señalizadas?</Label>
+                    <RadioGroup value={formState.respuestaPregunta3} onValueChange={v => handleRadioChange('respuestaPregunta3', v)} className="flex gap-4"><Label className="flex items-center gap-2"><RadioGroupItem value="SI"/>Sí</Label><Label className="flex items-center gap-2"><RadioGroupItem value="NO"/>No</Label></RadioGroup>
+                </div>
+             </div>
+        )}
+        
+        {/* Step 3: Firma */}
+        {step === 3 && (
+            <div className="space-y-6">
+                <h3 className="font-semibold">Paso 3: Declaración y Firma</h3>
+                <div className="space-y-3">
+                    <Label className="flex items-center gap-2 font-normal"><Checkbox checked={formState.aceptaReglamento} onCheckedChange={c => handleCheckboxChange('aceptaReglamento', !!c)} /><span>Declaro haber sido informado sobre los riesgos de la obra y me comprometo a cumplir el Reglamento Especial de Faena.</span></Label>
+                    <Label className="flex items-center gap-2 font-normal"><Checkbox checked={formState.aceptaEpp} onCheckedChange={c => handleCheckboxChange('aceptaEpp', !!c)} /><span>Me comprometo a usar en todo momento los Elementos de Protección Personal (EPP) que me sean indicados.</span></Label>
+                    <Label className="flex items-center gap-2 font-normal"><Checkbox checked={formState.aceptaTratamientoDatos} onCheckedChange={c => handleCheckboxChange('aceptaTratamientoDatos', !!c)} /><span>Acepto el tratamiento de mis datos personales para fines de registro de seguridad de esta obra.</span></Label>
+                </div>
+                <div>
+                    <Label>Firme en el recuadro:</Label>
+                    <SignaturePad onChange={handleSignatureChange} onClear={() => setIsSignatureDrawn(false)} onDraw={() => setIsSignatureDrawn(true)} />
+                </div>
+            </div>
+        )}
+        
+        {/* Step 4: Éxito */}
+        {step === 4 && (
+            <div className="text-center space-y-4 py-8">
+                <CheckCircle className="mx-auto h-16 w-16 text-green-500" />
+                <h3 className="text-2xl font-bold">¡Registro Exitoso!</h3>
+                <p className="text-muted-foreground">Su inducción de acceso ha sido guardada. Ya puede notificar al personal de la obra para continuar con su ingreso.</p>
+            </div>
+        )}
 
-            <Section icon={FileText} title="2. Cuestionario de Seguridad">
-              <p className="text-sm text-muted-foreground mb-4">Responda a las siguientes preguntas para confirmar la comprensión de las reglas básicas.</p>
-              <RadioGroupField label="¿Debe respetar siempre las indicaciones de seguridad del personal de la obra?" value={formState.respuestaPregunta1} onChange={v => handleInputChange('respuestaPregunta1', v)} />
-              <RadioGroupField label="¿Está permitido caminar o permanecer bajo cargas suspendidas?" value={formState.respuestaPregunta2} onChange={v => handleInputChange('respuestaPregunta2', v)} />
-              <RadioGroupField label="En caso de una emergencia, ¿debe seguir las rutas de evacuación y dirigirse a la zona de seguridad?" value={formState.respuestaPregunta3} onChange={v => handleInputChange('respuestaPregunta3', v)} />
-            </Section>
-
-            <Section icon={ShieldCheck} title="3. Declaración y Firma">
-               <CheckboxField label="Declaro haber leído y comprendido el Reglamento Especial para Empresas Contratistas y Subcontratistas (si aplica)." checked={formState.aceptaReglamento} onCheckedChange={c => handleInputChange('aceptaReglamento', c)} />
-               <CheckboxField label="Me comprometo a utilizar todos los Elementos de Protección Personal (EPP) requeridos para ingresar y permanecer en la obra." checked={formState.aceptaEpp} onCheckedChange={c => handleInputChange('aceptaEpp', c)} />
-               <CheckboxField label="Acepto el tratamiento de mis datos personales para fines de registro y seguridad de esta obra." checked={formState.aceptaTratamientoDatos} onCheckedChange={c => handleInputChange('aceptaTratamientoDatos', c)} />
-               <div className="pt-4">
-                  <Label className="font-semibold text-base">Firma de Conformidad</Label>
-                  <SignaturePad 
-                    onChange={(dataUrl) => {
-                      if (dataUrl) {
-                        handleInputChange('firmaDataUrl', dataUrl);
-                        setIsSignatureDrawn(true);
-                      }
-                    }} 
-                    onClear={() => {
-                        handleInputChange('firmaDataUrl', '');
-                        setIsSignatureDrawn(false);
-                    }}
-                    onDraw={() => setIsSignatureDrawn(true)}
-                  />
-                  <p className="text-xs text-muted-foreground mt-1">Por favor, firme en el recuadro con el dedo o el mouse.</p>
-               </div>
-            </Section>
-
-            {error && <p className="text-sm font-medium text-center text-destructive">{error}</p>}
-            
-            <Button type="submit" className="w-full" disabled={isSubmitting}>
-              {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-              {isSubmitting ? 'Guardando Registro...' : 'Finalizar y Enviar Inducción'}
-            </Button>
-          </form>
-        </CardContent>
-      </Card>
-    </div>
+      </CardContent>
+      <CardFooter className="flex justify-between">
+        {step > 1 && step < 4 && <Button variant="outline" onClick={() => setStep(s => s - 1)}>Volver</Button>}
+        {step < 3 && <Button onClick={() => { if(validateStep(step)) setStep(s => s + 1)}}>Siguiente</Button>}
+        {step === 3 && <Button onClick={handleSubmit} disabled={isSubmitting}>{isSubmitting && <Loader2 className="animate-spin mr-2"/>}Finalizar y Guardar Inducción</Button>}
+        {error && <p className="text-sm text-destructive">{error}</p>}
+      </CardFooter>
+    </Card>
   );
 }
 
 
-// --- Componentes de UI Locales ---
-const Section = ({ icon: Icon, title, children }: { icon: React.ElementType, title: string, children: React.ReactNode }) => (
-  <div className="border-t pt-6">
-    <div className="flex items-center gap-3 mb-4">
-      <div className="bg-primary/10 p-2 rounded-full"><Icon className="h-5 w-5 text-primary" /></div>
-      <h3 className="text-lg font-semibold">{title}</h3>
-    </div>
-    <div className="space-y-4">{children}</div>
-  </div>
-);
-
-const InputField = ({ label, ...props }: { label: string } & React.ComponentProps<typeof Input>) => (
-  <div className="space-y-1">
-    <Label>{label}</Label>
-    <Input {...props} />
-  </div>
-);
-
-const SelectField = ({ label, children, ...props }: { label: string, children: React.ReactNode } & React.ComponentProps<typeof Select>) => (
-    <div className="space-y-1">
-        <Label>{label}</Label>
-        <Select {...props}>
-            <SelectTrigger><SelectValue /></SelectTrigger>
-            <SelectContent>{children}</SelectContent>
-        </Select>
-    </div>
-);
-
-const RadioGroupField = ({ label, value, onChange }: { label: string, value: 'SI' | 'NO', onChange: (value: 'SI' | 'NO') => void }) => (
-  <div className="flex items-center justify-between rounded-md border p-3 bg-muted/50">
-    <Label className="flex-1 pr-4">{label}</Label>
-    <div className="flex items-center gap-4">
-      <Label className="flex items-center gap-2 cursor-pointer"><Checkbox checked={value === 'SI'} onCheckedChange={() => onChange('SI')} /><span>Sí</span></Label>
-      <Label className="flex items-center gap-2 cursor-pointer"><Checkbox checked={value === 'NO'} onCheckedChange={() => onChange('NO')} /><span>No</span></Label>
-    </div>
-  </div>
-);
-
-const CheckboxField = ({ label, ...props }: { label: string } & React.ComponentProps<typeof Checkbox>) => (
-  <div className="flex items-start gap-3">
-    <Checkbox {...props} className="mt-1" />
-    <Label className="font-normal">{label}</Label>
-  </div>
-);
-
-```
-  </change>
-  <change>
-    <file>src/lib/prevencionEventos.ts</file>
-    <content><![CDATA[import {
-  doc,
-  setDoc,
-  getDoc,
-  serverTimestamp,
-  addDoc,
-  collection
-} from "firebase/firestore";
-import { firebaseDb } from "./firebaseClient";
-
-// 👉 Datos comunes del evento (lo que comparten los 3 formularios)
-export interface EventoBaseData {
-  obraId: string;
-  eventoId: string;
-  fechaEvento?: string;
-  lugar?: string;
-  tipoEvento?: string; // accidente, incidente, cuasi, etc.
-  descripcionBreve?: string;
-  trabajadorInvolucrado?: string;
-  creadoPor?: string;
-}
-
-// 👉 Datos específicos de cada formulario
-export interface IERData {
-  fechaInforme?: string;
-  horaInforme?: string;
-  descripcionDetallada?: string;
-  claseEvento?: string;
-  consecuenciasPotenciales?: string;
-  medidasInmediatas?: string;
-}
-
-export interface InvestigacionData {
-  investigador?: string;
-  fechaInvestigacion?: string;
-  causasInmediatas?: string;
-  causasBasales?: string;
-  condicionesSubestandar?: string;
-  actosSubestandar?: string;
-  conclusiones?: string;
-}
-
-export interface PlanAccionData {
-  objetivoGeneral?: string;
-  acciones?: {
-    accion: string;
-    responsable: string;
-    plazo: string;
-    estado?: string;
-  }[];
-  fechaCompromisoCierre?: string;
-  responsableSeguimiento?: string;
-  observacionesSeguimiento?: string;
-}
-
-// Interfaz para la inducción
-export interface InduccionAccesoFaena {
-  id?: string;
-  obraId: string;
-  obraNombre?: string;
-  prevencionistaId?: string | null; // ID del usuario que generó el QR
-
-  tipoVisita: "VISITA" | "PROVEEDOR" | "INSPECTOR" | "OTRO";
-  nombreCompleto: string;
-  rut: string;
-  empresa: string;
-  cargo: string;
-  telefono: string;
-  correo: string;
-
-  fechaIngreso: string; // yyyy-mm-dd
-  horaIngreso: string;   // hh:mm
-
-  respuestaPregunta1?: "SI" | "NO";
-  respuestaPregunta2?: "SI" | "NO";
-  respuestaPregunta3?: "SI" | "NO";
-
-  aceptaReglamento: boolean;
-  aceptaEpp: boolean;
-  aceptaTratamientoDatos: boolean;
-
-  firmaDataUrl?: string; // imagen de la firma en base64 (opcional)
-  origenRegistro?: "panel" | "qr";
-  createdAt?: any;
-}
-
-
-function eventoDocRef(obraId: string, eventoId: string) {
-  return doc(firebaseDb, "obras", obraId, "eventosRiesgosos", eventoId);
-}
-
-// 🔹 Guardar / actualizar la parte IER (sin pisar lo demás)
-export async function guardarIER(
-  base: EventoBaseData,
-  ier: IERData
-) {
-  const ref = eventoDocRef(base.obraId, base.eventoId);
-  await setDoc(
-    ref,
-    {
-      ...base,
-      updatedAt: serverTimestamp(),
-      ier: {
-        ...ier,
-        updatedAt: serverTimestamp(),
-      },
-      createdAt: serverTimestamp(),
-    },
-    { merge: true }
-  );
-}
-
-// 🔹 Guardar / actualizar la parte de Investigación
-export async function guardarInvestigacion(
-  obraId: string,
-  eventoId: string,
-  data: InvestigacionData
-) {
-  const ref = eventoDocRef(obraId, eventoId);
-  await setDoc(
-    ref,
-    {
-      updatedAt: serverTimestamp(),
-      investigacion: {
-        ...data,
-        updatedAt: serverTimestamp(),
-      },
-    },
-    { merge: true }
-  );
-}
-
-// 🔹 Guardar / actualizar la parte de Plan de Acción
-export async function guardarPlanAccion(
-  obraId: string,
-  eventoId: string,
-  data: PlanAccionData
-) {
-  const ref = eventoDocRef(obraId, eventoId);
-  await setDoc(
-    ref,
-    {
-      updatedAt: serverTimestamp(),
-      planAccion: {
-        ...data,
-        updatedAt: serverTimestamp(),
-      },
-    },
-    { merge: true }
-  );
-}
-
-// 🔹 Leer todo el evento (con las 3 partes si existen)
-export async function cargarEventoCompleto(
-  obraId: string,
-  eventoId: string
-) {
-  const ref = eventoDocRef(obraId, eventoId);
-  const snap = await getDoc(ref);
-  if (!snap.exists()) return null;
-  return snap.data();
-}
-
-// 🔹 Guardar inducción desde el panel de administrador
-export async function guardarInduccionAccesoFaena(
-  data: Omit<InduccionAccesoFaena, "id" | "createdAt" | "origenRegistro">
-): Promise<string> {
-  const colRef = collection(firebaseDb, "induccionesAccesoFaena");
-  const docRef = await addDoc(colRef, {
-    ...data,
-    origenRegistro: "panel",
-    createdAt: serverTimestamp(),
-  });
-  return docRef.id;
-}
-
-// 🔹 Guardar inducción desde el QR público
-export async function guardarInduccionQR(
-  data: Omit<InduccionAccesoFaena, "id" | "createdAt" | "origenRegistro">
-): Promise<string> {
-  const colRef = collection(firebaseDb, "induccionesAccesoFaena");
-  const docRef = await addDoc(colRef, {
-    ...data,
-    origenRegistro: "qr",
-    createdAt: serverTimestamp(),
-  });
-  return docRef.id;
+export default function PublicInduccionPage() {
+    return (
+        <div className="min-h-screen bg-muted flex items-center justify-center p-4">
+            <Suspense fallback={<div className="text-center"><Loader2 className="animate-spin" /> Cargando formulario...</div>}>
+                <InduccionForm />
+            </Suspense>
+        </div>
+    );
 }

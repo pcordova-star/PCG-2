@@ -6,39 +6,50 @@ import QRCode from "react-qr-code";
 import { useParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
-import { Loader2 } from "lucide-react";
+import { Loader2, ShieldX } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 
 export default function QrInduccionPage() {
   const { obraId } = useParams<{ obraId: string }>();
   const [url, setUrl] = useState<string | null>(null);
-  const { user, loading: authLoading } = useAuth();
+  const { user, role, loading: authLoading } = useAuth();
+
+  const allowedRoles = ['superadmin', 'admin_empresa', 'prevencionista'];
+  const canGenerate = !authLoading && user && allowedRoles.includes(role);
 
   useEffect(() => {
-    // Espera a que la autenticación termine y que tengamos un usuario y una obra.
-    if (authLoading || !user || !obraId) {
+    if (!canGenerate || !obraId) {
       return;
     }
 
-    // 1. Usa la variable de entorno como prioridad.
     const envBaseUrl = process.env.NEXT_PUBLIC_PUBLIC_BASE_URL;
-    
-    // 2. Si no existe, usa el origen de la ventana actual.
     const baseUrl = envBaseUrl || window.location.origin;
-
-    // 3. Construye la URL pública final con el ID de la obra Y el ID del prevencionista.
-    const prevencionistaId = user.uid;
-    const finalUrl = `${baseUrl}/public/induccion/${obraId}?p=${prevencionistaId}`;
+    
+    const generadorId = user.uid;
+    const finalUrl = `${baseUrl}/public/induccion/${obraId}?g=${encodeURIComponent(generadorId)}`;
     setUrl(finalUrl);
 
-  }, [obraId, user, authLoading]);
+  }, [obraId, user, authLoading, canGenerate, role]);
 
   if (authLoading) {
     return <div className="p-8 text-center"><Loader2 className="animate-spin" /> Cargando datos de usuario...</div>;
   }
   
-  if (!user) {
-    return <div className="p-8 text-center text-destructive">Error: Debes iniciar sesión para generar un QR.</div>;
+  if (!canGenerate) {
+    return (
+        <div className="flex flex-col items-center justify-center min-h-screen text-center p-4">
+            <ShieldX className="h-16 w-16 text-destructive mb-4" />
+            <h1 className="text-2xl font-bold">Acceso Denegado</h1>
+            <p className="text-muted-foreground mt-2">
+                Solo el Prevencionista, Administrador de Empresa o Superadmin pueden generar esta inducción de acceso.
+            </p>
+             <Button asChild variant="outline" className="mt-6">
+                <Link href="/prevencion/capacitacion/induccion-acceso">
+                    Volver al panel
+                </Link>
+           </Button>
+        </div>
+    );
   }
 
   if (!obraId) {
