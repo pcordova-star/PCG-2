@@ -1,4 +1,6 @@
 /** @type {import('next').NextConfig} */
+require('dotenv').config();
+
 const nextConfig = {
   typescript: {
     ignoreBuildErrors: true,
@@ -48,7 +50,5 @@ const nextConfig = {
     ],
   },
 };
-
-require('dotenv').config();
 
 module.exports = nextConfig;
