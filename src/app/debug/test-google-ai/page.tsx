@@ -1,117 +1,101 @@
 // src/app/debug/test-google-ai/page.tsx
-import { Button } from "@/components/ui/button";
-import { revalidatePath } from 'next/cache';
+import { cookies } from "next/headers";
 
-type TestResult = {
-    ok: boolean;
-    status?: number;
-    source: "env" | "google-ai-api";
-    body: any;
-};
+export const dynamic = "force-dynamic"; // evita caché
 
-// Esta es la Server Action que se ejecutará en el servidor.
-async function testModel(): Promise<TestResult> {
-    'use server';
+async function testModel() {
+  const apiKey = process.env.GEMINI_API_KEY;
 
-    const apiKey = process.env.GEMINI_API_KEY;
+  if (!apiKey) {
+    return {
+      ok: false,
+      status: 0,
+      source: "env",
+      body: { message: "GEMINI_API_KEY no está definida en el servidor." }
+    };
+  }
 
-    if (!apiKey) {
-        return {
-            ok: false,
-            source: "env",
-            body: { error: "GEMINI_API_KEY no está definida en el servidor." }
-        };
-    }
-    
-    if(apiKey === "LA_CLAVE_NUEVA_DEL_PROYECTO_PCG-IA"){
-         return {
-            ok: false,
-            source: "env",
-            body: { error: "La API Key parece ser un placeholder. Revisa el archivo .env." }
-        };
-    }
+  try {
+    const url = `https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash-latest?key=${apiKey}`;
 
-    try {
-        const response = await fetch(
-            `https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash-latest?key=${apiKey}`
-        );
+    const res = await fetch(url, {
+      method: "GET",
+      headers: { "Content-Type": "application/json" }
+    });
 
-        const body = await response.json();
+    const body = await res.json();
 
-        return {
-            ok: response.ok,
-            status: response.status,
-            source: "google-ai-api",
-            body: body
-        };
-    } catch (error: any) {
-        return {
-            ok: false,
-            source: "google-ai-api",
-            body: {
-                error: "Fetch falló",
-                message: error.message,
-                cause: error.cause
-            }
-        };
-    }
+    return {
+      ok: res.ok,
+      status: res.status,
+      source: "google-ai-api",
+      body
+    };
+  } catch (err: any) {
+    return {
+      ok: false,
+      status: 0,
+      source: "network",
+      body: { message: err.message }
+    };
+  }
 }
 
+export default async function Page() {
+  // Detectar si el form hizo POST
+  const cookieStore = cookies();
+  const triggered = cookieStore.get("debug-trigger")?.value === "1";
 
-export default async function TestGoogleAIPage({
-  searchParams,
-}: {
-  searchParams: { result?: string };
-}) {
+  let result = null;
 
-  let result: TestResult | null = null;
-  if (searchParams.result) {
-    try {
-      result = JSON.parse(searchParams.result);
-    } catch {
-      result = { ok: false, source: 'google-ai-api', body: { error: 'Error al parsear el resultado' } };
-    }
+  if (triggered) {
+    result = await testModel();
+    // limpiar cookie
+    cookies().set("debug-trigger", "0");
   }
 
   return (
-    <div className="container mx-auto p-8 space-y-6">
-      <h1 className="text-2xl font-bold">Página de Debug: Google AI API</h1>
-      <p className="text-muted-foreground">
-        Esta página prueba la conexión directa con la API de Google, sin pasar por Genkit, para verificar si la API Key y el modelo están accesibles.
-      </p>
+    <div style={{ padding: 40 }}>
+      <h1>Página de Debug: Google AI API</h1>
+      <p>Botón para probar conexión directa al modelo gemini-1.5-flash-latest.</p>
 
-      <form action={async () => {
-        'use server';
-        const actionResult = await testModel();
-        // El resultado se pasa como un searchParam para ser mostrado en la misma página.
-        const searchParams = new URLSearchParams({ result: JSON.stringify(actionResult) });
-        const url = `/debug/test-google-ai?${searchParams.toString()}`;
-        revalidatePath(url); // Invalida la caché de la ruta
-        // No hay redirect aquí, la página se re-renderizará con los nuevos searchParams
-      }}>
-        <Button type="submit">Probar modelo gemini-1.5-flash-latest</Button>
+      {/* Form que activa la prueba */}
+      <form method="POST" action="/debug/test-google-ai">
+        <input type="hidden" name="trigger" value="1" />
+        <button
+          type="submit"
+          style={{
+            padding: "12px 24px",
+            background: "black",
+            color: "white",
+            borderRadius: 6,
+            marginTop: 20,
+            cursor: "pointer",
+            fontWeight: "bold"
+          }}
+          onClick={() => {
+            "use server";
+            cookies().set("debug-trigger", "1");
+          }}
+        >
+          Probar modelo gemini-1.5-flash-latest
+        </button>
       </form>
 
       {result && (
-        <div className="mt-6">
-          <h2 className="text-lg font-semibold">Resultado:</h2>
-          <pre className="mt-2 p-4 border rounded-lg bg-slate-50 text-sm overflow-x-auto">
-            {JSON.stringify(result, null, 2)}
-          </pre>
-          <div className="mt-4 p-4 border rounded-lg bg-card">
-            <h3 className="font-semibold">Análisis del resultado:</h3>
-            {result.ok ? (
-                 <p className="text-green-600 mt-2">✅ Conexión exitosa. El modelo y la API Key son correctos.</p>
-            ) : (
-                <div className="text-red-600 mt-2 space-y-1">
-                    <p>❌ La prueba falló.</p>
-                    {result.source === 'env' && <p><strong>Causa:</strong> La variable de entorno `GEMINI_API_KEY` no se está cargando correctamente en el servidor.</p>}
-                    {result.source === 'google-ai-api' && result.body?.error?.message.includes("API key not valid") && <p><strong>Causa:</strong> La API Key es inválida o no tiene permisos para usar la API 'generativelanguage'.</p>}
-                    {result.source === 'google-ai-api' && result.status === 404 && <p><strong>Causa:</strong> El modelo 'gemini-1.5-flash-latest' no fue encontrado. Puede que no esté disponible en la región de tu proyecto de Google Cloud.</p>}
-                </div>
-            )}
-          </div>
-        </div>
+        <pre
+          style={{
+            background: "#111",
+            color: "#0f0",
+            padding: 20,
+            marginTop: 30,
+            borderRadius: 8,
+            maxWidth: "100%",
+            overflow: "auto"
+          }}
+        >
+{JSON.stringify(result, null, 2)}
+        </pre>
       )}
     </div>
   );
