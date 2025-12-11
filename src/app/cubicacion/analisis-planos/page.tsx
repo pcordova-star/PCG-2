@@ -17,8 +17,7 @@ import { Progress } from '@/components/ui/progress';
 import { motion } from 'framer-motion';
 import { useAuth } from '@/context/AuthContext';
 import { uploadPlanoToStorage } from '@/lib/cubicacion/uploadPlano';
-import { httpsCallable } from 'firebase/functions';
-import { firebaseFunctions } from '@/lib/firebaseClient';
+import type { AnalisisPlanoOutput, AnalisisPlanoElemento } from '@/types/analisis-planos';
 
 type OpcionesDeAnalisis = {
   superficieUtil: boolean;
@@ -56,7 +55,8 @@ export default function AnalisisPlanosPage() {
   const [notas, setNotas] = useState('');
   
   const [cargando, setCargando] = useState(false);
-  const [resultado, setResultado] = useState<string>("");
+  const [resultado, setResultado] = useState<AnalisisPlanoOutput | null>(null);
+  const [errorAnalisis, setErrorAnalisis] = useState<string | null>(null);
 
   // Estados para la barra de progreso animada
   const [progress, setProgress] = useState(0);
@@ -75,7 +75,6 @@ export default function AnalisisPlanosPage() {
       const updateProgress = () => {
         const simulatedProgress = (currentTime / totalDuration) * 100;
         
-        // No pasar del 95% hasta que la respuesta real llegue
         const displayProgress = Math.min(simulatedProgress, 95);
         setProgress(displayProgress);
 
@@ -86,7 +85,7 @@ export default function AnalisisPlanosPage() {
 
         currentTime += 100;
         if (displayProgress < 95) {
-          timer = setTimeout(updateProgress, 100 + Math.random() * 200); // Intervalo variable
+          timer = setTimeout(updateProgress, 100 + Math.random() * 200);
         }
       };
 
@@ -109,7 +108,7 @@ export default function AnalisisPlanosPage() {
         toast({
           variant: "destructive",
           title: "Formato no soportado",
-          description: "El análisis de archivos PDF no está disponible. Por favor, convierte tu plano a una imagen (JPG, PNG) e inténtalo de nuevo.",
+          description: "Por ahora, solo se pueden analizar imágenes (JPG, PNG). Por favor, convierte tu PDF a una imagen antes de subirlo.",
           duration: 8000,
         });
         e.target.value = ""; // Limpia el input
@@ -150,58 +149,56 @@ export default function AnalisisPlanosPage() {
     }
     return prompt;
   };
-
+  
   const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
 
     if (!planoFile) {
-      setResultado("Debes seleccionar un plano antes de iniciar el análisis.");
-      return;
+        setErrorAnalisis("Debes seleccionar un plano antes de iniciar el análisis.");
+        return;
     }
+
+    setCargando(true);
+    setErrorAnalisis(null);
+    setResultado(null);
 
     try {
-      setCargando(true);
-      setResultado("");
+        const { url, contentType } = await uploadPlanoToStorage(
+            planoFile,
+            company?.id ?? "no-company",
+            user?.uid ?? "anon"
+        );
 
-      // 1) Subir archivo a Storage
-      const { url, contentType } = await uploadPlanoToStorage(
-        planoFile,
-        company?.id ?? "no-company",
-        user?.uid ?? "anon"
-      );
+        const prompt = construirPromptDesdeChecksYNotas();
 
-      // 2) Construir prompt con la lógica existente
-      const prompt = construirPromptDesdeChecksYNotas();
+        const apiResponse = await fetch("/api/analizar-plano", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ fileUrl: url, fileType: contentType, prompt }),
+        });
 
-      // Como los PDF están deshabilitados, solo llamaremos a la API de Next.js
-      const apiResponse = await fetch("/api/analizar-plano", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          fileUrl: url,
-          fileType: contentType,
-          prompt,
-        }),
-      });
+        const body = await apiResponse.json();
 
-      const body = await apiResponse.json();
+        if (!apiResponse.ok || body.error) {
+            throw new Error(body.error || "Ocurrió un error en el servidor de análisis.");
+        }
 
-      if (!apiResponse.ok || body.error) {
-        const message =
-          body.error || "Ocurrió un error durante el análisis del plano.";
-        throw new Error(message);
-      }
+        // Se intenta parsear el resultado. Si falla, es texto plano.
+        try {
+            const parsedResult = JSON.parse(body.analysis);
+            setResultado(parsedResult);
+        } catch (e) {
+            setErrorAnalisis("La IA devolvió un formato de texto inesperado. Mostrando en bruto.");
+            setResultado({ summary: body.analysis, elements: [] });
+        }
 
-      setResultado(body.analysis ?? "La IA no devolvió resultado.");
     } catch (err: any) {
-      console.error("Error al analizar el plano:", err);
-      setResultado(err.message ?? "Ocurrió un error durante el análisis del plano.");
+        console.error("Error al analizar el plano:", err);
+        setErrorAnalisis(err.message || "Ocurrió un error desconocido.");
     } finally {
-      setCargando(false);
+        setCargando(false);
     }
-  };
+};
 
   const tipoElementoConfig: Record<string, { icon: React.ElementType, color: string }> = {
     recinto: { icon: Building, color: 'text-blue-500' },
@@ -296,12 +293,33 @@ export default function AnalisisPlanosPage() {
                     <p className="text-xs text-muted-foreground/80">(El análisis puede tardar hasta un minuto)</p>
                 </motion.div>
               )}
-              {resultado && (
-                <div className="prose prose-sm max-w-none text-muted-foreground">
-                    <pre className="whitespace-pre-wrap">{resultado}</pre>
-                </div>
+              {errorAnalisis && (
+                  <div className="text-center py-8 text-destructive bg-destructive/10 rounded-md">
+                      <p className="font-semibold">Error en el análisis</p>
+                      <p className="text-sm">{errorAnalisis}</p>
+                  </div>
               )}
-              {!cargando && !resultado && (
+              {resultado && (
+                 <div className="prose prose-sm max-w-none text-card-foreground">
+                    <p className='font-semibold'>Resumen de la IA:</p>
+                    <p className='text-muted-foreground text-sm italic'>"{resultado.summary}"</p>
+                    {resultado.elements.length > 0 && (
+                        <Table>
+                            <TableHeader><TableRow><TableHead>Elemento</TableHead><TableHead>Cantidad</TableHead><TableHead>Confianza</TableHead></TableRow></TableHeader>
+                            <TableBody>
+                                {resultado.elements.map((el, i) => (
+                                    <TableRow key={i}>
+                                        <TableCell className='font-medium'>{el.name}</TableCell>
+                                        <TableCell>{el.estimatedQuantity.toLocaleString('es-CL')} {el.unit}</TableCell>
+                                        <TableCell><Badge variant={el.confidence > 0.7 ? "default" : "secondary"}>{(el.confidence * 100).toFixed(0)}%</Badge></TableCell>
+                                    </TableRow>
+                                ))}
+                            </TableBody>
+                        </Table>
+                    )}
+                 </div>
+              )}
+              {!cargando && !resultado && !errorAnalisis && (
                 <div className="text-center py-12 text-muted-foreground">
                   <p>Los resultados del análisis aparecerán aquí.</p>
                 </div>

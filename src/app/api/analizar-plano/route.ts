@@ -1,6 +1,10 @@
 // src/app/api/analizar-plano/route.ts
 import { NextResponse } from "next/server";
 import { GoogleGenerativeAI } from "@google/generative-ai";
+import type {
+  AnalisisPlanoInput,
+  AnalisisPlanoOutput,
+} from "@/types/analisis-planos";
 
 // ----------------- Helpers -----------------
 
