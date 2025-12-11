@@ -23,7 +23,7 @@ const AnalisisPlanoInputWithOpcionesStringSchema = AnalisisPlanoInputSchema.exte
 const analizarPlanoPrompt = ai.definePrompt(
   {
     name: 'analizarPlanoPrompt',
-    model: 'gemini-pro-vision',
+    model: 'gemini-1.5-flash-latest',
     input: { schema: AnalisisPlanoInputWithOpcionesStringSchema },
     output: { schema: AnalisisPlanoOutputSchema },
     prompt: `Eres un asistente experto en análisis de planos de construcción para constructoras. Tu tarea es interpretar un plano (en formato imagen) y extraer cubicaciones según las opciones solicitadas por el usuario.
@@ -64,16 +64,27 @@ const analisisPlanoFlow = ai.defineFlow(
     outputSchema: AnalisisPlanoOutputSchema,
   },
   async (input) => {
-    const { output } = await analizarPlanoPrompt({
-      ...input,
-      opcionesString: JSON.stringify(input.opciones),
-    });
-    
-    if (!output) {
-      throw new Error("La IA no devolvió una respuesta válida.");
-    }
+    console.log("Analizando plano...");
+    console.log("Obra ID:", input.obraId);
+    console.log("Obra Nombre:", input.obraNombre);
+    console.log("Opciones:", input.opciones);
+    console.log("Tamaño Data URI:", input.photoDataUri.length);
 
-    return output;
+    try {
+      const { output } = await analizarPlanoPrompt({
+        ...input,
+        opcionesString: JSON.stringify(input.opciones),
+      });
+      
+      if (!output) {
+        throw new Error("La IA no devolvió una respuesta válida.");
+      }
+
+      return output;
+    } catch (error: any) {
+        console.error("[analisisPlanoFlow] Error en Genkit:", error);
+        throw new Error("GENKIT_ERROR: " + (error.message || "Error desconocido en el análisis de plano"));
+    }
   }
 );
 
