@@ -73,7 +73,7 @@ export default async function Page() {
             cursor: "pointer",
             fontWeight: "bold"
           }}
-          onClick={() => {
+          onClick={async () => {
             "use server";
             cookies().set("debug-trigger", "1");
           }}
