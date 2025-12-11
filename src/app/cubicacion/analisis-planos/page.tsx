@@ -17,7 +17,7 @@ import { Progress } from '@/components/ui/progress';
 import { motion } from 'framer-motion';
 import { useAuth } from '@/context/AuthContext';
 import { uploadPlanoToStorage } from '@/lib/cubicacion/uploadPlano';
-import { httpsCallable, HttpsCallableResult } from 'firebase/functions';
+import { httpsCallable } from 'firebase/functions';
 import { firebaseFunctions } from '@/lib/firebaseClient';
 
 type OpcionesDeAnalisis = {
@@ -105,6 +105,17 @@ export default function AnalisisPlanosPage() {
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
+      if (file.type === "application/pdf") {
+        toast({
+          variant: "destructive",
+          title: "Formato no soportado",
+          description: "El análisis de archivos PDF no está disponible. Por favor, convierte tu plano a una imagen (JPG, PNG) e inténtalo de nuevo.",
+          duration: 8000,
+        });
+        e.target.value = ""; // Limpia el input
+        setPlanoFile(null);
+        return;
+      }
       if (file.size > 10 * 1024 * 1024) { // Límite de 10MB
         toast({
           variant: 'destructive',
@@ -159,42 +170,31 @@ export default function AnalisisPlanosPage() {
         user?.uid ?? "anon"
       );
 
-      // 2) Construir prompt con la lógica existente (checkbox + notas)
+      // 2) Construir prompt con la lógica existente
       const prompt = construirPromptDesdeChecksYNotas();
 
-      let analysisResult: any;
+      // Como los PDF están deshabilitados, solo llamaremos a la API de Next.js
+      const apiResponse = await fetch("/api/analizar-plano", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          fileUrl: url,
+          fileType: contentType,
+          prompt,
+        }),
+      });
 
-      if (contentType === "application/pdf") {
-        // 3A) Caso PDF → llamar a Cloud Function
-        const analizarPdfPlano = httpsCallable(firebaseFunctions, 'analizarPdfPlano');
-        const result = await analizarPdfPlano({ fileUrl: url, prompt }) as HttpsCallableResult<any>;
-        if (result.data.ok) {
-            analysisResult = result.data.analysis;
-        } else {
-            throw new Error(result.data.error || "Error en la función de análisis de PDF.");
-        }
-      } else {
-        // 3B) Caso imagen → usar API de Next ya existente
-        const res = await fetch("/api/analizar-plano", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            fileUrl: url,
-            fileType: contentType,
-            prompt,
-          }),
-        });
-        const body = await res.json();
-        if (!res.ok || body.error) {
-            const message = body.error || "Ocurrió un error durante el análisis del plano.";
-            throw new Error(message);
-        }
-        analysisResult = body.analysis;
+      const body = await apiResponse.json();
+
+      if (!apiResponse.ok || body.error) {
+        const message =
+          body.error || "Ocurrió un error durante el análisis del plano.";
+        throw new Error(message);
       }
-      
-      setResultado(analysisResult ?? "La IA no devolvió resultado.");
+
+      setResultado(body.analysis ?? "La IA no devolvió resultado.");
     } catch (err: any) {
       console.error("Error al analizar el plano:", err);
       setResultado(err.message ?? "Ocurrió un error durante el análisis del plano.");
@@ -231,8 +231,8 @@ export default function AnalisisPlanosPage() {
           <Card>
             <CardHeader><CardTitle>1. Sube tu plano</CardTitle></CardHeader>
             <CardContent className="space-y-2">
-              <Label htmlFor="plano-file">Archivo del plano (PDF o Imagen, máx. 10MB)</Label>
-              <Input id="plano-file" type="file" accept="application/pdf,image/*" onChange={handleFileChange} />
+              <Label htmlFor="plano-file">Archivo del plano (Imagen JPG, PNG, máx. 10MB)</Label>
+              <Input id="plano-file" type="file" accept="image/jpeg, image/png" onChange={handleFileChange} />
             </CardContent>
           </Card>
           
