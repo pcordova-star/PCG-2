@@ -1,82 +1,52 @@
-// src/app/debug/test-google-ai/page.tsx
+"use client";
 
-export const dynamic = "force-dynamic";
+import { useState } from "react";
 
-async function testModel() {
-  const apiKey = process.env.GEMINI_API_KEY;
+export default function Page() {
+  const [result, setResult] = useState<any>(null);
+  const [loading, setLoading] = useState(false);
 
-  if (!apiKey) {
-    return {
-      ok: false,
-      status: 0,
-      source: "env",
-      body: { message: "GEMINI_API_KEY no está definida en el servidor." }
-    };
-  }
+  const runTest = async () => {
+    setLoading(true);
+    setResult(null);
 
-  try {
-    const url = `https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash-latest?key=${apiKey}`;
+    try {
+      const res = await fetch("/api/test-google-ai");
+      const data = await res.json();
+      setResult(data);
+    } catch (e: any) {
+      setResult({ error: e.message });
+    }
 
-    const res = await fetch(url, {
-      method: "GET",
-      headers: { "Content-Type": "application/json" }
-    });
-
-    const body = await res.json();
-
-    return {
-      ok: res.ok,
-      status: res.status,
-      source: "google-ai-api",
-      body
-    };
-  } catch (err: any) {
-    return {
-      ok: false,
-      status: 0,
-      source: "network",
-      body: { message: err.message }
-    };
-  }
-}
-
-export default async function Page({ searchParams }: { searchParams: any }) {
-  const triggered = searchParams?.run === "1";
-  let result = null;
-
-  if (triggered) {
-    // Ejecuta la prueba en el servidor
-    result = await testModel();
-  }
+    setLoading(false);
+  };
 
   return (
     <div style={{ padding: 40 }}>
       <h1>Página de Debug: Google AI API</h1>
-      <p>Presiona el botón para probar conexión directa al modelo.</p>
+      <p>Prueba directa al endpoint nativo de Google mediante la API.</p>
 
-      <form method="GET">
-        <input type="hidden" name="run" value="1" />
-        <button
-          type="submit"
-          style={{
-            padding: "12px 24px",
-            background: "black",
-            color: "white",
-            borderRadius: 8,
-            cursor: "pointer",
-            marginTop: 20
-          }}
-        >
-          Probar modelo gemini-1.5-flash-latest
-        </button>
-      </form>
+      <button
+        onClick={runTest}
+        style={{
+          padding: "12px 24px",
+          background: "black",
+          color: "white",
+          borderRadius: 8,
+          cursor: "pointer",
+          marginTop: 20
+        }}
+        disabled={loading}
+      >
+        {loading ? "Probando..." : "Probar modelo gemini-1.5-flash-latest"}
+      </button>
 
       {result && (
         <pre
           style={{
             marginTop: 30,
             background: "#111",
-            color: "#0f0",
+            color: result.ok ? "#0f0" : "#f87171",
             padding: 20,
             borderRadius: 8,
             overflow: "auto"
