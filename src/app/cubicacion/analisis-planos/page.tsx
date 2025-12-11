@@ -60,6 +60,11 @@ export default function AnalisisPlanosPage() {
   // Estados para la barra de progreso animada
   const [progress, setProgress] = useState(0);
   const [progressText, setProgressText] = useState("Iniciando...");
+  
+  // Estados para el test de la API
+  const [isTesting, setIsTesting] = useState(false);
+  const [testResult, setTestResult] = useState<string | null>(null);
+
 
   useEffect(() => {
     let timer: NodeJS.Timeout;
@@ -169,6 +174,40 @@ export default function AnalisisPlanosPage() {
     }
 };
 
+  const handleTestApi = async () => {
+    setIsTesting(true);
+    setTestResult(null);
+    try {
+      const testInput = {
+        photoDataUri: "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8X8DwHwAFGwJ/lYEY1wAAAABJRU5ErkJggg==",
+        opciones: { superficieUtil: true, m2Muros: false, m2Losas: false, m2Revestimientos: false, instalacionesHidraulicas: false, instalacionesElectricas: false },
+        notas: "TEST",
+        obraId: "test-obra",
+        obraNombre: "Obra Test"
+      };
+      
+      const response = await fetch('/api/analizar-plano', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(testInput)
+      });
+      
+      const resultData = await response.json();
+
+      if (!response.ok) {
+        throw new Error(resultData.error || 'Error desconocido en la API.');
+      }
+      
+      setTestResult(`Conexión OK. Respuesta:\n\n${JSON.stringify(resultData, null, 2)}`);
+
+    } catch (error: any) {
+      setTestResult(`Error en la conexión: ${error.message}`);
+    } finally {
+      setIsTesting(false);
+    }
+  };
+
+
   const tipoElementoConfig: Record<string, { icon: React.ElementType, color: string }> = {
     recinto: { icon: Building, color: 'text-blue-500' },
     muro: { icon: Building, color: 'text-gray-500' },
@@ -193,56 +232,80 @@ export default function AnalisisPlanosPage() {
       </header>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 items-start">
-        <form onSubmit={handleSubmit} className="space-y-6">
-          <Card>
-            <CardHeader><CardTitle>1. Sube tu plano</CardTitle></CardHeader>
-            <CardContent className="space-y-2">
-              <Label htmlFor="plano-file">Archivo del plano (JPG, PNG, máx. 10MB)</Label>
-              <Input id="plano-file" type="file" accept="image/jpeg, image/png" onChange={handleFileChange} />
-            </CardContent>
-          </Card>
-          
-          <Card>
-            <CardHeader><CardTitle>2. Selecciona qué analizar</CardTitle></CardHeader>
-            <CardContent className="space-y-2">
-                <div className="grid grid-cols-2 gap-4">
-                    {Object.keys(opciones).map(key => (
-                         <Label key={key} className="flex items-center gap-2 p-3 border rounded-md hover:bg-muted/50 cursor-pointer">
-                            <Checkbox checked={opciones[key as keyof OpcionesAnalisis]} onCheckedChange={() => handleCheckboxChange(key as keyof OpcionesAnalisis)} />
-                            <span>
-                                {
-                                    {
-                                        superficieUtil: 'Superficie útil',
-                                        m2Muros: 'm² de Muros',
-                                        m2Losas: 'm² de Losas',
-                                        m2Revestimientos: 'm² de Revestimientos',
-                                        instalacionesHidraulicas: 'Inst. Hidráulicas',
-                                        instalacionesElectricas: 'Inst. Eléctricas'
-                                    }[key]
-                                }
-                            </span>
-                        </Label>
-                    ))}
+        <div className="space-y-6">
+            <form onSubmit={handleSubmit} className="space-y-6">
+                <Card>
+                    <CardHeader><CardTitle>1. Sube tu plano</CardTitle></CardHeader>
+                    <CardContent className="space-y-2">
+                    <Label htmlFor="plano-file">Archivo del plano (JPG, PNG, máx. 10MB)</Label>
+                    <Input id="plano-file" type="file" accept="image/jpeg, image/png" onChange={handleFileChange} />
+                    </CardContent>
+                </Card>
+                
+                <Card>
+                    <CardHeader><CardTitle>2. Selecciona qué analizar</CardTitle></CardHeader>
+                    <CardContent className="space-y-2">
+                        <div className="grid grid-cols-2 gap-4">
+                            {Object.keys(opciones).map(key => (
+                                <Label key={key} className="flex items-center gap-2 p-3 border rounded-md hover:bg-muted/50 cursor-pointer">
+                                    <Checkbox checked={opciones[key as keyof OpcionesAnalisis]} onCheckedChange={() => handleCheckboxChange(key as keyof OpcionesAnalisis)} />
+                                    <span>
+                                        {
+                                            {
+                                                superficieUtil: 'Superficie útil',
+                                                m2Muros: 'm² de Muros',
+                                                m2Losas: 'm² de Losas',
+                                                m2Revestimientos: 'm² de Revestimientos',
+                                                instalacionesHidraulicas: 'Inst. Hidráulicas',
+                                                instalacionesElectricas: 'Inst. Eléctricas'
+                                            }[key]
+                                        }
+                                    </span>
+                                </Label>
+                            ))}
+                        </div>
+                    </CardContent>
+                </Card>
+
+                <Card>
+                    <CardHeader><CardTitle>3. Notas adicionales (opcional)</CardTitle></CardHeader>
+                    <CardContent>
+                    <Textarea
+                        placeholder="Ej: La altura de piso a cielo es 2.4m. La escala del plano es 1:50. Considerar solo el Nivel 1."
+                        value={notas}
+                        onChange={e => setNotas(e.target.value)}
+                    />
+                    </CardContent>
+                </Card>
+
+                <Button type="submit" size="lg" className="w-full" disabled={cargando}>
+                    {cargando ? <Loader2 className="mr-2 h-5 w-5 animate-spin" /> : <Wand2 className="mr-2 h-5 w-5" />}
+                    {cargando ? 'Analizando plano...' : 'Iniciar Análisis con IA'}
+                </Button>
+            </form>
+            
+            {!cargando && (
+                <div className="mt-4">
+                    <Button variant="outline" className="w-full" onClick={handleTestApi} disabled={isTesting}>
+                        {isTesting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                        Test rápido del análisis (debug)
+                    </Button>
+                    {testResult && (
+                        <Card className="mt-4">
+                            <CardHeader>
+                                <CardTitle className="text-sm">Resultado del Test</CardTitle>
+                            </CardHeader>
+                            <CardContent>
+                                <pre className="text-xs p-3 bg-slate-100 rounded-md overflow-x-auto">
+                                    <code>{testResult}</code>
+                                </pre>
+                            </CardContent>
+                        </Card>
+                    )}
                 </div>
-            </CardContent>
-          </Card>
+            )}
+        </div>
 
-          <Card>
-            <CardHeader><CardTitle>3. Notas adicionales (opcional)</CardTitle></CardHeader>
-            <CardContent>
-              <Textarea
-                placeholder="Ej: La altura de piso a cielo es 2.4m. La escala del plano es 1:50. Considerar solo el Nivel 1."
-                value={notas}
-                onChange={e => setNotas(e.target.value)}
-              />
-            </CardContent>
-          </Card>
-
-          <Button type="submit" size="lg" className="w-full" disabled={cargando}>
-            {cargando ? <Loader2 className="mr-2 h-5 w-5 animate-spin" /> : <Wand2 className="mr-2 h-5 w-5" />}
-            {cargando ? 'Analizando plano...' : 'Iniciar Análisis con IA'}
-          </Button>
-        </form>
 
         <div className="sticky top-24">
           <Card>
