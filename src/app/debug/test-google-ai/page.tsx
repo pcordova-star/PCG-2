@@ -51,7 +51,7 @@ export default async function Page() {
   if (triggered) {
     result = await testModel();
     // limpiar cookie
-    cookies().set("debug-trigger", "0");
+    cookieStore.set("debug-trigger", "0");
   }
 
   return (
@@ -60,8 +60,10 @@ export default async function Page() {
       <p>Botón para probar conexión directa al modelo gemini-1.5-flash-latest.</p>
 
       {/* Form que activa la prueba */}
-      <form method="POST" action="/debug/test-google-ai">
-        <input type="hidden" name="trigger" value="1" />
+      <form action={async () => {
+            "use server";
+            cookies().set("debug-trigger", "1");
+          }}>
         <button
           type="submit"
           style={{
@@ -72,10 +74,6 @@ export default async function Page() {
             marginTop: 20,
             cursor: "pointer",
             fontWeight: "bold"
-          }}
-          onClick={async () => {
-            "use server";
-            cookies().set("debug-trigger", "1");
           }}
         >
           Probar modelo gemini-1.5-flash-latest
