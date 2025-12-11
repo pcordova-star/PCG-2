@@ -1,3 +1,4 @@
+// src/app/prevencion/obras/[obraId]/qr-induccion/page.tsx
 "use client";
 
 import React, { useEffect, useState } from "react";
@@ -6,25 +7,39 @@ import { useParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
 import { Loader2 } from "lucide-react";
+import { useAuth } from "@/context/AuthContext";
 
 export default function QrInduccionPage() {
   const { obraId } = useParams<{ obraId: string }>();
   const [url, setUrl] = useState<string | null>(null);
+  const { user, loading: authLoading } = useAuth();
 
   useEffect(() => {
-    // Esta lógica se ejecuta solo en el cliente.
-    if (obraId) {
-      // 1. Usar la variable de entorno como prioridad.
-      const envBaseUrl = process.env.NEXT_PUBLIC_PUBLIC_BASE_URL;
-      
-      // 2. Si no existe, usar el origen de la ventana actual.
-      const baseUrl = envBaseUrl || window.location.origin;
-
-      // 3. Construir la URL pública final.
-      const finalUrl = `${baseUrl}/public/induccion/${obraId}`;
-      setUrl(finalUrl);
+    // Espera a que la autenticación termine y que tengamos un usuario y una obra.
+    if (authLoading || !user || !obraId) {
+      return;
     }
-  }, [obraId]);
+
+    // 1. Usa la variable de entorno como prioridad.
+    const envBaseUrl = process.env.NEXT_PUBLIC_PUBLIC_BASE_URL;
+    
+    // 2. Si no existe, usa el origen de la ventana actual.
+    const baseUrl = envBaseUrl || window.location.origin;
+
+    // 3. Construye la URL pública final con el ID de la obra Y el ID del prevencionista.
+    const prevencionistaId = user.uid;
+    const finalUrl = `${baseUrl}/public/induccion/${obraId}?p=${prevencionistaId}`;
+    setUrl(finalUrl);
+
+  }, [obraId, user, authLoading]);
+
+  if (authLoading) {
+    return <div className="p-8 text-center"><Loader2 className="animate-spin" /> Cargando datos de usuario...</div>;
+  }
+  
+  if (!user) {
+    return <div className="p-8 text-center text-destructive">Error: Debes iniciar sesión para generar un QR.</div>;
+  }
 
   if (!obraId) {
     return <div className="p-8 text-center">No se encontró el ID de la obra.</div>;
