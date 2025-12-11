@@ -15,7 +15,7 @@ export async function GET() {
   }
 
   try {
-    const url = `https://generativelanguage.googleapis.com/v1/models?key=${apiKey}`;
+    const url = `https://generativelanguage.googleapis.com/v1/models/gemini-2.5-flash?key=${apiKey}`;
 
     const res = await fetch(url, {
       method: "GET",
