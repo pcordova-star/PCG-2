@@ -17,6 +17,7 @@ import { Progress } from '@/components/ui/progress';
 import { motion } from 'framer-motion';
 import { useAuth } from '@/context/AuthContext';
 import { AnalisisPlanoOutput, AnalisisPlanoInput, OpcionesAnalisis } from '@/types/analisis-planos';
+import { analizarPlano } from '@/ai/flows/analisis-planos-flow';
 
 const progressSteps = [
   { percent: 0, text: "Iniciando conexión segura..." },
@@ -103,6 +104,15 @@ export default function AnalisisPlanosPage() {
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
+      if (file.type.startsWith("application/pdf")) {
+        toast({
+          variant: 'destructive',
+          title: 'Formato no soportado (aún)',
+          description: 'Por ahora, el análisis de PDFs no está habilitado. Por favor, convierte tu plano a una imagen (JPG, PNG).',
+        });
+        e.target.value = ""; // Limpiar el input
+        return;
+      }
       if (file.size > 10 * 1024 * 1024) { // Límite de 10MB
         toast({
           variant: 'destructive',
@@ -138,19 +148,9 @@ export default function AnalisisPlanosPage() {
             obraNombre: company?.nombreFantasia ?? 'Obra Desconocida',
         };
 
-        const apiResponse = await fetch("/api/analizar-plano", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify(input),
-        });
-
-        const body = await apiResponse.json();
-
-        if (!apiResponse.ok || body.error) {
-            throw new Error(body.error || "Ocurrió un error en el servidor de análisis.");
-        }
+        const result = await analizarPlano(input);
         
-        setResultado(body as AnalisisPlanoOutput);
+        setResultado(result);
 
     } catch (err: any) {
         console.error("Error al analizar el plano:", err);
@@ -188,8 +188,8 @@ export default function AnalisisPlanosPage() {
           <Card>
             <CardHeader><CardTitle>1. Sube tu plano</CardTitle></CardHeader>
             <CardContent className="space-y-2">
-              <Label htmlFor="plano-file">Archivo del plano (JPG, PNG, PDF, máx. 10MB)</Label>
-              <Input id="plano-file" type="file" accept="image/jpeg, image/png, application/pdf" onChange={handleFileChange} />
+              <Label htmlFor="plano-file">Archivo del plano (JPG, PNG, máx. 10MB)</Label>
+              <Input id="plano-file" type="file" accept="image/jpeg, image/png" onChange={handleFileChange} />
             </CardContent>
           </Card>
           
