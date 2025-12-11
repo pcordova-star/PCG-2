@@ -1,4 +1,3 @@
-// functions/src/analizarPdfPlano.ts
 import * as functions from "firebase-functions";
 import * as corsLib from "cors";
 import * as logger from "firebase-functions/logger";
@@ -6,17 +5,20 @@ import { GoogleGenerativeAI } from "@google/generative-ai";
 import * as pdfjsLib from "pdfjs-dist/legacy/build/pdf.js";
 import { createCanvas } from "canvas";
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-(pdfjsLib as any).GlobalWorkerOptions.workerSrc = require("pdfjs-dist/legacy/build/pdf.worker.js");
-
 const cors = corsLib({ origin: true });
+
+// Necesario para que pdfjs funcione en Node
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+(pdfjsLib as any).GlobalWorkerOptions.workerSrc =
+  // eslint-disable-next-line @typescript-eslint/no-var-requires
+  require("pdfjs-dist/legacy/build/pdf.worker.js");
 
 const apiKey = process.env.GEMINI_API_KEY;
 const genAI = apiKey ? new GoogleGenerativeAI(apiKey) : null;
 
 export const analizarPdfPlano = functions
   .region("southamerica-west1")
-  .https.onRequest(async (req, res) => {
+  .https.onRequest((req, res) => {
     cors(req, res, async () => {
       // Manejo de la solicitud preflight OPTIONS
       if (req.method === "OPTIONS") {
@@ -27,15 +29,15 @@ export const analizarPdfPlano = functions
         return;
       }
       
-      // Asegurar que el header esté en todas las respuestas
+      // Siempre agregar el header para las respuestas POST
       res.set("Access-Control-Allow-Origin", "*");
 
-      if (req.method !== "POST") {
-        res.status(405).json({ error: "Método no permitido. Use POST." });
-        return;
-      }
-
       try {
+        if (req.method !== "POST") {
+          res.status(405).json({ error: "Method not allowed. Use POST." });
+          return;
+        }
+
         if (!genAI) {
           res.status(500).json({
             error: "La API de IA no está configurada (falta GEMINI_API_KEY).",
@@ -61,13 +63,10 @@ export const analizarPdfPlano = functions
             `No se pudo descargar el PDF desde fileUrl. Status: ${downloadRes.status}`
           );
         }
-
         const pdfArrayBuffer = await downloadRes.arrayBuffer();
 
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const loadingTask = (pdfjsLib as any).getDocument({
-          data: pdfArrayBuffer,
-        });
+        const loadingTask = (pdfjsLib as any).getDocument({ data: pdfArrayBuffer });
         const pdf = await loadingTask.promise;
         const page = await pdf.getPage(1);
 
@@ -75,18 +74,17 @@ export const analizarPdfPlano = functions
         const canvas = createCanvas(viewport.width, viewport.height);
         const context = canvas.getContext("2d");
 
-        await page.render({
-          canvasContext: context,
-          viewport,
-        }).promise;
+        await page
+          .render({
+            canvasContext: context,
+            viewport,
+          })
+          .promise;
 
         const pngBuffer = canvas.toBuffer("image/png");
         const base64Data = pngBuffer.toString("base64");
 
-        const model = genAI.getGenerativeModel({
-          model: "gemini-pro-vision",
-        });
-
+        const model = genAI.getGenerativeModel({ model: "gemini-pro-vision" });
         const result = await model.generateContent([
           {
             inlineData: {
