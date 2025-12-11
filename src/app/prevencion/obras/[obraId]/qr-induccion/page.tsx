@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import Link from "next/link";
 
 const publicBaseUrl =
-  process.env.NEXT_PUBLIC_PUBLIC_BASE_URL ?? "http://localhost:9002";
+  process.env.NEXT_PUBLIC_PUBLIC_BASE_URL ?? "http://localhost:3000";
 
 export default function QrInduccionPage() {
   const { obraId } = useParams<{ obraId: string }>();
