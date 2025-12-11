@@ -60,11 +60,6 @@ export default function AnalisisPlanosPage() {
   // Estados para la barra de progreso animada
   const [progress, setProgress] = useState(0);
   const [progressText, setProgressText] = useState("Iniciando...");
-  
-  // Estados para el test de la API
-  const [isTesting, setIsTesting] = useState(false);
-  const [testResult, setTestResult] = useState<string | null>(null);
-
 
   useEffect(() => {
     let timer: NodeJS.Timeout;
@@ -174,22 +169,31 @@ export default function AnalisisPlanosPage() {
     }
 };
 
-  const handleTestApi = async () => {
-    setIsTesting(true);
-    setTestResult(null);
+ const handleMockTest = async () => {
+    setCargando(true);
+    setErrorAnalisis(null);
+    setResultado(null);
+
+    const mockBody = {
+      photoDataUri: "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8X8DwHwAFGwJ/lYEY1wAAAABJRU5ErkJggg==",
+      opciones: {
+        superficieUtil: true,
+        m2Muros: true,
+        m2Losas: true,
+        m2Revestimientos: true,
+        instalacionesHidraulicas: true,
+        instalacionesElectricas: true
+      },
+      notas: "TEST MOCK DE IA",
+      obraId: "mock-obra",
+      obraNombre: "Mock Obra"
+    };
+
     try {
-      const testInput = {
-        photoDataUri: "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8X8DwHwAFGwJ/lYEY1wAAAABJRU5ErkJggg==",
-        opciones: { superficieUtil: true, m2Muros: false, m2Losas: false, m2Revestimientos: false, instalacionesHidraulicas: false, instalacionesElectricas: false },
-        notas: "TEST",
-        obraId: "test-obra",
-        obraNombre: "Obra Test"
-      };
-      
       const response = await fetch('/api/analizar-plano', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(testInput)
+        body: JSON.stringify(mockBody)
       });
       
       const resultData = await response.json();
@@ -198,12 +202,13 @@ export default function AnalisisPlanosPage() {
         throw new Error(resultData.error || 'Error desconocido en la API.');
       }
       
-      setTestResult(`Conexión OK. Respuesta:\n\n${JSON.stringify(resultData, null, 2)}`);
+      setResultado(resultData as AnalisisPlanoOutput);
 
     } catch (error: any) {
-      setTestResult(`Error en la conexión: ${error.message}`);
+      console.error("Error en el mock test:", error);
+      setErrorAnalisis(error.message);
     } finally {
-      setIsTesting(false);
+      setCargando(false);
     }
   };
 
@@ -286,22 +291,10 @@ export default function AnalisisPlanosPage() {
             
             {!cargando && (
                 <div className="mt-4">
-                    <Button variant="outline" className="w-full" onClick={handleTestApi} disabled={isTesting}>
-                        {isTesting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                        Test rápido del análisis (debug)
+                    <Button variant="outline" className="w-full" onClick={handleMockTest} disabled={cargando}>
+                        {cargando && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                        Mock de Plano (IA)
                     </Button>
-                    {testResult && (
-                        <Card className="mt-4">
-                            <CardHeader>
-                                <CardTitle className="text-sm">Resultado del Test</CardTitle>
-                            </CardHeader>
-                            <CardContent>
-                                <pre className="text-xs p-3 bg-slate-100 rounded-md overflow-x-auto">
-                                    <code>{testResult}</code>
-                                </pre>
-                            </CardContent>
-                        </Card>
-                    )}
                 </div>
             )}
         </div>
