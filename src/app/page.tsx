@@ -291,7 +291,7 @@ export default function WelcomePage() {
               className="max-w-3xl mx-auto"
             >
                 <div className="mb-8 flex justify-center">
-                    <PcgLogo size={156} />
+                    <PcgLogo size={312} />
                 </div>
                 <p className="font-semibold text-primary">SOFTWARE PARA CONSTRUCTORAS</p>
                 <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold tracking-tighter">
