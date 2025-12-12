@@ -1,0 +1,36 @@
+{
+  "name": "functions",
+  "scripts": {
+    "build": "tsc",
+    "serve": "npm run build && firebase emulators:start --only functions",
+    "shell": "npm run build && firebase functions:shell",
+    "start": "npm run shell",
+    "deploy": "npm run build && firebase deploy --only functions",
+    "logs": "firebase functions:log"
+  },
+  "engines": {
+    "node": "20"
+  },
+  "main": "lib/index.js",
+  "dependencies": {
+    "cors": "^2.8.5",
+    "firebase-admin": "^12.2.0",
+    "firebase-functions": "^5.0.1",
+    "heic-convert": "^2.1.0",
+    "sharp": "^0.33.4",
+    "zod": "^3.23.8"
+  },
+  "devDependencies": {
+    "@types/cors": "^2.8.17",
+    "@types/handlebars": "^4.1.0",
+    "@types/node": "^20.12.12",
+    "firebase-functions-test": "^3.1.0",
+    "typescript": "^5.4.5"
+  },
+  "private": true,
+  "version": "1.0.0",
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "description": ""
+}
