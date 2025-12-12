@@ -3,12 +3,13 @@ import { onCall, HttpsError } from "firebase-functions/v2/https";
 import * as admin from "firebase-admin";
 import { z } from "zod";
 import * as logger from "firebase-functions/logger";
+import { getFirestore } from "firebase-admin/firestore";
 
 if (!admin.apps.length) {
   admin.initializeApp();
 }
 
-const db = admin.firestore();
+const db = getFirestore();
 
 // Esquema de validación para los datos de entrada de la función
 const NotifyDocumentSchema = z.object({
@@ -52,9 +53,10 @@ export const notifyDocumentDistribution = onCall(
 
     try {
       // 3. Obtener el nombre del documento desde projectDocuments
-      const projectDocRef = doc(db, "projectDocuments", projectDocumentId);
-      const projectDocSnap = await getDoc(projectDocRef);
-      if (!projectDocSnap.exists()) {
+      const projectDocRef = db.collection("projectDocuments").doc(projectDocumentId);
+      const projectDocSnap = await projectDocRef.get();
+
+      if (!projectDocSnap.exists) {
         throw new HttpsError("not-found", "El documento del proyecto no fue encontrado.");
       }
       const projectDocument = projectDocSnap.data() as { name: string; code: string };
@@ -63,8 +65,8 @@ export const notifyDocumentDistribution = onCall(
       const sentAtDate = now.toDate();
 
       // 4. Registrar la distribución en Firestore
-      const distributionRef = collection(db, "documentDistribution");
-      await addDoc(distributionRef, {
+      const distributionRef = db.collection("documentDistribution");
+      await distributionRef.add({
         companyId,
         projectId,
         projectDocumentId,
@@ -77,8 +79,8 @@ export const notifyDocumentDistribution = onCall(
       });
 
       // 5. Enviar el correo electrónico a través de la extensión "Trigger Email"
-      const mailRef = collection(db, "mail");
-      await addDoc(mailRef, {
+      const mailRef = db.collection("mail");
+      await mailRef.add({
         to: [email],
         message: {
           subject: `Notificación de Distribución de Documento: ${projectDocument.code}`,
@@ -114,3 +116,5 @@ export const notifyDocumentDistribution = onCall(
     }
   }
 );
+
+    

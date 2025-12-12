@@ -3,7 +3,7 @@ import { onDocumentCreated } from "firebase-functions/v2/firestore";
 import * as logger from "firebase-functions/logger";
 import { getFirestore } from "firebase-admin/firestore";
 import { ai } from "./genkit-config";
-import { ItemizadoImportOutput, ItemizadoImportOutputSchema } from "./types/itemizados-import"; // Asumimos que los tipos se mueven aquí
+import { ItemizadoImportOutputSchema } from "./types/itemizados-import"; // Asumimos que los tipos se mueven aquí
 import { z } from 'zod';
 
 const ImportarItemizadoInputSchema = z.object({
@@ -13,7 +13,7 @@ const ImportarItemizadoInputSchema = z.object({
   notas: z.string().optional(),
 });
 
-const importarItemizadoPrompt = ai.definePrompt(
+const importarItemizadoPrompt: any = ai.definePrompt(
   {
     name: 'importarItemizadoPrompt',
     model: 'googleai/gemini-2.5-flash',
@@ -91,3 +91,5 @@ export const processItemizadoJob = onDocumentCreated("itemizadoImportJobs/{jobId
     });
   }
 });
+
+    

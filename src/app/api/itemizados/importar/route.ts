@@ -5,6 +5,7 @@ import { firebaseDb } from '@/lib/firebaseClient';
 import { z } from 'zod';
 
 export const runtime = "nodejs";
+export const maxDuration = 300; // 5 minutos
 
 const ApiInputSchema = z.object({
   pdfDataUri: z.string().min(1),
@@ -63,3 +64,5 @@ export async function POST(req: Request) {
     );
   }
 }
+
+    
