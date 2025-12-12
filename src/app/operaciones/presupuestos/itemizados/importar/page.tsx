@@ -165,7 +165,8 @@ export default function ImportarItemizadoPage() {
         const response = await fetch('/api/itemizados/importar', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(input)
+            body: JSON.stringify(input),
+            redirect: 'manual' // No seguir redirects automáticamente
         });
         
         const contentType = response.headers.get("content-type") || "";
@@ -176,7 +177,6 @@ export default function ImportarItemizadoPage() {
             try {
                 body = JSON.parse(raw);
             } catch (e) {
-                // Si el parseo falla a pesar del content-type, es un error de backend.
                 throw new Error("El servidor devolvió una respuesta JSON mal formada.");
             }
         }
