@@ -42,7 +42,7 @@ Debes seguir estas reglas estrictamente:
 2.  Identifica la estructura jerárquica. Los ítems pueden estar anidados dentro de otros (sub-partidas). Usa el campo 'children' para representar esta anidación.
 3.  Extrae códigos, descripciones, unidades, cantidades, precios unitarios y totales para cada partida.
 4.  NO inventes cantidades, precios ni unidades si no están explícitamente en el documento. Si un valor no existe para un ítem, déjalo como 'null'.
-5.  Tu respuesta DEBE SER EXCLUSIVAMENTE un objeto JSON válido, sin texto adicional, explicaciones ni 'markdown backticks' (\`\`\`json). El JSON debe cumplir con el esquema de salida especificado.
+5.  Tu respuesta DEBE SER EXCLUSIVAMENTE un objeto JSON válido, sin texto adicional, explicaciones ni formato markdown ni bloques de código. El JSON debe cumplir con el esquema de salida especificado.
 
 Aquí está la información proporcionada por el usuario:
 - Itemizado PDF: {{media url=pdfDataUri}}
