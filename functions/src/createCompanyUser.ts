@@ -1,19 +1,17 @@
-
 import { onCall, HttpsError } from "firebase-functions/v2/https";
 import * as admin from "firebase-admin";
+import * as functions from "firebase-functions";
 
 if (!admin.apps.length) {
   admin.initializeApp();
 }
 
 function buildAcceptInviteUrl(invId: string, email: string): string {
-  // SOLUCIÓN: Usar directamente la URL de Cloud Run que es el destino final de la redirección.
-  const rawBaseUrl = "https://pcg2-prod--pcg-2-8bf1b.us-central1.hosted.app";
+  const rawBaseUrl = "https://pcg-2-8bf1b.web.app";
 
   if (!rawBaseUrl) {
-    // Este error ya no debería ocurrir.
     console.error("CRÍTICO: No se pudo determinar la URL base de la aplicación. No se puede crear un enlace de invitación válido.");
-    throw new HttpsError("internal", "El servidor no está configurado correctamente para enviar invitaciones. Falta la URL base de la aplicación.");
+    throw new functions.https.HttpsError("internal", "El servidor no está configurado correctamente para enviar invitaciones. Falta la URL base de la aplicación.");
   }
   
   const appBaseUrl = rawBaseUrl.replace(/\/+$/, "");
@@ -21,57 +19,46 @@ function buildAcceptInviteUrl(invId: string, email: string): string {
 }
 
 
-export const createCompanyUser = onCall(
-  { region: "southamerica-west1", cors: true },
-  async (request) => {
+export const createCompanyUser = functions.region("southamerica-west1").https.onCall(async (data, context) => {
     const auth = admin.auth();
     const db = admin.firestore();
 
-    const ctx = request.auth;
+    const ctx = context;
 
     // 1. Validar que el usuario está autenticado
-    if (!ctx) {
-      throw new HttpsError("unauthenticated", "No autenticado.");
+    if (!ctx.auth) {
+      throw new functions.https.HttpsError("unauthenticated", "No autenticado.");
     }
 
     // 2. Validar que el usuario es SUPER_ADMIN vía customClaims
-    const requesterClaims = await auth.getUser(ctx.uid);
+    const requesterClaims = await auth.getUser(ctx.auth.uid);
     if (requesterClaims.customClaims?.role !== "superadmin") {
-      throw new HttpsError(
+      throw new functions.https.HttpsError(
         "permission-denied",
         "Solo SUPER_ADMIN puede crear usuarios."
       );
     }
 
     // 3. Validar payload de entrada
-    const data = request.data as {
-      companyId: string;
-      email: string;
-      password?: string;
-      nombre: string;
-      role: "admin_empresa" | "jefe_obra" | "prevencionista" | "cliente";
-    };
-
     if (!data.companyId || !data.email || !data.nombre || !data.role) {
-      throw new HttpsError(
+      throw new functions.https.HttpsError(
         "invalid-argument",
         "Faltan campos obligatorios: companyId, email, nombre, role."
       );
     }
     
     if (!data.password || data.password.length < 6) {
-        throw new HttpsError(
+        throw new functions.https.HttpsError(
             "invalid-argument",
             "La contraseña es obligatoria y debe tener al menos 6 caracteres."
         );
     }
 
-
     // 4. Verificar que la empresa existe y está activa
     const companyRef = db.collection("companies").doc(data.companyId);
     const companySnap = await companyRef.get();
     if (!companySnap.exists) {
-      throw new HttpsError("not-found", "La empresa no existe.");
+      throw new functions.https.HttpsError("not-found", "La empresa no existe.");
     }
     const companyData = companySnap.data();
 
@@ -87,12 +74,12 @@ export const createCompanyUser = onCall(
       });
     } catch (error: any) {
       if (error.code === "auth/email-already-exists") {
-        throw new HttpsError(
+        throw new functions.https.HttpsError(
           "already-exists",
           "Ya existe un usuario con este email."
         );
       }
-      throw new HttpsError("internal", "Error creando el usuario en Auth.", error);
+      throw new functions.https.HttpsError("internal", "Error creando el usuario en Auth.", error);
     }
 
     const uid = userRecord.uid;
@@ -125,9 +112,9 @@ export const createCompanyUser = onCall(
         empresaId: data.companyId,
         empresaNombre: companyData?.nombreFantasia || companyData?.razonSocial || '',
         roleDeseado: data.role,
-        estado: 'pendiente', // Se crea pendiente y se manda el correo
+        estado: 'pendiente', 
         createdAt: now,
-        creadoPorUid: ctx.uid,
+        creadoPorUid: ctx.auth.uid,
     });
     
     // 9. Enviar correo de invitación
@@ -149,7 +136,6 @@ export const createCompanyUser = onCall(
             <p>Gracias,<br>El equipo de PCG</p>`,
       },
     });
-
 
     // 10. Respuesta a frontend
     return {
