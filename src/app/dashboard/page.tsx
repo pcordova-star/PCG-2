@@ -162,7 +162,7 @@ const allMainModules = [
     icon: MessageSquare,
     linkText: 'Ir a RDI',
     tooltip: 'Acceso directo a los RDI de tu obra más reciente.',
-    roles: ['superadmin', 'admin_empresa', 'jefe_obra', 'prevencionista']
+    roles: ['superadmin', 'admin_empresa', 'jefe_obra']
   }
 ];
 
@@ -174,6 +174,7 @@ const quickAccessModules = [
         href: '/operaciones/registro-fotografico',
         icon: Camera,
         color: 'blue' as const,
+        roles: ['superadmin', 'admin_empresa', 'jefe_obra', 'prevencionista']
     },
     {
         id: 'tour-step-avance-cantidad',
@@ -182,6 +183,7 @@ const quickAccessModules = [
         href: '/operaciones/avance-en-terreno',
         icon: ClipboardPlus,
         color: 'green' as const,
+        roles: ['superadmin', 'admin_empresa', 'jefe_obra', 'prevencionista']
     },
      {
         id: 'rdi',
@@ -190,6 +192,7 @@ const quickAccessModules = [
         href: '/rdi',
         icon: MessageSquare,
         color: 'orange' as const,
+        roles: ['superadmin', 'admin_empresa', 'jefe_obra']
     },
 ];
 
@@ -222,6 +225,8 @@ export default function DashboardPage() {
   const isPrevencionista = role === 'prevencionista';
 
   const mainModules = allMainModules.filter(module => module.roles.includes(role));
+  const filteredQuickAccessModules = quickAccessModules.filter(module => module.roles.includes(role));
+
 
   useEffect(() => {
     async function fetchDashboardData() {
@@ -440,7 +445,7 @@ export default function DashboardPage() {
               />
          ) : (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6">
-                {quickAccessModules.map((mod) => (
+                {filteredQuickAccessModules.map((mod) => (
                     <QuickAccessCard
                         key={mod.id}
                         title={mod.title}
