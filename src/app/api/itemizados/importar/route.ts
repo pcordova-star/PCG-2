@@ -4,6 +4,9 @@ import { importarItemizado } from '@/ai/flows/importar-itemizado-flow';
 import type { ImportarItemizadoInput } from '@/ai/flows/importar-itemizado-flow';
 import { z } from 'zod';
 
+export const runtime = "nodejs";
+export const maxDuration = 300; // 5 minutos
+
 // Esquema de validación para la entrada, duplicado aquí para no depender
 // de la exportación del esquema Zod desde el flujo, solo del tipo.
 const ApiInputSchema = z.object({

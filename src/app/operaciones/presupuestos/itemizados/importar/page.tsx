@@ -168,16 +168,19 @@ export default function ImportarItemizadoPage() {
             body: JSON.stringify(input)
         });
         
-        const contentType = response.headers.get("content-type") || "";
         const raw = await response.text();
-
         let body: any = null;
-        if (contentType.includes("application/json")) {
+        try {
           body = JSON.parse(raw);
+        } catch {
+          body = null;
         }
 
         if (!response.ok) {
-          const msg = body?.error || raw?.slice(0, 500) || "Error desconocido";
+          const msg =
+            body?.error ||
+            raw.slice(0, 300) ||
+            "Error desconocido en el servidor";
           throw new Error(msg);
         }
         
