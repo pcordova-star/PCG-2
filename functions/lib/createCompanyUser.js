@@ -40,8 +40,8 @@ if (!admin.apps.length) {
     admin.initializeApp();
 }
 function buildAcceptInviteUrl(invId, email) {
-    // SOLUCIÓN DEFINITIVA: Usar directamente la URL correcta para ignorar variables de entorno del servidor.
-    const rawBaseUrl = "https://pcg-2-8bf1b.web.app";
+    // SOLUCIÓN: Usar directamente la URL de Cloud Run que es el destino final de la redirección.
+    const rawBaseUrl = "https://pcg2-prod--pcg-2-8bf1b.us-central1.hosted.app";
     if (!rawBaseUrl) {
         // Este error ya no debería ocurrir.
         console.error("CRÍTICO: No se pudo determinar la URL base de la aplicación. No se puede crear un enlace de invitación válido.");
