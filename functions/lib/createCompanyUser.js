@@ -34,8 +34,9 @@ var __importStar = (this && this.__importStar) || (function () {
 })();
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.createCompanyUser = void 0;
-const admin = __importStar(require("firebase-admin"));
+// functions/src/createCompanyUser.ts
 const functions = __importStar(require("firebase-functions"));
+const admin = __importStar(require("firebase-admin"));
 if (!admin.apps.length) {
     admin.initializeApp();
 }

@@ -1,5 +1,5 @@
-// TEMP: Disabled for deploy. Genkit prompt types caused TS2589 in build.
-// We keep a callable function so imports/exports remain stable.
+// TEMP: Disabled for deploy. Genkit types cause build issues in this env.
+// Keep export to avoid breaking imports.
 
 export async function processItemizadoJob() {
   throw new Error("processItemizadoJob temporalmente deshabilitado para deploy.");
