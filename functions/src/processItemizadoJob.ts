@@ -13,33 +13,9 @@ const ImportarItemizadoInputSchema = z.object({
   notas: z.string().optional(),
 });
 
-const importarItemizadoPrompt: any = ai.definePrompt(
-  {
-    name: 'importarItemizadoPrompt',
-    model: 'googleai/gemini-2.5-flash',
-    input: { schema: ImportarItemizadoInputSchema },
-    output: { schema: ItemizadoImportOutputSchema },
-    prompt: `Eres un asistente experto en análisis de presupuestos de construcción. Tu tarea es interpretar un presupuesto (en formato PDF) y extraer los capítulos y todas las partidas/subpartidas en una estructura plana.
+// TEMP: Disabled to avoid TS deep type instantiation during build
+const importarItemizadoPrompt = null as any;
 
-Debes seguir estas reglas estrictamente:
-
-1.  Analiza el documento PDF que se te entrega.
-2.  Primero, identifica los capítulos principales y llena el array 'chapters'.
-3.  Luego, procesa CADA LÍNEA del itemizado (capítulos, partidas, sub-partidas) y conviértela en un objeto para el array 'rows'.
-4.  Para cada fila en 'rows', genera un 'id' estable y único (ej: "1", "1.1", "1.2.3").
-5.  Para representar la jerarquía, asigna el 'id' del elemento padre al campo 'parentId'. Si un ítem es de primer nivel (dentro de un capítulo), su 'parentId' debe ser 'null'.
-6.  Asigna el 'chapterIndex' correcto a cada fila, correspondiendo a su capítulo en el array 'chapters'.
-7.  Extrae códigos, descripciones, unidades, cantidades, precios unitarios y totales para cada partida.
-8.  NO inventes cantidades, precios ni unidades si no están explícitamente en el documento. Si un valor no existe para un ítem, déjalo como 'null'.
-9.  Tu respuesta DEBE SER EXCLUSIVAMENTE un objeto JSON válido, sin texto adicional, explicaciones ni formato markdown (sin bloques de código).
-
-Aquí está la información proporcionada por el usuario:
-- Itemizado PDF: {{media url=pdfDataUri}}
-- Notas adicionales: {{{notas}}}
-
-Genera ahora el JSON de salida.`
-  },
-);
 
 export const processItemizadoJob = onDocumentCreated("itemizadoImportJobs/{jobId}", async (event) => {
   const snapshot = event.data;
@@ -65,6 +41,11 @@ export const processItemizadoJob = onDocumentCreated("itemizadoImportJobs/{jobId
         notas: jobData.notas,
     };
 
+    // Throw a controlled error because the prompt is temporarily disabled.
+    throw new Error("processItemizadoJob temporalmente deshabilitado para deploy (TS deep types en Genkit).");
+    
+    // The following code is unreachable for now:
+    /*
     // Llamar al flujo de IA
     const { output } = await importarItemizadoPrompt(inputForAI);
       
@@ -80,6 +61,7 @@ export const processItemizadoJob = onDocumentCreated("itemizadoImportJobs/{jobId
     });
 
     logger.log(`Job ${jobId} completed successfully.`);
+    */
 
   } catch (error: any) {
     logger.error(`Job ${jobId} failed:`, error);
@@ -91,5 +73,3 @@ export const processItemizadoJob = onDocumentCreated("itemizadoImportJobs/{jobId
     });
   }
 });
-
-    

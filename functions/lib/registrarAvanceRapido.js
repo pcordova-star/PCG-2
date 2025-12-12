@@ -32,6 +32,9 @@ var __importStar = (this && this.__importStar) || (function () {
         return result;
     };
 })();
+var __importDefault = (this && this.__importDefault) || function (mod) {
+    return (mod && mod.__esModule) ? mod : { "default": mod };
+};
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.registrarAvanceRapido = void 0;
 const https_1 = require("firebase-functions/v2/https");
@@ -39,9 +42,9 @@ const logger = __importStar(require("firebase-functions/logger"));
 const firestore_1 = require("firebase-admin/firestore");
 const zod_1 = require("zod");
 const functions = __importStar(require("firebase-functions"));
-const cors = __importStar(require("cors"));
+const cors_1 = __importDefault(require("cors"));
 const auth_1 = require("firebase-admin/auth");
-const corsHandler = cors({
+const corsHandler = (0, cors_1.default)({
     origin: true,
     methods: ["POST", "OPTIONS"],
     allowedHeaders: ["Content-Type", "Authorization"],
