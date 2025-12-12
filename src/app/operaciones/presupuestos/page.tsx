@@ -12,7 +12,7 @@ import { Label } from '@/components/ui/label';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
-import { ArrowLeft, PlusCircle, Edit, Trash2, History, Copy, GanttChartSquare } from 'lucide-react';
+import { ArrowLeft, PlusCircle, Edit, Trash2, History, Copy, GanttChartSquare, Wand2 } from 'lucide-react';
 import { collection, addDoc, getDocs, doc, updateDoc, deleteDoc, query, orderBy, serverTimestamp, Timestamp, writeBatch, where, onSnapshot, getDoc } from 'firebase/firestore';
 import { firebaseDb } from '@/lib/firebaseClient';
 import { useToast } from "@/hooks/use-toast";
@@ -304,7 +304,14 @@ function PresupuestosTab() {
                     <CardTitle>Itemizados por Obra</CardTitle>
                     <CardDescription>Crea, edita y gestiona itemizados para cada obra.</CardDescription>
                 </div>
-                <Button onClick={() => router.push('/operaciones/presupuestos/nuevo')}><PlusCircle className="mr-2" /> Nuevo Itemizado</Button>
+                <div className="flex gap-2">
+                    <Button variant="outline" onClick={() => router.push('/operaciones/presupuestos/itemizados/importar')}>
+                        <Wand2 className="mr-2 h-4 w-4" /> Importar con IA
+                    </Button>
+                    <Button onClick={() => router.push('/operaciones/presupuestos/nuevo')}>
+                        <PlusCircle className="mr-2" /> Nuevo Itemizado
+                    </Button>
+                </div>
             </CardHeader>
             <CardContent>
                 <div className="max-w-md mb-4">
