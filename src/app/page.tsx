@@ -5,7 +5,7 @@ import React, { useState, useEffect, FormEvent } from 'react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
-import { ArrowRight, CheckCircle, DollarSign, GanttChartSquare, HardHat, ShieldCheck, Users, Layers, Loader2 } from 'lucide-react';
+import { ArrowRight, CheckCircle, DollarSign, GanttChartSquare, HardHat, ShieldCheck, Users, Layers, Loader2, BrainCircuit } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Input } from '@/components/ui/input';
@@ -284,18 +284,49 @@ export default function WelcomePage() {
         {/* Hero Section */}
         <section className="py-20 md:py-32">
           <div className="max-w-6xl mx-auto px-4 md:px-6 lg:px-8 text-center">
-            <div className="max-w-3xl mx-auto">
+            <motion.div 
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.8 }}
+              className="max-w-3xl mx-auto"
+            >
                 <div className="mb-8 flex justify-center">
                     <PcgLogo size={156} />
                 </div>
                 <p className="font-semibold text-primary">SOFTWARE PARA CONSTRUCTORAS</p>
                 <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold tracking-tighter">
-                   PCG: Una obra bien gestionada, una cadena completa alineada.
+                   Una obra bien gestionada, una cadena completa alineada.
                 </h1>
-                <p className="mt-6 text-lg md:text-xl text-muted-foreground">
-                    PCG es la plataforma de control y gestión diseñada para constructoras que necesitan alinear presupuesto, programación, calidad y prevención de riesgos en una sola vista.
-                </p>
-            </div>
+
+                <Card className="mt-8 text-left bg-gradient-to-br from-primary/10 to-accent/10 border-primary/20 shadow-lg relative overflow-hidden">
+                    <div className="absolute -top-1 -right-1 bg-primary text-primary-foreground text-xs font-bold px-2 py-1 rounded-bl-lg rounded-tr-md">NUEVO</div>
+                    <CardHeader>
+                        <div className="flex items-center gap-4">
+                            <motion.div 
+                                initial={{ scale: 0.5, opacity: 0 }}
+                                animate={{ scale: 1, opacity: 1 }}
+                                transition={{ delay: 0.5, type: 'spring', stiffness: 100 }}
+                            >
+                                <BrainCircuit className="h-10 w-10 text-primary" />
+                            </motion.div>
+                            <CardTitle className="text-2xl text-primary font-bold">
+                                PCG está construido sobre la IO: Inteligencia Operativa.
+                            </CardTitle>
+                        </div>
+                    </CardHeader>
+                    <CardContent>
+                        <motion.p 
+                          initial={{ opacity: 0 }}
+                          animate={{ opacity: 1 }}
+                          transition={{ delay: 0.8, duration: 0.8 }}
+                          className="text-md text-foreground"
+                        >
+                            Más de 20 años en obras nos permitieron diseñar procesos que realmente resuelven los problemas del terreno. La IA es una herramienta dentro del sistema, pero la <strong className="text-primary">IO es el motor</strong> que optimiza, ordena y reduce costos en cada obra.
+                        </motion.p>
+                    </CardContent>
+                </Card>
+
+            </motion.div>
             <div className="mt-8 flex justify-center gap-4">
               <Button size="lg" asChild>
                 <a href="mailto:paulo@ipsconstruccion.cl?subject=Solicitud%20de%20Demo%20de%20PCG">Agendar Demo</a>
