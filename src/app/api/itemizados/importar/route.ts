@@ -1,14 +1,11 @@
 // src/app/api/itemizados/importar/route.ts
 import { NextResponse } from 'next/server';
-import { importarItemizado } from '@/ai/flows/importar-itemizado-flow';
-import type { ImportarItemizadoInput } from '@/ai/flows/importar-itemizado-flow';
+import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
+import { firebaseDb } from '@/lib/firebaseClient';
 import { z } from 'zod';
 
 export const runtime = "nodejs";
-export const maxDuration = 300; // 5 minutos
 
-// Esquema de validación para la entrada, duplicado aquí para no depender
-// de la exportación del esquema Zod desde el flujo, solo del tipo.
 const ApiInputSchema = z.object({
   pdfDataUri: z.string().min(1),
   obraId: z.string().min(1),
@@ -16,6 +13,11 @@ const ApiInputSchema = z.object({
   notas: z.string().optional(),
 });
 
+/**
+ * Inicia un trabajo de importación de itemizado.
+ * Valida la entrada, crea un documento en Firestore con estado 'queued'
+ * y responde inmediatamente con un jobId.
+ */
 export async function POST(req: Request) {
   try {
     const body = await req.json();
@@ -29,29 +31,34 @@ export async function POST(req: Request) {
       );
     }
     
-    const validatedInput: ImportarItemizadoInput = validationResult.data;
+    const { pdfDataUri, obraId, obraNombre, notas } = validationResult.data;
 
-    // 2. Llamar al flujo de Genkit del lado del servidor
-    const itemizadoOutput = await importarItemizado(validatedInput);
+    // 2. Crear un nuevo documento de trabajo en Firestore
+    const jobsCollection = collection(firebaseDb, "itemizadoImportJobs");
+    
+    const newJobDoc = {
+      status: "queued",
+      createdAt: serverTimestamp(),
+      obraId,
+      obraNombre,
+      notas: notas || "",
+      // El PDF se guarda directamente aquí. Para archivos más grandes, se usaría Storage.
+      pdfDataUri,
+    };
 
-    // 3. Devolver la respuesta exitosa
-    return NextResponse.json(itemizadoOutput);
+    const docRef = await addDoc(jobsCollection, newJobDoc);
+    const jobId = docRef.id;
+
+    // 3. Devolver una respuesta rápida (202 Accepted) con el ID del trabajo
+    return NextResponse.json({ jobId, status: "queued" }, { status: 202 });
 
   } catch (error: any) {
-    console.error("[API /itemizados/importar] Error:", error);
-
-    // 4. Manejar errores y devolver una respuesta de error en formato JSON
-    // Si el error es de parseo de JSON en el body, también se captura aquí.
+    console.error("[API /importar POST] Error:", error);
     if (error instanceof SyntaxError) {
         return NextResponse.json({ error: "El cuerpo de la solicitud no es un JSON válido." }, { status: 400 });
     }
-
-    const errorMessage = error.message?.includes("GENKIT_ERROR:") 
-      ? error.message.replace("GENKIT_ERROR:", "").trim()
-      : "Ocurrió un error inesperado en el servidor al procesar el PDF.";
-
     return NextResponse.json(
-      { error: errorMessage },
+      { error: "Error interno del servidor al iniciar el trabajo de importación." },
       { status: 500 }
     );
   }

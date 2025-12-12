@@ -1,18 +1,20 @@
 // src/app/operaciones/presupuestos/itemizados/importar/page.tsx
 "use client";
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
-import { ArrowLeft, Loader2, Wand2, Upload, Folder, FileText, ListTree } from 'lucide-react';
+import { ArrowLeft, Loader2, Wand2, Upload, Folder, FileText, ListTree, Clock, CheckCircle, AlertTriangle } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import type { ItemizadoImportOutput, ItemNode, ItemRow } from '@/types/itemizados-import';
 
 const MAX_FILE_SIZE_MB = 15;
 const WARNING_FILE_SIZE_MB = 10;
+const POLLING_INTERVAL = 2500; // 2.5 segundos
+const POLLING_TIMEOUT = 180000; // 3 minutos
 
 function fileToDataUri(file: File): Promise<string> {
   return new Promise((resolve, reject) => {
@@ -104,9 +106,54 @@ export default function ImportarItemizadoPage() {
   const [obraId, setObraId] = useState('obra-test-01');
   const [obraNombre, setObraNombre] = useState('Obra de Prueba');
   
-  const [loading, setLoading] = useState(false);
+  const [jobId, setJobId] = useState<string | null>(null);
+  const [status, setStatus] = useState<'idle' | 'queued' | 'processing' | 'done' | 'error'>('idle');
   const [resultado, setResultado] = useState<ItemizadoImportOutput | null>(null);
   const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!jobId || (status !== 'queued' && status !== 'processing')) {
+      return;
+    }
+
+    const startTime = Date.now();
+    const interval = setInterval(async () => {
+        if (Date.now() - startTime > POLLING_TIMEOUT) {
+            clearInterval(interval);
+            setError("El análisis está tardando más de lo esperado. Por favor, inténtalo de nuevo más tarde.");
+            setStatus('error');
+            setJobId(null);
+            return;
+        }
+
+        try {
+            const res = await fetch(`/api/itemizados/importar/${jobId}`);
+            if (!res.ok) {
+                // Si la API de estado falla, seguimos intentando un poco más
+                console.warn(`Polling failed with status: ${res.status}`);
+                return;
+            }
+            
+            const data = await res.json();
+            setStatus(data.status);
+
+            if (data.status === 'done') {
+                clearInterval(interval);
+                setResultado(data.result);
+                setJobId(null);
+                toast({ title: 'Análisis completado', description: 'El itemizado se ha procesado con éxito.' });
+            } else if (data.status === 'error') {
+                clearInterval(interval);
+                setError(data.error || "Ocurrió un error desconocido durante el procesamiento.");
+                setJobId(null);
+            }
+        } catch (err) {
+            console.error("Error during polling:", err);
+        }
+    }, POLLING_INTERVAL);
+
+    return () => clearInterval(interval);
+  }, [jobId, status, toast]);
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -114,22 +161,14 @@ export default function ImportarItemizadoPage() {
       const isPdf = file.type === "application/pdf" || file.name.toLowerCase().endsWith(".pdf");
 
       if (!isPdf) {
-        toast({
-          variant: 'destructive',
-          title: 'Archivo no válido',
-          description: 'Por favor, selecciona un archivo en formato PDF.',
-        });
-        e.target.value = ""; // Limpiar el input
+        toast({ variant: 'destructive', title: 'Archivo no válido', description: 'Por favor, selecciona un archivo en formato PDF.' });
+        e.target.value = "";
         setPdfFile(null);
         return;
       }
       
       if (file.size > MAX_FILE_SIZE_MB * 1024 * 1024) {
-        toast({
-          variant: 'destructive',
-          title: 'Archivo demasiado grande',
-          description: `Por favor, sube un archivo de menos de ${MAX_FILE_SIZE_MB}MB.`,
-        });
+        toast({ variant: 'destructive', title: 'Archivo demasiado grande', description: `Por favor, sube un archivo de menos de ${MAX_FILE_SIZE_MB}MB.` });
         e.target.value = "";
         setPdfFile(null);
         return;
@@ -142,15 +181,15 @@ export default function ImportarItemizadoPage() {
   
   const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
-
     if (!pdfFile) {
         setError("Debes seleccionar un archivo PDF.");
         return;
     }
 
-    setLoading(true);
+    setStatus('queued');
     setError(null);
     setResultado(null);
+    setJobId(null);
 
     try {
         const pdfDataUri = await fileToDataUri(pdfFile);
@@ -166,46 +205,46 @@ export default function ImportarItemizadoPage() {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(input),
-            redirect: 'manual' // No seguir redirects automáticamente
         });
         
-        const contentType = response.headers.get("content-type") || "";
-        const raw = await response.text();
-
-        let body: any = null;
-        if (contentType.includes("application/json")) {
-            try {
-                body = JSON.parse(raw);
-            } catch (e) {
-                throw new Error("El servidor devolvió una respuesta JSON mal formada.");
-            }
+        const body = await response.json();
+        
+        if (!response.ok || response.status !== 202) {
+            throw new Error(body.error || "Error al iniciar el trabajo de importación.");
         }
         
-        if (!response.ok) {
-            const msg = body?.error || raw?.slice(0, 500) || "Error desconocido en el servidor. Revisa la consola del backend.";
-            throw new Error(msg);
-        }
-        
-        setResultado(body as ItemizadoImportOutput);
-        toast({ title: 'Análisis completado', description: 'El itemizado se ha procesado con éxito.' });
+        setJobId(body.jobId);
 
     } catch (err: any) {
-        console.error("Error al importar el itemizado:", err);
+        console.error("Error al iniciar la importación:", err);
         setError(err.message || "Ocurrió un error desconocido.");
-        toast({ variant: 'destructive', title: 'Error de importación', description: err.message });
-    } finally {
-        setLoading(false);
+        setStatus('error');
     }
   };
   
+  const isLoading = status === 'queued' || status === 'processing';
   const isFileLarge = pdfFile && pdfFile.size > WARNING_FILE_SIZE_MB * 1024 * 1024;
+
+  const renderStatus = () => {
+    if (status === 'queued') {
+        return <div className="text-center py-8 space-y-4"><Clock className="h-10 w-10 mx-auto text-primary" /><p className="text-sm font-medium text-primary">El análisis está en cola...</p><p className="text-xs text-muted-foreground/80">El trabajo comenzará pronto.</p></div>;
+    }
+    if (status === 'processing') {
+        return <div className="text-center py-8 space-y-4"><Loader2 className="h-10 w-10 mx-auto animate-spin text-primary" /><p className="text-sm font-medium text-primary">Procesando el documento...</p><p className="text-xs text-muted-foreground/80">(Esto puede tardar varios minutos)</p></div>;
+    }
+    if (status === 'error') {
+        return <div className="text-center py-8 text-destructive bg-destructive/10 rounded-md"><AlertTriangle className="h-10 w-10 mx-auto mb-2" /><p className="font-semibold">Error en la importación</p><p className="text-sm">{error}</p></div>;
+    }
+    if (status === 'done' && resultado) {
+        return <div className="space-y-6"><div><h3 className="font-semibold flex items-center gap-2 mb-2"><ListTree /> Vista Jerárquica</h3><div className="p-4 border rounded-md bg-muted/50">{resultado.chapters && resultado.rows ? (<ItemTree chapters={resultado.chapters} rows={resultado.rows} />) : (<p className="text-sm text-muted-foreground">La IA no devolvió un formato válido para construir el árbol.</p>)}</div></div><div><h3 className="font-semibold flex items-center gap-2 mb-2"><FileText /> JSON Completo</h3><pre className="text-xs bg-slate-900 text-slate-100 p-4 rounded-md overflow-x-auto">{JSON.stringify(resultado, null, 2)}</pre></div></div>;
+    }
+    return <div className="text-center py-12 text-muted-foreground"><Upload className="h-12 w-12 mx-auto mb-4" /><p>Sube un archivo PDF para comenzar.</p><p className="text-sm">El resultado del análisis aparecerá aquí.</p></div>;
+  }
 
   return (
     <div className="space-y-8 max-w-6xl mx-auto">
       <header className="flex items-center gap-4">
-        <Button variant="outline" size="icon" onClick={() => router.back()}>
-          <ArrowLeft className="h-4 w-4" />
-        </Button>
+        <Button variant="outline" size="icon" onClick={() => router.back()}><ArrowLeft className="h-4 w-4" /></Button>
         <div>
           <h1 className="text-3xl font-bold tracking-tight">Importar Itemizado con IA (beta)</h1>
           <p className="text-muted-foreground">Sube un itemizado en PDF y deja que la IA lo estructure por ti.</p>
@@ -215,89 +254,23 @@ export default function ImportarItemizadoPage() {
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 items-start">
         <form onSubmit={handleSubmit} className="space-y-6">
             <Card>
-                <CardHeader>
-                    <CardTitle>1. Carga tu itemizado</CardTitle>
-                    <CardDescription>Selecciona el archivo PDF que quieres analizar (máx. {MAX_FILE_SIZE_MB}MB).</CardDescription>
-                </CardHeader>
+                <CardHeader><CardTitle>1. Carga tu itemizado</CardTitle><CardDescription>Selecciona el archivo PDF que quieres analizar (máx. {MAX_FILE_SIZE_MB}MB).</CardDescription></CardHeader>
                 <CardContent className="space-y-4">
-                    <div className="space-y-2">
-                        <Label htmlFor="pdf-file">Archivo del itemizado (PDF)</Label>
-                        <Input id="pdf-file" type="file" accept="application/pdf,.pdf" onChange={handleFileChange} />
-                        {pdfFile && (
-                            <div className="text-xs text-muted-foreground pt-1">
-                                <p>Archivo seleccionado: <strong>{pdfFile.name}</strong></p>
-                                {isFileLarge && (
-                                    <p className="text-yellow-600 font-semibold">
-                                        Advertencia: El archivo es grande y el análisis podría tardar más de lo normal o fallar.
-                                    </p>
-                                )}
-                            </div>
-                        )}
-                    </div>
-                    <div className="space-y-2">
-                        <Label htmlFor="obra-nombre">Nombre de la Obra (referencial)</Label>
-                        <Input id="obra-nombre" value={obraNombre} onChange={e => setObraNombre(e.target.value)} />
-                    </div>
-                     <div className="space-y-2">
-                        <Label htmlFor="obra-id">ID de la Obra (referencial)</Label>
-                        <Input id="obra-id" value={obraId} onChange={e => setObraId(e.target.value)} />
-                    </div>
+                    <div className="space-y-2"><Label htmlFor="pdf-file">Archivo del itemizado (PDF)</Label><Input id="pdf-file" type="file" accept="application/pdf,.pdf" onChange={handleFileChange} />{pdfFile && (<div className="text-xs text-muted-foreground pt-1"><p>Archivo seleccionado: <strong>{pdfFile.name}</strong></p>{isFileLarge && (<p className="text-yellow-600 font-semibold">Advertencia: El archivo es grande y el análisis podría tardar más de lo normal o fallar.</p>)}</div>)}</div>
+                    <div className="space-y-2"><Label htmlFor="obra-nombre">Nombre de la Obra (referencial)</Label><Input id="obra-nombre" value={obraNombre} onChange={e => setObraNombre(e.target.value)} /></div>
+                    <div className="space-y-2"><Label htmlFor="obra-id">ID de la Obra (referencial)</Label><Input id="obra-id" value={obraId} onChange={e => setObraId(e.target.value)} /></div>
                 </CardContent>
             </Card>
-
-            <Button type="submit" size="lg" className="w-full" disabled={loading || !pdfFile}>
-                {loading ? <Loader2 className="mr-2 h-5 w-5 animate-spin" /> : <Wand2 className="mr-2 h-5 w-5" />}
-                {loading ? 'Analizando PDF...' : 'Importar con IA'}
+            <Button type="submit" size="lg" className="w-full" disabled={isLoading || !pdfFile}>
+                {isLoading ? <Loader2 className="mr-2 h-5 w-5 animate-spin" /> : <Wand2 className="mr-2 h-5 w-5" />}
+                {isLoading ? 'Analizando...' : 'Importar con IA'}
             </Button>
         </form>
 
         <div className="sticky top-24">
           <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">Resultado de la Importación</CardTitle>
-            </CardHeader>
-            <CardContent className="max-h-[70vh] overflow-y-auto">
-              {loading && (
-                 <div className="text-center py-8 space-y-4">
-                    <Loader2 className="h-10 w-10 mx-auto animate-spin text-primary" />
-                    <p className="text-sm font-medium text-primary">Procesando el documento...</p>
-                    <p className="text-xs text-muted-foreground/80">(El análisis de PDF puede tardar varios minutos)</p>
-                </div>
-              )}
-              {error && (
-                  <div className="text-center py-8 text-destructive bg-destructive/10 rounded-md">
-                      <p className="font-semibold">Error en la importación</p>
-                      <p className="text-sm">{error}</p>
-                  </div>
-              )}
-              {resultado && (
-                 <div className="space-y-6">
-                    <div>
-                        <h3 className="font-semibold flex items-center gap-2 mb-2"><ListTree /> Vista Jerárquica</h3>
-                         <div className="p-4 border rounded-md bg-muted/50">
-                            {resultado.chapters && resultado.rows ? (
-                                <ItemTree chapters={resultado.chapters} rows={resultado.rows} />
-                            ) : (
-                                <p className="text-sm text-muted-foreground">La IA no devolvió un formato válido para construir el árbol.</p>
-                            )}
-                        </div>
-                    </div>
-                    <div>
-                        <h3 className="font-semibold flex items-center gap-2 mb-2"><FileText /> JSON Completo</h3>
-                        <pre className="text-xs bg-slate-900 text-slate-100 p-4 rounded-md overflow-x-auto">
-                            {JSON.stringify(resultado, null, 2)}
-                        </pre>
-                    </div>
-                 </div>
-              )}
-              {!loading && !resultado && !error && (
-                <div className="text-center py-12 text-muted-foreground">
-                  <Upload className="h-12 w-12 mx-auto mb-4" />
-                  <p>Sube un archivo PDF para comenzar.</p>
-                  <p className="text-sm">El resultado del análisis aparecerá aquí.</p>
-                </div>
-              )}
-            </CardContent>
+            <CardHeader><CardTitle className="flex items-center gap-2">Resultado de la Importación</CardTitle></CardHeader>
+            <CardContent className="max-h-[70vh] overflow-y-auto">{renderStatus()}</CardContent>
           </Card>
         </div>
       </div>
