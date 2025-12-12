@@ -1,7 +1,7 @@
 "use strict";
 // src/functions/src/index.ts
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.processItemizadoJob = exports.notifyDocumentDistribution = exports.convertHeicToJpg = exports.registrarAvanceRapido = exports.setSuperAdminClaim = exports.createCompanyUser = void 0;
+exports.getSecureDownloadUrl = exports.processItemizadoJob = exports.notifyDocumentDistribution = exports.convertHeicToJpg = exports.registrarAvanceRapido = exports.setSuperAdminClaim = exports.createCompanyUser = void 0;
 /**
  * Este archivo es el punto de entrada para todas las Cloud Functions.
  * Cada función se importa desde su propio archivo y se exporta para que Firebase la despliegue.
@@ -27,5 +27,6 @@ var notifyDocumentDistribution_1 = require("./notifyDocumentDistribution");
 Object.defineProperty(exports, "notifyDocumentDistribution", { enumerable: true, get: function () { return notifyDocumentDistribution_1.notifyDocumentDistribution; } });
 var processItemizadoJob_1 = require("./processItemizadoJob");
 Object.defineProperty(exports, "processItemizadoJob", { enumerable: true, get: function () { return processItemizadoJob_1.processItemizadoJob; } });
-// export { getSecureDownloadUrl } from "./secureDownload";
+var secureDownload_1 = require("./secureDownload");
+Object.defineProperty(exports, "getSecureDownloadUrl", { enumerable: true, get: function () { return secureDownload_1.getSecureDownloadUrl; } });
 //# sourceMappingURL=index.js.map

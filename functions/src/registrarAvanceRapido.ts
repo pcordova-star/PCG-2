@@ -1,8 +1,8 @@
+import * as functions from "firebase-functions";
 import { HttpsError } from "firebase-functions/v2/https";
 import * as logger from "firebase-functions/logger";
 import { getFirestore, FieldValue } from "firebase-admin/firestore";
 import { z } from "zod";
-import * as functions from "firebase-functions";
 import cors from "cors";
 import { getAuth } from "firebase-admin/auth";
 

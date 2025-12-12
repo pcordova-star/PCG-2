@@ -18,7 +18,6 @@ if (!admin.apps.length) {
 const storage = admin.storage();
 
 export const convertHeicToJpg = functions.region("southamerica-west1")
-  .runWith({ memory: '1GB', timeoutSeconds: 120 })
   .storage
   .object()
   .onFinalize(async (object) => {
