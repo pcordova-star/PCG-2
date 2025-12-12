@@ -1,5 +1,6 @@
 // functions/src/secureDownload.ts
 import * as functions from 'firebase-functions';
+
 // Esta función es un placeholder para evitar errores de importación.
 // Implementar la lógica real de descarga segura cuando sea necesario.
 export const getSecureDownloadUrl = functions.https.onCall(async (data, context) => {
