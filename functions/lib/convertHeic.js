@@ -38,7 +38,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.convertHeicToJpg = void 0;
-const storage_1 = require("firebase-functions/v2/storage");
+const functions = __importStar(require("firebase-functions"));
 const admin = __importStar(require("firebase-admin"));
 const path = __importStar(require("path"));
 const os = __importStar(require("os"));
@@ -51,12 +51,11 @@ if (!admin.apps.length) {
     admin.initializeApp();
 }
 const storage = admin.storage();
-exports.convertHeicToJpg = (0, storage_1.onObjectFinalized)({
-    region: "southamerica-west1",
-    memory: "1GiB", // La conversión de imágenes puede requerir más memoria
-    timeoutSeconds: 120, // Aumentar el tiempo de espera
-}, async (event) => {
-    const object = event.data;
+exports.convertHeicToJpg = functions.region("southamerica-west1")
+    .runWith({ memory: '1GB', timeoutSeconds: 120 })
+    .storage
+    .object()
+    .onFinalize(async (object) => {
     const filePath = object.name;
     const contentType = object.contentType;
     const bucket = storage.bucket(object.bucket);
@@ -73,7 +72,6 @@ exports.convertHeicToJpg = (0, storage_1.onObjectFinalized)({
         logger.log(`File ${filePath} is not a HEIC image. Skipping conversion.`);
         return null;
     }
-    // Evitar bucles infinitos si la función se dispara por el archivo JPG creado
     if (fileExt === '.jpg' || fileExt === '.jpeg') {
         logger.log(`File ${filePath} is already a JPG. Skipping.`);
         return null;
@@ -85,42 +83,34 @@ exports.convertHeicToJpg = (0, storage_1.onObjectFinalized)({
     const tempJpgPath = path.join(os.tmpdir(), jpgFileName);
     const finalJpgPath = path.join(fileDir, jpgFileName);
     try {
-        // 1. Descargar el archivo HEIC a una ubicación temporal
         await bucket.file(filePath).download({ destination: tempFilePath });
         logger.log(`Downloaded HEIC file to: ${tempFilePath}`);
-        // 2. Convertir HEIC a JPG usando heic-convert
         const inputBuffer = fs.readFileSync(tempFilePath);
         const outputBuffer = await (0, heic_convert_1.default)({
             buffer: inputBuffer,
             format: 'JPEG',
-            quality: 1, // Calidad máxima para heic-convert
+            quality: 1,
         });
-        // 3. Procesar con Sharp para optimizar y asegurar formato
         await (0, sharp_1.default)(outputBuffer)
-            .jpeg({ quality: 90 }) // Ajusta la calidad de compresión del JPG final
+            .jpeg({ quality: 90 })
             .toFile(tempJpgPath);
         logger.log(`Converted HEIC to JPG at: ${tempJpgPath}`);
-        // 4. Subir el archivo JPG resultante a Storage
         await bucket.upload(tempJpgPath, {
             destination: finalJpgPath,
             metadata: {
                 contentType: 'image/jpeg',
-                // Opcional: copiar metadatos originales si es necesario
                 metadata: object.metadata,
             },
         });
         logger.log(`Uploaded JPG file to: ${finalJpgPath}`);
-        // 5. Limpieza: eliminar archivos temporales
         fs.unlinkSync(tempFilePath);
         fs.unlinkSync(tempJpgPath);
-        // 6. Limpieza: eliminar el archivo HEIC original de Storage
         await bucket.file(filePath).delete();
         logger.log(`Deleted original HEIC file: ${filePath}`);
         return `Successfully converted ${filePath} to ${finalJpgPath}`;
     }
     catch (error) {
         logger.error(`Failed to convert ${filePath}.`, error);
-        // Limpiar archivos temporales en caso de error
         if (fs.existsSync(tempFilePath))
             fs.unlinkSync(tempFilePath);
         if (fs.existsSync(tempJpgPath))

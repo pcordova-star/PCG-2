@@ -34,48 +34,45 @@ var __importStar = (this && this.__importStar) || (function () {
 })();
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.createCompanyUser = void 0;
-const https_1 = require("firebase-functions/v2/https");
 const admin = __importStar(require("firebase-admin"));
+const functions = __importStar(require("firebase-functions"));
 if (!admin.apps.length) {
     admin.initializeApp();
 }
 function buildAcceptInviteUrl(invId, email) {
-    // SOLUCIÓN: Usar directamente la URL de Cloud Run que es el destino final de la redirección.
-    const rawBaseUrl = "https://pcg2-prod--pcg-2-8bf1b.us-central1.hosted.app";
+    const rawBaseUrl = "https://pcg-2-8bf1b.web.app";
     if (!rawBaseUrl) {
-        // Este error ya no debería ocurrir.
         console.error("CRÍTICO: No se pudo determinar la URL base de la aplicación. No se puede crear un enlace de invitación válido.");
-        throw new https_1.HttpsError("internal", "El servidor no está configurado correctamente para enviar invitaciones. Falta la URL base de la aplicación.");
+        throw new functions.https.HttpsError("internal", "El servidor no está configurado correctamente para enviar invitaciones. Falta la URL base de la aplicación.");
     }
     const appBaseUrl = rawBaseUrl.replace(/\/+$/, "");
     return `${appBaseUrl}/accept-invite?invId=${encodeURIComponent(invId)}&email=${encodeURIComponent(email)}`;
 }
-exports.createCompanyUser = (0, https_1.onCall)({ region: "southamerica-west1", cors: true }, async (request) => {
+exports.createCompanyUser = functions.region("southamerica-west1").https.onCall(async (data, context) => {
     const auth = admin.auth();
     const db = admin.firestore();
-    const ctx = request.auth;
+    const ctx = context;
     // 1. Validar que el usuario está autenticado
-    if (!ctx) {
-        throw new https_1.HttpsError("unauthenticated", "No autenticado.");
+    if (!ctx.auth) {
+        throw new functions.https.HttpsError("unauthenticated", "No autenticado.");
     }
     // 2. Validar que el usuario es SUPER_ADMIN vía customClaims
-    const requesterClaims = await auth.getUser(ctx.uid);
+    const requesterClaims = await auth.getUser(ctx.auth.uid);
     if (requesterClaims.customClaims?.role !== "superadmin") {
-        throw new https_1.HttpsError("permission-denied", "Solo SUPER_ADMIN puede crear usuarios.");
+        throw new functions.https.HttpsError("permission-denied", "Solo SUPER_ADMIN puede crear usuarios.");
     }
     // 3. Validar payload de entrada
-    const data = request.data;
     if (!data.companyId || !data.email || !data.nombre || !data.role) {
-        throw new https_1.HttpsError("invalid-argument", "Faltan campos obligatorios: companyId, email, nombre, role.");
+        throw new functions.https.HttpsError("invalid-argument", "Faltan campos obligatorios: companyId, email, nombre, role.");
     }
     if (!data.password || data.password.length < 6) {
-        throw new https_1.HttpsError("invalid-argument", "La contraseña es obligatoria y debe tener al menos 6 caracteres.");
+        throw new functions.https.HttpsError("invalid-argument", "La contraseña es obligatoria y debe tener al menos 6 caracteres.");
     }
     // 4. Verificar que la empresa existe y está activa
     const companyRef = db.collection("companies").doc(data.companyId);
     const companySnap = await companyRef.get();
     if (!companySnap.exists) {
-        throw new https_1.HttpsError("not-found", "La empresa no existe.");
+        throw new functions.https.HttpsError("not-found", "La empresa no existe.");
     }
     const companyData = companySnap.data();
     // 5. Crear usuario en Firebase Auth
@@ -91,9 +88,9 @@ exports.createCompanyUser = (0, https_1.onCall)({ region: "southamerica-west1", 
     }
     catch (error) {
         if (error.code === "auth/email-already-exists") {
-            throw new https_1.HttpsError("already-exists", "Ya existe un usuario con este email.");
+            throw new functions.https.HttpsError("already-exists", "Ya existe un usuario con este email.");
         }
-        throw new https_1.HttpsError("internal", "Error creando el usuario en Auth.", error);
+        throw new functions.https.HttpsError("internal", "Error creando el usuario en Auth.", error);
     }
     const uid = userRecord.uid;
     // 6. Asignar custom claims (role y companyId)
@@ -121,9 +118,9 @@ exports.createCompanyUser = (0, https_1.onCall)({ region: "southamerica-west1", 
         empresaId: data.companyId,
         empresaNombre: companyData?.nombreFantasia || companyData?.razonSocial || '',
         roleDeseado: data.role,
-        estado: 'pendiente', // Se crea pendiente y se manda el correo
+        estado: 'pendiente',
         createdAt: now,
-        creadoPorUid: ctx.uid,
+        creadoPorUid: ctx.auth.uid,
     });
     // 9. Enviar correo de invitación
     const acceptInviteUrl = buildAcceptInviteUrl(invitationId, data.email);
