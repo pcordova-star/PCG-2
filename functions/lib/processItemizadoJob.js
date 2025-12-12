@@ -58,9 +58,7 @@ exports.processItemizadoJob = (0, firestore_1.onDocumentCreated)("itemizadoImpor
     const db = (0, firestore_2.getFirestore)();
     try {
         logger.log(`Processing job: ${jobId}`);
-        // Marcar como 'processing'
         await db.collection("itemizadoImportJobs").doc(jobId).update({ status: "processing" });
-        // Preparar el input para el flujo de IA
         const inputForAI = {
             pdfDataUri: jobData.pdfDataUri,
             obraId: jobData.obraId,
@@ -69,7 +67,6 @@ exports.processItemizadoJob = (0, firestore_1.onDocumentCreated)("itemizadoImpor
         };
         // Throw a controlled error because the prompt is temporarily disabled.
         throw new Error("processItemizadoJob temporalmente deshabilitado para deploy (TS deep types en Genkit).");
-        // The following code is unreachable for now:
         /*
         // Llamar al flujo de IA
         const { output } = await importarItemizadoPrompt(inputForAI);
@@ -90,7 +87,6 @@ exports.processItemizadoJob = (0, firestore_1.onDocumentCreated)("itemizadoImpor
     }
     catch (error) {
         logger.error(`Job ${jobId} failed:`, error);
-        // Marcar como 'error'
         await db.collection("itemizadoImportJobs").doc(jobId).update({
             status: "error",
             errorMessage: error.message || "Ocurrió un error desconocido.",

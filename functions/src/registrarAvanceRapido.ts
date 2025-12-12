@@ -25,7 +25,6 @@ function escapeHtml(s: string): string {
   return s.replace(/[&<>"']/g, (m) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[m]!));
 }
 
-
 export const registrarAvanceRapido = functions
   .region("southamerica-west1")
   .https.onRequest((req, res) => {

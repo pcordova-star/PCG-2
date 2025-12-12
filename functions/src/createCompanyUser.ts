@@ -1,6 +1,6 @@
-import { onCall, HttpsError } from "firebase-functions/v2/https";
-import * as admin from "firebase-admin";
+// functions/src/createCompanyUser.ts
 import * as functions from "firebase-functions";
+import * as admin from "firebase-admin";
 
 if (!admin.apps.length) {
   admin.initializeApp();
@@ -17,7 +17,6 @@ function buildAcceptInviteUrl(invId: string, email: string): string {
   const appBaseUrl = rawBaseUrl.replace(/\/+$/, "");
   return `${appBaseUrl}/accept-invite?invId=${encodeURIComponent(invId)}&email=${encodeURIComponent(email)}`;
 }
-
 
 export const createCompanyUser = functions.region("southamerica-west1").https.onCall(async (data, context) => {
     const auth = admin.auth();
