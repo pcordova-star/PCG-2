@@ -3,7 +3,7 @@
 
 import React, { useEffect, useState } from "react";
 import QRCode from "react-qr-code";
-import { useParams } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
 import { Loader2, ShieldX } from "lucide-react";
@@ -13,6 +13,7 @@ export default function QrInduccionPage() {
   const { obraId } = useParams<{ obraId: string }>();
   const [url, setUrl] = useState<string | null>(null);
   const { user, role, loading: authLoading } = useAuth();
+  const router = useRouter();
 
   const allowedRoles = ['superadmin', 'admin_empresa', 'prevencionista'];
   const canGenerate = !authLoading && user && allowedRoles.includes(role);
@@ -22,15 +23,13 @@ export default function QrInduccionPage() {
       return;
     }
 
-    // Lógica robusta para determinar la URL base
-    // 1. Prioridad: Variable de entorno explícita para producción.
-    // 2. Fallback: URL de Vercel (si está disponible en el entorno del cliente).
-    // 3. Último recurso: El origen actual, útil para localhost y otros entornos.
+    // Lógica robusta para determinar la URL base del frontend público
     const publicBaseUrl = 
       process.env.NEXT_PUBLIC_PUBLIC_BASE_URL || 
-      (window.location.hostname.includes('vercel.app') ? `https://${window.location.hostname}` : window.location.origin);
+      'https://pcg-2.vercel.app'; // Fallback a la URL de producción
       
     const generadorId = user.uid;
+    // CORRECCIÓN: La URL debe apuntar a la ruta PÚBLICA, no a la interna.
     const finalUrl = `${publicBaseUrl}/public/induccion/${obraId}?g=${encodeURIComponent(generadorId)}`;
     setUrl(finalUrl);
 
