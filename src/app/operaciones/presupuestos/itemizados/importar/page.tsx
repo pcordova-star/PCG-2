@@ -47,16 +47,14 @@ const ItemTree = ({ chapters, rows }: { chapters: { name: string }[], rows: Item
         rows.forEach(row => {
             if (row.parentId && nodesById[row.parentId]) {
                 nodesById[row.parentId].children.push(nodesById[row.id]);
-            } else {
-                if (chapterTrees[row.chapterIndex]) {
-                    chapterTrees[row.chapterIndex].push(nodesById[row.id]);
-                }
+            } else if (row.chapterIndex !== undefined && chapterTrees[row.chapterIndex]) {
+                chapterTrees[row.chapterIndex].push(nodesById[row.id]);
             }
         });
 
         return chapters.map((chap, index) => ({
             ...chap,
-            items: chapterTrees[index]
+            items: chapterTrees[index] || []
         }));
     }, [chapters, rows]);
 
@@ -73,7 +71,7 @@ const ItemTree = ({ chapters, rows }: { chapters: { name: string }[], rows: Item
                 </div>
                 {node.children && node.children.length > 0 && (
                     <div className="pl-4 border-l">
-                        {node.children.map((child, childIndex) => renderNode(child, level + 1, currentPath))}
+                        {node.children.map((child, childIndex) => renderNode(child, level + 1, `${currentPath}-${childIndex}`))}
                     </div>
                 )}
             </div>
@@ -83,13 +81,13 @@ const ItemTree = ({ chapters, rows }: { chapters: { name: string }[], rows: Item
     return (
         <div>
             {tree.map((chapter, index) => (
-                 <div key={chapter.name + index} className="mb-4">
+                 <div key={slugify(chapter.name) + index} className="mb-4">
                     <div className="flex items-center gap-2">
                         <Folder className="h-5 w-5 text-primary" />
                         <h4 className="font-bold text-lg">{chapter.name}</h4>
                     </div>
                     <div className="pl-6 border-l-2 border-primary/50 ml-2">
-                       {chapter.items.map((item, itemIndex) => renderNode(item, 0, `chap-${index}`))}
+                       {chapter.items.map((item, itemIndex) => renderNode(item, 0, `chap-${index}-${itemIndex}`))}
                     </div>
                 </div>
             ))}
@@ -170,11 +168,18 @@ export default function ImportarItemizadoPage() {
             body: JSON.stringify(input)
         });
 
-        const body = await response.json();
-
+        const contentType = response.headers.get("content-type");
         if (!response.ok) {
-            throw new Error(body.error || "Ocurrió un error en el servidor de análisis.");
+            if (contentType && contentType.includes("application/json")) {
+                const errorBody = await response.json();
+                throw new Error(errorBody.error || `Error del servidor: ${response.statusText}`);
+            } else {
+                const errorText = await response.text();
+                throw new Error(`Error ${response.status}: ${response.statusText}. El servidor respondió con un formato inesperado.`);
+            }
         }
+        
+        const body = await response.json();
         
         setResultado(body as ItemizadoImportOutput);
         toast({ title: 'Análisis completado', description: 'El itemizado se ha procesado con éxito.' });
