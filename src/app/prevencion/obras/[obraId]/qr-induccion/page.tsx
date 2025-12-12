@@ -22,11 +22,16 @@ export default function QrInduccionPage() {
       return;
     }
 
-    const envBaseUrl = process.env.NEXT_PUBLIC_PUBLIC_BASE_URL;
-    const baseUrl = envBaseUrl || window.location.origin;
-    
+    // Lógica robusta para determinar la URL base
+    // 1. Prioridad: Variable de entorno explícita para producción.
+    // 2. Fallback: URL de Vercel (si está disponible en el entorno del cliente).
+    // 3. Último recurso: El origen actual, útil para localhost y otros entornos.
+    const publicBaseUrl = 
+      process.env.NEXT_PUBLIC_PUBLIC_BASE_URL || 
+      (window.location.hostname.includes('vercel.app') ? `https://${window.location.hostname}` : window.location.origin);
+      
     const generadorId = user.uid;
-    const finalUrl = `${baseUrl}/public/induccion/${obraId}?g=${encodeURIComponent(generadorId)}`;
+    const finalUrl = `${publicBaseUrl}/public/induccion/${obraId}?g=${encodeURIComponent(generadorId)}`;
     setUrl(finalUrl);
 
   }, [obraId, user, authLoading, canGenerate, role]);
