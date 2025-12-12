@@ -26,11 +26,11 @@ function fileToDataUri(file: File): Promise<string> {
 function slugify(text: string): string {
     if (!text) return '';
     return text.toString().toLowerCase()
-        .replace(/\s+/g, '-')           // Replace spaces with -
-        .replace(/[^\w-]+/g, '')       // Remove all non-word chars
-        .replace(/--+/g, '-')         // Replace multiple - with single -
-        .replace(/^-+/, '')             // Trim - from start of text
-        .replace(/-+$/, '');            // Trim - from end of text
+        .replace(/\s+/g, '-')
+        .replace(/[^\w-]+/g, '')
+        .replace(/--+/g, '-')
+        .replace(/^-+/, '')
+        .replace(/-+$/, '');
 }
 
 const ItemTree = ({ chapters, rows }: { chapters: { name: string }[], rows: ItemRow[] }) => {
@@ -58,8 +58,8 @@ const ItemTree = ({ chapters, rows }: { chapters: { name: string }[], rows: Item
         }));
     }, [chapters, rows]);
 
-    const renderNode = (node: ItemNode, level: number, parentPath: string) => {
-        const nodeKeyPart = node.code ? node.code : `${level}-${slugify(node.name)}`;
+    const renderNode = (node: ItemNode, level: number, parentPath: string, index: number) => {
+        const nodeKeyPart = node.code ? node.code : `${level}-${index}-${slugify(node.name)}`;
         const currentPath = `${parentPath}/${nodeKeyPart}`;
 
         return (
@@ -71,7 +71,7 @@ const ItemTree = ({ chapters, rows }: { chapters: { name: string }[], rows: Item
                 </div>
                 {node.children && node.children.length > 0 && (
                     <div className="pl-4 border-l">
-                        {node.children.map((child, childIndex) => renderNode(child, level + 1, `${currentPath}-${childIndex}`))}
+                        {node.children.map((child, childIndex) => renderNode(child, level + 1, currentPath, childIndex))}
                     </div>
                 )}
             </div>
@@ -81,13 +81,13 @@ const ItemTree = ({ chapters, rows }: { chapters: { name: string }[], rows: Item
     return (
         <div>
             {tree.map((chapter, index) => (
-                 <div key={slugify(chapter.name) + index} className="mb-4">
+                 <div key={`${slugify(chapter.name)}-${index}`} className="mb-4">
                     <div className="flex items-center gap-2">
                         <Folder className="h-5 w-5 text-primary" />
                         <h4 className="font-bold text-lg">{chapter.name}</h4>
                     </div>
                     <div className="pl-6 border-l-2 border-primary/50 ml-2">
-                       {chapter.items.map((item, itemIndex) => renderNode(item, 0, `chap-${index}-${itemIndex}`))}
+                       {chapter.items.map((item, itemIndex) => renderNode(item, 0, `chap-${index}`, itemIndex))}
                     </div>
                 </div>
             ))}
@@ -168,20 +168,22 @@ export default function ImportarItemizadoPage() {
             body: JSON.stringify(input)
         });
         
+        const contentType = response.headers.get("content-type") || "";
         const raw = await response.text();
-        let body: any = null;
-        try {
-          body = JSON.parse(raw);
-        } catch {
-          body = null;
-        }
 
+        let body: any = null;
+        if (contentType.includes("application/json")) {
+            try {
+                body = JSON.parse(raw);
+            } catch (e) {
+                // Si el parseo falla a pesar del content-type, es un error de backend.
+                throw new Error("El servidor devolvió una respuesta JSON mal formada.");
+            }
+        }
+        
         if (!response.ok) {
-          const msg =
-            body?.error ||
-            raw.slice(0, 300) ||
-            "Error desconocido en el servidor";
-          throw new Error(msg);
+            const msg = body?.error || raw?.slice(0, 500) || "Error desconocido en el servidor. Revisa la consola del backend.";
+            throw new Error(msg);
         }
         
         setResultado(body as ItemizadoImportOutput);
