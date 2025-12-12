@@ -39,10 +39,11 @@ const https_1 = require("firebase-functions/v2/https");
 const admin = __importStar(require("firebase-admin"));
 const zod_1 = require("zod");
 const logger = __importStar(require("firebase-functions/logger"));
+const firestore_1 = require("firebase-admin/firestore");
 if (!admin.apps.length) {
     admin.initializeApp();
 }
-const db = admin.firestore();
+const db = (0, firestore_1.getFirestore)();
 // Esquema de validación para los datos de entrada de la función
 const NotifyDocumentSchema = zod_1.z.object({
     projectDocumentId: zod_1.z.string().min(1),
@@ -68,17 +69,17 @@ exports.notifyDocumentDistribution = (0, https_1.onCall)({ region: "southamerica
     const { projectDocumentId, projectId, companyId, companyDocumentId, version, notifiedUserId, email, } = parsed.data;
     try {
         // 3. Obtener el nombre del documento desde projectDocuments
-        const projectDocRef = doc(db, "projectDocuments", projectDocumentId);
-        const projectDocSnap = await getDoc(projectDocRef);
-        if (!projectDocSnap.exists()) {
+        const projectDocRef = db.collection("projectDocuments").doc(projectDocumentId);
+        const projectDocSnap = await projectDocRef.get();
+        if (!projectDocSnap.exists) {
             throw new https_1.HttpsError("not-found", "El documento del proyecto no fue encontrado.");
         }
         const projectDocument = projectDocSnap.data();
         const now = admin.firestore.Timestamp.now();
         const sentAtDate = now.toDate();
         // 4. Registrar la distribución en Firestore
-        const distributionRef = collection(db, "documentDistribution");
-        await addDoc(distributionRef, {
+        const distributionRef = db.collection("documentDistribution");
+        await distributionRef.add({
             companyId,
             projectId,
             projectDocumentId,
@@ -90,8 +91,8 @@ exports.notifyDocumentDistribution = (0, https_1.onCall)({ region: "southamerica
             sentAt: now,
         });
         // 5. Enviar el correo electrónico a través de la extensión "Trigger Email"
-        const mailRef = collection(db, "mail");
-        await addDoc(mailRef, {
+        const mailRef = db.collection("mail");
+        await mailRef.add({
             to: [email],
             message: {
                 subject: `Notificación de Distribución de Documento: ${projectDocument.code}`,
