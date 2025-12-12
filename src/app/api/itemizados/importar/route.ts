@@ -40,7 +40,7 @@ export async function POST(req: Request) {
   } catch (error: any) {
     console.error("[API /itemizados/importar] Error:", error);
 
-    // 4. Manejar errores y devolver una respuesta de error
+    // 4. Manejar errores y devolver una respuesta de error en formato JSON
     const errorMessage = error.message?.includes("GENKIT_ERROR:") 
       ? error.message.replace("GENKIT_ERROR:", "").trim()
       : "Ocurrió un error inesperado en el servidor al procesar el PDF.";
