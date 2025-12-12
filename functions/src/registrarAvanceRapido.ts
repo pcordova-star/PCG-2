@@ -3,7 +3,7 @@ import * as logger from "firebase-functions/logger";
 import { getFirestore, FieldValue } from "firebase-admin/firestore";
 import { z } from "zod";
 import * as functions from "firebase-functions";
-import * as cors from "cors";
+import cors from "cors";
 import { getAuth } from "firebase-admin/auth";
 
 const corsHandler = cors({
@@ -120,3 +120,5 @@ export const registrarAvanceRapido = functions
       }
     });
   });
+
+    

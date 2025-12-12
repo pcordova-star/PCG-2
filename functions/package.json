@@ -22,6 +22,7 @@
   },
   "devDependencies": {
     "@types/cors": "^2.8.17",
+    "@types/handlebars": "^4.1.0",
     "@types/node": "^20.12.12",
     "firebase-functions-test": "^3.1.0",
     "typescript": "^5.4.5"
@@ -33,3 +34,5 @@
   "license": "ISC",
   "description": ""
 }
+
+    

@@ -203,14 +203,27 @@ export default function ImportarItemizadoPage() {
 
         const response = await fetch('/api/itemizados/importar', {
             method: 'POST',
+            redirect: "manual",
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(input),
         });
         
-        const body = await response.json();
+        const contentType = response.headers.get("content-type") || "";
+        const raw = await response.text();
+        
+        let body: any = null;
+        if (contentType.includes("application/json")) {
+          try {
+            body = JSON.parse(raw);
+          } catch (e) {
+            console.error("Failed to parse JSON response", raw);
+            throw new Error("Respuesta inválida del servidor.");
+          }
+        }
         
         if (!response.ok || response.status !== 202) {
-            throw new Error(body.error || "Error al iniciar el trabajo de importación.");
+            const msg = body?.error || raw?.slice(0, 500) || "Error desconocido al iniciar el trabajo de importación.";
+            throw new Error(msg);
         }
         
         setJobId(body.jobId);
@@ -277,3 +290,5 @@ export default function ImportarItemizadoPage() {
     </div>
   );
 }
+
+    
