@@ -1,0 +1,25 @@
+{
+  "compilerOptions": {
+    "module": "commonjs",
+    "noImplicitReturns": true,
+    "noUnusedLocals": true,
+    "outDir": "lib",
+    "sourceMap": true,
+    "strict": true,
+    "target": "es2020",
+    "rootDir": "src",
+    "esModuleInterop": true,
+    "noImplicitAny": false,
+    "types": [
+      "node",
+      "handlebars"
+    ],
+    "typeRoots": [
+      "./node_modules/@types"
+    ]
+  },
+  "compileOnSave": true,
+  "include": [
+    "src"
+  ]
+}
