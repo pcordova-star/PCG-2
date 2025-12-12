@@ -225,7 +225,7 @@ export default function DashboardPage() {
 
   useEffect(() => {
     async function fetchDashboardData() {
-        if (!user) {
+        if (!user || !companyId) {
             setLoading(false);
             return;
         }
@@ -235,7 +235,7 @@ export default function DashboardPage() {
 
         try {
             // 1. Fetch Company Data
-            if (!isSuperAdmin && companyId) {
+            if (!isSuperAdmin) {
                 const companyRef = doc(firebaseDb, "companies", companyId);
                 const companySnap = await getDoc(companyRef);
                 if (companySnap.exists()) {
@@ -259,58 +259,55 @@ export default function DashboardPage() {
                 setLoading(false);
                 return;
             }
-
+            
             // 3. Fetch Mural Data (RDIs, Avances, EDPs)
+            // Firestore 'in' query has a limit of 30 elements.
+            const canUseInQuery = obrasIds.length > 0 && obrasIds.length <= 30;
+
+            const rdiQuery = canUseInQuery
+              ? query(collectionGroup(firebaseDb, 'rdi'), where('obraId', 'in', obrasIds), orderBy('createdAt', 'desc'), limit(3))
+              : query(collectionGroup(firebaseDb, 'rdi'), orderBy('createdAt', 'desc'), limit(10)); // Fallback for many obras
+
+            const avancesQuery = canUseInQuery
+              ? query(collectionGroup(firebaseDb, 'avancesDiarios'), where('obraId', 'in', obrasIds), orderBy('fecha', 'desc'), limit(3))
+              : query(collectionGroup(firebaseDb, 'avancesDiarios'), orderBy('fecha', 'desc'), limit(10));
+
+            const edpQuery = canUseInQuery
+              ? query(collectionGroup(firebaseDb, 'estadosDePago'), where('obraId', 'in', obrasIds), orderBy('creadoEn', 'desc'), limit(2))
+              : query(collectionGroup(firebaseDb, 'estadosDePago'), orderBy('creadoEn', 'desc'), limit(5));
+
             const [rdiSnap, avancesSnap, edpSnap] = await Promise.all([
-                getDocs(query(collectionGroup(firebaseDb, 'rdi'), where('obraId', 'in', obrasIds), orderBy('createdAt', 'desc'), limit(3))),
-                getDocs(query(collectionGroup(firebaseDb, 'avancesDiarios'), where('obraId', 'in', obrasIds), orderBy('fecha', 'desc'), limit(3))),
-                getDocs(query(collectionGroup(firebaseDb, 'estadosDePago'), where('obraId', 'in', obrasIds), orderBy('creadoEn', 'desc'), limit(2)))
+                getDocs(rdiQuery),
+                getDocs(avancesQuery),
+                getDocs(edpQuery)
             ]);
 
-            const rdiItems: ActivityItem[] = rdiSnap.docs.map(d => {
-                const rdi = d.data() as Rdi;
-                return {
-                    type: 'rdi',
-                    id: d.id,
-                    obraId: rdi.obraId,
-                    obraNombre: obrasMap.get(rdi.obraId) || 'Obra desconocida',
-                    fecha: rdi.createdAt.toDate(),
-                    titulo: `RDI: ${rdi.correlativo}`,
-                    descripcion: rdi.titulo,
-                    estado: rdi.estado,
-                    href: `/rdi/${rdi.obraId}/${d.id}`
-                };
-            });
+            let rdiItems: ActivityItem[] = rdiSnap.docs
+              .map(d => ({ id: d.id, ...d.data() } as Rdi))
+              .filter(rdi => obrasIds.includes(rdi.obraId)) // Client-side filter if needed
+              .map(rdi => ({
+                    type: 'rdi', id: rdi.id, obraId: rdi.obraId, obraNombre: obrasMap.get(rdi.obraId) || 'Obra desconocida',
+                    fecha: rdi.createdAt.toDate(), titulo: `RDI: ${rdi.correlativo}`, descripcion: rdi.titulo,
+                    estado: rdi.estado, href: `/rdi/${rdi.obraId}/${rdi.id}`
+                }));
 
-            const avanceItems: ActivityItem[] = avancesSnap.docs.map(d => {
-                const avance = d.data() as AvanceDiario;
-                return {
-                    type: 'avance',
-                    id: d.id,
-                    obraId: avance.obraId,
-                    obraNombre: obrasMap.get(avance.obraId) || 'Obra desconocida',
-                    fecha: avance.fecha.toDate(),
-                    titulo: `Avance Diario`,
-                    descripcion: avance.comentario || 'Registro de avance.',
-                    valor: `${avance.porcentajeAvance?.toFixed(1) || 0}%`,
-                    href: `/operaciones/programacion?obraId=${avance.obraId}`
-                };
-            });
+            let avanceItems: ActivityItem[] = avancesSnap.docs
+              .map(d => ({ id: d.id, ...d.data() } as AvanceDiario))
+              .filter(avance => obrasIds.includes(avance.obraId))
+              .map(avance => ({
+                    type: 'avance', id: avance.id, obraId: avance.obraId, obraNombre: obrasMap.get(avance.obraId) || 'Obra desconocida',
+                    fecha: avance.fecha.toDate(), titulo: `Avance Diario`, descripcion: avance.comentario || 'Registro de avance.',
+                    valor: `${avance.porcentajeAvance?.toFixed(1) || 0}%`, href: `/operaciones/programacion?obraId=${avance.obraId}`
+                }));
             
-            const edpItems: ActivityItem[] = edpSnap.docs.map(d => {
-                const edp = d.data() as any; // Tipo Presupuesto (EDP)
-                return {
-                    type: 'edp',
-                    id: d.id,
-                    obraId: edp.obraId,
-                    obraNombre: obrasMap.get(edp.obraId) || 'Obra desconocida',
-                    fecha: edp.creadoEn.toDate(),
-                    titulo: `Estado de Pago`,
-                    descripcion: `Correlativo EDP-${String(edp.correlativo).padStart(3, '0')}`,
-                    valor: edp.total.toLocaleString('es-CL', {style: 'currency', currency: 'CLP'}),
-                    href: `/operaciones/estados-de-pago?obraId=${edp.obraId}`
-                };
-            });
+            let edpItems: ActivityItem[] = edpSnap.docs
+              .map(d => ({ id: d.id, ...d.data() } as any))
+              .filter(edp => obrasIds.includes(edp.obraId))
+              .map(edp => ({
+                    type: 'edp', id: edp.id, obraId: edp.obraId, obraNombre: obrasMap.get(edp.obraId) || 'Obra desconocida',
+                    fecha: edp.creadoEn.toDate(), titulo: `Estado de Pago`, descripcion: `Correlativo EDP-${String(edp.correlativo).padStart(3, '0')}`,
+                    valor: edp.total.toLocaleString('es-CL', {style: 'currency', currency: 'CLP'}), href: `/operaciones/estados-de-pago?obraId=${edp.obraId}`
+                }));
 
             const allItems = [...rdiItems, ...avanceItems, ...edpItems];
             allItems.sort((a, b) => b.fecha.getTime() - a.fecha.getTime());
