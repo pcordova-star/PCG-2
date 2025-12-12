@@ -12,6 +12,7 @@ import { useRouter } from 'next/navigation';
 import type { ItemizadoImportOutput, ItemNode } from '@/types/itemizados-import';
 
 const MAX_FILE_SIZE_MB = 15;
+const WARNING_FILE_SIZE_MB = 10;
 
 function fileToDataUri(file: File): Promise<string> {
   return new Promise((resolve, reject) => {
@@ -22,25 +23,39 @@ function fileToDataUri(file: File): Promise<string> {
   });
 }
 
+function slugify(text: string): string {
+    return text.toString().toLowerCase()
+        .replace(/\s+/g, '-')           // Replace spaces with -
+        .replace(/[^\w-]+/g, '')       // Remove all non-word chars
+        .replace(/--+/g, '-')         // Replace multiple - with single -
+        .replace(/^-+/, '')             // Trim - from start of text
+        .replace(/-+$/, '');            // Trim - from end of text
+}
+
 const ItemTree = ({ items }: { items: ItemNode[] }) => {
-    const renderNode = (node: ItemNode, level: number) => (
-        <div key={node.name + Math.random()} style={{ marginLeft: `${level * 20}px` }} className="mt-2">
-            <div className="flex items-center gap-2">
-                <ListTree className="h-4 w-4 text-muted-foreground" />
-                <span className="font-semibold">{node.name}</span>
-                {node.total !== null && <span className="text-xs text-muted-foreground">({node.total?.toLocaleString()})</span>}
-            </div>
-            {node.children && node.children.length > 0 && (
-                <div className="pl-4 border-l">
-                    {node.children.map(child => renderNode(child, level + 1))}
+    const renderNode = (node: ItemNode, level: number, index: number, parentPath: string) => {
+        const nodeKeyPart = node.code ? node.code : `${level}-${index}-${slugify(node.name)}`;
+        const currentPath = `${parentPath}/${nodeKeyPart}`;
+
+        return (
+            <div key={currentPath} style={{ marginLeft: `${level * 20}px` }} className="mt-2">
+                <div className="flex items-center gap-2">
+                    <ListTree className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+                    <span className="font-semibold">{node.name}</span>
+                    {node.total !== null && <span className="text-xs text-muted-foreground">({node.total?.toLocaleString()})</span>}
                 </div>
-            )}
-        </div>
-    );
+                {node.children && node.children.length > 0 && (
+                    <div className="pl-4 border-l">
+                        {node.children.map((child, childIndex) => renderNode(child, level + 1, childIndex, currentPath))}
+                    </div>
+                )}
+            </div>
+        );
+    }
 
     return (
         <div>
-            {items.map(item => renderNode(item, 0))}
+            {items.map((item, index) => renderNode(item, 0, index, 'root'))}
         </div>
     );
 };
@@ -61,6 +76,19 @@ export default function ImportarItemizadoPage() {
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
+      const isPdf = file.type === "application/pdf" || file.name.toLowerCase().endsWith(".pdf");
+
+      if (!isPdf) {
+        toast({
+          variant: 'destructive',
+          title: 'Archivo no válido',
+          description: 'Por favor, selecciona un archivo en formato PDF.',
+        });
+        e.target.value = ""; // Limpiar el input
+        setPdfFile(null);
+        return;
+      }
+      
       if (file.size > MAX_FILE_SIZE_MB * 1024 * 1024) {
         toast({
           variant: 'destructive',
@@ -68,9 +96,12 @@ export default function ImportarItemizadoPage() {
           description: `Por favor, sube un archivo de menos de ${MAX_FILE_SIZE_MB}MB.`,
         });
         e.target.value = "";
+        setPdfFile(null);
         return;
       }
       setPdfFile(file);
+    } else {
+        setPdfFile(null);
     }
   };
   
@@ -119,6 +150,8 @@ export default function ImportarItemizadoPage() {
         setLoading(false);
     }
   };
+  
+  const isFileLarge = pdfFile && pdfFile.size > WARNING_FILE_SIZE_MB * 1024 * 1024;
 
   return (
     <div className="space-y-8 max-w-6xl mx-auto">
@@ -137,12 +170,22 @@ export default function ImportarItemizadoPage() {
             <Card>
                 <CardHeader>
                     <CardTitle>1. Carga tu itemizado</CardTitle>
-                    <CardDescription>Selecciona el archivo PDF que quieres analizar (máx. 15MB).</CardDescription>
+                    <CardDescription>Selecciona el archivo PDF que quieres analizar (máx. {MAX_FILE_SIZE_MB}MB).</CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
                     <div className="space-y-2">
                         <Label htmlFor="pdf-file">Archivo del itemizado (PDF)</Label>
-                        <Input id="pdf-file" type="file" accept="application/pdf" onChange={handleFileChange} />
+                        <Input id="pdf-file" type="file" accept="application/pdf,.pdf" onChange={handleFileChange} />
+                        {pdfFile && (
+                            <div className="text-xs text-muted-foreground pt-1">
+                                <p>Archivo seleccionado: <strong>{pdfFile.name}</strong></p>
+                                {isFileLarge && (
+                                    <p className="text-yellow-600 font-semibold">
+                                        Advertencia: El archivo es grande y el análisis podría tardar más de lo normal o fallar.
+                                    </p>
+                                )}
+                            </div>
+                        )}
                     </div>
                     <div className="space-y-2">
                         <Label htmlFor="obra-nombre">Nombre de la Obra (referencial)</Label>
@@ -186,7 +229,7 @@ export default function ImportarItemizadoPage() {
                         <h3 className="font-semibold flex items-center gap-2 mb-2"><ListTree /> Vista Jerárquica</h3>
                          <div className="p-4 border rounded-md bg-muted/50">
                             {resultado.chapters.map(chapter => (
-                                <div key={chapter.name} className="mb-4">
+                                <div key={chapter.code || chapter.name} className="mb-4">
                                     <div className="flex items-center gap-2">
                                         <Folder className="h-5 w-5 text-primary" />
                                         <h4 className="font-bold text-lg">{chapter.name}</h4>
