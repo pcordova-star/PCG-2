@@ -41,6 +41,11 @@ export async function POST(req: Request) {
     console.error("[API /itemizados/importar] Error:", error);
 
     // 4. Manejar errores y devolver una respuesta de error en formato JSON
+    // Si el error es de parseo de JSON en el body, también se captura aquí.
+    if (error instanceof SyntaxError) {
+        return NextResponse.json({ error: "El cuerpo de la solicitud no es un JSON válido." }, { status: 400 });
+    }
+
     const errorMessage = error.message?.includes("GENKIT_ERROR:") 
       ? error.message.replace("GENKIT_ERROR:", "").trim()
       : "Ocurrió un error inesperado en el servidor al procesar el PDF.";
