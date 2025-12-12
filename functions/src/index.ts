@@ -23,3 +23,4 @@ export { registrarAvanceRapido } from "./registrarAvanceRapido";
 export { convertHeicToJpg } from "./convertHeic";
 export { notifyDocumentDistribution } from "./notifyDocumentDistribution";
 export { getSecureDownloadUrl } from "./secureDownload";
+export { processItemizadoJob } from "./processItemizadoJob";
