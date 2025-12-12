@@ -2,44 +2,31 @@
 
 import { z } from 'zod';
 
-// Definiendo el tipo TS base para poder usarlo en la definición recursiva del esquema Zod.
-// Esta es una práctica común para esquemas recursivos con TypeScript.
-type ItemNode = {
-  code: string | null;
-  name: string;
-  unit: string | null;
-  qty: number | null;
-  unitPrice: number | null;
-  total: number | null;
-  children?: ItemNode[];
-};
-
-// Esquema Zod para un nodo de ítem.
-// Se usa z.lazy() para manejar la definición recursiva del campo 'children'.
-export const ItemNodeSchema: z.ZodType<ItemNode> = z.lazy(() => z.object({
+// Esquema para una fila individual en la lista plana de ítems.
+// La jerarquía se representa con parentId.
+export const ItemRowSchema = z.object({
+  id: z.string().describe("Un identificador único y estable para la fila, ej: '1', '1.1', '1.1.1'."),
+  parentId: z.string().nullable().describe("El 'id' del ítem padre. Es 'null' si es un ítem de primer nivel dentro de un capítulo."),
+  chapterIndex: z.number().int().describe("El índice (empezando en 0) del capítulo al que pertenece esta fila, del array 'chapters'."),
   code: z.string().nullable(),
   name: z.string().min(1, "El nombre del ítem es requerido."),
   unit: z.string().nullable(),
   qty: z.number().nullable(),
   unitPrice: z.number().nullable(),
-  total: z.number().nullable(),
-  children: z.array(ItemNodeSchema).optional(),
-}));
+  total: z.number().nullable()
+});
 
-// Tipo de TypeScript inferido desde el esquema Zod de ItemNode.
-export type ItemNode = z.infer<typeof ItemNodeSchema>;
+export type ItemRow = z.infer<typeof ItemRowSchema>;
 
-// Esquema Zod para un capítulo del presupuesto.
+// Esquema para la definición de un capítulo.
 export const ChapterSchema = z.object({
   code: z.string().nullable(),
   name: z.string().min(1, "El nombre del capítulo es requerido."),
-  items: z.array(ItemNodeSchema),
 });
 
-// Tipo de TypeScript para un capítulo.
 export type Chapter = z.infer<typeof ChapterSchema>;
 
-// Esquema Zod para la metadata del archivo importado.
+// Esquema para la metadata del archivo importado.
 export const ItemizadoImportMetaSchema = z.object({
   sourceFileName: z.string().nullable().optional(),
   currency: z.enum(["CLP", "UF", "USD"]).nullable().optional(),
@@ -47,14 +34,18 @@ export const ItemizadoImportMetaSchema = z.object({
   notes: z.string().nullable().optional(),
 });
 
-// Tipo de TypeScript para la metadata.
 export type ItemizadoImportMeta = z.infer<typeof ItemizadoImportMetaSchema>;
 
-// Esquema Zod para la salida completa del análisis del itemizado.
+// Esquema de salida principal, ahora con una estructura plana.
 export const ItemizadoImportOutputSchema = z.object({
   meta: ItemizadoImportMetaSchema,
-  chapters: z.array(ChapterSchema),
+  chapters: z.array(ChapterSchema).describe("Un array con los nombres y códigos de los capítulos principales."),
+  rows: z.array(ItemRowSchema).describe("Una lista plana de todas las partidas y subpartidas. La jerarquía se reconstruye usando 'id' y 'parentId'."),
 });
 
-// Tipo de TypeScript para la salida completa.
 export type ItemizadoImportOutput = z.infer<typeof ItemizadoImportOutputSchema>;
+
+// Tipo auxiliar para el frontend, para reconstruir el árbol para visualización.
+export type ItemNode = ItemRow & {
+  children: ItemNode[];
+};
