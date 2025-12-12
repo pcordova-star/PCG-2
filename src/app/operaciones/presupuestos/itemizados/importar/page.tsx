@@ -67,7 +67,7 @@ const ItemTree = ({ chapters, rows }: { chapters: { name: string }[], rows: Item
                 <div className="flex items-center gap-2">
                     <ListTree className="h-4 w-4 text-muted-foreground flex-shrink-0" />
                     <span className="font-semibold">{node.name}</span>
-                    {node.total !== null && <span className="text-xs text-muted-foreground">({node.total?.toLocaleString()})</span>}
+                    {node.total !== null && typeof node.total !== 'undefined' && <span className="text-xs text-muted-foreground">({node.total?.toLocaleString()})</span>}
                 </div>
                 {node.children && node.children.length > 0 && (
                     <div className="pl-4 border-l">
@@ -167,19 +167,19 @@ export default function ImportarItemizadoPage() {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(input)
         });
-
-        const contentType = response.headers.get("content-type");
-        if (!response.ok) {
-            if (contentType && contentType.includes("application/json")) {
-                const errorBody = await response.json();
-                throw new Error(errorBody.error || `Error del servidor: ${response.statusText}`);
-            } else {
-                const errorText = await response.text();
-                throw new Error(`Error ${response.status}: ${response.statusText}. El servidor respondió con un formato inesperado.`);
-            }
-        }
         
-        const body = await response.json();
+        const contentType = response.headers.get("content-type") || "";
+        const raw = await response.text();
+
+        let body: any = null;
+        if (contentType.includes("application/json")) {
+          body = JSON.parse(raw);
+        }
+
+        if (!response.ok) {
+          const msg = body?.error || raw?.slice(0, 500) || "Error desconocido";
+          throw new Error(msg);
+        }
         
         setResultado(body as ItemizadoImportOutput);
         toast({ title: 'Análisis completado', description: 'El itemizado se ha procesado con éxito.' });
@@ -270,7 +270,11 @@ export default function ImportarItemizadoPage() {
                     <div>
                         <h3 className="font-semibold flex items-center gap-2 mb-2"><ListTree /> Vista Jerárquica</h3>
                          <div className="p-4 border rounded-md bg-muted/50">
-                            <ItemTree chapters={resultado.chapters} rows={resultado.rows} />
+                            {resultado.chapters && resultado.rows ? (
+                                <ItemTree chapters={resultado.chapters} rows={resultado.rows} />
+                            ) : (
+                                <p className="text-sm text-muted-foreground">La IA no devolvió un formato válido para construir el árbol.</p>
+                            )}
                         </div>
                     </div>
                     <div>
