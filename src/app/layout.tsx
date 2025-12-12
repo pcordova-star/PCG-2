@@ -47,7 +47,7 @@ const navItemsBase = [
   { href: '/operaciones/estados-de-pago', label: 'Estados de Pago', icon: FileText, roles: ['superadmin', 'admin_empresa', 'jefe_obra'] },
   { href: '/prevencion', label: 'Prevención', icon: ShieldCheck, roles: ['superadmin', 'admin_empresa', 'jefe_obra', 'prevencionista'] },
   { href: '/admin/documentos/proyecto', label: 'Documentos', icon: BookCopy, roles: ['superadmin', 'admin_empresa', 'prevencionista'] },
-  { href: '/rdi', label: 'RDI', icon: MessageSquare, roles: ['superadmin', 'admin_empresa', 'jefe_obra', 'prevencionista'] },
+  { href: '/rdi', label: 'RDI', icon: MessageSquare, roles: ['superadmin', 'admin_empresa', 'jefe_obra'] },
 ];
 
 const adminNavItems = [
@@ -424,5 +424,3 @@ export default function RootLayout({
     </html>
   );
 }
-
-    
