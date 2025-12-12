@@ -1,7 +1,7 @@
 // src/app/operaciones/presupuestos/itemizados/importar/page.tsx
 "use client";
 
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -9,7 +9,7 @@ import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
 import { ArrowLeft, Loader2, Wand2, Upload, Folder, FileText, ListTree } from 'lucide-react';
 import { useRouter } from 'next/navigation';
-import type { ItemizadoImportOutput, ItemNode } from '@/types/itemizados-import';
+import type { ItemizadoImportOutput, ItemNode, ItemRow } from '@/types/itemizados-import';
 
 const MAX_FILE_SIZE_MB = 15;
 const WARNING_FILE_SIZE_MB = 10;
@@ -24,6 +24,7 @@ function fileToDataUri(file: File): Promise<string> {
 }
 
 function slugify(text: string): string {
+    if (!text) return '';
     return text.toString().toLowerCase()
         .replace(/\s+/g, '-')           // Replace spaces with -
         .replace(/[^\w-]+/g, '')       // Remove all non-word chars
@@ -32,9 +33,35 @@ function slugify(text: string): string {
         .replace(/-+$/, '');            // Trim - from end of text
 }
 
-const ItemTree = ({ items }: { items: ItemNode[] }) => {
-    const renderNode = (node: ItemNode, level: number, index: number, parentPath: string) => {
-        const nodeKeyPart = node.code ? node.code : `${level}-${index}-${slugify(node.name)}`;
+const ItemTree = ({ chapters, rows }: { chapters: { name: string }[], rows: ItemRow[] }) => {
+    const tree = useMemo(() => {
+        if (!rows || !chapters) return [];
+
+        const nodesById: Record<string, ItemNode> = {};
+        rows.forEach(row => {
+            nodesById[row.id] = { ...row, children: [] };
+        });
+
+        const chapterTrees: ItemNode[][] = Array.from({ length: chapters.length }, () => []);
+
+        rows.forEach(row => {
+            if (row.parentId && nodesById[row.parentId]) {
+                nodesById[row.parentId].children.push(nodesById[row.id]);
+            } else {
+                if (chapterTrees[row.chapterIndex]) {
+                    chapterTrees[row.chapterIndex].push(nodesById[row.id]);
+                }
+            }
+        });
+
+        return chapters.map((chap, index) => ({
+            ...chap,
+            items: chapterTrees[index]
+        }));
+    }, [chapters, rows]);
+
+    const renderNode = (node: ItemNode, level: number, parentPath: string) => {
+        const nodeKeyPart = node.code ? node.code : `${level}-${slugify(node.name)}`;
         const currentPath = `${parentPath}/${nodeKeyPart}`;
 
         return (
@@ -46,7 +73,7 @@ const ItemTree = ({ items }: { items: ItemNode[] }) => {
                 </div>
                 {node.children && node.children.length > 0 && (
                     <div className="pl-4 border-l">
-                        {node.children.map((child, childIndex) => renderNode(child, level + 1, childIndex, currentPath))}
+                        {node.children.map((child, childIndex) => renderNode(child, level + 1, currentPath))}
                     </div>
                 )}
             </div>
@@ -55,7 +82,17 @@ const ItemTree = ({ items }: { items: ItemNode[] }) => {
 
     return (
         <div>
-            {items.map((item, index) => renderNode(item, 0, index, 'root'))}
+            {tree.map((chapter, index) => (
+                 <div key={chapter.name + index} className="mb-4">
+                    <div className="flex items-center gap-2">
+                        <Folder className="h-5 w-5 text-primary" />
+                        <h4 className="font-bold text-lg">{chapter.name}</h4>
+                    </div>
+                    <div className="pl-6 border-l-2 border-primary/50 ml-2">
+                       {chapter.items.map((item, itemIndex) => renderNode(item, 0, `chap-${index}`))}
+                    </div>
+                </div>
+            ))}
         </div>
     );
 };
@@ -228,17 +265,7 @@ export default function ImportarItemizadoPage() {
                     <div>
                         <h3 className="font-semibold flex items-center gap-2 mb-2"><ListTree /> Vista Jerárquica</h3>
                          <div className="p-4 border rounded-md bg-muted/50">
-                            {resultado.chapters.map(chapter => (
-                                <div key={chapter.code || chapter.name} className="mb-4">
-                                    <div className="flex items-center gap-2">
-                                        <Folder className="h-5 w-5 text-primary" />
-                                        <h4 className="font-bold text-lg">{chapter.name}</h4>
-                                    </div>
-                                    <div className="pl-6 border-l-2 border-primary/50 ml-2">
-                                       <ItemTree items={chapter.items} />
-                                    </div>
-                                </div>
-                            ))}
+                            <ItemTree chapters={resultado.chapters} rows={resultado.rows} />
                         </div>
                     </div>
                     <div>
