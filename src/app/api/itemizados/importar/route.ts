@@ -1,6 +1,6 @@
 // src/app/api/itemizados/importar/route.ts
 import { NextResponse } from 'next/server';
-import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
+import { collection, addDoc, serverTimestamp, doc, getDoc } from 'firebase/firestore';
 import { firebaseDb } from '@/lib/firebaseClient';
 import { z } from 'zod';
 
@@ -52,8 +52,8 @@ export async function POST(req: Request) {
     const docRef = await addDoc(jobsCollection, newJobDoc);
     const jobId = docRef.id;
 
-    // 3. Devolver una respuesta rápida (202 Accepted) con el ID del trabajo
-    return NextResponse.json({ jobId, status: "queued" }, { status: 202 });
+    // 3. Devolver una respuesta rápida (200 OK) con el ID del trabajo
+    return NextResponse.json({ jobId, status: "queued" }, { status: 200 });
 
   } catch (error: any) {
     console.error("[API /importar POST] Error:", error);
@@ -64,5 +64,42 @@ export async function POST(req: Request) {
       { error: "Error interno del servidor al iniciar el trabajo de importación." },
       { status: 500 }
     );
+  }
+}
+
+
+/**
+ * Endpoint para consultar el estado de un trabajo de importación de itemizado
+ * usando un query parameter.
+ */
+export async function GET(request: Request) {
+  const { searchParams } = new URL(request.url);
+  const jobId = searchParams.get("jobId");
+
+  if (!jobId) {
+    return NextResponse.json({ error: 'jobId es requerido' }, { status: 400 });
+  }
+
+  try {
+    const jobRef = doc(firebaseDb, 'itemizadoImportJobs', jobId);
+    const jobSnap = await getDoc(jobRef);
+
+    if (!jobSnap.exists()) {
+      return NextResponse.json({ error: 'Trabajo no encontrado' }, { status: 404 });
+    }
+
+    const jobData = jobSnap.data();
+    
+    const response = {
+        status: jobData.status,
+        result: jobData.status === 'done' ? jobData.result : null,
+        error: jobData.status === 'error' ? jobData.errorMessage : null,
+    };
+
+    return NextResponse.json(response, { status: 200 });
+    
+  } catch (error: any) {
+    console.error(`[API /importar?jobId=${jobId}] Error:`, error);
+    return NextResponse.json({ error: 'Error interno del servidor al consultar el trabajo.' }, { status: 500 });
   }
 }
