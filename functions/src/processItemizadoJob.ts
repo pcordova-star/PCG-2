@@ -29,8 +29,7 @@ export const processItemizadoJob = onDocumentCreated(
   async (event) => {
     // --- Carga diferida (Lazy Load) de Genkit y sus dependencias ---
     const { ai } = await import("./genkit-config");
-    const { ItemizadoImportOutputSchema } = await import('./types/itemizados-import');
-
+    
     const { jobId } = event.params;
     const snapshot = event.data;
     if (!snapshot) {
@@ -67,7 +66,7 @@ export const processItemizadoJob = onDocumentCreated(
           name: 'importarItemizadoPrompt',
           model: 'googleai/gemini-2.5-flash',
           input: { schema: ImportarItemizadoInputSchema },
-          output: { schema: ItemizadoImportOutputSchema },
+          // SE ELIMINA 'output' para evitar error TS2589
           prompt: `Eres un asistente experto en análisis de presupuestos de construcción. Tu tarea es interpretar un presupuesto (en formato PDF) y extraer los capítulos y todas las partidas/subpartidas en una estructura plana.
       
       Debes seguir estas reglas estrictamente:
@@ -94,7 +93,7 @@ export const processItemizadoJob = onDocumentCreated(
         {
           name: 'importarItemizadoCloudFunctionFlow',
           inputSchema: ImportarItemizadoInputSchema,
-          outputSchema: ItemizadoImportOutputSchema,
+          // SE ELIMINA 'outputSchema' para evitar error TS2589
         },
         async (input) => {
           logger.info("[Genkit Flow] Iniciando análisis de itemizado...");
