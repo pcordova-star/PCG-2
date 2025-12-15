@@ -40,6 +40,7 @@ const logger = __importStar(require("firebase-functions/logger"));
 const firestore_2 = require("firebase-admin/firestore");
 const app_1 = require("firebase-admin/app");
 const zod_1 = require("zod");
+// Inicializar Firebase Admin SDK si no se ha hecho
 if ((0, app_1.getApps)().length === 0) {
     (0, app_1.initializeApp)();
 }
@@ -49,35 +50,64 @@ exports.processItemizadoJob = (0, firestore_1.onDocumentCreated)({
     memory: "512MiB",
     timeoutSeconds: 540,
 }, async (event) => {
-    // Lazy-load Genkit, y CORTAR tipado (evitar TS2589)
-    const { ai: aiTyped } = await Promise.resolve().then(() => __importStar(require("./genkit-config")));
-    const ai = aiTyped;
     const { jobId } = event.params;
     const snapshot = event.data;
     if (!snapshot) {
-        logger.warn(`[${jobId}] No se encontraron datos en el evento. Abortando.`);
+        logger.warn(`[${jobId}] No data found in event. Aborting.`);
         return;
     }
     const jobData = snapshot.data();
     const jobRef = snapshot.ref;
-    if (jobData.status !== "queued") {
-        logger.info(`[${jobId}] El trabajo no está en estado 'queued' (estado actual: ${jobData.status}). Ignorando.`);
+    // 1. Logging inicial para observabilidad
+    logger.info(`[${jobId}] Job triggered.`, {
+        location: event.location,
+        path: snapshot.ref.path,
+        jobKeys: Object.keys(jobData),
+        currentStatus: jobData.status,
+    });
+    // GUARD: Evitar dobles ejecuciones
+    if (jobData.status !== 'queued') {
+        logger.info(`[${jobId}] Job is not in 'queued' state (current: ${jobData.status}). Ignoring.`);
         return;
     }
-    logger.info(`[${jobId}] Nuevo trabajo de importación recibido. Iniciando procesamiento...`);
+    // 2. Marcar el trabajo como "procesando" de forma segura
     try {
-        await jobRef.update({ status: "processing" });
-        // Zod SOLO para validar/parsear (no para tipar Genkit)
+        await jobRef.update({
+            status: "processing",
+            startedAt: firestore_2.FieldValue.serverTimestamp()
+        });
+        logger.info(`[${jobId}] Job status updated to 'processing'.`);
+    }
+    catch (updateError) {
+        logger.error(`[${jobId}] FATAL: Could not update job status to 'processing'. Aborting.`, updateError);
+        return; // Salir si no podemos ni siquiera marcar el inicio
+    }
+    try {
+        // 3. Carga diferida (Lazy Load) de Genkit y sus dependencias
+        let ai;
+        try {
+            const genkitModule = await Promise.resolve().then(() => __importStar(require("./genkit-config")));
+            ai = genkitModule.ai;
+            logger.info(`[${jobId}] Genkit module imported successfully.`);
+        }
+        catch (genkitError) {
+            logger.error(`[${jobId}] CRITICAL: Failed to import Genkit module.`, genkitError);
+            await jobRef.update({
+                status: "error",
+                errorMessage: `GENKIT_IMPORT_FAILED: ${genkitError.message}`,
+                processedAt: firestore_2.FieldValue.serverTimestamp(),
+            });
+            return;
+        }
         const ImportarItemizadoInputSchema = zod_1.z.object({
             pdfDataUri: zod_1.z.string(),
             obraId: zod_1.z.string(),
             obraNombre: zod_1.z.string(),
             notas: zod_1.z.string().optional(),
         });
-        // Genkit prompt con type-erasure
         const importarItemizadoPrompt = ai.definePrompt({
-            name: "importarItemizadoPrompt",
-            model: "googleai/gemini-2.5-flash",
+            name: 'importarItemizadoPrompt',
+            model: 'googleai/gemini-2.5-flash',
             input: { schema: ImportarItemizadoInputSchema },
             prompt: `Eres un asistente experto en análisis de presupuestos de construcción. Tu tarea es interpretar un presupuesto (en formato PDF) y extraer los capítulos y todas las partidas/subpartidas en una estructura plana.
 
@@ -97,12 +127,10 @@ Aquí está la información proporcionada por el usuario:
 - Itemizado PDF: {{media url=pdfDataUri}}
 - Notas adicionales: {{{notas}}}
 
-Genera ahora el JSON de salida.`,
+Genera ahora el JSON de salida.`
         });
-        // Genkit flow con type-erasure
         const importarItemizadoFlow = ai.defineFlow({
-            name: "importarItemizadoCloudFunctionFlow",
-            // OJO: esto es lo que más gatilla TS2589 si no se castea
+            name: 'importarItemizadoCloudFunctionFlow',
             inputSchema: ImportarItemizadoInputSchema,
         }, async (input) => {
             logger.info("[Genkit Flow] Iniciando análisis de itemizado...");
@@ -115,28 +143,45 @@ Genera ahora el JSON de salida.`,
             return output;
         });
         const parsedInput = ImportarItemizadoInputSchema.parse(jobData);
-        logger.info(`[${jobId}] Llamando al flujo de Genkit para la obra ${parsedInput.obraNombre}...`);
-        const analisisResult = await importarItemizadoFlow({
-            pdfDataUri: parsedInput.pdfDataUri,
-            obraId: parsedInput.obraId,
-            obraNombre: parsedInput.obraNombre,
-            notas: parsedInput.notas || "Analizar el itemizado completo.",
-        });
-        logger.info(`[${jobId}] El análisis de IA fue exitoso. Guardando resultados...`);
+        let analisisResult;
+        try {
+            logger.info(`[${jobId}] Calling Genkit flow for obra ${parsedInput.obraNombre}...`);
+            analisisResult = await importarItemizadoFlow({
+                pdfDataUri: parsedInput.pdfDataUri,
+                obraId: parsedInput.obraId,
+                obraNombre: parsedInput.obraNombre,
+                notas: parsedInput.notas || "Analizar el itemizado completo.",
+            });
+        }
+        catch (flowError) {
+            logger.error(`[${jobId}] Genkit flow execution failed.`, flowError);
+            await jobRef.update({
+                status: "error",
+                errorMessage: `FLOW_FAILED: ${flowError.message}`,
+                processedAt: firestore_2.FieldValue.serverTimestamp(),
+            });
+            return;
+        }
+        logger.info(`[${jobId}] AI analysis successful. Saving results...`);
         await jobRef.update({
             status: "done",
             result: analisisResult,
             processedAt: firestore_2.FieldValue.serverTimestamp(),
         });
-        logger.info(`[${jobId}] Trabajo completado y guardado.`);
+        logger.info(`[${jobId}] Job completed and saved.`);
     }
     catch (error) {
-        logger.error(`[${jobId}] Error catastrófico durante el procesamiento:`, error);
-        await jobRef.update({
-            status: "error",
-            errorMessage: error?.message || "Ocurrió un error desconocido durante el análisis.",
-            processedAt: firestore_2.FieldValue.serverTimestamp(),
-        });
+        logger.error(`[${jobId}] Catastrophic error during processing:`, error);
+        try {
+            await jobRef.update({
+                status: "error",
+                errorMessage: error.message || "Ocurrió un error desconocido durante el análisis.",
+                processedAt: firestore_2.FieldValue.serverTimestamp(),
+            });
+        }
+        catch (finalError) {
+            logger.error(`[${jobId}] CRITICAL: Failed to even update a final error state.`, finalError);
+        }
     }
 });
 //# sourceMappingURL=processItemizadoJob.js.map
