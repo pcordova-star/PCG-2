@@ -1,4 +1,3 @@
-
 // functions/src/processItemizadoJob.ts
 import { onDocumentCreated } from "firebase-functions/v2/firestore";
 import * as logger from "firebase-functions/logger";
@@ -141,5 +140,3 @@ export const processItemizadoJob = onDocumentCreated(
     }
   }
 );
-
-    
