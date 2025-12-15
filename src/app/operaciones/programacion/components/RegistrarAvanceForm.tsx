@@ -3,8 +3,8 @@
 
 import React, { useState, useEffect, useMemo } from 'react';
 import { useAuth } from '@/context/AuthContext';
-import { collection, writeBatch, doc } from 'firebase/firestore';
-import { firebaseDb, firebaseStorage } from '@/lib/firebaseClient';
+import { firebaseFunctions } from '@/lib/firebaseClient';
+import { httpsCallable } from 'firebase/functions';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
@@ -16,6 +16,7 @@ import { useToast } from '@/hooks/use-toast';
 import { ActividadProgramada, Obra } from '../page';
 import { useActividadAvance } from '../hooks/useActividadAvance';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { firebaseStorage } from '@/lib/firebaseClient';
 
 type RegistrarAvanceFormProps = {
   obraId?: string;
@@ -84,7 +85,6 @@ export default function RegistrarAvanceForm({ obraId: initialObraId, obras = [],
         description: "Las fotos en formato HEIC (de iPhone) no son soportadas. Por favor, cambia la configuración de tu cámara a 'Más compatible' (JPG) en Ajustes > Cámara > Formatos.",
         duration: 8000,
       });
-      // Limpia el input para que el usuario pueda volver a seleccionar
       e.target.value = ""; 
     }
     
@@ -116,6 +116,8 @@ export default function RegistrarAvanceForm({ obraId: initialObraId, obras = [],
       return;
     }
 
+    const registrarAvanceFn = httpsCallable(firebaseFunctions, 'registrarAvanceRapido');
+
     const avancesParaGuardar = Object.entries(cantidadesHoy).filter(([_, cant]) => cant > 0);
     if (avancesParaGuardar.length === 0) {
       setError('No hay cantidades para registrar. Ingresa un valor en "Cantidad de Hoy" para al menos una actividad.');
@@ -126,7 +128,6 @@ export default function RegistrarAvanceForm({ obraId: initialObraId, obras = [],
     setError(null);
 
     try {
-      // Validación antes de subir cualquier archivo o escribir en la BD
       for (const [actividadId, cantidadHoy] of avancesParaGuardar) {
         const actividad = actividadesAMostrar.find(a => a.id === actividadId);
         if (!actividad) continue;
@@ -134,59 +135,31 @@ export default function RegistrarAvanceForm({ obraId: initialObraId, obras = [],
         const cantidadAcumuladaAnterior = avancesPorActividad[actividadId]?.cantidadAcumulada || 0;
         const maxPermitidaHoy = Math.max(0, actividad.cantidad - cantidadAcumuladaAnterior);
 
-        if (maxPermitidaHoy <= 0) {
-          throw new Error(`La actividad "${actividad.nombreActividad}" ya alcanzó el 100% de avance. No puedes registrar más cantidad.`);
+        if (maxPermitidaHoy <= 0 || cantidadHoy > maxPermitidaHoy) {
+           throw new Error(`La cantidad para "${actividad.nombreActividad}" (${cantidadHoy}) excede la disponible (${maxPermitidaHoy.toFixed(2)}).`);
         }
-
-        if (cantidadHoy > maxPermitidaHoy) {
-          throw new Error(`La cantidad para "${actividad.nombreActividad}" (${cantidadHoy}) excede la disponible (${maxPermitidaHoy.toFixed(2)}).`);
-        }
-      }
-
-      // Si todas las validaciones pasan, se procede a guardar
-      const batch = writeBatch(firebaseDb);
-      const colRef = collection(firebaseDb, 'obras', selectedObraId, 'avancesDiarios');
-
-      for (const [actividadId, cantidadHoy] of avancesParaGuardar) {
-        const actividad = actividadesAMostrar.find(a => a.id === actividadId);
-        if (!actividad) continue;
 
         const urlsFotos: string[] = [];
         if (fotos[actividadId] && fotos[actividadId].length > 0) {
           for (const file of fotos[actividadId]) {
-            console.log("Subiendo imagen...", file.name);
             const nombreArchivo = `${Date.now()}-${file.name}`;
             const storageRef = ref(firebaseStorage, `avances/${selectedObraId}/${nombreArchivo}`);
             await uploadBytes(storageRef, file);
             const url = await getDownloadURL(storageRef);
-            console.log("Imagen subida, URL:", url);
             urlsFotos.push(url);
           }
         }
         
-        const cantidadAcumuladaAnterior = avancesPorActividad[actividadId]?.cantidadAcumulada || 0;
-        const avanceAcumulado = cantidadAcumuladaAnterior + cantidadHoy;
-        const porcentajeAcumulado = actividad.cantidad > 0 ? (avanceAcumulado / actividad.cantidad) * 100 : 0;
-
-        const docData = {
-          tipoRegistro: 'CANTIDAD',
+        await registrarAvanceFn({
           obraId: selectedObraId,
-          actividadId,
-          cantidadEjecutada: cantidadHoy,
-          porcentajeAcumuladoCalculado: Math.min(100, porcentajeAcumulado),
-          porcentajeAvance: Math.min(100, porcentajeAcumulado), 
+          actividadId: actividadId,
+          porcentaje: (cantidadHoy / actividad.cantidad) * 100, // Enviar porcentaje
           comentario: comentarios[actividadId] || '',
           fotos: urlsFotos,
           visibleCliente: true,
-          creadoPor: { uid: user.uid, displayName: user.displayName || user.email || 'Anónimo', },
-          fecha: new Date(fechaAvance + 'T12:00:00Z'),
-        };
-        
-        const nuevoDocRef = doc(colRef);
-        batch.set(nuevoDocRef, docData);
+          fecha: fechaAvance
+        });
       }
-
-      await batch.commit();
 
       toast({ title: 'Avance registrado con éxito', description: `Se guardaron ${avancesParaGuardar.length} registros de avance.` });
       onAvanceRegistrado?.(avancesParaGuardar);

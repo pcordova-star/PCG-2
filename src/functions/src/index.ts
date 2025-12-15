@@ -22,4 +22,5 @@ export { setSuperAdminClaim } from "./setSuperAdmin";
 export { registrarAvanceRapido } from "./registrarAvanceRapido";
 export { convertHeicToJpg } from "./convertHeic";
 export { notifyDocumentDistribution } from "./notifyDocumentDistribution";
+export { processItemizadoJob } from "./processItemizadoJob";
 export { getSecureDownloadUrl } from "./secureDownload";
