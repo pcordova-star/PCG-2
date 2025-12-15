@@ -21,6 +21,7 @@ type ProcessItemizadoJobPayload = {
 export const processItemizadoJob = onDocumentCreated(
   {
     document: "itemizadoImportJobs/{jobId}",
+    secrets: ["GEMINI_API_KEY"],
     cpu: 1,
     memory: "512MiB",
     timeoutSeconds: 540,
