@@ -76,6 +76,7 @@ export const processItemizadoJob = onDocumentCreated(
     cpu: 1,
     memory: "512MiB",
     timeoutSeconds: 540,
+    secrets: ["GEMINI_API_KEY"], // 👈 ESTO ES CLAVE
   },
   async (event) => {
     const { jobId } = event.params;
