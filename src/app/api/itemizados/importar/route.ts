@@ -8,9 +8,9 @@ export const runtime = "nodejs";
 export const maxDuration = 300; // 5 minutos
 
 const ApiInputSchema = z.object({
-  pdfDataUri: z.string().min(1),
-  obraId: z.string().min(1),
-  obraNombre: z.string().min(1),
+  pdfDataUri: z.string().min(1, "El campo pdfDataUri es requerido."),
+  obraId: z.string().min(1, "El campo obraId es requerido."),
+  obraNombre: z.string().min(1, "El campo obraNombre es requerido."),
   notas: z.string().optional(),
 });
 
@@ -22,10 +22,12 @@ const ApiInputSchema = z.object({
 export async function POST(req: Request) {
   try {
     const body = await req.json();
+    console.log("Received body for import:", body);
 
     // 1. Validar la entrada con Zod
     const validationResult = ApiInputSchema.safeParse(body);
     if (!validationResult.success) {
+      console.error("Validation failed:", validationResult.error.flatten());
       return NextResponse.json(
         { error: "Los datos de entrada son inválidos.", details: validationResult.error.flatten() },
         { status: 400 }
@@ -64,5 +66,3 @@ export async function POST(req: Request) {
     );
   }
 }
-
-    
