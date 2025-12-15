@@ -18,7 +18,7 @@ import { useActividadAvance } from '../hooks/useActividadAvance';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 
 // Tipos para la función callable
-type RegistrarAvanceInput = {
+type RegistrarAvanceRapidoInput = {
   obraId: string;
   actividadId: string;
   porcentaje: number;
@@ -28,10 +28,7 @@ type RegistrarAvanceInput = {
   fecha: string;
 };
 
-type RegistrarAvanceOutput = {
-  ok: boolean;
-  id: string;
-};
+type RegistrarAvanceRapidoOutput = { ok: boolean; id?: string };
 
 
 type RegistrarAvanceFormProps = {
@@ -141,7 +138,7 @@ export default function RegistrarAvanceForm({ obraId: initialObraId, obras = [],
     setIsSaving(true);
     setError(null);
     
-    const registrarAvanceFn = httpsCallable<RegistrarAvanceInput, RegistrarAvanceOutput>(firebaseFunctions, 'registrarAvanceRapido');
+    const registrarAvanceFn = httpsCallable<RegistrarAvanceRapidoInput, RegistrarAvanceRapidoOutput>(firebaseFunctions, "registrarAvanceRapido");
 
     try {
       for (const [actividadId, cantidadHoy] of avancesParaGuardar) {
