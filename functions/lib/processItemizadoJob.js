@@ -46,6 +46,7 @@ if ((0, app_1.getApps)().length === 0) {
 }
 exports.processItemizadoJob = (0, firestore_1.onDocumentCreated)({
     document: "itemizadoImportJobs/{jobId}",
+    secrets: ["GEMINI_API_KEY"],
     cpu: 1,
     memory: "512MiB",
     timeoutSeconds: 540,

@@ -5,13 +5,11 @@ exports.ai = void 0;
 // Este archivo centraliza la configuración de Genkit para las Cloud Functions.
 const genkit_1 = require("genkit");
 const google_genai_1 = require("@genkit-ai/google-genai");
-require("dotenv/config");
-// Asegúrate de tener GEMINI_API_KEY en tus variables de entorno de Firebase Functions
-// firebase functions:config:set gemini.key="TU_API_KEY"
-const geminiApiKey = process.env.GEMINI_API_KEY;
+// La clave se obtiene de las variables de entorno inyectadas
+// por el secreto en la definición de la función.
 exports.ai = (0, genkit_1.genkit)({
     plugins: [
-        (0, google_genai_1.googleAI)({ apiKey: geminiApiKey })
+        (0, google_genai_1.googleAI)({ apiKey: process.env.GEMINI_API_KEY })
     ]
 });
 //# sourceMappingURL=genkit-config.js.map
