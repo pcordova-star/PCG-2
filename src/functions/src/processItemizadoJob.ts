@@ -1,3 +1,4 @@
+
 // functions/src/processItemizadoJob.ts
 import { onDocumentCreated } from "firebase-functions/v2/firestore";
 import * as logger from "firebase-functions/logger";
@@ -66,7 +67,7 @@ export const processItemizadoJob = onDocumentCreated(
           name: 'importarItemizadoPrompt',
           model: 'googleai/gemini-2.5-flash',
           input: { schema: ImportarItemizadoInputSchema },
-          // ELIMINADO: output: { schema: ItemizadoImportOutputSchema },
+          // ELIMINADO: La validación de output se quita para evitar error de TypeScript
           prompt: `Eres un asistente experto en análisis de presupuestos de construcción. Tu tarea es interpretar un presupuesto (en formato PDF) y extraer los capítulos y todas las partidas/subpartidas en una estructura plana.
       
       Debes seguir estas reglas estrictamente:
@@ -93,7 +94,7 @@ export const processItemizadoJob = onDocumentCreated(
         {
           name: 'importarItemizadoCloudFunctionFlow',
           inputSchema: ImportarItemizadoInputSchema,
-          // ELIMINADO: outputSchema: ItemizadoImportOutputSchema,
+          // ELIMINADO: No se define un outputSchema para evitar error de compilación.
         },
         async (input) => {
           logger.info("[Genkit Flow] Iniciando análisis de itemizado...");
