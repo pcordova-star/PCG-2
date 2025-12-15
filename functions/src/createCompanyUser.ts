@@ -1,5 +1,5 @@
 // functions/src/createCompanyUser.ts
-import * as functions from "firebase-functions";
+import { onCall, HttpsError } from "firebase-functions/v2/https";
 import * as admin from "firebase-admin";
 
 if (!admin.apps.length) {
@@ -11,43 +11,59 @@ function buildAcceptInviteUrl(invId: string, email: string): string {
 
   if (!rawBaseUrl) {
     console.error("CRÍTICO: No se pudo determinar la URL base de la aplicación. No se puede crear un enlace de invitación válido.");
-    throw new functions.https.HttpsError("internal", "El servidor no está configurado correctamente para enviar invitaciones. Falta la URL base de la aplicación.");
+    throw new HttpsError("internal", "El servidor no está configurado correctamente para enviar invitaciones. Falta la URL base de la aplicación.");
   }
   
   const appBaseUrl = rawBaseUrl.replace(/\/+$/, "");
   return `${appBaseUrl}/accept-invite?invId=${encodeURIComponent(invId)}&email=${encodeURIComponent(email)}`;
 }
 
-export const createCompanyUser = functions.region("southamerica-west1").https.onCall(async (data, context) => {
+export const createCompanyUser = onCall(
+  {
+    region: "southamerica-west1",
+    cpu: 1,
+    memory: "256MiB",
+    timeoutSeconds: 60,
+    cors: true
+  },
+  async (request) => {
     const auth = admin.auth();
     const db = admin.firestore();
 
-    const ctx = context;
+    const ctx = request.auth;
 
     // 1. Validar que el usuario está autenticado
-    if (!ctx.auth) {
-      throw new functions.https.HttpsError("unauthenticated", "No autenticado.");
+    if (!ctx) {
+      throw new HttpsError("unauthenticated", "No autenticado.");
     }
 
     // 2. Validar que el usuario es SUPER_ADMIN vía customClaims
-    const requesterClaims = await auth.getUser(ctx.auth.uid);
+    const requesterClaims = await auth.getUser(ctx.uid);
     if (requesterClaims.customClaims?.role !== "superadmin") {
-      throw new functions.https.HttpsError(
+      throw new HttpsError(
         "permission-denied",
         "Solo SUPER_ADMIN puede crear usuarios."
       );
     }
 
     // 3. Validar payload de entrada
+    const data = request.data as {
+      companyId: string;
+      email: string;
+      password?: string;
+      nombre: string;
+      role: "admin_empresa" | "jefe_obra" | "prevencionista" | "cliente";
+    };
+
     if (!data.companyId || !data.email || !data.nombre || !data.role) {
-      throw new functions.https.HttpsError(
+      throw new HttpsError(
         "invalid-argument",
         "Faltan campos obligatorios: companyId, email, nombre, role."
       );
     }
     
     if (!data.password || data.password.length < 6) {
-        throw new functions.https.HttpsError(
+        throw new HttpsError(
             "invalid-argument",
             "La contraseña es obligatoria y debe tener al menos 6 caracteres."
         );
@@ -57,7 +73,7 @@ export const createCompanyUser = functions.region("southamerica-west1").https.on
     const companyRef = db.collection("companies").doc(data.companyId);
     const companySnap = await companyRef.get();
     if (!companySnap.exists) {
-      throw new functions.https.HttpsError("not-found", "La empresa no existe.");
+      throw new HttpsError("not-found", "La empresa no existe.");
     }
     const companyData = companySnap.data();
 
@@ -73,12 +89,12 @@ export const createCompanyUser = functions.region("southamerica-west1").https.on
       });
     } catch (error: any) {
       if (error.code === "auth/email-already-exists") {
-        throw new functions.https.HttpsError(
+        throw new HttpsError(
           "already-exists",
           "Ya existe un usuario con este email."
         );
       }
-      throw new functions.https.HttpsError("internal", "Error creando el usuario en Auth.", error);
+      throw new HttpsError("internal", "Error creando el usuario en Auth.", error);
     }
 
     const uid = userRecord.uid;
@@ -113,7 +129,7 @@ export const createCompanyUser = functions.region("southamerica-west1").https.on
         roleDeseado: data.role,
         estado: 'pendiente', 
         createdAt: now,
-        creadoPorUid: ctx.auth.uid,
+        creadoPorUid: ctx.uid,
     });
     
     // 9. Enviar correo de invitación
