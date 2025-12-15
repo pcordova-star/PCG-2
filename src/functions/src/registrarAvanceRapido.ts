@@ -1,16 +1,7 @@
-import * as functions from "firebase-functions";
-import { HttpsError } from "firebase-functions/v1/https";
+import { onCall, HttpsError } from "firebase-functions/v2/https";
 import * as logger from "firebase-functions/logger";
 import { getFirestore, FieldValue } from "firebase-admin/firestore";
 import { z } from "zod";
-import cors from "cors";
-import { getAuth } from "firebase-admin/auth";
-
-const corsHandler = cors({
-  origin: true, 
-  methods: ["POST", "OPTIONS"],
-  allowedHeaders: ["Content-Type", "Authorization"],
-});
 
 const AvanceSchema = z.object({
     obraId: z.string().min(1),
@@ -22,65 +13,60 @@ const AvanceSchema = z.object({
 });
 
 function escapeHtml(s: string): string {
-  return s.replace(/[&<>"']/g, (m) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[m]!));
+  return s.replace(/[&<>"']/g, (m: string) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[m]!));
 }
 
-export const registrarAvanceRapido = functions
-  .region("southamerica-west1")
-  .https.onRequest((req, res) => {
-    corsHandler(req, res, async () => {
-      if (req.method === "OPTIONS") {
-        res.status(204).send("");
-        return;
+export const registrarAvanceRapido = onCall(
+  {
+    region: "southamerica-west1",
+    cpu: 1,
+    memory: "256MiB",
+    timeoutSeconds: 60,
+    cors: true
+  },
+  async (request) => {
+    // 1. Autenticación (manejada automáticamente por onCall)
+    if (!request.auth) {
+      throw new HttpsError("unauthenticated", "El usuario no está autenticado.");
+    }
+
+    try {
+      const { uid, token } = request.auth;
+      const displayName = token.name || token.email || "";
+
+      // 2. Validación de datos de entrada
+      const parsed = AvanceSchema.safeParse(request.data);
+      if (!parsed.success) {
+        throw new HttpsError("invalid-argument", "Los datos proporcionados son inválidos.", parsed.error.flatten());
       }
-      
-      if (req.method !== "POST") {
-        res.status(405).json({ ok: false, error: "METHOD_NOT_ALLOWED" });
-        return;
-      }
 
-      try {
-        const authHeader = req.headers.authorization;
-        if (!authHeader || !authHeader.startsWith("Bearer ")) {
-          throw new HttpsError("unauthenticated", "El usuario no está autenticado.");
-        }
-        const token = authHeader.split(" ")[1];
-        const decodedToken = await getAuth().verifyIdToken(token);
-        const { uid } = decodedToken;
-        const displayName = decodedToken.name || decodedToken.email || "";
+      const { obraId, actividadId, porcentaje, comentario, fotos, visibleCliente } = parsed.data;
 
-        const parsed = AvanceSchema.safeParse(req.body);
-        if (!parsed.success) {
-          throw new HttpsError("invalid-argument", "Los datos proporcionados son inválidos.", parsed.error.flatten());
+      const db = getFirestore();
+      const obraRef = db.collection("obras").doc(obraId);
+
+      const avanceId = await db.runTransaction(async (tx) => {
+        const obraSnap = await tx.get(obraRef);
+        if (!obraSnap.exists) {
+          throw new HttpsError("not-found", `La obra con ID ${obraId} no fue encontrada.`);
         }
 
-        const { obraId, actividadId, porcentaje, comentario, fotos, visibleCliente } = parsed.data;
+        const avancesRef = obraRef.collection("avancesDiarios");
+        const nuevoAvanceRef = avancesRef.doc();
 
-        const db = getFirestore();
-        const obraRef = db.collection("obras").doc(obraId);
+        const avanceData = {
+          obraId,
+          actividadId: actividadId || null,
+          porcentajeAvance: porcentaje,
+          comentario: escapeHtml(comentario),
+          fotos,
+          visibleCliente,
+          fecha: FieldValue.serverTimestamp(),
+          creadoPor: { uid, displayName: escapeHtml(displayName) },
+        };
+        tx.set(nuevoAvanceRef, avanceData);
 
-        const avanceId = await db.runTransaction(async (tx) => {
-          const obraSnap = await tx.get(obraRef);
-          if (!obraSnap.exists) {
-            throw new HttpsError("not-found", `La obra con ID ${obraId} no fue encontrada.`);
-          }
-
-          const avancesRef = obraRef.collection("avancesDiarios");
-          const nuevoAvanceRef = avancesRef.doc();
-
-          const avanceData = {
-            obraId,
-            actividadId: actividadId || null,
-            porcentajeAvance: porcentaje,
-            comentario: escapeHtml(comentario),
-            fotos,
-            visibleCliente,
-            fecha: FieldValue.serverTimestamp(),
-            creadoPor: { uid, displayName: escapeHtml(displayName) },
-          };
-          tx.set(nuevoAvanceRef, avanceData);
-
-          if (porcentaje > 0) {
+        if (porcentaje > 0) {
             const currentData = obraSnap.data() || {};
             const avancePrevio = Number(currentData.avanceAcumulado || 0);
             const totalActividades = Number(currentData.totalActividades || 1); // Evitar división por cero
@@ -99,23 +85,21 @@ export const registrarAvanceRapido = functions
             } else {
                 tx.update(obraRef, { ultimaActualizacion: FieldValue.serverTimestamp() });
             }
-
-          } else {
-            tx.update(obraRef, { ultimaActualizacion: FieldValue.serverTimestamp() });
-          }
-
-          return nuevoAvanceRef.id;
-        });
-
-        res.status(200).json({ ok: true, id: avanceId });
-
-      } catch (error: any) {
-        logger.error("Error en registrarAvanceRapido:", error);
-        if (error instanceof HttpsError) {
-            res.status(error.httpErrorCode.status).json({ ok: false, error: error.code, details: error.message });
         } else {
-            res.status(500).json({ ok: false, error: "INTERNAL_SERVER_ERROR", details: error.message });
+          tx.update(obraRef, { ultimaActualizacion: FieldValue.serverTimestamp() });
         }
+
+        return nuevoAvanceRef.id;
+      });
+
+      return { ok: true, id: avanceId };
+
+    } catch (error: any) {
+      logger.error("Error en registrarAvanceRapido:", error);
+      if (error instanceof HttpsError) {
+          throw error;
       }
-    });
-  });
+      throw new HttpsError("internal", "Ocurrió un error inesperado al registrar el avance.", error.message);
+    }
+  }
+);
