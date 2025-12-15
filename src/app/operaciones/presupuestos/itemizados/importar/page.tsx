@@ -127,11 +127,16 @@ export default function ImportarItemizadoPage() {
         }
 
         try {
+            console.log(`Polling job status for ID: ${jobId}`);
             const res = await fetch(`/api/itemizados/importar/${jobId}`);
+            
             if (!res.ok) {
                 console.warn(`Polling failed with status: ${res.status}`);
-                // Si la API de estado falla, asumimos un error temporal y continuamos intentando.
-                // Si persiste, el timeout global lo capturará.
+                // Si la API de estado falla, asumimos un error y paramos el sondeo.
+                setError(`Error al consultar el estado del trabajo (status: ${res.status}).`);
+                setStatus('error');
+                setJobId(null);
+                clearInterval(interval);
                 return;
             }
             
@@ -150,7 +155,10 @@ export default function ImportarItemizadoPage() {
             }
         } catch (err) {
             console.error("Error during polling:", err);
-            // En caso de un error de red, seguimos intentando hasta el timeout.
+            setError("Error de red al consultar el estado del trabajo.");
+            setStatus('error');
+            setJobId(null);
+            clearInterval(interval);
         }
     }, POLLING_INTERVAL);
 
@@ -213,7 +221,7 @@ export default function ImportarItemizadoPage() {
         const body = await response.json();
         console.log("POST response:", { status: response.status, body });
         
-        if (response.status !== 202 || !body.jobId) {
+        if (!response.ok || !body.jobId) {
             throw new Error(body.error || `Error del servidor: ${response.statusText}`);
         }
         
@@ -238,10 +246,7 @@ export default function ImportarItemizadoPage() {
   const isFileLarge = pdfFile && pdfFile.size > WARNING_FILE_SIZE_MB * 1024 * 1024;
 
   const renderStatus = () => {
-    if (status === 'queued') {
-        return <div className="text-center py-8 space-y-4"><Clock className="h-10 w-10 mx-auto text-primary" /><p className="text-sm font-medium text-primary">El análisis está en cola...</p><p className="text-xs text-muted-foreground/80">El trabajo comenzará pronto.</p></div>;
-    }
-    if (status === 'processing') {
+    if (isLoading) {
         return <div className="text-center py-8 space-y-4"><Loader2 className="h-10 w-10 mx-auto animate-spin text-primary" /><p className="text-sm font-medium text-primary">Procesando el documento...</p><p className="text-xs text-muted-foreground/80">(Esto puede tardar varios minutos)</p></div>;
     }
     if (status === 'error') {
