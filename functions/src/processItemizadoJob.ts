@@ -1,13 +1,23 @@
+
 // functions/src/processItemizadoJob.ts
 import { onDocumentCreated } from "firebase-functions/v2/firestore";
 import * as logger from "firebase-functions/logger";
-import { serverTimestamp } from "firebase-admin/firestore";
+import { FieldValue } from "firebase-admin/firestore";
 import { initializeApp, getApps } from "firebase-admin/app";
+import { z } from "zod";
 
 // Inicializar Firebase Admin SDK si no se ha hecho
 if (getApps().length === 0) {
   initializeApp();
 }
+
+// Tipo plano para evitar errores de instanciación de tipos de Zod
+type ProcessItemizadoJobPayload = {
+  pdfDataUri: string;
+  obraId: string;
+  obraNombre: string;
+  notas?: string;
+};
 
 export const processItemizadoJob = onDocumentCreated(
   {
@@ -19,9 +29,7 @@ export const processItemizadoJob = onDocumentCreated(
   },
   async (event) => {
     // --- Carga diferida (Lazy Load) de Genkit y sus dependencias ---
-    // Esto se ejecuta solo cuando la función está en la nube, no durante el deploy.
     const { ai } = await import("./genkit-config");
-    const { z } = await import('zod');
     const { ItemizadoImportOutputSchema } = await import('./types/itemizados-import');
 
     const { jobId } = event.params;
@@ -53,8 +61,7 @@ export const processItemizadoJob = onDocumentCreated(
         obraNombre: z.string(),
         notas: z.string().optional(),
       });
-      type ImportarItemizadoInput = z.infer<typeof ImportarItemizadoInputSchema>;
-
+      
       // Definir el prompt y el flow aquí, para que solo se registren en runtime.
       const importarItemizadoPrompt = ai.definePrompt(
         {
@@ -102,19 +109,15 @@ export const processItemizadoJob = onDocumentCreated(
       );
 
       // 2. Validar los datos de entrada del documento
-      const parsedInput = ImportarItemizadoInputSchema.safeParse(jobData);
-      if (!parsedInput.success) {
-        throw new Error(`Los datos del trabajo son inválidos: ${JSON.stringify(parsedInput.error.flatten())}`);
-      }
-      const { pdfDataUri, obraId, obraNombre, notas } = parsedInput.data;
+      const parsedInput = ImportarItemizadoInputSchema.parse(jobData) as ProcessItemizadoJobPayload;
       
       // 3. Ejecutar el flujo de Genkit para el análisis de IA
-      logger.info(`[${jobId}] Llamando al flujo de Genkit para la obra ${obraNombre}...`);
+      logger.info(`[${jobId}] Llamando al flujo de Genkit para la obra ${parsedInput.obraNombre}...`);
       const analisisResult = await importarItemizadoFlow({
-          pdfDataUri,
-          obraId,
-          obraNombre,
-          notas: notas || "Analizar el itemizado completo."
+          pdfDataUri: parsedInput.pdfDataUri,
+          obraId: parsedInput.obraId,
+          obraNombre: parsedInput.obraNombre,
+          notas: parsedInput.notas || "Analizar el itemizado completo."
       });
 
       // 4. Guardar el resultado exitoso en Firestore
@@ -122,7 +125,7 @@ export const processItemizadoJob = onDocumentCreated(
       await jobRef.update({
         status: "done",
         result: analisisResult,
-        processedAt: serverTimestamp(),
+        processedAt: FieldValue.serverTimestamp(),
       });
       logger.info(`[${jobId}] Trabajo completado y guardado.`);
 
@@ -133,8 +136,10 @@ export const processItemizadoJob = onDocumentCreated(
       await jobRef.update({
         status: "error",
         errorMessage: error.message || "Ocurrió un error desconocido durante el análisis.",
-        processedAt: serverTimestamp(),
+        processedAt: FieldValue.serverTimestamp(),
       });
     }
   }
 );
+
+    
