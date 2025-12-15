@@ -1,7 +1,7 @@
 // functions/src/processItemizadoJob.ts
 import { onDocumentCreated } from "firebase-functions/v2/firestore";
 import * as logger from "firebase-functions/logger";
-import { getFirestore, serverTimestamp } from "firebase-admin/firestore";
+import { serverTimestamp } from "firebase-admin/firestore";
 import { initializeApp, getApps } from "firebase-admin/app";
 import { ai } from "./genkit-config";
 import { ItemizadoImportOutputSchema } from './types/itemizados-import';
