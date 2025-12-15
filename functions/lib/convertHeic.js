@@ -38,7 +38,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.convertHeicToJpg = void 0;
-const functions = __importStar(require("firebase-functions"));
+const storage_1 = require("firebase-functions/v2/storage");
 const admin = __importStar(require("firebase-admin"));
 const path = __importStar(require("path"));
 const os = __importStar(require("os"));
@@ -51,13 +51,13 @@ if (!admin.apps.length) {
     admin.initializeApp();
 }
 const storage = admin.storage();
-exports.convertHeicToJpg = functions.region("southamerica-west1")
-    .storage
-    .object()
-    .onFinalize(async (object) => {
-    const filePath = object.name;
-    const contentType = object.contentType;
-    const bucket = storage.bucket(object.bucket);
+exports.convertHeicToJpg = (0, storage_1.onObjectFinalized)({
+    region: "southamerica-west1",
+    cpu: 1,
+    memory: "512MiB",
+}, async (event) => {
+    const { bucket, name: filePath, contentType } = event.data;
+    const storageBucket = storage.bucket(bucket);
     if (!filePath) {
         logger.warn('File path is undefined.');
         return null;
@@ -82,7 +82,7 @@ exports.convertHeicToJpg = functions.region("southamerica-west1")
     const tempJpgPath = path.join(os.tmpdir(), jpgFileName);
     const finalJpgPath = path.join(fileDir, jpgFileName);
     try {
-        await bucket.file(filePath).download({ destination: tempFilePath });
+        await storageBucket.file(filePath).download({ destination: tempFilePath });
         logger.log(`Downloaded HEIC file to: ${tempFilePath}`);
         const inputBuffer = fs.readFileSync(tempFilePath);
         const outputBuffer = await (0, heic_convert_1.default)({
@@ -94,17 +94,17 @@ exports.convertHeicToJpg = functions.region("southamerica-west1")
             .jpeg({ quality: 90 })
             .toFile(tempJpgPath);
         logger.log(`Converted HEIC to JPG at: ${tempJpgPath}`);
-        await bucket.upload(tempJpgPath, {
+        await storageBucket.upload(tempJpgPath, {
             destination: finalJpgPath,
             metadata: {
                 contentType: 'image/jpeg',
-                metadata: object.metadata,
+                metadata: event.data.metadata,
             },
         });
         logger.log(`Uploaded JPG file to: ${finalJpgPath}`);
         fs.unlinkSync(tempFilePath);
         fs.unlinkSync(tempJpgPath);
-        await bucket.file(filePath).delete();
+        await storageBucket.file(filePath).delete();
         logger.log(`Deleted original HEIC file: ${filePath}`);
         return `Successfully converted ${filePath} to ${finalJpgPath}`;
     }
