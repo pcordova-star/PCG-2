@@ -1,10 +1,16 @@
 // functions/src/processItemizadoJob.ts
 import { onDocumentCreated } from "firebase-functions/v2/firestore";
 import * as logger from "firebase-functions/logger";
-import { getFirestore } from "firebase-admin/firestore";
-import { ai } from "./genkit-config"; // Configuración centralizada de Genkit
-import { ItemizadoImportOutputSchema, ItemizadoImportOutput } from './types/itemizados-import'; // Tipos compartidos
+import { getFirestore, serverTimestamp } from "firebase-admin/firestore";
+import { initializeApp, getApps } from "firebase-admin/app";
+import { ai } from "./genkit-config";
+import { ItemizadoImportOutputSchema } from './types/itemizados-import';
 import { z } from 'zod';
+
+// Inicializar Firebase Admin SDK si no se ha hecho
+if (getApps().length === 0) {
+  initializeApp();
+}
 
 // Esquema de entrada que espera la función de IA
 const ImportarItemizadoInputSchema = z.object({
@@ -67,9 +73,9 @@ export const processItemizadoJob = onDocumentCreated(
   {
     document: "itemizadoImportJobs/{jobId}",
     region: "southamerica-west1",
-    cpu: 1, // CPU base, puede requerir más para PDFs complejos
+    cpu: 1,
     memory: "512MiB",
-    timeoutSeconds: 540, // 9 minutos, máximo para Gen2
+    timeoutSeconds: 540,
   },
   async (event) => {
     const { jobId } = event.params;
@@ -81,6 +87,12 @@ export const processItemizadoJob = onDocumentCreated(
 
     const jobData = snapshot.data();
     const jobRef = snapshot.ref;
+    
+    // GUARD: Evitar dobles ejecuciones
+    if (jobData.status !== 'queued') {
+      logger.info(`[${jobId}] El trabajo no está en estado 'queued' (estado actual: ${jobData.status}). Ignorando.`);
+      return;
+    }
     
     logger.info(`[${jobId}] Nuevo trabajo de importación recibido. Iniciando procesamiento...`);
 
@@ -97,7 +109,7 @@ export const processItemizadoJob = onDocumentCreated(
       
       // 3. Ejecutar el flujo de Genkit para el análisis de IA
       logger.info(`[${jobId}] Llamando al flujo de Genkit para la obra ${obraNombre}...`);
-      const analisisResult: ItemizadoImportOutput = await importarItemizadoFlow({
+      const analisisResult = await importarItemizadoFlow({
           pdfDataUri,
           obraId,
           obraNombre,
