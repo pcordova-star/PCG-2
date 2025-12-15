@@ -186,7 +186,7 @@ export default function ImportarItemizadoPage() {
         return;
     }
 
-    setStatus('queued');
+    setStatus('queued'); // Muestra feedback de "En cola" inmediatamente
     setError(null);
     setResultado(null);
     setJobId(null);
@@ -203,35 +203,30 @@ export default function ImportarItemizadoPage() {
 
         const response = await fetch('/api/itemizados/importar', {
             method: 'POST',
-            redirect: "manual",
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(input),
         });
         
-        const contentType = response.headers.get("content-type") || "";
-        const raw = await response.text();
+        const body = await response.json();
         
-        let body: any = null;
-        if (contentType.includes("application/json")) {
-          try {
-            body = JSON.parse(raw);
-          } catch (e) {
-            console.error("Failed to parse JSON response", raw);
-            throw new Error("Respuesta inválida del servidor.");
-          }
+        if (response.status !== 202) {
+            throw new Error(body.error || `Error del servidor: ${response.statusText}`);
         }
         
-        if (!response.ok || response.status !== 202) {
-            const msg = body?.error || raw?.slice(0, 500) || "Error desconocido al iniciar el trabajo de importación.";
-            throw new Error(msg);
-        }
-        
+        // Si la respuesta es exitosa (202), iniciamos el polling.
         setJobId(body.jobId);
+        setStatus('processing');
 
     } catch (err: any) {
         console.error("Error al iniciar la importación:", err);
-        setError(err.message || "Ocurrió un error desconocido.");
-        setStatus('error');
+        const errorMessage = err.message || "Ocurrió un error desconocido al contactar con el servidor.";
+        setError(errorMessage);
+        setStatus('error'); // Actualizamos el estado para reflejar el error
+        toast({
+            variant: "destructive",
+            title: "Error al iniciar análisis",
+            description: errorMessage
+        });
     }
   };
   
@@ -290,5 +285,3 @@ export default function ImportarItemizadoPage() {
     </div>
   );
 }
-
-    
