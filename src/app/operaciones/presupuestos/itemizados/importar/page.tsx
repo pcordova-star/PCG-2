@@ -129,8 +129,9 @@ export default function ImportarItemizadoPage() {
         try {
             const res = await fetch(`/api/itemizados/importar/${jobId}`);
             if (!res.ok) {
-                // Si la API de estado falla, seguimos intentando un poco más
                 console.warn(`Polling failed with status: ${res.status}`);
+                // Si la API de estado falla, asumimos un error temporal y continuamos intentando.
+                // Si persiste, el timeout global lo capturará.
                 return;
             }
             
@@ -149,6 +150,7 @@ export default function ImportarItemizadoPage() {
             }
         } catch (err) {
             console.error("Error during polling:", err);
+            // En caso de un error de red, seguimos intentando hasta el timeout.
         }
     }, POLLING_INTERVAL);
 
@@ -186,7 +188,7 @@ export default function ImportarItemizadoPage() {
         return;
     }
 
-    setStatus('queued'); // Muestra feedback de "En cola" inmediatamente
+    setStatus('queued');
     setError(null);
     setResultado(null);
     setJobId(null);
@@ -209,11 +211,10 @@ export default function ImportarItemizadoPage() {
         
         const body = await response.json();
         
-        if (response.status !== 202) {
+        if (response.status !== 202 || !body.jobId) {
             throw new Error(body.error || `Error del servidor: ${response.statusText}`);
         }
         
-        // Si la respuesta es exitosa (202), iniciamos el polling.
         setJobId(body.jobId);
         setStatus('processing');
 
@@ -221,7 +222,7 @@ export default function ImportarItemizadoPage() {
         console.error("Error al iniciar la importación:", err);
         const errorMessage = err.message || "Ocurrió un error desconocido al contactar con el servidor.";
         setError(errorMessage);
-        setStatus('error'); // Actualizamos el estado para reflejar el error
+        setStatus('error');
         toast({
             variant: "destructive",
             title: "Error al iniciar análisis",

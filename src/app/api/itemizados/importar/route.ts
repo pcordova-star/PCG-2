@@ -22,7 +22,7 @@ const ApiInputSchema = z.object({
 export async function POST(req: Request) {
   try {
     const body = await req.json();
-    console.log("Received body for import:", body);
+    console.log("Received body for import:", body ? "Body received" : "Body is null/undefined");
 
     // 1. Validar la entrada con Zod
     const validationResult = ApiInputSchema.safeParse(body);
