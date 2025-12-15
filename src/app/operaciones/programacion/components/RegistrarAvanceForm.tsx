@@ -3,7 +3,7 @@
 
 import React, { useState, useEffect, useMemo } from 'react';
 import { useAuth } from '@/context/AuthContext';
-import { firebaseFunctions } from '@/lib/firebaseClient';
+import { firebaseFunctions, firebaseStorage } from '@/lib/firebaseClient';
 import { httpsCallable } from 'firebase/functions';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { Button } from '@/components/ui/button';
@@ -16,7 +16,6 @@ import { useToast } from '@/hooks/use-toast';
 import { ActividadProgramada, Obra } from '../page';
 import { useActividadAvance } from '../hooks/useActividadAvance';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { firebaseStorage } from '@/lib/firebaseClient';
 
 type RegistrarAvanceFormProps = {
   obraId?: string;
