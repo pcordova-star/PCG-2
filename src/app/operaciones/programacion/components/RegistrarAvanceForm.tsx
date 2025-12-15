@@ -4,7 +4,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { firebaseFunctions, firebaseStorage } from '@/lib/firebaseClient';
-import { httpsCallable } from 'firebase/functions';
+import { httpsCallable, FirebaseError } from 'firebase/functions';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
@@ -16,6 +16,23 @@ import { useToast } from '@/hooks/use-toast';
 import { ActividadProgramada, Obra } from '../page';
 import { useActividadAvance } from '../hooks/useActividadAvance';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+
+// Tipos para la función callable
+type RegistrarAvanceInput = {
+  obraId: string;
+  actividadId: string;
+  porcentaje: number;
+  comentario: string;
+  fotos: string[];
+  visibleCliente: boolean;
+  fecha: string;
+};
+
+type RegistrarAvanceOutput = {
+  ok: boolean;
+  id: string;
+};
+
 
 type RegistrarAvanceFormProps = {
   obraId?: string;
@@ -115,8 +132,6 @@ export default function RegistrarAvanceForm({ obraId: initialObraId, obras = [],
       return;
     }
 
-    const registrarAvanceFn = httpsCallable(firebaseFunctions, 'registrarAvanceRapido');
-
     const avancesParaGuardar = Object.entries(cantidadesHoy).filter(([_, cant]) => cant > 0);
     if (avancesParaGuardar.length === 0) {
       setError('No hay cantidades para registrar. Ingresa un valor en "Cantidad de Hoy" para al menos una actividad.');
@@ -125,6 +140,8 @@ export default function RegistrarAvanceForm({ obraId: initialObraId, obras = [],
 
     setIsSaving(true);
     setError(null);
+    
+    const registrarAvanceFn = httpsCallable<RegistrarAvanceInput, RegistrarAvanceOutput>(firebaseFunctions, 'registrarAvanceRapido');
 
     try {
       for (const [actividadId, cantidadHoy] of avancesParaGuardar) {
@@ -165,9 +182,15 @@ export default function RegistrarAvanceForm({ obraId: initialObraId, obras = [],
       resetFormStates();
 
     } catch (err: any) {
-      console.error("Error al registrar el avance:", err);
-      setError(err.message);
-      toast({ variant: "destructive", title: "Error de validación", description: err.message });
+        let errorMessage = "Ocurrió un error inesperado al registrar el avance.";
+        if (err instanceof FirebaseError) {
+            errorMessage = err.message;
+            console.error("Error de Firebase Functions:", err.code, err.details);
+        } else {
+            console.error("Error al registrar avance:", err);
+        }
+        setError(errorMessage);
+        toast({ variant: "destructive", title: "Error al registrar", description: errorMessage });
     } finally {
       setIsSaving(false);
     }
