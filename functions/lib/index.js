@@ -1,4 +1,5 @@
 "use strict";
+// redeploy: 2025-12-15
 // src/functions/src/index.ts
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.getSecureDownloadUrl = exports.processItemizadoJob = exports.notifyDocumentDistribution = exports.convertHeicToJpg = exports.registrarAvanceRapido = exports.setSuperAdminClaim = exports.createCompanyUser = void 0;
