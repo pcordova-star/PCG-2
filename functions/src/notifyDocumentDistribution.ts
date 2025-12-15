@@ -1,5 +1,5 @@
 // functions/src/notifyDocumentDistribution.ts
-import * as functions from "firebase-functions";
+import { onCall, HttpsError } from "firebase-functions/v2/https";
 import * as admin from "firebase-admin";
 import { z } from "zod";
 import * as logger from "firebase-functions/logger";
@@ -22,18 +22,20 @@ const NotifyDocumentSchema = z.object({
   email: z.string().email(),
 });
 
-export const notifyDocumentDistribution = functions.region("southamerica-west1").https.onCall(async (data, context) => {
+export const notifyDocumentDistribution = onCall(
+  { region: "southamerica-west1", cors: true },
+  async (request) => {
     // 1. Autenticación y autorización (básica)
-    if (!context.auth) {
-      throw new functions.https.HttpsError("unauthenticated", "El usuario no está autenticado.");
+    if (!request.auth) {
+      throw new HttpsError("unauthenticated", "El usuario no está autenticado.");
     }
     // Podrías agregar una validación de rol si es necesario
-    // const uid = context.auth.uid;
+    // const uid = request.auth.uid;
 
     // 2. Validación de datos de entrada
-    const parsed = NotifyDocumentSchema.safeParse(data);
+    const parsed = NotifyDocumentSchema.safeParse(request.data);
     if (!parsed.success) {
-      throw new functions.https.HttpsError(
+      throw new HttpsError(
         "invalid-argument",
         "Los datos proporcionados son inválidos.",
         parsed.error.flatten()
@@ -55,7 +57,7 @@ export const notifyDocumentDistribution = functions.region("southamerica-west1")
       const projectDocSnap = await projectDocRef.get();
 
       if (!projectDocSnap.exists) {
-        throw new functions.https.HttpsError("not-found", "El documento del proyecto no fue encontrado.");
+        throw new HttpsError("not-found", "El documento del proyecto no fue encontrado.");
       }
       const projectDocument = projectDocSnap.data() as { name: string; code: string };
 
@@ -105,10 +107,10 @@ export const notifyDocumentDistribution = functions.region("southamerica-west1")
 
     } catch (error: any) {
       logger.error("Error en notifyDocumentDistribution:", error);
-      if (error instanceof functions.https.HttpsError) {
+      if (error instanceof HttpsError) {
         throw error;
       }
-      throw new functions.https.HttpsError("internal", "Ocurrió un error inesperado al procesar la distribución.", error.message);
+      throw new HttpsError("internal", "Ocurrió un error inesperado al procesar la distribución.", error.message);
     }
   }
 );

@@ -37,8 +37,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.registrarAvanceRapido = void 0;
-const functions = __importStar(require("firebase-functions"));
-const https_1 = require("firebase-functions/v1/https");
+const https_1 = require("firebase-functions/v2/https");
 const logger = __importStar(require("firebase-functions/logger"));
 const firestore_1 = require("firebase-admin/firestore");
 const zod_1 = require("zod");
@@ -60,9 +59,13 @@ const AvanceSchema = zod_1.z.object({
 function escapeHtml(s) {
     return s.replace(/[&<>"']/g, (m) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[m]));
 }
-exports.registrarAvanceRapido = functions
-    .region("southamerica-west1")
-    .https.onRequest((req, res) => {
+exports.registrarAvanceRapido = (0, https_1.onRequest)({
+    region: "southamerica-west1",
+    cpu: 1,
+    memory: "256MiB",
+    timeoutSeconds: 60,
+    cors: true
+}, (req, res) => {
     corsHandler(req, res, async () => {
         if (req.method === "OPTIONS") {
             res.status(204).send("");

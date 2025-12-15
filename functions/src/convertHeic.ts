@@ -1,6 +1,6 @@
 // functions/src/convertHeic.ts
 
-import * as functions from 'firebase-functions';
+import { onObjectFinalized } from "firebase-functions/v2/storage";
 import * as admin from 'firebase-admin';
 import * as path from 'path';
 import * as os from 'os';
@@ -17,13 +17,15 @@ if (!admin.apps.length) {
 
 const storage = admin.storage();
 
-export const convertHeicToJpg = functions.region("southamerica-west1")
-  .storage
-  .object()
-  .onFinalize(async (object) => {
-    const filePath = object.name;
-    const contentType = object.contentType;
-    const bucket = storage.bucket(object.bucket);
+export const convertHeicToJpg = onObjectFinalized(
+  {
+    region: "southamerica-west1",
+    cpu: 1,
+    memory: "512MiB",
+  },
+  async (event) => {
+    const { bucket, name: filePath, contentType } = event.data;
+    const storageBucket = storage.bucket(bucket);
 
     if (!filePath) {
       logger.warn('File path is undefined.');
@@ -56,7 +58,7 @@ export const convertHeicToJpg = functions.region("southamerica-west1")
     const finalJpgPath = path.join(fileDir, jpgFileName);
 
     try {
-      await bucket.file(filePath).download({ destination: tempFilePath });
+      await storageBucket.file(filePath).download({ destination: tempFilePath });
       logger.log(`Downloaded HEIC file to: ${tempFilePath}`);
 
       const inputBuffer = fs.readFileSync(tempFilePath);
@@ -72,11 +74,11 @@ export const convertHeicToJpg = functions.region("southamerica-west1")
 
       logger.log(`Converted HEIC to JPG at: ${tempJpgPath}`);
 
-      await bucket.upload(tempJpgPath, {
+      await storageBucket.upload(tempJpgPath, {
         destination: finalJpgPath,
         metadata: {
           contentType: 'image/jpeg',
-          metadata: object.metadata,
+          metadata: event.data.metadata,
         },
       });
       logger.log(`Uploaded JPG file to: ${finalJpgPath}`);
@@ -84,7 +86,7 @@ export const convertHeicToJpg = functions.region("southamerica-west1")
       fs.unlinkSync(tempFilePath);
       fs.unlinkSync(tempJpgPath);
 
-      await bucket.file(filePath).delete();
+      await storageBucket.file(filePath).delete();
       logger.log(`Deleted original HEIC file: ${filePath}`);
       
       return `Successfully converted ${filePath} to ${finalJpgPath}`;
@@ -95,4 +97,5 @@ export const convertHeicToJpg = functions.region("southamerica-west1")
       if (fs.existsSync(tempJpgPath)) fs.unlinkSync(tempJpgPath);
       return null;
     }
-  });
+  }
+);
