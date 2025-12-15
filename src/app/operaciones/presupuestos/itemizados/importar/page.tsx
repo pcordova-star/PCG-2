@@ -127,13 +127,13 @@ export default function ImportarItemizadoPage() {
         }
 
         try {
-            console.log(`Polling job status for ID: ${jobId}`);
-            const res = await fetch(`/api/itemizados/importar/${jobId}`);
+            const url = `/api/itemizados/importar?jobId=${encodeURIComponent(jobId)}`;
+            console.log("Polling URL:", url);
+            const res = await fetch(url);
             
             if (!res.ok) {
-                console.warn(`Polling failed with status: ${res.status}`);
-                // Si la API de estado falla, asumimos un error y paramos el sondeo.
-                setError(`Error al consultar el estado del trabajo (status: ${res.status}).`);
+                const errorData = await res.json();
+                setError(errorData.error || `Error al consultar el estado del trabajo (status: ${res.status}).`);
                 setStatus('error');
                 setJobId(null);
                 clearInterval(interval);

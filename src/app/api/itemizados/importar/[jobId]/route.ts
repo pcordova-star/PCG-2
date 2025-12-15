@@ -17,6 +17,10 @@ type GetParams = {
 export async function GET(request: Request, { params }: GetParams) {
   const { jobId } = params;
 
+  // Logging para diagnóstico
+  console.log("GET [dynamic route] status params.jobId:", params?.jobId);
+  console.log("GET [dynamic route] request URL:", request.url);
+
   if (!jobId) {
     return NextResponse.json({ error: 'jobId es requerido' }, { status: 400 });
   }
