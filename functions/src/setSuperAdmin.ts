@@ -1,4 +1,4 @@
-import * as functions from "firebase-functions";
+import { onCall, HttpsError } from "firebase-functions/v2/https";
 import * as admin from "firebase-admin";
 
 if (!admin.apps.length) {
@@ -10,15 +10,22 @@ if (!admin.apps.length) {
  * Esta función es de un solo uso o para mantenimiento y debe ser invocada manually
  * por un desarrollador con acceso a la consola de Firebase.
  */
-export const setSuperAdminClaim = functions.region("southamerica-west1").https.onCall(async (data, context) => {
+export const setSuperAdminClaim = onCall(
+  {
+    region: "southamerica-west1",
+    cpu: 1,
+    memory: "256MiB",
+    cors: true
+  },
+  async (request) => {
     // Nota: Para esta función específica, no se valida el rol del invocador,
     // ya que está diseñada para la configuración inicial.
     // En un entorno de producción, se podría agregar una capa de seguridad
     // como verificar si el invocador es el dueño del proyecto.
 
-    const email = data.email;
+    const email = request.data.email;
     if (!email || typeof email !== "string") {
-      throw new functions.https.HttpsError(
+      throw new HttpsError(
         "invalid-argument",
         "Se requiere un 'email' en el cuerpo de la solicitud."
       );
@@ -52,13 +59,13 @@ export const setSuperAdminClaim = functions.region("southamerica-west1").https.o
       };
     } catch (error: any) {
       if (error.code === "auth/user-not-found") {
-        throw new functions.https.HttpsError(
+        throw new HttpsError(
           "not-found",
           `No se encontró ningún usuario con el email: ${email}`
         );
       }
       console.error("Error al asignar SUPER_ADMIN:", error);
-      throw new functions.https.HttpsError(
+      throw new HttpsError(
         "internal",
         "Ocurrió un error inesperado al procesar la solicitud.",
         error.message

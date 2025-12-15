@@ -1,5 +1,4 @@
-import * as functions from "firebase-functions";
-import { HttpsError } from "firebase-functions/v1/https";
+import { HttpsError, onRequest } from "firebase-functions/v2/https";
 import * as logger from "firebase-functions/logger";
 import { getFirestore, FieldValue } from "firebase-admin/firestore";
 import { z } from "zod";
@@ -25,9 +24,15 @@ function escapeHtml(s: string): string {
   return s.replace(/[&<>"']/g, (m) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[m]!));
 }
 
-export const registrarAvanceRapido = functions
-  .region("southamerica-west1")
-  .https.onRequest((req, res) => {
+export const registrarAvanceRapido = onRequest(
+  {
+    region: "southamerica-west1",
+    cpu: 1,
+    memory: "256MiB",
+    timeoutSeconds: 60,
+    cors: true
+  },
+  (req, res) => {
     corsHandler(req, res, async () => {
       if (req.method === "OPTIONS") {
         res.status(204).send("");
