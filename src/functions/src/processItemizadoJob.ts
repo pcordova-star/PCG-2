@@ -29,7 +29,6 @@ export const processItemizadoJob = onDocumentCreated(
   async (event) => {
     // --- Carga diferida (Lazy Load) de Genkit y sus dependencias ---
     const { ai } = await import("./genkit-config");
-    // El schema de salida se elimina para evitar errores de compilación de TS
 
     const { jobId } = event.params;
     const snapshot = event.data;
@@ -67,7 +66,7 @@ export const processItemizadoJob = onDocumentCreated(
           name: 'importarItemizadoPrompt',
           model: 'googleai/gemini-2.5-flash',
           input: { schema: ImportarItemizadoInputSchema },
-          // Se elimina el output schema para evitar error de compilación de TS
+          // ELIMINADO: output: { schema: ItemizadoImportOutputSchema },
           prompt: `Eres un asistente experto en análisis de presupuestos de construcción. Tu tarea es interpretar un presupuesto (en formato PDF) y extraer los capítulos y todas las partidas/subpartidas en una estructura plana.
       
       Debes seguir estas reglas estrictamente:
@@ -94,7 +93,7 @@ export const processItemizadoJob = onDocumentCreated(
         {
           name: 'importarItemizadoCloudFunctionFlow',
           inputSchema: ImportarItemizadoInputSchema,
-          // Se elimina el output schema para evitar error de compilación de TS
+          // ELIMINADO: outputSchema: ItemizadoImportOutputSchema,
         },
         async (input) => {
           logger.info("[Genkit Flow] Iniciando análisis de itemizado...");
@@ -103,7 +102,7 @@ export const processItemizadoJob = onDocumentCreated(
             throw new Error("La IA no devolvió una respuesta válida para el itemizado.");
           }
           logger.info("[Genkit Flow] Análisis completado con éxito.");
-          return output; // El tipo de salida es 'any'
+          return output;
         }
       );
 
@@ -123,7 +122,7 @@ export const processItemizadoJob = onDocumentCreated(
       logger.info(`[${jobId}] El análisis de IA fue exitoso. Guardando resultados...`);
       await jobRef.update({
         status: "done",
-        result: analisisResult, // Se guarda el resultado 'any'
+        result: analisisResult,
         processedAt: FieldValue.serverTimestamp(),
       });
       logger.info(`[${jobId}] Trabajo completado y guardado.`);
