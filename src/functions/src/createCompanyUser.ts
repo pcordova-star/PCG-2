@@ -21,7 +21,7 @@ function buildAcceptInviteUrl(invId: string, email: string): string {
 
 
 export const createCompanyUser = onCall(
-  { region: "southamerica-west1", cors: true },
+  { cors: true }, // La región y SA se heredan de setGlobalOptions
   async (request) => {
     const auth = admin.auth();
     const db = admin.firestore();
