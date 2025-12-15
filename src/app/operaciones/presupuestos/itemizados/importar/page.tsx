@@ -203,6 +203,7 @@ export default function ImportarItemizadoPage() {
             notas: "Analizar el itemizado completo.",
         };
 
+        console.log("POST start: /api/itemizados/importar");
         const response = await fetch('/api/itemizados/importar', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -210,11 +211,13 @@ export default function ImportarItemizadoPage() {
         });
         
         const body = await response.json();
+        console.log("POST response:", { status: response.status, body });
         
         if (response.status !== 202 || !body.jobId) {
             throw new Error(body.error || `Error del servidor: ${response.statusText}`);
         }
         
+        console.log("JobId recibido:", body.jobId);
         setJobId(body.jobId);
         setStatus('processing');
 
