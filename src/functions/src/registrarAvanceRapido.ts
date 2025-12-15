@@ -1,3 +1,4 @@
+// functions/src/registrarAvanceRapido.ts
 import { onCall, HttpsError } from "firebase-functions/v2/https";
 import * as logger from "firebase-functions/logger";
 import { getFirestore, FieldValue } from "firebase-admin/firestore";
@@ -25,7 +26,7 @@ export const registrarAvanceRapido = onCall(
     cors: true
   },
   async (request) => {
-    // 1. Autenticación (manejada automáticamente por onCall)
+    // 1. Autenticación (manejada automáticamente por onCall v2)
     if (!request.auth) {
       throw new HttpsError("unauthenticated", "El usuario no está autenticado.");
     }
