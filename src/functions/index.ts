@@ -13,7 +13,8 @@ if (getApps().length === 0) {
   initializeApp();
 }
 
-// Establece opciones globales para todas las funciones v2
+// Establece opciones globales para todas las funciones v2, asegurando la región
+// y la cuenta de servicio con permisos para acceder a secretos.
 setGlobalOptions({
   region: "southamerica-west1",
   serviceAccount: "pcg-functions-sa@pcg-2-8bf1b.iam.gserviceaccount.com"
@@ -28,4 +29,5 @@ export { registrarAvanceRapido } from "./registrarAvanceRapido";
 export { convertHeicToJpg } from "./convertHeic";
 export { notifyDocumentDistribution } from "./notifyDocumentDistribution";
 export { processItemizadoJob } from "./processItemizadoJob";
+// La siguiente línea está comentada porque el archivo de origen fue eliminado.
 // export { getSecureDownloadUrl } from "./secureDownload";

@@ -1,5 +1,5 @@
 // functions/src/registrarAvanceRapido.ts
-import { onCall, HttpsError } from "firebase-functions/v2/https";
+import { HttpsError } from "firebase-functions/v2/https";
 import * as functions from 'firebase-functions';
 import * as logger from "firebase-functions/logger";
 import { getFirestore, FieldValue } from "firebase-admin/firestore";
