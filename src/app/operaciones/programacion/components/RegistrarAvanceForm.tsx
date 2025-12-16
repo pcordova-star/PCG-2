@@ -4,7 +4,8 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { firebaseFunctions, firebaseStorage } from '@/lib/firebaseClient';
-import { httpsCallable, FirebaseError } from 'firebase/functions';
+import { httpsCallable } from 'firebase/functions';
+import type { FirebaseError } from 'firebase/app';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
@@ -180,11 +181,13 @@ export default function RegistrarAvanceForm({ obraId: initialObraId, obras = [],
 
     } catch (err: any) {
         let errorMessage = "Ocurrió un error inesperado al registrar el avance.";
-        if (err instanceof FirebaseError) {
-            errorMessage = err.message;
-            console.error("Error de Firebase Functions:", err.code, err.details);
+        const firebaseError = err as FirebaseError;
+        if (firebaseError.code) {
+            errorMessage = firebaseError.message;
+            console.error("Error de Firebase Functions:", firebaseError.code, firebaseError.details);
         } else {
             console.error("Error al registrar avance:", err);
+            errorMessage = err.message || errorMessage;
         }
         setError(errorMessage);
         toast({ variant: "destructive", title: "Error al registrar", description: errorMessage });
