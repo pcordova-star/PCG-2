@@ -1,15 +1,15 @@
 // src/app/cubicacion/analisis-planos/page.tsx
 "use client";
 
-import React, { useState, FormEvent, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Checkbox } from '@/components/ui/checkbox';
 import { useToast } from '@/hooks/use-toast';
-import { ArrowLeft, Loader2, Wand2, TableIcon, StickyNote, FileUp, Building, Droplets, Zap } from 'lucide-react';
+import { ArrowLeft, Loader2, Wand2, TableIcon, StickyNote, FileUp, Building, Droplets, Zap, Image as ImageIcon, File as FileIcon } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
@@ -17,6 +17,8 @@ import { Progress } from '@/components/ui/progress';
 import { motion } from 'framer-motion';
 import { useAuth } from '@/context/AuthContext';
 import { AnalisisPlanoOutput, AnalisisPlanoInput, OpcionesAnalisis } from '@/types/analisis-planos';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import PdfToImageUploader from '@/components/cubicacion/PdfToImageUploader';
 
 const progressSteps = [
   { percent: 0, text: "Iniciando conexión segura..." },
@@ -42,12 +44,8 @@ export default function AnalisisPlanosPage() {
   const { user, company } = useAuth();
   
   const [opciones, setOpciones] = useState<OpcionesAnalisis>({
-    superficieUtil: false,
-    m2Muros: false,
-    m2Losas: false,
-    m2Revestimientos: false,
-    instalacionesHidraulicas: false,
-    instalacionesElectricas: false,
+    superficieUtil: false, m2Muros: false, m2Losas: false,
+    m2Revestimientos: false, instalacionesHidraulicas: false, instalacionesElectricas: false,
   });
 
   const [planoFile, setPlanoFile] = useState<File | null>(null);
@@ -57,43 +55,27 @@ export default function AnalisisPlanosPage() {
   const [resultado, setResultado] = useState<AnalisisPlanoOutput | null>(null);
   const [errorAnalisis, setErrorAnalisis] = useState<string | null>(null);
 
-  // Estados para la barra de progreso animada
   const [progress, setProgress] = useState(0);
   const [progressText, setProgressText] = useState("Iniciando...");
 
   useEffect(() => {
     let timer: NodeJS.Timeout;
     if (cargando) {
-      setProgress(0);
-      setProgressText("Iniciando conexión...");
-
-      // Simula el progreso
-      const totalDuration = 45000; // 45 segundos para simular
+      setProgress(0); setProgressText("Iniciando conexión...");
+      const totalDuration = 45000;
       let currentTime = 0;
-
       const updateProgress = () => {
         const simulatedProgress = (currentTime / totalDuration) * 100;
-        
         const displayProgress = Math.min(simulatedProgress, 95);
         setProgress(displayProgress);
-
         const currentStep = progressSteps.slice().reverse().find(step => displayProgress >= step.percent);
-        if (currentStep) {
-            setProgressText(currentStep.text);
-        }
-
+        if (currentStep) { setProgressText(currentStep.text); }
         currentTime += 100;
-        if (displayProgress < 95) {
-          timer = setTimeout(updateProgress, 100 + Math.random() * 200);
-        }
+        if (displayProgress < 95) { timer = setTimeout(updateProgress, 100 + Math.random() * 200); }
       };
-
       timer = setTimeout(updateProgress, 100);
     }
-
-    return () => {
-      if (timer) clearTimeout(timer);
-    };
+    return () => { if (timer) clearTimeout(timer); };
   }, [cargando]);
 
   const handleCheckboxChange = (key: keyof OpcionesAnalisis) => {
@@ -103,32 +85,17 @@ export default function AnalisisPlanosPage() {
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
-      if (file.type.startsWith("application/pdf")) {
-        toast({
-          variant: 'destructive',
-          title: 'Formato no soportado (aún)',
-          description: 'Por ahora, el análisis de PDFs no está habilitado. Por favor, convierte tu plano a una imagen (JPG, PNG).',
-        });
-        e.target.value = ""; // Limpiar el input
-        return;
-      }
-      if (file.size > 10 * 1024 * 1024) { // Límite de 10MB
-        toast({
-          variant: 'destructive',
-          title: 'Archivo demasiado grande',
-          description: 'Por favor, sube un archivo de menos de 10MB.',
-        });
+      if (file.size > 10 * 1024 * 1024) {
+        toast({ variant: 'destructive', title: 'Archivo demasiado grande', description: 'Por favor, sube un archivo de menos de 10MB.' });
         return;
       }
       setPlanoFile(file);
     }
   };
   
-  const handleSubmit = async (event: React.FormEvent) => {
-    event.preventDefault();
-
-    if (!planoFile) {
-        setErrorAnalisis("Debes seleccionar un plano antes de iniciar el análisis.");
+  const handleSubmit = async (dataUri: string) => {
+    if (!dataUri) {
+        setErrorAnalisis("No se proporcionó una imagen para analizar.");
         return;
     }
 
@@ -137,10 +104,8 @@ export default function AnalisisPlanosPage() {
     setResultado(null);
 
     try {
-        const photoDataUri = await fileToDataUri(planoFile);
-
         const input: AnalisisPlanoInput = {
-            photoDataUri,
+            photoDataUri: dataUri,
             opciones,
             notas,
             obraId: company?.id ?? 'obra-desconocida',
@@ -167,69 +132,22 @@ export default function AnalisisPlanosPage() {
     } finally {
         setCargando(false);
     }
-};
-
- const handleMockTest = async () => {
-    setCargando(true);
-    setErrorAnalisis(null);
-    setResultado(null);
-
-    const mockBody = {
-      photoDataUri: "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8X8DwHwAFGwJ/lYEY1wAAAABJRU5ErkJggg==",
-      opciones: {
-        superficieUtil: true,
-        m2Muros: true,
-        m2Losas: true,
-        m2Revestimientos: true,
-        instalacionesHidraulicas: true,
-        instalacionesElectricas: true
-      },
-      notas: "TEST MOCK DE IA",
-      obraId: "mock-obra",
-      obraNombre: "Mock Obra"
-    };
-
-    try {
-      const response = await fetch('/api/analizar-plano', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(mockBody)
-      });
-      
-      const resultData = await response.json();
-
-      if (!response.ok) {
-        throw new Error(resultData.error || 'Error desconocido en la API.');
-      }
-      
-      setResultado(resultData as AnalisisPlanoOutput);
-
-    } catch (error: any) {
-      console.error("Error en el mock test:", error);
-      setErrorAnalisis(error.message);
-    } finally {
-      setCargando(false);
-    }
   };
 
-
-  const tipoElementoConfig: Record<string, { icon: React.ElementType, color: string }> = {
-    recinto: { icon: Building, color: 'text-blue-500' },
-    muro: { icon: Building, color: 'text-gray-500' },
-    losa: { icon: Building, color: 'text-gray-600' },
-    revestimiento: { icon: Building, color: 'text-purple-500' },
-    "instalaciones hidráulicas": { icon: Droplets, color: 'text-sky-500' },
-    "instalaciones eléctricas": { icon: Zap, color: 'text-yellow-500' },
-    "arquitectura": { icon: Building, color: 'text-orange-500'},
-    default: { icon: StickyNote, color: 'text-gray-400' },
+  const handleDirectImageSubmit = async (event: React.FormEvent) => {
+    event.preventDefault();
+    if (!planoFile) {
+        setErrorAnalisis("Debes seleccionar un archivo de imagen.");
+        return;
+    }
+    const dataUri = await fileToDataUri(planoFile);
+    handleSubmit(dataUri);
   }
 
   return (
     <div className="space-y-8">
       <header className="flex items-center gap-4">
-        <Button variant="outline" size="icon" onClick={() => router.back()}>
-          <ArrowLeft className="h-4 w-4" />
-        </Button>
+        <Button variant="outline" size="icon" onClick={() => router.back()}><ArrowLeft /></Button>
         <div>
           <h1 className="text-3xl font-bold tracking-tight">Análisis de planos con IA (beta)</h1>
           <p className="text-muted-foreground">Sube un plano, selecciona qué quieres analizar y deja que la IA te dé una cubicación de referencia.</p>
@@ -238,81 +156,63 @@ export default function AnalisisPlanosPage() {
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 items-start">
         <div className="space-y-6">
-            <form onSubmit={handleSubmit} className="space-y-6">
-                <Card>
-                    <CardHeader><CardTitle>1. Sube tu plano</CardTitle></CardHeader>
-                    <CardContent className="space-y-2">
-                    <Label htmlFor="plano-file">Archivo del plano (JPG, PNG, máx. 10MB)</Label>
-                    <Input id="plano-file" type="file" accept="image/jpeg, image/png" onChange={handleFileChange} />
-                    </CardContent>
-                </Card>
-                
-                <Card>
-                    <CardHeader><CardTitle>2. Selecciona qué analizar</CardTitle></CardHeader>
-                    <CardContent className="space-y-2">
-                        <div className="grid grid-cols-2 gap-4">
-                            {Object.keys(opciones).map(key => (
-                                <Label key={key} className="flex items-center gap-2 p-3 border rounded-md hover:bg-muted/50 cursor-pointer">
-                                    <Checkbox checked={opciones[key as keyof OpcionesAnalisis]} onCheckedChange={() => handleCheckboxChange(key as keyof OpcionesAnalisis)} />
-                                    <span>
-                                        {
-                                            {
-                                                superficieUtil: 'Superficie útil',
-                                                m2Muros: 'm² de Muros',
-                                                m2Losas: 'm² de Losas',
-                                                m2Revestimientos: 'm² de Revestimientos',
-                                                instalacionesHidraulicas: 'Inst. Hidráulicas',
-                                                instalacionesElectricas: 'Inst. Eléctricas'
-                                            }[key]
-                                        }
-                                    </span>
-                                </Label>
-                            ))}
-                        </div>
-                    </CardContent>
-                </Card>
-
-                <Card>
-                    <CardHeader><CardTitle>3. Notas adicionales (opcional)</CardTitle></CardHeader>
-                    <CardContent>
-                    <Textarea
-                        placeholder="Ej: La altura de piso a cielo es 2.4m. La escala del plano es 1:50. Considerar solo el Nivel 1."
-                        value={notas}
-                        onChange={e => setNotas(e.target.value)}
-                    />
-                    </CardContent>
-                </Card>
-
-                <Button type="submit" size="lg" className="w-full" disabled={cargando}>
-                    {cargando ? <Loader2 className="mr-2 h-5 w-5 animate-spin" /> : <Wand2 className="mr-2 h-5 w-5" />}
-                    {cargando ? 'Analizando plano...' : 'Iniciar Análisis con IA'}
-                </Button>
-            </form>
+            <Card>
+                <CardHeader><CardTitle>1. Sube tu plano</CardTitle></CardHeader>
+                <CardContent>
+                    <Tabs defaultValue="imagen">
+                        <TabsList className="grid w-full grid-cols-2">
+                            <TabsTrigger value="imagen"><ImageIcon className="mr-2"/>Desde Imagen</TabsTrigger>
+                            <TabsTrigger value="pdf"><FileIcon className="mr-2"/>Desde PDF</TabsTrigger>
+                        </TabsList>
+                        <TabsContent value="imagen" className="pt-4">
+                            <form onSubmit={handleDirectImageSubmit} className="space-y-4">
+                                <Label htmlFor="plano-file">Archivo del plano (JPG, PNG, máx. 10MB)</Label>
+                                <Input id="plano-file" type="file" accept="image/jpeg, image/png" onChange={handleFileChange} />
+                                <Button type="submit" size="sm" className="w-full" disabled={!planoFile || cargando}>
+                                    {cargando ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Wand2 className="mr-2 h-4 w-4" />}
+                                    Analizar desde Imagen
+                                </Button>
+                            </form>
+                        </TabsContent>
+                         <TabsContent value="pdf" className="pt-4">
+                           <PdfToImageUploader onImageReady={handleSubmit} disabled={cargando}/>
+                        </TabsContent>
+                    </Tabs>
+                </CardContent>
+            </Card>
             
-            {!cargando && (
-                <div className="mt-4">
-                    <Button variant="outline" className="w-full" onClick={handleMockTest} disabled={cargando}>
-                        {cargando && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                        Mock de Plano (IA)
-                    </Button>
-                </div>
-            )}
-        </div>
+            <Card>
+                <CardHeader><CardTitle>2. Selecciona qué analizar</CardTitle></CardHeader>
+                <CardContent className="space-y-2">
+                    <div className="grid grid-cols-2 gap-4">
+                        {Object.keys(opciones).map(key => (
+                            <Label key={key} className="flex items-center gap-2 p-3 border rounded-md hover:bg-muted/50 cursor-pointer">
+                                <Checkbox checked={opciones[key as keyof OpcionesAnalisis]} onCheckedChange={() => handleCheckboxChange(key as keyof OpcionesAnalisis)} />
+                                <span>{{
+                                    superficieUtil: 'Superficie útil', m2Muros: 'm² de Muros', m2Losas: 'm² de Losas',
+                                    m2Revestimientos: 'm² de Revestimientos', instalacionesHidraulicas: 'Inst. Hidráulicas',
+                                    instalacionesElectricas: 'Inst. Eléctricas'
+                                }[key]}</span>
+                            </Label>
+                        ))}
+                    </div>
+                </CardContent>
+            </Card>
 
+            <Card>
+                <CardHeader><CardTitle>3. Notas adicionales (opcional)</CardTitle></CardHeader>
+                <CardContent>
+                    <Textarea placeholder="Ej: La altura de piso a cielo es 2.4m. La escala del plano es 1:50..." value={notas} onChange={e => setNotas(e.target.value)} />
+                </CardContent>
+            </Card>
+        </div>
 
         <div className="sticky top-24">
           <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2"><TableIcon /> Resultado del Análisis</CardTitle>
-            </CardHeader>
+            <CardHeader><CardTitle className="flex items-center gap-2"><TableIcon /> Resultado del Análisis</CardTitle></CardHeader>
             <CardContent>
               {cargando && (
-                 <motion.div
-                    initial={{ opacity: 0, y: 10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ duration: 0.5 }}
-                    className="text-center py-8 space-y-4"
-                  >
+                 <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }} className="text-center py-8 space-y-4">
                     <Progress value={progress} className="w-full h-2" />
                     <p className="text-sm font-medium text-primary animate-pulse">{progressText}</p>
                     <p className="text-xs text-muted-foreground/80">(El análisis puede tardar hasta un minuto)</p>
