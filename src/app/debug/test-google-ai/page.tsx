@@ -1,6 +1,10 @@
 "use client";
 
 import { useState } from "react";
+import { firebaseFunctions } from "@/lib/firebaseClient";
+import { httpsCallable } from "firebase/functions";
+import { Button } from "@/components/ui/button";
+import { Loader2 } from "lucide-react";
 
 export default function Page() {
   const [result, setResult] = useState<any>(null);
@@ -11,35 +15,33 @@ export default function Page() {
     setResult(null);
 
     try {
-      const res = await fetch("/api/test-google-ai");
-      const data = await res.json();
-      setResult(data);
+      const testGoogleAiFn = httpsCallable(firebaseFunctions, 'testGoogleAi');
+      const response = await testGoogleAiFn();
+      setResult(response.data);
     } catch (e: any) {
-      setResult({ error: e.message });
+      console.error("Error calling testGoogleAi function:", e);
+      setResult({ ok: false, message: e.message, code: e.code, details: e.details });
+    } finally {
+      setLoading(false);
     }
-
-    setLoading(false);
   };
 
   return (
-    <div style={{ padding: 40 }}>
-      <h1>Página de Debug: Google AI API</h1>
-      <p>Prueba directa al endpoint nativo de Google mediante la API.</p>
+    <div style={{ padding: 40, fontFamily: 'sans-serif' }}>
+      <h1>Página de Debug: Conexión con IA (Cloud Function)</h1>
+      <p>Prueba la función <code>testGoogleAi</code> para verificar si Genkit puede acceder a la API key de Gemini.</p>
 
-      <button
+      <Button
         onClick={runTest}
         style={{
           padding: "12px 24px",
-          background: "black",
-          color: "white",
-          borderRadius: 8,
-          cursor: "pointer",
           marginTop: 20
         }}
         disabled={loading}
       >
-        {loading ? "Probando..." : "Probar modelo gemini-1.5-flash-latest"}
-      </button>
+        {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+        {loading ? "Probando Conexión..." : "Ejecutar Smoke Test"}
+      </Button>
 
       {result && (
         <pre
@@ -49,10 +51,12 @@ export default function Page() {
             color: result.ok ? "#0f0" : "#f87171",
             padding: 20,
             borderRadius: 8,
-            overflow: "auto"
+            overflow: "auto",
+            whiteSpace: 'pre-wrap',
+            wordBreak: 'break-all',
           }}
         >
-{JSON.stringify(result, null, 2)}
+          {JSON.stringify(result, null, 2)}
         </pre>
       )}
     </div>
