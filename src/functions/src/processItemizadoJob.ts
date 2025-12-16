@@ -29,9 +29,9 @@ export const processItemizadoJob = onDocumentCreated(
   async (event) => {
     const { jobId } = event.params;
     
-    // Log de seguridad para verificar la presencia de la API key
+    // Log de seguridad para verificar la presencia de la API key en cada ejecución
     const apiKeyExists = !!process.env.GEMINI_API_KEY;
-    logger.info(`[${jobId}] Verificación de API Key: Existe=${apiKeyExists}, Longitud=${process.env.GEMINI_API_KEY?.length || 0}`);
+    logger.info(`[${jobId}] Verificación de API Key en handler: Existe=${apiKeyExists}, Longitud=${process.env.GEMINI_API_KEY?.length || 0}`);
 
     const snapshot = event.data;
     if (!snapshot) {
