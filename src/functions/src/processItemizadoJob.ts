@@ -20,20 +20,20 @@ type ProcessItemizadoJobPayload = {
 export const processItemizadoJob = onDocumentCreated(
   {
     document: "itemizadoImportJobs/{jobId}",
-    secrets: ["GEMINI_API_KEY"],
+    // ⚠️ CORRECCIÓN: Se especifica la ruta completa del secreto, incluyendo el ID del proyecto "pcg-ia"
+    secrets: [{ secret: "GEMINI_API_KEY", projectId: "pcg-ia" }], 
     cpu: 1,
     memory: "512MiB",
     timeoutSeconds: 540,
   },
   async (event) => {
     const { jobId } = event.params;
-    const snapshot = event.data;
-
+    
     // Log de seguridad para verificar la presencia de la API key
     const apiKeyExists = !!process.env.GEMINI_API_KEY;
     logger.info(`[${jobId}] Verificación de API Key: Existe=${apiKeyExists}, Longitud=${process.env.GEMINI_API_KEY?.length || 0}`);
 
-
+    const snapshot = event.data;
     if (!snapshot) {
       logger.warn(`[${jobId}] No data found in event. Aborting.`);
       return;
@@ -49,7 +49,6 @@ export const processItemizadoJob = onDocumentCreated(
         jobKeys: Object.keys(jobData),
         currentStatus: jobData.status,
     });
-
 
     // GUARD: Evitar dobles ejecuciones
     if (jobData.status !== 'queued') {
