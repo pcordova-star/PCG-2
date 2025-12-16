@@ -1,5 +1,12 @@
 
 // src/lib/image/compressDataUrlJpeg.ts
+
+export type ImageSize = {
+  width: number;
+  height: number;
+  sizeMb: number;
+}
+
 export async function compressDataUrlJpeg(
   dataUrl: string,
   opts?: {
@@ -7,7 +14,7 @@ export async function compressDataUrlJpeg(
     maxHeight?: number;
     quality?: number; // 0.6–0.85 recomendado
   }
-): Promise<string> {
+): Promise<{ dataUrl: string; size: ImageSize }> {
   const maxWidth = opts?.maxWidth ?? 2200;
   const maxHeight = opts?.maxHeight ?? 2200;
   const quality = opts?.quality ?? 0.82;
@@ -39,8 +46,13 @@ export async function compressDataUrlJpeg(
 
       ctx.drawImage(img, 0, 0, width, height);
 
-      const compressed = canvas.toDataURL("image/jpeg", quality);
-      resolve(compressed);
+      const compressedDataUrl = canvas.toDataURL("image/jpeg", quality);
+      const sizeMb = (compressedDataUrl.length * 3) / 4 / 1024 / 1024;
+      
+      resolve({
+        dataUrl: compressedDataUrl,
+        size: { width, height, sizeMb }
+      });
     };
 
     img.onerror = (err) => {

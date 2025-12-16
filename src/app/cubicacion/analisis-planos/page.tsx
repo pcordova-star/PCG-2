@@ -20,10 +20,13 @@ import { AnalisisPlanoOutput, AnalisisPlanoInput, OpcionesAnalisis } from '@/typ
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import PdfToImageUploader from '@/components/cubicacion/PdfToImageUploader';
 import { generarAnalisisPlanoPdf } from '@/lib/pdf/generarAnalisisPlanoPdf';
+import { sha256DataUrl } from '@/lib/hash/sha256DataUrl';
 
 const progressSteps = [
   { percent: 0, text: "Iniciando conexión segura..." },
-  { percent: 15, text: "Cargando plano en el motor de IA..." },
+  { percent: 10, text: "Calculando hash de la imagen..." },
+  { percent: 15, text: "Buscando en caché de análisis previos..." },
+  { percent: 25, text: "Cargando plano en el motor de IA..." },
   { percent: 40, text: "Analizando estructura y recintos..." },
   { percent: 65, text: "Extrayendo mediciones y cubicaciones..." },
   { percent: 85, text: "Compilando el informe de resultados..." },
@@ -65,7 +68,7 @@ async function fetchJsonSafe(url: string, init?: RequestInit) {
 export default function AnalisisPlanosPage() {
   const router = useRouter();
   const { toast } = useToast();
-  const { user, company } = useAuth();
+  const { user, company, companyId } = useAuth();
   
   const [opciones, setOpciones] = useState<OpcionesAnalisis>({
     superficieUtil: false, m2Muros: false, m2Losas: false,
@@ -78,6 +81,7 @@ export default function AnalisisPlanosPage() {
   const [cargando, setCargando] = useState(false);
   const [resultado, setResultado] = useState<AnalisisPlanoOutput | null>(null);
   const [errorAnalisis, setErrorAnalisis] = useState<string | null>(null);
+  const [isCached, setIsCached] = useState(false);
 
   const [progress, setProgress] = useState(0);
   const [progressText, setProgressText] = useState("Iniciando...");
@@ -117,23 +121,40 @@ export default function AnalisisPlanosPage() {
     }
   };
   
-  const handleSubmit = async (dataUri: string) => {
+  const handleSubmit = async (dataUri: string, meta: { width: number, height: number, sizeMb: number, planType: string }) => {
     if (!dataUri) {
         setErrorAnalisis("No se proporcionó una imagen para analizar.");
+        return;
+    }
+
+    if (!companyId) {
+        setErrorAnalisis("No se ha podido identificar tu empresa. Asegúrate de haber iniciado sesión correctamente.");
         return;
     }
 
     setCargando(true);
     setErrorAnalisis(null);
     setResultado(null);
+    setIsCached(false);
 
     try {
-        const input: AnalisisPlanoInput = {
+        const modelId = "gemini-2.5-flash";
+        const promptVersion = "pcg-cubicador-v1";
+        const presetVersion = "presets-v1";
+
+        const hash = await sha256DataUrl(dataUri);
+        const cacheKey = `${hash}_${modelId}_${promptVersion}_${presetVersion}`;
+
+        const input: AnalisisPlanoInput & { cache: any; imageMeta: any; companyId: string; } = {
             photoDataUri: dataUri,
             opciones,
             notas,
-            obraId: company?.id ?? 'obra-desconocida',
+            obraId: companyId,
             obraNombre: company?.nombreFantasia ?? 'Obra Desconocida',
+            companyId: companyId,
+            planType: meta.planType,
+            cache: { hash, cacheKey, modelId, promptVersion, presetVersion },
+            imageMeta: { sizeMb: meta.sizeMb, width: meta.width, height: meta.height },
         };
 
         const baseUrl = process.env.NEXT_PUBLIC_BASE_URL!;
@@ -145,7 +166,8 @@ export default function AnalisisPlanosPage() {
           body: JSON.stringify(input),
         });
         
-        setResultado(data as AnalisisPlanoOutput);
+        setResultado(data.result as AnalisisPlanoOutput);
+        setIsCached(data.cached);
 
     } catch (err: any) {
         console.error("Error al analizar el plano:", err);
@@ -164,7 +186,9 @@ export default function AnalisisPlanosPage() {
     const reader = new FileReader();
     reader.onload = (e) => {
         const dataUri = e.target?.result as string;
-        handleSubmit(dataUri);
+        // Simular metadatos para la carga directa de imágenes
+        const sizeMb = (dataUri.length * 3) / 4 / 1024 / 1024;
+        handleSubmit(dataUri, { width: 0, height: 0, sizeMb, planType: 'otros' });
     };
     reader.readAsDataURL(planoFile);
   }
@@ -259,6 +283,12 @@ export default function AnalisisPlanosPage() {
                       <p className="font-semibold">Error en el análisis</p>
                       <p className="text-sm">{errorAnalisis}</p>
                   </div>
+              )}
+              {isCached && resultado && (
+                <div className="text-center py-4 text-green-700 bg-green-50 rounded-md mb-4 border border-green-200">
+                    <p className="font-semibold">Resultado obtenido desde la caché.</p>
+                    <p className="text-sm">Este plano ya fue analizado anteriormente.</p>
+                </div>
               )}
               {resultado && (
                  <div className="prose prose-sm max-w-none text-card-foreground">
