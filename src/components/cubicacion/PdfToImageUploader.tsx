@@ -11,11 +11,11 @@ import { pdfPageToDataUrl } from '@/lib/pdf/pdfToImage';
 import { Loader2, Wand2 } from 'lucide-react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select';
 import Image from 'next/image';
-import { compressDataUrlJpeg } from "@/lib/image/compressDataUrlJpeg";
+import { compressDataUrlJpeg, ImageSize } from "@/lib/image/compressDataUrlJpeg";
 import { PLAN_PRESETS, PlanType } from "@/lib/image/planPresets";
 
 interface PdfToImageUploaderProps {
-  onImageReady: (dataUrl: string) => void;
+  onImageReady: (dataUrl: string, meta: { width: number; height: number; sizeMb: number; planType: PlanType; }) => void;
   disabled?: boolean;
 }
 
@@ -34,7 +34,7 @@ export default function PdfToImageUploader({ onImageReady, disabled = false }: P
   const [selectedPage, setSelectedPage] = useState('1');
   const [planType, setPlanType] = useState<PlanType>("arquitectura");
   const [isConverting, setIsConverting] = useState(false);
-  const [convertedImageUrl, setConvertedImageUrl] = useState<string | null>(null);
+  const [convertedImage, setConvertedImage] = useState<{ dataUrl: string; meta: { width: number; height: number; sizeMb: number; planType: PlanType; } } | null>(null);
   
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -44,9 +44,7 @@ export default function PdfToImageUploader({ onImageReady, disabled = false }: P
         return;
       }
       setPdfFile(file);
-      setConvertedImageUrl(null); // Limpiar previsualización anterior
-      
-      // Leer el número de páginas y auto-seleccionar preset
+      setConvertedImage(null);
       setPlanType(autoPresetFromFilename(file.name));
       try {
         const { pageCount: numPages } = await pdfPageToDataUrl(file, 1, 0.1); // Escala baja solo para contar
@@ -67,20 +65,22 @@ export default function PdfToImageUploader({ onImageReady, disabled = false }: P
       const result = await pdfPageToDataUrl(pdfFile, parseInt(selectedPage, 10), 2.0);
       
       const preset = PLAN_PRESETS[planType];
-      const optimized = await compressDataUrlJpeg(result.dataUrl, {
+      const { dataUrl: optimizedDataUrl, size } = await compressDataUrlJpeg(result.dataUrl, {
         maxWidth: preset.maxWidth,
         maxHeight: preset.maxHeight,
         quality: preset.quality,
       });
 
-      const sizeMb = (optimized.length * 3) / 4 / 1024 / 1024;
-      if (sizeMb > preset.maxSizeMb) {
+      if (size.sizeMb > preset.maxSizeMb) {
         throw new Error(
-          `La imagen (${sizeMb.toFixed(1)} MB) supera el límite de ${preset.maxSizeMb} MB para planos de ${planType}. Reduce la escala o exporta la lámina directamente a JPG.`
+          `La imagen (${size.sizeMb.toFixed(1)} MB) supera el límite de ${preset.maxSizeMb} MB para planos de tipo '${planType}'. Intenta con otro preset o exporta la lámina a JPG.`
         );
       }
       
-      setConvertedImageUrl(optimized);
+      setConvertedImage({
+        dataUrl: optimizedDataUrl,
+        meta: { ...size, planType }
+      });
 
     } catch (error: any) {
       console.error("Error converting PDF page:", error);
@@ -91,8 +91,8 @@ export default function PdfToImageUploader({ onImageReady, disabled = false }: P
   };
 
   const handleAnalyze = () => {
-    if (convertedImageUrl) {
-        onImageReady(convertedImageUrl);
+    if (convertedImage) {
+        onImageReady(convertedImage.dataUrl, convertedImage.meta);
     }
   };
 
@@ -139,11 +139,11 @@ export default function PdfToImageUploader({ onImageReady, disabled = false }: P
         </div>
       )}
 
-      {convertedImageUrl && (
+      {convertedImage && (
         <div className="space-y-4 pt-4 border-t">
           <p className="text-sm font-medium">Previsualización de la imagen generada:</p>
           <div className="border rounded-md p-2">
-             <Image src={convertedImageUrl} alt={`Página ${selectedPage} del PDF`} width={400} height={300} className="w-full h-auto object-contain rounded-md" />
+             <Image src={convertedImage.dataUrl} alt={`Página ${selectedPage} del PDF`} width={400} height={300} className="w-full h-auto object-contain rounded-md" />
           </div>
           <Button onClick={handleAnalyze} className="w-full" disabled={disabled}>
             <Wand2 className="mr-2 h-4 w-4"/>
