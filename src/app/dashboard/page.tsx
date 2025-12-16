@@ -25,6 +25,7 @@ import {
   MessageSquare,
   TrendingUp,
   DollarSign,
+  BrainCircuit,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useEffect, useState } from 'react';
@@ -173,17 +174,17 @@ const quickAccessModules = [
         description: 'Formulario rápido para dejar evidencia fotográfica de un hito o avance desde terreno.',
         href: '/operaciones/registro-fotografico',
         icon: Camera,
-        color: 'blue' as const,
+        color: 'orange' as const,
         roles: ['superadmin', 'admin_empresa', 'jefe_obra', 'prevencionista']
     },
     {
-        id: 'tour-step-avance-cantidad',
-        title: 'Registrar Avance por Cantidad',
-        description: 'Formulario rápido para registrar cantidades ejecutadas desde tu dispositivo móvil.',
-        href: '/operaciones/avance-en-terreno',
-        icon: ClipboardPlus,
-        color: 'green' as const,
-        roles: ['superadmin', 'admin_empresa', 'jefe_obra', 'prevencionista']
+        id: 'analisis-planos',
+        title: 'Análisis de Planos (IA)',
+        description: 'Carga un plano, selecciona qué cubicar y deja que la IA te entregue una estimación de referencia.',
+        href: '/cubicacion/analisis-planos',
+        icon: BrainCircuit,
+        color: 'blue' as const,
+        roles: ['superadmin', 'admin_empresa', 'jefe_obra']
     },
      {
         id: 'rdi',
@@ -191,7 +192,7 @@ const quickAccessModules = [
         description: 'Crea y gestiona consultas de información (RDI) con mandantes, proyectistas o subcontratos.',
         href: '/rdi',
         icon: MessageSquare,
-        color: 'orange' as const,
+        color: 'green' as const,
         roles: ['superadmin', 'admin_empresa', 'jefe_obra']
     },
 ];
@@ -332,7 +333,7 @@ export default function DashboardPage() {
   }, [user, role, companyId, authLoading]);
   
   const handleQuickAccessClick = (target: string) => {
-    if (target === '/rdi') {
+    if (target === '/rdi' || target === '/cubicacion/analisis-planos') {
       router.push(target);
       return;
     }
