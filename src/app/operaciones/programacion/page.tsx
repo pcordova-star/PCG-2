@@ -77,6 +77,7 @@ import {
   ResponsiveContainer,
 } from 'recharts';
 import { differenceInDays, eachDayOfInterval, format, isAfter } from 'date-fns';
+import { es } from 'date-fns/locale';
 import ImageFromStorage from '@/components/client/ImageFromStorage';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
@@ -876,7 +877,7 @@ function ProgramacionPageInner() {
                  <Accordion type="single" collapsible className="w-full" defaultValue={avancesAgrupadosPorMes[0]?.[0]}>
                     {avancesAgrupadosPorMes.map(([mesKey, avancesDelMes]) => {
                          const fechaMes = new Date(mesKey + '-02'); // Usar día 2 para evitar problemas de zona horaria
-                         const nombreMes = format(fechaMes, "MMMM 'de' yyyy", { locale: require('date-fns/locale/es') });
+                         const nombreMes = format(fechaMes, "MMMM 'de' yyyy", { locale: es });
 
                         return (
                             <AccordionItem value={mesKey} key={mesKey}>
