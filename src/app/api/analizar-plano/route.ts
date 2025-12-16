@@ -1,14 +1,11 @@
 // src/app/api/analizar-plano/route.ts
-import { NextResponse } from 'next/server';
+import { NextResponse } from "next/server";
 import { analizarPlano } from '@/ai/flows/analisis-planos-flow';
-import { AnalisisPlanoInputSchema, AnalisisPlanoInput } from '@/types/analisis-planos';
-import { getAdminDb } from '@/lib/firebaseAdmin';
-import { FieldValue } from 'firebase-admin/firestore';
+import { AnalisisPlanoInputSchema } from '@/types/analisis-planos';
+import type { AnalisisPlanoInput } from '@/types/analisis-planos';
 
 export const runtime = "nodejs";
 export const maxDuration = 60; // 60 segundos de timeout
-
-const db = getAdminDb();
 
 export async function POST(req: Request) {
   try {
@@ -22,12 +19,18 @@ export async function POST(req: Request) {
       );
     }
     
-    const validatedInput = validationResult.data;
+    const validatedInput: AnalisisPlanoInput = validationResult.data;
     const { companyId, obraId, cache, planType, imageMeta } = validatedInput;
 
-    // Lógica de Cache
+    // 🔹 IMPORTS DINÁMICOS (CRÍTICO PARA VERCEL)
+    const { getAdminDb } = await import("@/lib/firebaseAdmin");
+    const { FieldValue } = await import("firebase-admin/firestore");
+
+    const db = getAdminDb();
+
+    // ===== CACHE LOOKUP =====
     if (cache?.cacheKey && companyId && obraId) {
-      if (cache.cacheKey.length > 200) {
+      if (cache.cacheKey.length > 200) { // Longitud ajustada a 200 para ser más permisivo pero seguro
         throw new Error("cacheKey inválido: demasiado largo.");
       }
       
@@ -53,10 +56,10 @@ export async function POST(req: Request) {
       }
     }
 
-    // Si no hay cache, ejecutar IA
+    // ===== EJECUTAR IA =====
     const analisisOutput = await analizarPlano(validatedInput);
 
-    // Guardar en cache si los datos necesarios están presentes
+    // ===== GUARDAR CACHE =====
     if (cache?.cacheKey && companyId && obraId && planType && imageMeta) {
         const { hash, cacheKey, modelId, promptVersion, presetVersion } = cache;
         
@@ -84,7 +87,11 @@ export async function POST(req: Request) {
         });
     }
 
-    return NextResponse.json({ cached: false, cacheKey: cache?.cacheKey, result: analisisOutput });
+    return NextResponse.json({
+      cached: false,
+      cacheKey: cache?.cacheKey,
+      result: analisisOutput,
+    });
 
   } catch (error: any) {
     console.error("[API /analizar-plano] Error:", error);
