@@ -839,7 +839,7 @@ function ProgramacionPageInner() {
                       {importando ? 'Importando...' : 'Importar Partidas'}
                   </Button>
               </DialogFooter>
-      </Dialog>
+      </DialogContent>
 
       {/* Gráfico Curva S */}
       {obraSeleccionadaId && <CurvaSChart actividades={actividades} avances={avances} montoTotalContrato={montoTotalContrato} />}
