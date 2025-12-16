@@ -14,7 +14,10 @@ export async function POST(req: Request) {
     const validationResult = AnalisisPlanoInputSchema.safeParse(body);
     if (!validationResult.success) {
       return NextResponse.json(
-        { error: "Los datos de entrada son inválidos.", details: validationResult.error.flatten() },
+        {
+          error: "Los datos de entrada son inválidos.",
+          details: validationResult.error.flatten(),
+        },
         { status: 400 }
       );
     }
@@ -22,21 +25,24 @@ export async function POST(req: Request) {
     const validatedInput: AnalisisPlanoInput = validationResult.data;
     const { companyId, obraId, cache, planType, imageMeta } = validatedInput;
 
-    // 🔹 IMPORTS DINÁMICOS (CRÍTICO PARA VERCEL / TURBOPACK)
+    // ✅ Import dinámico para evitar que Vercel/Turbopack evalúe firebase-admin en build-time
     const { getAdminDb } = await import("@/lib/firebaseAdmin");
     const { FieldValue } = await import("firebase-admin/firestore");
     const db = getAdminDb();
 
     // ===== CACHE LOOKUP =====
     if (cache?.cacheKey && companyId && obraId) {
-      if (cache.cacheKey.length > 200) { // Longitud ajustada a 200
+      if (cache.cacheKey.length > 180) {
         throw new Error("cacheKey inválida: demasiado larga.");
       }
 
       const cacheRef = db
-        .collection("companies").doc(companyId)
-        .collection("obras").doc(obraId)
-        .collection("cubicacion_cache").doc(cache.cacheKey);
+        .collection("companies")
+        .doc(companyId)
+        .collection("obras")
+        .doc(obraId)
+        .collection("cubicacion_cache")
+        .doc(cache.cacheKey);
 
       const cachedSnap = await cacheRef.get();
 
@@ -49,8 +55,7 @@ export async function POST(req: Request) {
         return NextResponse.json({
           cached: true,
           cacheKey: cache.cacheKey,
-          hitCount: cachedSnap.data()?.hitCount + 1 || 1,
-          result: cachedSnap.data()?.result,
+          result: cachedSnap.data()!.result,
         });
       }
     }
@@ -60,22 +65,23 @@ export async function POST(req: Request) {
 
     // ===== GUARDAR CACHE =====
     if (cache?.cacheKey && companyId && obraId) {
-      const { hash, cacheKey, modelId, promptVersion, presetVersion } = cache;
-      
       const expireAt = new Date();
       expireAt.setDate(expireAt.getDate() + 90);
-      
+
       const cacheRef = db
-        .collection("companies").doc(companyId)
-        .collection("obras").doc(obraId)
-        .collection("cubicacion_cache").doc(cacheKey);
+        .collection("companies")
+        .doc(companyId)
+        .collection("obras")
+        .doc(obraId)
+        .collection("cubicacion_cache")
+        .doc(cache.cacheKey);
 
       await cacheRef.set({
-        cacheKey,
-        hash,
-        modelId,
-        promptVersion,
-        presetVersion,
+        cacheKey: cache.cacheKey,
+        hash: cache.hash,
+        modelId: cache.modelId,
+        promptVersion: cache.promptVersion,
+        presetVersion: cache.presetVersion,
         planType: planType ?? null,
         imageMeta: imageMeta ?? null,
         result: analisisOutput,
