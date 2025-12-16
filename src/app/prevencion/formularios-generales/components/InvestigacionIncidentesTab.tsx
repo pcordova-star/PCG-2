@@ -9,11 +9,14 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { firebaseDb } from '@/lib/firebaseClient';
-import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
+import { addDoc, collection, serverTimestamp, doc, deleteDoc } from 'firebase/firestore';
 import { RegistroIncidente } from '@/types/pcg';
 import { PlanAccionEditor } from './PlanAccionEditor';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
+import { Trash2 } from 'lucide-react';
+import { useToast } from '@/hooks/use-toast';
+
 
 interface Props {
   obraId: string;
@@ -45,6 +48,7 @@ const initialFormState: Omit<RegistroIncidente, 'id' | 'obraId' | 'obraNombre' |
 export function InvestigacionIncidentesTab({ obraId, investigaciones, loading, onUpdate }: Props) {
   const [formState, setFormState] = useState(initialFormState);
   const [error, setError] = useState<string | null>(null);
+  const { toast } = useToast();
 
   const handleInputChange = <K extends keyof typeof formState>(campo: K, valor: (typeof formState)[K]) => {
     setFormState(prev => ({ ...prev, [campo]: valor }));
@@ -70,6 +74,18 @@ export function InvestigacionIncidentesTab({ obraId, investigaciones, loading, o
     } catch (err) {
       console.error(err);
       setError("No se pudo guardar la investigación.");
+    }
+  };
+
+  const handleDelete = async (incidenteId: string) => {
+    try {
+        const docRef = doc(firebaseDb, "investigacionesIncidentes", incidenteId);
+        await deleteDoc(docRef);
+        toast({ title: "Incidente eliminado", description: "El registro del incidente ha sido eliminado." });
+        onUpdate(); 
+    } catch (error) {
+        console.error("Error deleting incident:", error);
+        toast({ variant: 'destructive', title: 'Error', description: 'No se pudo eliminar el incidente.' });
     }
   };
 
@@ -128,7 +144,28 @@ export function InvestigacionIncidentesTab({ obraId, investigaciones, loading, o
                 <article key={inv.id} className="border p-3 rounded-lg text-sm space-y-2">
                     <div className="flex justify-between items-start">
                         <p className="font-semibold">{inv.descripcionHecho}</p>
-                        <Badge variant="secondary">Ishikawa / 5P</Badge>
+                        <div className="flex items-center">
+                            <Badge variant="secondary">Ishikawa / 5P</Badge>
+                            <AlertDialog>
+                                <AlertDialogTrigger asChild>
+                                    <Button variant="ghost" size="icon" className="h-6 w-6 text-destructive">
+                                        <Trash2 className="h-4 w-4" />
+                                    </Button>
+                                </AlertDialogTrigger>
+                                <AlertDialogContent>
+                                    <AlertDialogHeader>
+                                        <AlertDialogTitle>¿Eliminar este incidente?</AlertDialogTitle>
+                                        <AlertDialogDescription>
+                                            Esta acción no se puede deshacer. Se eliminará el registro del incidente.
+                                        </AlertDialogDescription>
+                                    </AlertDialogHeader>
+                                    <AlertDialogFooter>
+                                        <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                                        <AlertDialogAction onClick={() => handleDelete(inv.id)} className="bg-destructive hover:bg-destructive/90">Eliminar</AlertDialogAction>
+                                    </AlertDialogFooter>
+                                </AlertDialogContent>
+                            </AlertDialog>
+                        </div>
                     </div>
                     <p className="text-xs text-muted-foreground">{inv.fecha} - {inv.lugar}</p>
                 </article>
