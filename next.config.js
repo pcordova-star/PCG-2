@@ -3,7 +3,7 @@ require('dotenv').config();
 
 const nextConfig = {
   serverActions: {
-    bodySizeLimit: '10mb',
+    bodySizeLimit: '15mb', // Aumentado para dataURI
   },
   typescript: {
     ignoreBuildErrors: true,
