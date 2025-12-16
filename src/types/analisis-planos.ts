@@ -24,6 +24,20 @@ export const AnalisisPlanoInputSchema = z.object({
   notas: z.string().optional().describe("Notas adicionales del usuario, como escala, altura de muros, o aclaraciones sobre el plano."),
   obraId: z.string().describe("ID de la obra a la que pertenece el plano."),
   obraNombre: z.string().describe("Nombre de la obra a la que pertenece el plano."),
+  companyId: z.string().describe("ID de la compañía a la que pertenece la obra."),
+  planType: z.string().describe("Tipo de plano (ej: arquitectura, estructura) usado para el preset de optimización."),
+  cache: z.object({
+    hash: z.string(),
+    cacheKey: z.string(),
+    modelId: z.string(),
+    promptVersion: z.string(),
+    presetVersion: z.string(),
+  }).optional(),
+  imageMeta: z.object({
+    sizeMb: z.number(),
+    width: z.number(),
+    height: z.number(),
+  }).optional(),
 });
 export type AnalisisPlanoInput = z.infer<typeof AnalisisPlanoInputSchema>;
 
