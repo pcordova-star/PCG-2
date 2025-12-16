@@ -80,6 +80,8 @@ import { differenceInDays, eachDayOfInterval, format, isAfter } from 'date-fns';
 import ImageFromStorage from '@/components/client/ImageFromStorage';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
+
 
 type PresupuestoItem = {
     id: string; 
@@ -332,6 +334,20 @@ function ProgramacionPageInner() {
     const atrasadas = estados.filter(e => e === "Atrasada").length;
     return { total, total, pendientes, enCurso, completadas, atrasadas };
   }, [actividades, avancesPorActividad]);
+
+  const avancesAgrupadosPorMes = useMemo(() => {
+    const grupos: Record<string, AvanceDiario[]> = {};
+    avances.forEach(avance => {
+        const fecha = avance.fecha.toDate();
+        const mesKey = format(fecha, 'yyyy-MM');
+        if(!grupos[mesKey]) {
+            grupos[mesKey] = [];
+        }
+        grupos[mesKey].push(avance);
+    });
+    return Object.entries(grupos).sort((a, b) => b[0].localeCompare(a[0])); // Ordena de más reciente a más antiguo
+  }, [avances]);
+
 
   useEffect(() => {
     if (!loadingAuth && !user) {
@@ -823,7 +839,6 @@ function ProgramacionPageInner() {
                       {importando ? 'Importando...' : 'Importar Partidas'}
                   </Button>
               </DialogFooter>
-          </DialogContent>
       </Dialog>
 
       {/* Gráfico Curva S */}
@@ -856,68 +871,82 @@ function ProgramacionPageInner() {
                 <CardTitle>Historial de Avances Diarios</CardTitle>
                 <CardDescription>Últimos avances registrados para la obra seleccionada.</CardDescription>
               </CardHeader>
-              <CardContent className="space-y-4">
-                {avances.slice(0, 10).map(avance => {
-                  const actividad = actividades.find(a => a.id === avance.actividadId);
-                  return (
-                    <div key={avance.id} className="border-b pb-4 last:border-b-0">
-                      <div className="flex justify-between items-start">
-                        <div>
-                          <p className="font-semibold">{avance.fecha.toDate().toLocaleDateString('es-CL')} - {actividad?.nombreActividad || 'Avance General'}</p>
-                          <p className="text-sm text-muted-foreground">
-                             Reportado por: {avance.creadoPor.displayName}
-                          </p>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <Badge variant="outline" className={avance.tipoRegistro === 'FOTOGRAFICO' ? 'bg-blue-100 text-blue-800' : ''}>
-                            {avance.tipoRegistro === 'FOTOGRAFICO' ? <Camera className="h-3 w-3 mr-1"/> : null}
-                            {avance.tipoRegistro === 'FOTOGRAFICO' ? 'Solo Foto' : `Avance: ${avance.cantidadEjecutada} ${actividad?.unidad}`}
-                          </Badge>
-                          <AlertDialog>
-                            <AlertDialogTrigger asChild>
-                              <Button variant="ghost" size="icon" className="h-6 w-6 text-muted-foreground hover:text-destructive">
-                                <Trash2 className="h-4 w-4" />
-                              </Button>
-                            </AlertDialogTrigger>
-                            <AlertDialogContent>
-                              <AlertDialogHeader>
-                                <AlertDialogTitle>¿Eliminar este registro de avance?</AlertDialogTitle>
-                                <AlertDialogDescription>
-                                  Esta acción no se puede deshacer. Se eliminará el registro del día {avance.fecha.toDate().toLocaleDateString('es-CL')} y las fotos asociadas. El cálculo de avance se reajustará.
-                                </AlertDialogDescription>
-                              </AlertDialogHeader>
-                              <AlertDialogFooter>
-                                <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                                <AlertDialogAction onClick={() => handleDeleteAvance(avance)} className="bg-destructive hover:bg-destructive/90">Confirmar Eliminación</AlertDialogAction>
-                              </AlertDialogFooter>
-                            </AlertDialogContent>
-                          </AlertDialog>
-                        </div>
-                      </div>
+              <CardContent>
+                 <Accordion type="single" collapsible className="w-full" defaultValue={avancesAgrupadosPorMes[0]?.[0]}>
+                    {avancesAgrupadosPorMes.map(([mesKey, avancesDelMes]) => {
+                         const fechaMes = new Date(mesKey + '-02'); // Usar día 2 para evitar problemas de zona horaria
+                         const nombreMes = format(fechaMes, "MMMM 'de' yyyy", { locale: require('date-fns/locale/es') });
 
-                      {avance.comentario && <p className="text-sm mt-1">"{avance.comentario}"</p>}
-                      {avance.fotos && avance.fotos.length > 0 && (
-                        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-2 mt-2">
-                          {avance.fotos.map(foto => (
-                            <div key={foto} className="w-full aspect-square relative group">
-                               <Suspense fallback={<div className="bg-muted animate-pulse w-full h-full rounded-md"></div>}>
-                                <ImageFromStorage storagePath={foto} />
-                              </Suspense>
-                               <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center cursor-pointer" onClick={() => setSelectedImage(foto)}>
-                                    <p className="text-white text-xs text-center">Ver foto</p>
-                               </div>
-                               <a href={foto} download target="_blank" rel="noopener noreferrer" 
-                                  onClick={(e) => e.stopPropagation()} 
-                                  className="absolute bottom-1 right-1 bg-white/80 text-black p-1 rounded-full hover:bg-white transition-colors">
-                                  <Download className="h-3 w-3" />
-                                </a>
-                            </div>
-                          ))}
-                        </div>
-                      )}
-                    </div>
-                  )
-                })}
+                        return (
+                            <AccordionItem value={mesKey} key={mesKey}>
+                                <AccordionTrigger className="text-lg font-medium">{nombreMes}</AccordionTrigger>
+                                <AccordionContent className="space-y-4 pl-4">
+                                     {avancesDelMes.map(avance => {
+                                        const actividad = actividades.find(a => a.id === avance.actividadId);
+                                        return (
+                                            <div key={avance.id} className="border-b pb-4 last:border-b-0">
+                                            <div className="flex justify-between items-start">
+                                                <div>
+                                                <p className="font-semibold">{avance.fecha.toDate().toLocaleDateString('es-CL')} - {actividad?.nombreActividad || 'Avance General'}</p>
+                                                <p className="text-sm text-muted-foreground">
+                                                    Reportado por: {avance.creadoPor.displayName}
+                                                </p>
+                                                </div>
+                                                <div className="flex items-center gap-2">
+                                                <Badge variant="outline" className={avance.tipoRegistro === 'FOTOGRAFICO' ? 'bg-blue-100 text-blue-800' : ''}>
+                                                    {avance.tipoRegistro === 'FOTOGRAFICO' ? <Camera className="h-3 w-3 mr-1"/> : null}
+                                                    {avance.tipoRegistro === 'FOTOGRAFICO' ? 'Solo Foto' : `Avance: ${avance.cantidadEjecutada} ${actividad?.unidad}`}
+                                                </Badge>
+                                                <AlertDialog>
+                                                    <AlertDialogTrigger asChild>
+                                                    <Button variant="ghost" size="icon" className="h-6 w-6 text-muted-foreground hover:text-destructive">
+                                                        <Trash2 className="h-4 w-4" />
+                                                    </Button>
+                                                    </AlertDialogTrigger>
+                                                    <AlertDialogContent>
+                                                    <AlertDialogHeader>
+                                                        <AlertDialogTitle>¿Eliminar este registro de avance?</AlertDialogTitle>
+                                                        <AlertDialogDescription>
+                                                        Esta acción no se puede deshacer. Se eliminará el registro del día {avance.fecha.toDate().toLocaleDateString('es-CL')} y las fotos asociadas. El cálculo de avance se reajustará.
+                                                        </AlertDialogDescription>
+                                                    </AlertDialogHeader>
+                                                    <AlertDialogFooter>
+                                                        <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                                                        <AlertDialogAction onClick={() => handleDeleteAvance(avance)} className="bg-destructive hover:bg-destructive/90">Confirmar Eliminación</AlertDialogAction>
+                                                    </AlertDialogFooter>
+                                                    </AlertDialogContent>
+                                                </AlertDialog>
+                                                </div>
+                                            </div>
+
+                                            {avance.comentario && <p className="text-sm mt-1">"{avance.comentario}"</p>}
+                                            {avance.fotos && avance.fotos.length > 0 && (
+                                                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-2 mt-2">
+                                                {avance.fotos.map(foto => (
+                                                    <div key={foto} className="w-full aspect-square relative group">
+                                                    <Suspense fallback={<div className="bg-muted animate-pulse w-full h-full rounded-md"></div>}>
+                                                        <ImageFromStorage storagePath={foto} />
+                                                    </Suspense>
+                                                    <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center cursor-pointer" onClick={() => setSelectedImage(foto)}>
+                                                            <p className="text-white text-xs text-center">Ver foto</p>
+                                                    </div>
+                                                    <a href={foto} download target="_blank" rel="noopener noreferrer" 
+                                                        onClick={(e) => e.stopPropagation()} 
+                                                        className="absolute bottom-1 right-1 bg-white/80 text-black p-1 rounded-full hover:bg-white transition-colors">
+                                                        <Download className="h-3 w-3" />
+                                                    </a>
+                                                    </div>
+                                                ))}
+                                                </div>
+                                            )}
+                                            </div>
+                                        )
+                                    })}
+                                </AccordionContent>
+                            </AccordionItem>
+                        )
+                    })}
+                </Accordion>
               </CardContent>
             </Card>
           )}
