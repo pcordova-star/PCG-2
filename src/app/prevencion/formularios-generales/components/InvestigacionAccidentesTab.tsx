@@ -14,9 +14,13 @@ import { Separator } from '@/components/ui/separator';
 import { ArbolCausasEditor } from './ArbolCausasEditor';
 import { PlanAccionEditor } from './PlanAccionEditor';
 import { firebaseDb } from '@/lib/firebaseClient';
-import { collection, addDoc, serverTimestamp, doc, getDoc, updateDoc } from 'firebase/firestore';
+import { collection, addDoc, serverTimestamp, doc, getDoc, updateDoc, deleteDoc } from 'firebase/firestore';
 import { RegistroIncidente, Obra, MedidaCorrectivaDetallada, ArbolCausas } from '@/types/pcg';
 import { InformeAccidentePdfButton } from './InformeAccidentePdfButton';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
+import { Trash2 } from 'lucide-react';
+import { useToast } from '@/hooks/use-toast';
+
 
 interface Props {
   obraId: string;
@@ -61,6 +65,7 @@ export function InvestigacionAccidentesTab({ obraId, investigaciones, loading, o
   const [obra, setObra] = useState<Obra | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [selectedInvestigacion, setSelectedInvestigacion] = useState<RegistroIncidente | null>(null);
+  const { toast } = useToast();
 
   useEffect(() => {
     if(obraId) {
@@ -114,6 +119,18 @@ export function InvestigacionAccidentesTab({ obraId, investigaciones, loading, o
     } catch (err) {
       console.error(err);
       setError("No se pudo guardar la investigación.");
+    }
+  };
+
+   const handleDelete = async (investigacionId: string) => {
+    if (!investigacionId) return;
+    try {
+        await deleteDoc(doc(firebaseDb, "investigacionesIncidentes", investigacionId));
+        toast({ title: "Investigación eliminada", description: "El registro ha sido eliminado." });
+        onUpdate();
+    } catch (error) {
+        console.error("Error deleting investigation:", error);
+        toast({ variant: 'destructive', title: 'Error', description: 'No se pudo eliminar la investigación.' });
     }
   };
 
@@ -189,7 +206,28 @@ export function InvestigacionAccidentesTab({ obraId, investigaciones, loading, o
                 <article key={inv.id} className="border p-3 rounded-lg text-sm space-y-2">
                     <div className="flex justify-between items-start">
                         <p className="font-semibold">{inv.descripcionHecho}</p>
-                        <Badge variant="outline">Árbol de Causas</Badge>
+                        <div className="flex items-center">
+                            <Badge variant="outline">Árbol de Causas</Badge>
+                             <AlertDialog>
+                                <AlertDialogTrigger asChild>
+                                    <Button variant="ghost" size="icon" className="h-6 w-6 text-destructive">
+                                        <Trash2 className="h-4 w-4" />
+                                    </Button>
+                                </AlertDialogTrigger>
+                                <AlertDialogContent>
+                                    <AlertDialogHeader>
+                                        <AlertDialogTitle>¿Eliminar esta investigación?</AlertDialogTitle>
+                                        <AlertDialogDescription>
+                                            Esta acción no se puede deshacer. Se eliminará permanentemente la investigación del accidente.
+                                        </AlertDialogDescription>
+                                    </AlertDialogHeader>
+                                    <AlertDialogFooter>
+                                        <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                                        <AlertDialogAction onClick={() => handleDelete(inv.id)} className="bg-destructive hover:bg-destructive/90">Eliminar</AlertDialogAction>
+                                    </AlertDialogFooter>
+                                </AlertDialogContent>
+                            </AlertDialog>
+                        </div>
                     </div>
                     <p className="text-xs text-muted-foreground">{inv.fecha} - {inv.lugar}</p>
                      {obra && inv.metodoAnalisis === 'arbol_causas' && (
