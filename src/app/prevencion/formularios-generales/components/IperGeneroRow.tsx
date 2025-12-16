@@ -58,9 +58,9 @@ export const IperForm: React.FC<Props> = ({ value, onChange }) => {
     peligroOtro, riesgoOtro, controlEspecificoGeneroOtro,
   } = value;
 
-  const nivelRiesgoHombre = probabilidadHombre * consecuenciaHombre;
-  const nivelRiesgoMujer = probabilidadMujer * consecuenciaMujer;
-  const nivelRiesgoResidual = probabilidadResidual * consecuenciaResidual;
+  const nivelRiesgoHombre = (probabilidadHombre || 0) * (consecuenciaHombre || 0);
+  const nivelRiesgoMujer = (probabilidadMujer || 0) * (consecuenciaMujer || 0);
+  const nivelRiesgoResidual = (probabilidadResidual || 0) * (consecuenciaResidual || 0);
 
   const handleFieldChange = (field: keyof IperFormValues) => (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement> | string) => {
     const newValue = typeof e === "string" ? e : e.target.value;
