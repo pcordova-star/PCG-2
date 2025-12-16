@@ -30,14 +30,37 @@ const progressSteps = [
   { percent: 95, text: "Finalizando análisis, casi listo..." },
 ];
 
-function fileToDataUri(file: File): Promise<string> {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = () => resolve(reader.result as string);
-    reader.onerror = reject;
-    reader.readAsDataURL(file);
-  });
+async function fetchJsonSafe(url: string, init?: RequestInit) {
+  const res = await fetch(url, init);
+  const contentType = res.headers.get("content-type") || "";
+  const text = await res.text();
+
+  let data: any = null;
+  try {
+    data = text ? JSON.parse(text) : null;
+  } catch {
+    // no es JSON
+  }
+
+  if (!res.ok) {
+    const preview = text?.slice(0, 200) || "";
+    const detail =
+      data?.error || data?.message || preview || `HTTP ${res.status}`;
+    throw new Error(
+      `API error ${res.status} (${contentType}): ${detail}`
+    );
+  }
+
+  if (!data) {
+    const preview = text?.slice(0, 200) || "";
+    throw new Error(
+      `Respuesta no-JSON desde API (${contentType}). Preview: ${preview}`
+    );
+  }
+
+  return data;
 }
+
 
 export default function AnalisisPlanosPage() {
   const router = useRouter();
@@ -113,19 +136,13 @@ export default function AnalisisPlanosPage() {
             obraNombre: company?.nombreFantasia ?? 'Obra Desconocida',
         };
 
-        const apiResponse = await fetch('/api/analizar-plano', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(input)
+        const data = await fetchJsonSafe("/api/analizar-plano", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(input),
         });
-
-        const body = await apiResponse.json();
-
-        if (!apiResponse.ok) {
-            throw new Error(body.error || "Ocurrió un error en el servidor de análisis.");
-        }
         
-        setResultado(body as AnalisisPlanoOutput);
+        setResultado(data as AnalisisPlanoOutput);
 
     } catch (err: any) {
         console.error("Error al analizar el plano:", err);
@@ -141,8 +158,12 @@ export default function AnalisisPlanosPage() {
         setErrorAnalisis("Debes seleccionar un archivo de imagen.");
         return;
     }
-    const dataUri = await fileToDataUri(planoFile);
-    handleSubmit(dataUri);
+    const reader = new FileReader();
+    reader.onload = (e) => {
+        const dataUri = e.target?.result as string;
+        handleSubmit(dataUri);
+    };
+    reader.readAsDataURL(planoFile);
   }
 
   return (
