@@ -10,6 +10,7 @@ import { pdfPageToDataUrl } from '@/lib/pdf/pdfToImage';
 import { Loader2, Wand2 } from 'lucide-react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select';
 import Image from 'next/image';
+import { compressDataUrlJpeg } from "@/lib/image/compressDataUrlJpeg";
 
 interface PdfToImageUploaderProps {
   onImageReady: (dataUrl: string) => void;
@@ -51,16 +52,31 @@ export default function PdfToImageUploader({ onImageReady, disabled = false }: P
     
     setIsConverting(true);
     try {
-      const { dataUrl } = await pdfPageToDataUrl(pdfFile, parseInt(selectedPage, 10), 2.0);
+      // 1. Convertir PDF a imagen con una escala inicial razonable
+      const result = await pdfPageToDataUrl(pdfFile, parseInt(selectedPage, 10), 2.0);
       
-      if (dataUrl.length > 8 * 1024 * 1024) { // Advertencia si es > 8MB
-        toast({ variant: 'destructive', title: 'Imagen muy grande', description: 'La imagen convertida es muy pesada y podría fallar. Intenta con un PDF más simple.'});
+      // 2. Comprimir la imagen generada
+      const optimized = await compressDataUrlJpeg(result.dataUrl, {
+        maxWidth: 2200,
+        maxHeight: 2200,
+        quality: 0.82,
+      });
+
+      // 3. Validar el tamaño final
+      const sizeMb = (optimized.length * 3) / 4 / 1024 / 1024;
+      if (sizeMb > 8) {
+        throw new Error(
+          `La imagen sigue siendo muy pesada (${sizeMb.toFixed(
+            1
+          )} MB). Intenta reducir la escala o exportar el plano directamente a JPG.`
+        );
       }
       
-      setConvertedImageUrl(dataUrl);
+      setConvertedImageUrl(optimized);
+
     } catch (error: any) {
       console.error("Error converting PDF page:", error);
-      toast({ variant: 'destructive', title: 'Error de conversión', description: error.message });
+      toast({ variant: 'destructive', title: 'Error de conversión', description: error.message, duration: 8000 });
     } finally {
       setIsConverting(false);
     }
