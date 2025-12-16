@@ -9,7 +9,7 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Checkbox } from '@/components/ui/checkbox';
 import { useToast } from '@/hooks/use-toast';
-import { ArrowLeft, Loader2, Wand2, TableIcon, StickyNote, FileUp, Building, Droplets, Zap, Image as ImageIcon, File as FileIcon } from 'lucide-react';
+import { ArrowLeft, Loader2, Wand2, TableIcon, StickyNote, FileUp, Building, Droplets, Zap, Image as ImageIcon, File as FileIcon, FileDown } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
@@ -19,6 +19,7 @@ import { useAuth } from '@/context/AuthContext';
 import { AnalisisPlanoOutput, AnalisisPlanoInput, OpcionesAnalisis } from '@/types/analisis-planos';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import PdfToImageUploader from '@/components/cubicacion/PdfToImageUploader';
+import { generarAnalisisPlanoPdf } from '@/lib/pdf/generarAnalisisPlanoPdf';
 
 const progressSteps = [
   { percent: 0, text: "Iniciando conexión segura..." },
@@ -209,7 +210,18 @@ export default function AnalisisPlanosPage() {
 
         <div className="sticky top-24">
           <Card>
-            <CardHeader><CardTitle className="flex items-center gap-2"><TableIcon /> Resultado del Análisis</CardTitle></CardHeader>
+            <CardHeader className="flex flex-row justify-between items-start">
+              <div className="flex items-center gap-2">
+                <TableIcon />
+                <CardTitle>Resultado del Análisis</CardTitle>
+              </div>
+               {resultado && (
+                <Button variant="outline" size="sm" onClick={() => generarAnalisisPlanoPdf(resultado, company?.nombreFantasia || 'Obra', company)}>
+                  <FileDown className="mr-2 h-4 w-4" />
+                  Descargar PDF
+                </Button>
+              )}
+            </CardHeader>
             <CardContent>
               {cargando && (
                  <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }} className="text-center py-8 space-y-4">
