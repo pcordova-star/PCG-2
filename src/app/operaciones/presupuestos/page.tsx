@@ -306,7 +306,7 @@ function PresupuestosTab() {
                 </div>
                 <div className="flex gap-2">
                     <Button variant="outline" onClick={() => router.push('/operaciones/presupuestos/itemizados/importar')}>
-                        <Wand2 className="mr-2 h-4 w-4" /> Importar con IA
+                        <Wand2 className="mr-2 h-4 w-4" /> Importar (beta)
                     </Button>
                     <Button onClick={() => router.push('/operaciones/presupuestos/nuevo')}>
                         <PlusCircle className="mr-2" /> Nuevo Itemizado
