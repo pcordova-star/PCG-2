@@ -1,4 +1,3 @@
-
 // functions/src/processItemizadoJob.ts
 import { onDocumentCreated } from "firebase-functions/v2/firestore";
 import * as logger from "firebase-functions/logger";
@@ -21,15 +20,20 @@ type ProcessItemizadoJobPayload = {
 export const processItemizadoJob = onDocumentCreated(
   {
     document: "itemizadoImportJobs/{jobId}",
-    secrets: ["GEMINI_API_KEY"],
+    // ⚠️ CORRECCIÓN: Se especifica la ruta completa del secreto, incluyendo el ID del proyecto "pcg-ia"
+    secrets: [{ secret: "GEMINI_API_KEY", projectId: "pcg-ia" }], 
     cpu: 1,
     memory: "512MiB",
     timeoutSeconds: 540,
   },
   async (event) => {
     const { jobId } = event.params;
-    const snapshot = event.data;
+    
+    // Log de seguridad para verificar la presencia de la API key
+    const apiKeyExists = !!process.env.GEMINI_API_KEY;
+    logger.info(`[${jobId}] Verificación de API Key: Existe=${apiKeyExists}, Longitud=${process.env.GEMINI_API_KEY?.length || 0}`);
 
+    const snapshot = event.data;
     if (!snapshot) {
       logger.warn(`[${jobId}] No data found in event. Aborting.`);
       return;
@@ -45,7 +49,6 @@ export const processItemizadoJob = onDocumentCreated(
         jobKeys: Object.keys(jobData),
         currentStatus: jobData.status,
     });
-
 
     // GUARD: Evitar dobles ejecuciones
     if (jobData.status !== 'queued') {
@@ -99,15 +102,15 @@ export const processItemizadoJob = onDocumentCreated(
 
 Debes seguir estas reglas estrictamente:
 
-1. Analiza el documento PDF que se te entrega.
-2. Primero, identifica los capítulos principales y llena el array 'chapters'.
-3. Luego, procesa CADA LÍNEA del itemizado (capítulos, partidas, sub-partidas) y conviértela en un objeto para el array 'rows'.
-4. Para cada fila en 'rows', genera un 'id' estable y único (ej: "1", "1.1", "1.2.3").
-5. Para representar la jerarquía, asigna el 'id' del elemento padre al campo 'parentId'. Si un ítem es de primer nivel (dentro de un capítulo), su 'parentId' debe ser 'null'.
-6. Asigna el 'chapterIndex' correcto a cada fila, correspondiendo a su capítulo en el array 'chapters'.
-7. Extrae códigos, descripciones, unidades, cantidades, precios unitarios y totales para cada partida.
-8. NO inventes cantidades, precios ni unidades si no están explícitamente en el documento. Si un valor no existe para un ítem, déjalo como 'null'.
-9. Tu respuesta DEBE SER EXCLUSIVAMENTE un objeto JSON válido, sin texto adicional, explicaciones ni formato markdown.
+1.  Analiza el documento PDF que se te entrega.
+2.  Primero, identifica los capítulos principales y llena el array 'chapters'.
+3.  Luego, procesa CADA LÍNEA del itemizado (capítulos, partidas, sub-partidas) y conviértela en un objeto para el array 'rows'.
+4.  Para cada fila en 'rows', genera un 'id' estable y único (ej: "1", "1.1", "1.2.3").
+5.  Para representar la jerarquía, asigna el 'id' del elemento padre al campo 'parentId'. Si un ítem es de primer nivel (dentro de un capítulo), su 'parentId' debe ser 'null'.
+6.  Asigna el 'chapterIndex' correcto a cada fila, correspondiendo a su capítulo en el array 'chapters'.
+7.  Extrae códigos, descripciones, unidades, cantidades, precios unitarios y totales para cada partida.
+8.  NO inventes cantidades, precios ni unidades si no están explícitamente en el documento. Si un valor no existe para un ítem, déjalo como 'null'.
+9.  Tu respuesta DEBE SER EXCLUSIVAMENTE un objeto JSON válido, sin texto adicional, explicaciones ni formato markdown.
 
 Aquí está la información proporcionada por el usuario:
 - Itemizado PDF: {{media url=pdfDataUri}}
