@@ -136,7 +136,10 @@ export default function AnalisisPlanosPage() {
             obraNombre: company?.nombreFantasia ?? 'Obra Desconocida',
         };
 
-        const data = await fetchJsonSafe("/api/analizar-plano", {
+        const baseUrl = process.env.NEXT_PUBLIC_BASE_URL!;
+        const url = `${baseUrl}/api/analizar-plano`;
+
+        const data = await fetchJsonSafe(url, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(input),

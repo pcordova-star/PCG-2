@@ -3,6 +3,9 @@ import { NextResponse } from 'next/server';
 import { analizarPlano } from '@/ai/flows/analisis-planos-flow';
 import { AnalisisPlanoInputSchema, AnalisisPlanoInput } from '@/types/analisis-planos';
 
+export const runtime = "nodejs";
+export const maxDuration = 60; // 60 segundos de timeout
+
 export async function POST(req: Request) {
   try {
     const body = await req.json();
