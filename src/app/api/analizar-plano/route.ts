@@ -7,6 +7,17 @@ import type { AnalisisPlanoInput } from "@/types/analisis-planos";
 export const runtime = "nodejs";
 export const maxDuration = 60;
 
+const corsHeaders = {
+  "Access-Control-Allow-Origin": process.env.NEXT_PUBLIC_BASE_URL || "https://pcg-2.vercel.app",
+  "Access-Control-Allow-Methods": "POST,OPTIONS",
+  "Access-Control-Allow-Headers": "Content-Type, Authorization",
+};
+
+export async function OPTIONS() {
+  return new Response(null, { status: 204, headers: corsHeaders });
+}
+
+
 export async function POST(req: Request) {
   try {
     const body = await req.json();
@@ -14,18 +25,15 @@ export async function POST(req: Request) {
     const validationResult = AnalisisPlanoInputSchema.safeParse(body);
     if (!validationResult.success) {
       return NextResponse.json(
-        {
-          error: "Los datos de entrada son inválidos.",
-          details: validationResult.error.flatten(),
-        },
-        { status: 400 }
+        { error: "Los datos de entrada son inválidos.", details: validationResult.error.flatten() },
+        { status: 400, headers: corsHeaders }
       );
     }
 
     const validatedInput: AnalisisPlanoInput = validationResult.data;
     const { companyId, obraId, cache, planType, imageMeta } = validatedInput;
 
-    // ✅ Import dinámico para evitar que Vercel/Turbopack evalúe firebase-admin en build-time
+    // 🔹 IMPORTS DINÁMICOS (CRÍTICO PARA VERCEL / TURBOPACK)
     const { getAdminDb } = await import("@/lib/firebaseAdmin");
     const { FieldValue } = await import("firebase-admin/firestore");
     const db = getAdminDb();
@@ -37,12 +45,9 @@ export async function POST(req: Request) {
       }
 
       const cacheRef = db
-        .collection("companies")
-        .doc(companyId)
-        .collection("obras")
-        .doc(obraId)
-        .collection("cubicacion_cache")
-        .doc(cache.cacheKey);
+        .collection("companies").doc(companyId)
+        .collection("obras").doc(obraId)
+        .collection("cubicacion_cache").doc(cache.cacheKey);
 
       const cachedSnap = await cacheRef.get();
 
@@ -56,7 +61,7 @@ export async function POST(req: Request) {
           cached: true,
           cacheKey: cache.cacheKey,
           result: cachedSnap.data()!.result,
-        });
+        }, { headers: corsHeaders });
       }
     }
 
@@ -67,21 +72,20 @@ export async function POST(req: Request) {
     if (cache?.cacheKey && companyId && obraId) {
       const expireAt = new Date();
       expireAt.setDate(expireAt.getDate() + 90);
+      
+      const { hash, cacheKey, modelId, promptVersion, presetVersion } = cache;
 
       const cacheRef = db
-        .collection("companies")
-        .doc(companyId)
-        .collection("obras")
-        .doc(obraId)
-        .collection("cubicacion_cache")
-        .doc(cache.cacheKey);
+        .collection("companies").doc(companyId)
+        .collection("obras").doc(obraId)
+        .collection("cubicacion_cache").doc(cacheKey);
 
       await cacheRef.set({
-        cacheKey: cache.cacheKey,
-        hash: cache.hash,
-        modelId: cache.modelId,
-        promptVersion: cache.promptVersion,
-        presetVersion: cache.presetVersion,
+        cacheKey,
+        hash,
+        modelId,
+        promptVersion,
+        presetVersion,
         planType: planType ?? null,
         imageMeta: imageMeta ?? null,
         result: analisisOutput,
@@ -96,12 +100,12 @@ export async function POST(req: Request) {
       cached: false,
       cacheKey: cache?.cacheKey ?? null,
       result: analisisOutput,
-    });
+    }, { headers: corsHeaders });
   } catch (error: any) {
     console.error("[API /analizar-plano] Error:", error);
     return NextResponse.json(
       { error: error?.message || "Ocurrió un error inesperado en el servidor." },
-      { status: 500 }
+      { status: 500, headers: corsHeaders }
     );
   }
 }

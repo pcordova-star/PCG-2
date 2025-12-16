@@ -162,8 +162,8 @@ export default function AnalisisPlanosPage() {
             imageMeta: { sizeMb: meta.sizeMb, width: meta.width, height: meta.height },
         };
 
-        const baseUrl = process.env.NEXT_PUBLIC_BASE_URL!;
-        const url = `${baseUrl}/api/analizar-plano`;
+        const base = process.env.NEXT_PUBLIC_BASE_URL;
+        const url = base ? `${base}/api/analizar-plano` : "/api/analizar-plano";
 
         const data = await fetchJsonSafe(url, {
           method: "POST",
