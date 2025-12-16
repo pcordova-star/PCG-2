@@ -1,3 +1,4 @@
+
 // src/components/cubicacion/PdfToImageUploader.tsx
 "use client";
 
@@ -11,10 +12,19 @@ import { Loader2, Wand2 } from 'lucide-react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select';
 import Image from 'next/image';
 import { compressDataUrlJpeg } from "@/lib/image/compressDataUrlJpeg";
+import { PLAN_PRESETS, PlanType } from "@/lib/image/planPresets";
 
 interface PdfToImageUploaderProps {
   onImageReady: (dataUrl: string) => void;
   disabled?: boolean;
+}
+
+function autoPresetFromFilename(name?: string): PlanType {
+  const n = (name || "").toLowerCase();
+  if (n.includes("elec")) return "electrico";
+  if (n.includes("sanit")) return "sanitario";
+  if (n.includes("struct") || n.includes("estr")) return "estructura";
+  return "arquitectura";
 }
 
 export default function PdfToImageUploader({ onImageReady, disabled = false }: PdfToImageUploaderProps) {
@@ -22,6 +32,7 @@ export default function PdfToImageUploader({ onImageReady, disabled = false }: P
   const [pdfFile, setPdfFile] = useState<File | null>(null);
   const [pageCount, setPageCount] = useState(0);
   const [selectedPage, setSelectedPage] = useState('1');
+  const [planType, setPlanType] = useState<PlanType>("arquitectura");
   const [isConverting, setIsConverting] = useState(false);
   const [convertedImageUrl, setConvertedImageUrl] = useState<string | null>(null);
   
@@ -35,7 +46,8 @@ export default function PdfToImageUploader({ onImageReady, disabled = false }: P
       setPdfFile(file);
       setConvertedImageUrl(null); // Limpiar previsualización anterior
       
-      // Leer el número de páginas
+      // Leer el número de páginas y auto-seleccionar preset
+      setPlanType(autoPresetFromFilename(file.name));
       try {
         const { pageCount: numPages } = await pdfPageToDataUrl(file, 1, 0.1); // Escala baja solo para contar
         setPageCount(numPages);
@@ -52,23 +64,19 @@ export default function PdfToImageUploader({ onImageReady, disabled = false }: P
     
     setIsConverting(true);
     try {
-      // 1. Convertir PDF a imagen con una escala inicial razonable
       const result = await pdfPageToDataUrl(pdfFile, parseInt(selectedPage, 10), 2.0);
       
-      // 2. Comprimir la imagen generada
+      const preset = PLAN_PRESETS[planType];
       const optimized = await compressDataUrlJpeg(result.dataUrl, {
-        maxWidth: 2200,
-        maxHeight: 2200,
-        quality: 0.82,
+        maxWidth: preset.maxWidth,
+        maxHeight: preset.maxHeight,
+        quality: preset.quality,
       });
 
-      // 3. Validar el tamaño final
       const sizeMb = (optimized.length * 3) / 4 / 1024 / 1024;
-      if (sizeMb > 8) {
+      if (sizeMb > preset.maxSizeMb) {
         throw new Error(
-          `La imagen sigue siendo muy pesada (${sizeMb.toFixed(
-            1
-          )} MB). Intenta reducir la escala o exportar el plano directamente a JPG.`
+          `La imagen (${sizeMb.toFixed(1)} MB) supera el límite de ${preset.maxSizeMb} MB para planos de ${planType}. Reduce la escala o exporta la lámina directamente a JPG.`
         );
       }
       
@@ -98,9 +106,23 @@ export default function PdfToImageUploader({ onImageReady, disabled = false }: P
       {pdfFile && pageCount > 0 && (
         <div className="flex flex-col sm:flex-row gap-4 items-end">
           <div className="space-y-2 flex-grow">
-            <Label htmlFor="page-select">Página a analizar</Label>
+            <Label htmlFor="plan-type-select">Tipo de Plano</Label>
+            <Select value={planType} onValueChange={(v) => setPlanType(v as PlanType)} disabled={isConverting || disabled}>
+                <SelectTrigger id="plan-type-select"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                    <SelectItem value="arquitectura">Arquitectura</SelectItem>
+                    <SelectItem value="estructura">Estructura</SelectItem>
+                    <SelectItem value="electrico">Eléctrico</SelectItem>
+                    <SelectItem value="sanitario">Sanitario</SelectItem>
+                    <SelectItem value="otros">Otros</SelectItem>
+                </SelectContent>
+            </Select>
+            <p className="text-xs text-muted-foreground">El preset optimiza resolución y compresión.</p>
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="page-select">Página</Label>
             <Select value={selectedPage} onValueChange={setSelectedPage} disabled={isConverting || disabled}>
-                <SelectTrigger id="page-select"><SelectValue /></SelectTrigger>
+                <SelectTrigger id="page-select" className="w-[180px]"><SelectValue /></SelectTrigger>
                 <SelectContent>
                     {Array.from({ length: pageCount }, (_, i) => i + 1).map(pageNum => (
                         <SelectItem key={pageNum} value={String(pageNum)}>
@@ -112,7 +134,7 @@ export default function PdfToImageUploader({ onImageReady, disabled = false }: P
           </div>
           <Button onClick={handleConvert} disabled={isConverting || disabled}>
             {isConverting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-            Convertir a Imagen
+            Convertir
           </Button>
         </div>
       )}
