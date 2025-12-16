@@ -2,7 +2,7 @@
 // src/components/cubicacion/PdfToImageUploader.tsx
 "use client";
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -13,6 +13,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '.
 import Image from 'next/image';
 import { compressDataUrlJpeg, ImageSize } from "@/lib/image/compressDataUrlJpeg";
 import { PLAN_PRESETS, PlanType } from "@/lib/image/planPresets";
+import { CubicacionUiMetrics } from '@/types/cubicacion-ui';
+import { computeCubicacionMetrics } from '@/lib/image/cubicacionMetrics';
+import CubicacionMetricsPanel from './CubicacionMetricsPanel';
 
 interface PdfToImageUploaderProps {
   onImageReady: (dataUrl: string, meta: { width: number; height: number; sizeMb: number; planType: PlanType; }) => void;
@@ -35,6 +38,16 @@ export default function PdfToImageUploader({ onImageReady, disabled = false }: P
   const [planType, setPlanType] = useState<PlanType>("arquitectura");
   const [isConverting, setIsConverting] = useState(false);
   const [convertedImage, setConvertedImage] = useState<{ dataUrl: string; meta: { width: number; height: number; sizeMb: number; planType: PlanType; } } | null>(null);
+  const [metrics, setMetrics] = useState<CubicacionUiMetrics | null>(null);
+
+  useEffect(() => {
+    // Cuando se deselecciona un archivo, limpiar todo.
+    if (!pdfFile) {
+        setPageCount(0);
+        setConvertedImage(null);
+        setMetrics(null);
+    }
+  }, [pdfFile]);
   
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -45,6 +58,7 @@ export default function PdfToImageUploader({ onImageReady, disabled = false }: P
       }
       setPdfFile(file);
       setConvertedImage(null);
+      setMetrics(null);
       setPlanType(autoPresetFromFilename(file.name));
       try {
         const { pageCount: numPages } = await pdfPageToDataUrl(file, 1, 0.1); // Escala baja solo para contar
@@ -54,6 +68,8 @@ export default function PdfToImageUploader({ onImageReady, disabled = false }: P
         console.error("Error reading PDF pages:", error);
         toast({ variant: 'destructive', title: 'Error al leer PDF', description: error.message });
       }
+    } else {
+        setPdfFile(null);
     }
   };
 
@@ -61,6 +77,8 @@ export default function PdfToImageUploader({ onImageReady, disabled = false }: P
     if (!pdfFile) return;
     
     setIsConverting(true);
+    setMetrics(null);
+    setConvertedImage(null);
     try {
       const result = await pdfPageToDataUrl(pdfFile, parseInt(selectedPage, 10), 2.0);
       
@@ -77,10 +95,11 @@ export default function PdfToImageUploader({ onImageReady, disabled = false }: P
         );
       }
       
-      setConvertedImage({
-        dataUrl: optimizedDataUrl,
-        meta: { ...size, planType }
-      });
+      const finalMeta = { ...size, planType };
+      setConvertedImage({ dataUrl: optimizedDataUrl, meta: finalMeta });
+
+      const calculatedMetrics = computeCubicacionMetrics(optimizedDataUrl, planType, size.width, size.height);
+      setMetrics(calculatedMetrics);
 
     } catch (error: any) {
       console.error("Error converting PDF page:", error);
@@ -95,6 +114,8 @@ export default function PdfToImageUploader({ onImageReady, disabled = false }: P
         onImageReady(convertedImage.dataUrl, convertedImage.meta);
     }
   };
+
+  const disableAnalysisButton = disabled || metrics?.estimatedCost === 'alto';
 
   return (
     <div className="space-y-4">
@@ -141,14 +162,20 @@ export default function PdfToImageUploader({ onImageReady, disabled = false }: P
 
       {convertedImage && (
         <div className="space-y-4 pt-4 border-t">
-          <p className="text-sm font-medium">Previsualización de la imagen generada:</p>
-          <div className="border rounded-md p-2">
-             <Image src={convertedImage.dataUrl} alt={`Página ${selectedPage} del PDF`} width={400} height={300} className="w-full h-auto object-contain rounded-md" />
+          <p className="text-sm font-medium">Previsualización y Métricas:</p>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 items-start">
+             <div className="border rounded-md p-2">
+                <Image src={convertedImage.dataUrl} alt={`Página ${selectedPage} del PDF`} width={400} height={300} className="w-full h-auto object-contain rounded-md" />
+            </div>
+            <CubicacionMetricsPanel metrics={metrics} />
           </div>
-          <Button onClick={handleAnalyze} className="w-full" disabled={disabled}>
+          <Button onClick={handleAnalyze} className="w-full" disabled={disableAnalysisButton}>
             <Wand2 className="mr-2 h-4 w-4"/>
             Analizar Plano con IA
           </Button>
+          {disableAnalysisButton && metrics?.estimatedCost === 'alto' && (
+              <p className="text-center text-xs text-destructive font-semibold">El costo estimado es alto. No se puede analizar.</p>
+          )}
         </div>
       )}
     </div>
