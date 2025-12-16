@@ -9,7 +9,7 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Checkbox } from '@/components/ui/checkbox';
 import { useToast } from '@/hooks/use-toast';
-import { ArrowLeft, Loader2, Wand2, TableIcon, StickyNote, FileUp, Building, Droplets, Zap, Image as ImageIcon, File as FileIcon, FileDown } from 'lucide-react';
+import { ArrowLeft, Loader2, Wand2, TableIcon, StickyNote, FileUp, Building, Droplets, Zap, Image as ImageIcon, FileIcon, FileDown } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
@@ -21,6 +21,11 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import PdfToImageUploader from '@/components/cubicacion/PdfToImageUploader';
 import { generarAnalisisPlanoPdf } from '@/lib/pdf/generarAnalisisPlanoPdf';
 import { sha256DataUrl } from '@/lib/hash/sha256DataUrl';
+import { PlanType } from '@/lib/image/planPresets';
+import { CubicacionUiMetrics } from '@/types/cubicacion-ui';
+import CubicacionMetricsPanel from '@/components/cubicacion/CubicacionMetricsPanel';
+import { computeCubicacionMetrics } from '@/lib/image/cubicacionMetrics';
+
 
 const progressSteps = [
   { percent: 0, text: "Iniciando conexión segura..." },
@@ -121,7 +126,7 @@ export default function AnalisisPlanosPage() {
     }
   };
   
-  const handleSubmit = async (dataUri: string, meta: { width: number, height: number, sizeMb: number, planType: string }) => {
+  const handleSubmit = async (dataUri: string, meta: { width: number; height: number; sizeMb: number; planType: PlanType; }) => {
     if (!dataUri) {
         setErrorAnalisis("No se proporcionó una imagen para analizar.");
         return;
@@ -145,7 +150,7 @@ export default function AnalisisPlanosPage() {
         const hash = await sha256DataUrl(dataUri);
         const cacheKey = `${hash}_${modelId}_${promptVersion}_${presetVersion}`;
 
-        const input: AnalisisPlanoInput & { cache: any; imageMeta: any; companyId: string; } = {
+        const input: AnalisisPlanoInput = {
             photoDataUri: dataUri,
             opciones,
             notas,
@@ -208,11 +213,14 @@ export default function AnalisisPlanosPage() {
             <Card>
                 <CardHeader><CardTitle>1. Sube tu plano</CardTitle></CardHeader>
                 <CardContent>
-                    <Tabs defaultValue="imagen">
+                    <Tabs defaultValue="pdf">
                         <TabsList className="grid w-full grid-cols-2">
-                            <TabsTrigger value="imagen"><ImageIcon className="mr-2"/>Desde Imagen</TabsTrigger>
                             <TabsTrigger value="pdf"><FileIcon className="mr-2"/>Desde PDF</TabsTrigger>
+                            <TabsTrigger value="imagen"><ImageIcon className="mr-2"/>Desde Imagen</TabsTrigger>
                         </TabsList>
+                         <TabsContent value="pdf" className="pt-4">
+                           <PdfToImageUploader onImageReady={handleSubmit} disabled={cargando}/>
+                        </TabsContent>
                         <TabsContent value="imagen" className="pt-4">
                             <form onSubmit={handleDirectImageSubmit} className="space-y-4">
                                 <Label htmlFor="plano-file">Archivo del plano (JPG, PNG, máx. 10MB)</Label>
@@ -222,9 +230,6 @@ export default function AnalisisPlanosPage() {
                                     Analizar desde Imagen
                                 </Button>
                             </form>
-                        </TabsContent>
-                         <TabsContent value="pdf" className="pt-4">
-                           <PdfToImageUploader onImageReady={handleSubmit} disabled={cargando}/>
                         </TabsContent>
                     </Tabs>
                 </CardContent>
