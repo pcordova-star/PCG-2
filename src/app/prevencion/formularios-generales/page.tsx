@@ -1,5 +1,3 @@
-
-
 // src/app/prevencion/formularios-generales/page.tsx
 "use client";
 
