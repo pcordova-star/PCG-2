@@ -1,11 +1,11 @@
 // src/app/api/analizar-plano/route.ts
 import { NextResponse } from "next/server";
-import { analizarPlano } from '@/ai/flows/analisis-planos-flow';
-import { AnalisisPlanoInputSchema } from '@/types/analisis-planos';
-import type { AnalisisPlanoInput } from '@/types/analisis-planos';
+import { analizarPlano } from "@/ai/flows/analisis-planos-flow";
+import { AnalisisPlanoInputSchema } from "@/types/analisis-planos";
+import type { AnalisisPlanoInput } from "@/types/analisis-planos";
 
 export const runtime = "nodejs";
-export const maxDuration = 60; // 60 segundos de timeout
+export const maxDuration = 60;
 
 export async function POST(req: Request) {
   try {
@@ -18,22 +18,21 @@ export async function POST(req: Request) {
         { status: 400 }
       );
     }
-    
+
     const validatedInput: AnalisisPlanoInput = validationResult.data;
     const { companyId, obraId, cache, planType, imageMeta } = validatedInput;
 
-    // 🔹 IMPORTS DINÁMICOS (CRÍTICO PARA VERCEL)
+    // 🔹 IMPORTS DINÁMICOS (CRÍTICO PARA VERCEL / TURBOPACK)
     const { getAdminDb } = await import("@/lib/firebaseAdmin");
     const { FieldValue } = await import("firebase-admin/firestore");
-
     const db = getAdminDb();
 
     // ===== CACHE LOOKUP =====
     if (cache?.cacheKey && companyId && obraId) {
-      if (cache.cacheKey.length > 200) { // Longitud ajustada a 200 para ser más permisivo pero seguro
-        throw new Error("cacheKey inválido: demasiado largo.");
+      if (cache.cacheKey.length > 200) { // Longitud ajustada a 200
+        throw new Error("cacheKey inválida: demasiado larga.");
       }
-      
+
       const cacheRef = db
         .collection("companies").doc(companyId)
         .collection("obras").doc(obraId)
@@ -41,7 +40,7 @@ export async function POST(req: Request) {
 
       const cachedSnap = await cacheRef.get();
 
-      if (cachedSnap.exists()) {
+      if (cachedSnap.exists) {
         await cacheRef.update({
           hitCount: FieldValue.increment(1),
           lastHitAt: FieldValue.serverTimestamp(),
@@ -60,43 +59,42 @@ export async function POST(req: Request) {
     const analisisOutput = await analizarPlano(validatedInput);
 
     // ===== GUARDAR CACHE =====
-    if (cache?.cacheKey && companyId && obraId && planType && imageMeta) {
-        const { hash, cacheKey, modelId, promptVersion, presetVersion } = cache;
-        
-        const cacheRef = db
-            .collection("companies").doc(companyId)
-            .collection("obras").doc(obraId)
-            .collection("cubicacion_cache").doc(cacheKey);
-        
-        const expireAt = new Date();
-        expireAt.setDate(expireAt.getDate() + 90);
+    if (cache?.cacheKey && companyId && obraId) {
+      const { hash, cacheKey, modelId, promptVersion, presetVersion } = cache;
+      
+      const expireAt = new Date();
+      expireAt.setDate(expireAt.getDate() + 90);
+      
+      const cacheRef = db
+        .collection("companies").doc(companyId)
+        .collection("obras").doc(obraId)
+        .collection("cubicacion_cache").doc(cacheKey);
 
-        await cacheRef.set({
-            cacheKey,
-            hash,
-            modelId,
-            promptVersion,
-            presetVersion,
-            planType,
-            imageMeta,
-            result: analisisOutput,
-            createdAt: FieldValue.serverTimestamp(),
-            lastHitAt: FieldValue.serverTimestamp(),
-            hitCount: 0,
-            expireAt,
-        });
+      await cacheRef.set({
+        cacheKey,
+        hash,
+        modelId,
+        promptVersion,
+        presetVersion,
+        planType: planType ?? null,
+        imageMeta: imageMeta ?? null,
+        result: analisisOutput,
+        createdAt: FieldValue.serverTimestamp(),
+        lastHitAt: FieldValue.serverTimestamp(),
+        hitCount: 0,
+        expireAt,
+      });
     }
 
     return NextResponse.json({
       cached: false,
-      cacheKey: cache?.cacheKey,
+      cacheKey: cache?.cacheKey ?? null,
       result: analisisOutput,
     });
-
   } catch (error: any) {
     console.error("[API /analizar-plano] Error:", error);
     return NextResponse.json(
-      { error: error.message || "Ocurrió un error inesperado en el servidor." },
+      { error: error?.message || "Ocurrió un error inesperado en el servidor." },
       { status: 500 }
     );
   }
