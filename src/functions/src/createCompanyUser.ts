@@ -6,8 +6,8 @@ if (!admin.apps.length) {
 }
 
 function buildAcceptInviteUrl(invId: string, email: string): string {
-  // SOLUCIÓN DEFINITIVA: Usar directamente la URL correcta para ignorar variables de entorno del servidor.
-  const rawBaseUrl = "https://pcg-2-8bf1b.web.app";
+  // CORRECCIÓN: Se reemplaza el dominio por defecto de Firebase por el dominio de producción en Vercel.
+  const rawBaseUrl = "https://pcg-2.vercel.app";
 
   if (!rawBaseUrl) {
     // Este error ya no debería ocurrir.
