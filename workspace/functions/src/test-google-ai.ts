@@ -1,7 +1,8 @@
 // src/functions/src/test-google-ai.ts
 import { onCall, HttpsError } from "firebase-functions/v2/https";
 import * as logger from "firebase-functions/logger";
-import { ai } from "./genkit-config";
+import { getInitializedGenkitAi } from "./genkit-config"; // Importar la función inicializadora
+import { GEMINI_API_KEY_SECRET } from "./params";
 
 /**
  * Función "smoke test" para validar que Genkit y la API de Gemini
@@ -9,23 +10,19 @@ import { ai } from "./genkit-config";
  */
 export const testGoogleAi = onCall(
   {
-    // Esta función necesita acceso al mismo secreto.
-    secrets: [{ secret: "GEMINI_API_KEY", projectId: "pcg-ia" }],
+    // Esta función necesita acceso al mismo secreto, vinculado con el nuevo patrón.
+    secrets: [GEMINI_API_KEY_SECRET],
   },
   async (request) => {
-    // 1. Logging de seguridad para verificar la clave.
-    const apiKeyExists = !!process.env.GEMINI_API_KEY;
-    logger.info(`[testGoogleAi] Verificación de API Key: Existe=${apiKeyExists}, Longitud=${process.env.GEMINI_API_KEY?.length || 0}`);
-    
-    if (!apiKeyExists) {
-      logger.error("[testGoogleAi] La variable de entorno GEMINI_API_KEY no está disponible.");
-      throw new HttpsError("failed-precondition", "La configuración del servidor para la API de IA es incorrecta.");
-    }
     
     try {
+      // 1. Inicializar Genkit dentro del handler
+      const ai = getInitializedGenkitAi();
+      logger.info("[testGoogleAi] Genkit inicializado en runtime.");
+      
       logger.info("[testGoogleAi] Intentando generar contenido con Genkit y Gemini...");
       const response = await ai.generate({
-        model: 'googleai/gemini-2.5-flash',
+        model: 'googleai/gemini-1.5-flash-latest',
         prompt: "Confirma que estás funcionando. Responde solo con: 'OK'",
       });
 
@@ -44,6 +41,8 @@ export const testGoogleAi = onCall(
 
     } catch (error: any) {
       logger.error("[testGoogleAi] Error al llamar a la API de Gemini:", error);
+      // Incluir el stack trace en el log para un mejor diagnóstico.
+      logger.error("Stack trace:", error.stack);
       throw new HttpsError("internal", `Error al contactar el modelo de IA: ${error.message}`);
     }
   }
