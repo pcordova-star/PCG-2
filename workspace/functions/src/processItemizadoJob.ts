@@ -4,6 +4,8 @@ import * as logger from "firebase-functions/logger";
 import { FieldValue } from "firebase-admin/firestore";
 import { initializeApp, getApps } from "firebase-admin/app";
 import { z } from "zod";
+import { GEMINI_API_KEY_SECRET } from './params'; // Importar el secreto
+import { getInitializedGenkitAi } from "./genkit-config"; // Importar la función inicializadora
 
 // Inicializar Firebase Admin SDK si no se ha hecho
 if (getApps().length === 0) {
@@ -20,8 +22,7 @@ type ProcessItemizadoJobPayload = {
 export const processItemizadoJob = onDocumentCreated(
   {
     document: "itemizadoImportJobs/{jobId}",
-    // ⚠️ CORRECCIÓN: Se especifica la ruta completa del secreto, incluyendo el ID del proyecto "pcg-ia"
-    secrets: [{ secret: "GEMINI_API_KEY", projectId: "pcg-ia" }], 
+    secrets: [GEMINI_API_KEY_SECRET],
     cpu: 1,
     memory: "512MiB",
     timeoutSeconds: 540,
@@ -29,10 +30,6 @@ export const processItemizadoJob = onDocumentCreated(
   async (event) => {
     const { jobId } = event.params;
     
-    // Log de seguridad para verificar la presencia de la API key en cada ejecución
-    const apiKeyExists = !!process.env.GEMINI_API_KEY;
-    logger.info(`[${jobId}] Verificación de API Key en handler: Existe=${apiKeyExists}, Longitud=${process.env.GEMINI_API_KEY?.length || 0}`);
-
     const snapshot = event.data;
     if (!snapshot) {
       logger.warn(`[${jobId}] No data found in event. Aborting.`);
@@ -65,26 +62,14 @@ export const processItemizadoJob = onDocumentCreated(
         logger.info(`[${jobId}] Job status updated to 'processing'.`);
     } catch (updateError) {
         logger.error(`[${jobId}] FATAL: Could not update job status to 'processing'. Aborting.`, updateError);
-        return; // Salir si no podemos ni siquiera marcar el inicio
+        return;
     }
 
 
     try {
       // 3. Carga diferida (Lazy Load) de Genkit y sus dependencias
-      let ai;
-      try {
-          const genkitModule = await import("./genkit-config");
-          ai = genkitModule.ai;
-          logger.info(`[${jobId}] Genkit module imported successfully.`);
-      } catch (genkitError: any) {
-          logger.error(`[${jobId}] CRITICAL: Failed to import Genkit module.`, genkitError);
-          await jobRef.update({
-              status: "error",
-              errorMessage: `GENKIT_IMPORT_FAILED: ${genkitError.message}`,
-              processedAt: FieldValue.serverTimestamp(),
-          });
-          return;
-      }
+      const ai = getInitializedGenkitAi();
+      logger.info(`[${jobId}] Genkit module initialized successfully.`);
       
       const ImportarItemizadoInputSchema = z.object({
         pdfDataUri: z.string(),
