@@ -1,52 +1,59 @@
-// src/functions/src/test-google-ai.ts
+// functions/src/test-google-ai.ts
 import { onCall, HttpsError } from "firebase-functions/v2/https";
-import * as logger from "firebase-functions/logger";
+import { logger } from "firebase-functions";
 import { ai } from "./genkit-config";
-import { GEMINI_API_KEY_SECRET } from "./params";
 
-/**
- * Función "smoke test" para validar que Genkit y la API de Gemini
- * están funcionando correctamente desde el entorno de Cloud Functions.
- */
 export const testGoogleAi = onCall(
   {
-    // Esta función necesita acceso al mismo secreto, vinculado con el nuevo patrón.
-    secrets: [GEMINI_API_KEY_SECRET],
+    region: "southamerica-west1",
+    secrets: ["GEMINI_API_KEY"],
   },
   async (request) => {
-    // 1. Logging de seguridad para verificar la clave.
-    const apiKey = GEMINI_API_KEY_SECRET.value();
-    const apiKeyExists = !!apiKey;
-    logger.info(`[testGoogleAi] Verificación de API Key: Existe=${apiKeyExists}, Longitud=${apiKey?.length || 0}`);
-    
-    if (!apiKeyExists) {
-      logger.error("[testGoogleAi] La variable de entorno GEMINI_API_KEY no está disponible.");
-      throw new HttpsError("failed-precondition", "La configuración del servidor para la API de IA es incorrecta.");
+    const prompt = request.data?.prompt;
+
+    if (!prompt || typeof prompt !== "string") {
+      throw new HttpsError(
+        "invalid-argument",
+        'Formato requerido: {"data":{"prompt":"..."}}'
+      );
     }
-    
+
+    // Diagnóstico de secret/env (SIN exponer la key)
+    logger.info("GenAI env check", {
+      hasGEMINI: !!process.env.GEMINI_API_KEY,
+      geminiLen: process.env.GEMINI_API_KEY?.length ?? 0,
+      hasGOOGLE: !!process.env.GOOGLE_API_KEY,
+      googleLen: process.env.GOOGLE_API_KEY?.length ?? 0,
+      hasAuth: !!request.auth,
+      uid: request.auth?.uid ?? null,
+    });
+
     try {
-      logger.info("[testGoogleAi] Intentando generar contenido con Genkit y Gemini...");
-      const response = await ai.generate({
-        model: 'googleai/gemini-1.5-flash-latest',
-        prompt: "Confirma que estás funcionando. Responde solo con: 'OK'",
+      // Nota: si el nombre del modelo no existe/está mal, esto va a tirar error y ahora lo veremos.
+      const resp = await ai.generate({
+        model: "googleai/gemini-2.5-flash",
+        prompt,
       });
 
-      const textResult = response.text();
-      logger.info(`[testGoogleAi] Respuesta del modelo: ${textResult}`);
+      const text =
+        typeof (resp as any).text === "function"
+          ? (resp as any).text()
+          : (resp as any).text;
 
-      if (textResult.includes('OK')) {
-        return {
-          ok: true,
-          message: "La conexión con la API de Google AI a través de Genkit fue exitosa.",
-          response: textResult
-        };
-      } else {
-        throw new Error(`Respuesta inesperada del modelo: ${textResult}`);
-      }
+      return { ok: true, text: String(text ?? "") };
+    } catch (e: any) {
+      // Log REAL del error (esto es lo que hoy te falta)
+      logger.error("Genkit call failed", {
+        message: e?.message,
+        name: e?.name,
+        stack: e?.stack,
+        cause: e?.cause,
+      });
 
-    } catch (error: any) {
-      logger.error("[testGoogleAi] Error al llamar a la API de Gemini:", error);
-      throw new HttpsError("internal", `Error al contactar el modelo de IA: ${error.message}`);
+      throw new HttpsError("internal", "Genkit call failed", {
+        message: e?.message ?? "unknown",
+        name: e?.name ?? "unknown",
+      });
     }
   }
 );

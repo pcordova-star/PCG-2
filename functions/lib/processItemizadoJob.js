@@ -1,4 +1,5 @@
 "use strict";
+// functions/src/processItemizadoJob.ts
 var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
     if (k2 === undefined) k2 = k;
     var desc = Object.getOwnPropertyDescriptor(m, k);
@@ -34,19 +35,22 @@ var __importStar = (this && this.__importStar) || (function () {
 })();
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.processItemizadoJob = void 0;
-// functions/src/processItemizadoJob.ts
 const firestore_1 = require("firebase-functions/v2/firestore");
 const logger = __importStar(require("firebase-functions/logger"));
 const firestore_2 = require("firebase-admin/firestore");
 const app_1 = require("firebase-admin/app");
 const zod_1 = require("zod");
+const params_1 = require("./params");
+const genkit_config_1 = require("./genkit-config");
 // Inicializar Firebase Admin SDK si no se ha hecho
 if ((0, app_1.getApps)().length === 0) {
     (0, app_1.initializeApp)();
 }
 exports.processItemizadoJob = (0, firestore_1.onDocumentCreated)({
+    // 🔴 MUY IMPORTANTE: mantener esta región para no duplicar/borrar la función existente
+    region: "us-central1",
     document: "itemizadoImportJobs/{jobId}",
-    secrets: ["GEMINI_API_KEY"],
+    secrets: [params_1.GEMINI_API_KEY_SECRET],
     cpu: 1,
     memory: "512MiB",
     timeoutSeconds: 540,
@@ -59,129 +63,113 @@ exports.processItemizadoJob = (0, firestore_1.onDocumentCreated)({
     }
     const jobData = snapshot.data();
     const jobRef = snapshot.ref;
-    // 1. Logging inicial para observabilidad
+    // 1. Observabilidad inicial
     logger.info(`[${jobId}] Job triggered.`, {
-        location: event.location,
         path: snapshot.ref.path,
-        jobKeys: Object.keys(jobData),
         currentStatus: jobData.status,
+        keys: Object.keys(jobData),
     });
-    // GUARD: Evitar dobles ejecuciones
-    if (jobData.status !== 'queued') {
-        logger.info(`[${jobId}] Job is not in 'queued' state (current: ${jobData.status}). Ignoring.`);
+    // GUARD: evitar ejecuciones duplicadas
+    if (jobData.status !== "queued") {
+        logger.info(`[${jobId}] Job ignored. Current status: ${jobData.status}`);
         return;
     }
-    // 2. Marcar el trabajo como "procesando" de forma segura
+    // 2. Marcar como procesando
     try {
         await jobRef.update({
             status: "processing",
-            startedAt: firestore_2.FieldValue.serverTimestamp()
+            startedAt: firestore_2.FieldValue.serverTimestamp(),
         });
-        logger.info(`[${jobId}] Job status updated to 'processing'.`);
+        logger.info(`[${jobId}] Status updated to processing.`);
     }
-    catch (updateError) {
-        logger.error(`[${jobId}] FATAL: Could not update job status to 'processing'. Aborting.`, updateError);
-        return; // Salir si no podemos ni siquiera marcar el inicio
+    catch (err) {
+        logger.error(`[${jobId}] Failed to update status to processing.`, err);
+        return;
     }
     try {
-        // 3. Carga diferida (Lazy Load) de Genkit y sus dependencias
-        let ai;
-        try {
-            const genkitModule = await Promise.resolve().then(() => __importStar(require("./genkit-config")));
-            ai = genkitModule.ai;
-            logger.info(`[${jobId}] Genkit module imported successfully.`);
-        }
-        catch (genkitError) {
-            logger.error(`[${jobId}] CRITICAL: Failed to import Genkit module.`, genkitError);
-            await jobRef.update({
-                status: "error",
-                errorMessage: `GENKIT_IMPORT_FAILED: ${genkitError.message}`,
-                processedAt: firestore_2.FieldValue.serverTimestamp(),
-            });
-            return;
-        }
+        // 3. Genkit ya inicializado vía import (usa secret inyectado)
+        logger.info(`[${jobId}] Using Genkit AI instance.`);
         const ImportarItemizadoInputSchema = zod_1.z.object({
             pdfDataUri: zod_1.z.string(),
             obraId: zod_1.z.string(),
             obraNombre: zod_1.z.string(),
             notas: zod_1.z.string().optional(),
         });
-        const importarItemizadoPrompt = ai.definePrompt({
-            name: 'importarItemizadoPrompt',
-            model: 'googleai/gemini-2.5-flash',
+        const importarItemizadoPrompt = genkit_config_1.ai.definePrompt({
+            name: "importarItemizadoPrompt",
+            model: "googleai/gemini-2.5-flash",
             input: { schema: ImportarItemizadoInputSchema },
-            prompt: `Eres un asistente experto en análisis de presupuestos de construcción. Tu tarea es interpretar un presupuesto (en formato PDF) y extraer los capítulos y todas las partidas/subpartidas en una estructura plana.
+            prompt: `
+Eres un asistente experto en análisis de presupuestos de construcción.
 
-Debes seguir estas reglas estrictamente:
+Reglas estrictas:
+1. Analiza el PDF entregado.
+2. Identifica capítulos principales → array "chapters".
+3. Procesa TODAS las líneas → array "rows".
+4. Cada fila debe tener id estable (ej: 1, 1.1, 1.2.3).
+5. parentId define jerarquía (null si es raíz).
+6. chapterIndex debe ser consistente.
+7. Extrae códigos, descripciones, unidades, cantidades, PU y totales.
+8. NO inventes valores. Usa null si no existen.
+9. Respuesta EXCLUSIVAMENTE JSON válido.
 
-1. Analiza el documento PDF que se te entrega.
-2. Primero, identifica los capítulos principales y llena el array 'chapters'.
-3. Luego, procesa CADA LÍNEA del itemizado (capítulos, partidas, sub-partidas) y conviértela en un objeto para el array 'rows'.
-4. Para cada fila en 'rows', genera un 'id' estable y único (ej: "1", "1.1", "1.2.3").
-5. Para representar la jerarquía, asigna el 'id' del elemento padre al campo 'parentId'. Si un ítem es de primer nivel (dentro de un capítulo), su 'parentId' debe ser 'null'.
-6. Asigna el 'chapterIndex' correcto a cada fila, correspondiendo a su capítulo en el array 'chapters'.
-7. Extrae códigos, descripciones, unidades, cantidades, precios unitarios y totales para cada partida.
-8. NO inventes cantidades, precios ni unidades si no están explícitamente en el documento. Si un valor no existe para un ítem, déjalo como 'null'.
-9. Tu respuesta DEBE SER EXCLUSIVAMENTE un objeto JSON válido, sin texto adicional, explicaciones ni formato markdown.
-
-Aquí está la información proporcionada por el usuario:
-- Itemizado PDF: {{media url=pdfDataUri}}
-- Notas adicionales: {{{notas}}}
-
-Genera ahora el JSON de salida.`
+Entrada:
+- PDF: {{media url=pdfDataUri}}
+- Notas: {{{notas}}}
+        `,
         });
-        const importarItemizadoFlow = ai.defineFlow({
-            name: 'importarItemizadoCloudFunctionFlow',
+        const importarItemizadoFlow = genkit_config_1.ai.defineFlow({
+            name: "importarItemizadoCloudFunctionFlow",
             inputSchema: ImportarItemizadoInputSchema,
         }, async (input) => {
-            logger.info("[Genkit Flow] Iniciando análisis de itemizado...");
+            logger.info(`[${jobId}] Genkit flow started.`);
             const res = await importarItemizadoPrompt(input);
             const output = res?.output ?? res;
             if (!output) {
-                throw new Error("La IA no devolvió una respuesta válida para el itemizado.");
+                throw new Error("AI returned empty output.");
             }
-            logger.info("[Genkit Flow] Análisis completado con éxito.");
+            logger.info(`[${jobId}] Genkit flow completed.`);
             return output;
         });
         const parsedInput = ImportarItemizadoInputSchema.parse(jobData);
         let analisisResult;
         try {
-            logger.info(`[${jobId}] Calling Genkit flow for obra ${parsedInput.obraNombre}...`);
             analisisResult = await importarItemizadoFlow({
                 pdfDataUri: parsedInput.pdfDataUri,
                 obraId: parsedInput.obraId,
                 obraNombre: parsedInput.obraNombre,
-                notas: parsedInput.notas || "Analizar el itemizado completo.",
+                notas: parsedInput.notas ?? "Analizar itemizado completo.",
             });
         }
-        catch (flowError) {
-            logger.error(`[${jobId}] Genkit flow execution failed.`, flowError);
+        catch (flowErr) {
+            logger.error(`[${jobId}] Genkit flow failed.`, flowErr);
             await jobRef.update({
                 status: "error",
-                errorMessage: `FLOW_FAILED: ${flowError.message}`,
+                errorMessage: `FLOW_FAILED: ${flowErr.message}`,
                 processedAt: firestore_2.FieldValue.serverTimestamp(),
             });
             return;
         }
-        logger.info(`[${jobId}] AI analysis successful. Saving results...`);
+        // 4. Guardar resultado
         await jobRef.update({
             status: "done",
             result: analisisResult,
             processedAt: firestore_2.FieldValue.serverTimestamp(),
         });
-        logger.info(`[${jobId}] Job completed and saved.`);
+        logger.info(`[${jobId}] Job completed successfully.`);
     }
-    catch (error) {
-        logger.error(`[${jobId}] Catastrophic error during processing:`, error);
+    catch (err) {
+        logger.error(`[${jobId}] Catastrophic error.`, err);
         try {
             await jobRef.update({
                 status: "error",
-                errorMessage: error.message || "Ocurrió un error desconocido durante el análisis.",
+                errorMessage: err?.message ??
+                    "Unexpected error during itemizado processing.",
                 processedAt: firestore_2.FieldValue.serverTimestamp(),
             });
         }
-        catch (finalError) {
-            logger.error(`[${jobId}] CRITICAL: Failed to even update a final error state.`, finalError);
+        catch (finalErr) {
+            logger.error(`[${jobId}] Failed to write final error state.`, finalErr);
         }
     }
 });
