@@ -1,35 +1,104 @@
 // functions/src/processItemizadoJob.ts
 import { onDocumentCreated } from "firebase-functions/v2/firestore";
 import * as logger from "firebase-functions/logger";
-import { serverTimestamp } from "firebase-admin/firestore";
+import { FieldValue } from "firebase-admin/firestore";
 import { initializeApp, getApps } from "firebase-admin/app";
-import { ai } from "./genkit-config";
-import { ItemizadoImportOutputSchema } from './types/itemizados-import';
-import { z } from 'zod';
+import { z } from "zod";
 
 // Inicializar Firebase Admin SDK si no se ha hecho
 if (getApps().length === 0) {
   initializeApp();
 }
 
-// Esquema de entrada que espera la función de IA
-const ImportarItemizadoInputSchema = z.object({
-  pdfDataUri: z.string(),
-  obraId: z.string(),
-  obraNombre: z.string(),
-  notas: z.string().optional(),
-});
-type ImportarItemizadoInput = z.infer<typeof ImportarItemizadoInputSchema>;
+type ProcessItemizadoJobPayload = {
+  pdfDataUri: string;
+  obraId: string;
+  obraNombre: string;
+  notas?: string;
+};
 
-// Definición del prompt de Genkit. Replicamos la estructura del frontend
-// para asegurar que el backend pueda llamar al mismo flujo.
-const importarItemizadoPrompt = ai.definePrompt(
+export const processItemizadoJob = onDocumentCreated(
   {
-    name: 'importarItemizadoPrompt',
-    model: 'googleai/gemini-2.5-flash',
-    input: { schema: ImportarItemizadoInputSchema },
-    output: { schema: ItemizadoImportOutputSchema },
-    prompt: `Eres un asistente experto en análisis de presupuestos de construcción. Tu tarea es interpretar un presupuesto (en formato PDF) y extraer los capítulos y todas las partidas/subpartidas en una estructura plana.
+    document: "itemizadoImportJobs/{jobId}",
+    // ⚠️ CORRECCIÓN: Se especifica la ruta completa del secreto, incluyendo el ID del proyecto "pcg-ia"
+    secrets: [{ secret: "GEMINI_API_KEY", projectId: "pcg-ia" }], 
+    cpu: 1,
+    memory: "512MiB",
+    timeoutSeconds: 540,
+  },
+  async (event) => {
+    const { jobId } = event.params;
+    
+    // Log de seguridad para verificar la presencia de la API key en cada ejecución
+    const apiKeyExists = !!process.env.GEMINI_API_KEY;
+    logger.info(`[${jobId}] Verificación de API Key en handler: Existe=${apiKeyExists}, Longitud=${process.env.GEMINI_API_KEY?.length || 0}`);
+
+    const snapshot = event.data;
+    if (!snapshot) {
+      logger.warn(`[${jobId}] No data found in event. Aborting.`);
+      return;
+    }
+
+    const jobData = snapshot.data();
+    const jobRef = snapshot.ref;
+    
+    // 1. Logging inicial para observabilidad
+    logger.info(`[${jobId}] Job triggered.`, {
+        location: event.location,
+        path: snapshot.ref.path,
+        jobKeys: Object.keys(jobData),
+        currentStatus: jobData.status,
+    });
+
+    // GUARD: Evitar dobles ejecuciones
+    if (jobData.status !== 'queued') {
+      logger.info(`[${jobId}] Job is not in 'queued' state (current: ${jobData.status}). Ignoring.`);
+      return;
+    }
+    
+    // 2. Marcar el trabajo como "procesando" de forma segura
+    try {
+        await jobRef.update({ 
+            status: "processing",
+            startedAt: FieldValue.serverTimestamp()
+        });
+        logger.info(`[${jobId}] Job status updated to 'processing'.`);
+    } catch (updateError) {
+        logger.error(`[${jobId}] FATAL: Could not update job status to 'processing'. Aborting.`, updateError);
+        return; // Salir si no podemos ni siquiera marcar el inicio
+    }
+
+
+    try {
+      // 3. Carga diferida (Lazy Load) de Genkit y sus dependencias
+      let ai;
+      try {
+          const genkitModule = await import("./genkit-config");
+          ai = genkitModule.ai;
+          logger.info(`[${jobId}] Genkit module imported successfully.`);
+      } catch (genkitError: any) {
+          logger.error(`[${jobId}] CRITICAL: Failed to import Genkit module.`, genkitError);
+          await jobRef.update({
+              status: "error",
+              errorMessage: `GENKIT_IMPORT_FAILED: ${genkitError.message}`,
+              processedAt: FieldValue.serverTimestamp(),
+          });
+          return;
+      }
+      
+      const ImportarItemizadoInputSchema = z.object({
+        pdfDataUri: z.string(),
+        obraId: z.string(),
+        obraNombre: z.string(),
+        notas: z.string().optional(),
+      });
+      
+      const importarItemizadoPrompt = ai.definePrompt(
+        {
+          name: 'importarItemizadoPrompt',
+          model: 'googleai/gemini-2.5-flash',
+          input: { schema: ImportarItemizadoInputSchema as any },
+          prompt: `Eres un asistente experto en análisis de presupuestos de construcción. Tu tarea es interpretar un presupuesto (en formato PDF) y extraer los capítulos y todas las partidas/subpartidas en una estructura plana.
 
 Debes seguir estas reglas estrictamente:
 
@@ -41,100 +110,73 @@ Debes seguir estas reglas estrictamente:
 6.  Asigna el 'chapterIndex' correcto a cada fila, correspondiendo a su capítulo en el array 'chapters'.
 7.  Extrae códigos, descripciones, unidades, cantidades, precios unitarios y totales para cada partida.
 8.  NO inventes cantidades, precios ni unidades si no están explícitamente en el documento. Si un valor no existe para un ítem, déjalo como 'null'.
-9.  Tu respuesta DEBE SER EXCLUSIVAMENTE un objeto JSON válido, sin texto adicional, explicaciones ni formato markdown (sin bloques de código).
+9.  Tu respuesta DEBE SER EXCLUSIVAMENTE un objeto JSON válido, sin texto adicional, explicaciones ni formato markdown.
 
 Aquí está la información proporcionada por el usuario:
 - Itemizado PDF: {{media url=pdfDataUri}}
 - Notas adicionales: {{{notas}}}
 
 Genera ahora el JSON de salida.`
-  },
-);
+        }
+      );
 
-const importarItemizadoFlow = ai.defineFlow(
-  {
-    name: 'importarItemizadoCloudFunctionFlow',
-    inputSchema: ImportarItemizadoInputSchema,
-    outputSchema: ItemizadoImportOutputSchema,
-  },
-  async (input) => {
-    logger.info("[Genkit Flow] Iniciando análisis de itemizado...");
-    const { output } = await importarItemizadoPrompt(input);
-    if (!output) {
-      throw new Error("La IA no devolvió una respuesta válida para el itemizado.");
-    }
-    logger.info("[Genkit Flow] Análisis completado con éxito.");
-    return output;
-  }
-);
+      const importarItemizadoFlow = ai.defineFlow(
+        {
+          name: 'importarItemizadoCloudFunctionFlow',
+          inputSchema: ImportarItemizadoInputSchema as any,
+        },
+        async (input: any) => {
+          logger.info("[Genkit Flow] Iniciando análisis de itemizado...");
+          const res = await (importarItemizadoPrompt as any)(input);
+          const output = res?.output ?? res;
+          if (!output) {
+            throw new Error("La IA no devolvió una respuesta válida para el itemizado.");
+          }
+          logger.info("[Genkit Flow] Análisis completado con éxito.");
+          return output;
+        }
+      );
 
-
-export const processItemizadoJob = onDocumentCreated(
-  {
-    document: "itemizadoImportJobs/{jobId}",
-    region: "southamerica-west1",
-    cpu: 1,
-    memory: "512MiB",
-    timeoutSeconds: 540,
-    secrets: ["GEMINI_API_KEY"], // 👈 ESTO ES CLAVE
-  },
-  async (event) => {
-    const { jobId } = event.params;
-    const snapshot = event.data;
-    if (!snapshot) {
-      logger.warn(`[${jobId}] No se encontraron datos en el evento. Abortando.`);
-      return;
-    }
-
-    const jobData = snapshot.data();
-    const jobRef = snapshot.ref;
-    
-    // GUARD: Evitar dobles ejecuciones
-    if (jobData.status !== 'queued') {
-      logger.info(`[${jobId}] El trabajo no está en estado 'queued' (estado actual: ${jobData.status}). Ignorando.`);
-      return;
-    }
-    
-    logger.info(`[${jobId}] Nuevo trabajo de importación recibido. Iniciando procesamiento...`);
-
-    try {
-      // 1. Marcar el trabajo como "procesando"
-      await jobRef.update({ status: "processing" });
-
-      // 2. Validar los datos de entrada del documento
-      const parsedInput = ImportarItemizadoInputSchema.safeParse(jobData);
-      if (!parsedInput.success) {
-        throw new Error(`Los datos del trabajo son inválidos: ${parsedInput.error.flatten()}`);
-      }
-      const { pdfDataUri, obraId, obraNombre, notas } = parsedInput.data;
+      const parsedInput = ImportarItemizadoInputSchema.parse(jobData) as ProcessItemizadoJobPayload;
       
-      // 3. Ejecutar el flujo de Genkit para el análisis de IA
-      logger.info(`[${jobId}] Llamando al flujo de Genkit para la obra ${obraNombre}...`);
-      const analisisResult = await importarItemizadoFlow({
-          pdfDataUri,
-          obraId,
-          obraNombre,
-          notas: notas || "Analizar el itemizado completo."
-      });
+      let analisisResult;
+      try {
+          logger.info(`[${jobId}] Calling Genkit flow for obra ${parsedInput.obraNombre}...`);
+          analisisResult = await (importarItemizadoFlow as any)({
+              pdfDataUri: parsedInput.pdfDataUri,
+              obraId: parsedInput.obraId,
+              obraNombre: parsedInput.obraNombre,
+              notas: parsedInput.notas || "Analizar el itemizado completo.",
+          });
+      } catch(flowError: any) {
+          logger.error(`[${jobId}] Genkit flow execution failed.`, flowError);
+          await jobRef.update({
+              status: "error",
+              errorMessage: `FLOW_FAILED: ${flowError.message}`,
+              processedAt: FieldValue.serverTimestamp(),
+          });
+          return;
+      }
 
-      // 4. Guardar el resultado exitoso en Firestore
-      logger.info(`[${jobId}] El análisis de IA fue exitoso. Guardando resultados...`);
+      logger.info(`[${jobId}] AI analysis successful. Saving results...`);
       await jobRef.update({
         status: "done",
         result: analisisResult,
-        processedAt: serverTimestamp(),
+        processedAt: FieldValue.serverTimestamp(),
       });
-      logger.info(`[${jobId}] Trabajo completado y guardado.`);
+      logger.info(`[${jobId}] Job completed and saved.`);
 
     } catch (error: any) {
-      logger.error(`[${jobId}] Error catastrófico durante el procesamiento:`, error);
-      
-      // 5. Guardar el estado de error en Firestore
-      await jobRef.update({
-        status: "error",
-        errorMessage: error.message || "Ocurrió un error desconocido durante el análisis.",
-        processedAt: serverTimestamp(),
-      });
+      logger.error(`[${jobId}] Catastrophic error during processing:`, error);
+      try {
+        await jobRef.update({
+          status: "error",
+          errorMessage: error.message || "Ocurrió un error desconocido durante el análisis.",
+          processedAt: FieldValue.serverTimestamp(),
+        });
+      } catch (finalError) {
+          logger.error(`[${jobId}] CRITICAL: Failed to even update a final error state.`, finalError);
+      }
     }
   }
 );
