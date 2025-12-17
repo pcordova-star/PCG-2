@@ -15,7 +15,7 @@ export type InvitarUsuarioParams = {
 
 function construirUrlInvitacion(invId: string, email: string): string {
     // Se usa directamente la URL de producción para evitar problemas con variables de entorno.
-    const rawBaseUrl = "https://pcg-2-8bf1b.web.app";
+    const rawBaseUrl = "https://pcg-2.vercel.app";
     
     if (!rawBaseUrl) {
       // Esta validación se mantiene por seguridad, aunque tengamos un fallback.
@@ -49,7 +49,7 @@ export async function invitarUsuario(params: InvitarUsuarioParams): Promise<void
     });
 
     const finalAcceptInviteUrl = construirUrlInvitacion(newInvitationRef.id, params.email);
-    const platformUrl = "https://pcg-2-8bf1b.web.app";
+    const platformUrl = "https://pcg-2.vercel.app";
     const logoUrl = `${platformUrl}/logo.png`;
 
     const mailRef = collection(firebaseDb, "mail");
