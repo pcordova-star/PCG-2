@@ -30,8 +30,7 @@ export { setSuperAdminClaim } from "./setSuperAdmin";
 export { registrarAvanceRapido } from "./registrarAvanceRapido";
 export { convertHeicToJpg } from "./convertHeic";
 export { notifyDocumentDistribution } from "./notifyDocumentDistribution";
-// Se elimina la exportación de processItemizadoJob
-// export { processItemizadoJob } from "./processItemizadoJob";
+export { processItemizadoJob } from "./processItemizadoJob";
 
 // Se añade la nueva función de "smoke test"
 export { testGoogleAi } from "./test-google-ai";
