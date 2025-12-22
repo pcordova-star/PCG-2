@@ -31,6 +31,7 @@ export { registrarAvanceRapido } from "./registrarAvanceRapido";
 export { convertHeicToJpg } from "./convertHeic";
 export { notifyDocumentDistribution } from "./notifyDocumentDistribution";
 export { processItemizadoJob } from "./processItemizadoJob";
+export { checkUserExistsByEmail } from "./checkUserExistsByEmail";
 
 // Se añade la nueva función de "smoke test"
 export { testGoogleAi } from "./test-google-ai";
