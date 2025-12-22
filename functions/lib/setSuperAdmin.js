@@ -66,23 +66,23 @@ exports.setSuperAdminClaim = (0, https_1.onCall)({
         const uid = userRecord.uid;
         // 2. Asignar los custom claims
         await auth.setCustomUserClaims(uid, {
-            role: "SUPER_ADMIN"
+            role: "superadmin"
         });
         // 3. Actualizar el documento del usuario en Firestore
         const userRef = db.collection("users").doc(uid);
         await userRef.set({
             isSuperAdmin: true,
-            role: "SUPER_ADMIN", // Opcional, para consistencia
+            role: "superadmin", // Opcional, para consistencia
         }, { merge: true });
         return {
-            message: `Éxito: El usuario ${email} (UID: ${uid}) ahora es SUPER_ADMIN.`,
+            message: `Éxito: El usuario ${email} (UID: ${uid}) ahora es superadmin.`,
         };
     }
     catch (error) {
         if (error.code === "auth/user-not-found") {
             throw new https_1.HttpsError("not-found", `No se encontró ningún usuario con el email: ${email}`);
         }
-        console.error("Error al asignar SUPER_ADMIN:", error);
+        console.error("Error al asignar superadmin:", error);
         throw new https_1.HttpsError("internal", "Ocurrió un error inesperado al procesar la solicitud.", error.message);
     }
 });
