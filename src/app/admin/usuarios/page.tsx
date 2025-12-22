@@ -16,7 +16,7 @@ import { firebaseDb } from '@/lib/firebaseClient';
 import { Company, UserInvitation, RolInvitado } from '@/types/pcg';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/context/AuthContext';
-import { invitarUsuario } from '@/lib/invitaciones/invitarUsuario';
+// import { invitarUsuario } from '@/lib/invitaciones/invitarUsuario';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -103,6 +103,8 @@ export default function AdminUsuariosPage() {
         });
     }, [invitations, filtroEmpresa, filtroEstado]);
 
+    /**
+     * Flow global deshabilitado: fuente única createCompanyUser
     const handleCreateInvitation = async (e: FormEvent) => {
         e.preventDefault();
         if (!newInvitation.email || !newInvitation.companyId || !newInvitation.role) {
@@ -136,11 +138,10 @@ export default function AdminUsuariosPage() {
             setIsSaving(false);
         }
     };
-
+    
     const handleResendInvitation = async (inv: UserInvitation) => {
         try {
-            // Reutiliza la función invitarUsuario para crear y enviar una nueva invitación.
-             await invitarUsuario({
+            await invitarUsuario({
                 email: inv.email,
                 empresaId: inv.empresaId,
                 empresaNombre: inv.empresaNombre,
@@ -148,7 +149,6 @@ export default function AdminUsuariosPage() {
                 creadoPorUid: "superadmin_reenvio"
             });
             
-            // Opcional: marcar la invitación antigua como revocada.
             const oldInvRef = doc(firebaseDb, "invitacionesUsuarios", inv.id!);
             await updateDoc(oldInvRef, { estado: 'revocada' });
 
@@ -158,6 +158,7 @@ export default function AdminUsuariosPage() {
             toast({ variant: 'destructive', title: "Error", description: "No se pudo reenviar la invitación." });
         }
     };
+    */
 
     const handleRevokeInvitation = async (invitationId: string) => {
         try {
@@ -209,8 +210,8 @@ export default function AdminUsuariosPage() {
                         <Link href="/admin/dashboard"><ArrowLeft className="mr-2 h-4 w-4" />Volver al Dashboard</Link>
                     </Button>
                     <div>
-                        <h1 className="text-2xl font-bold">Gestión de Usuarios e Invitaciones</h1>
-                        <p className="text-muted-foreground">Supervisa, invita y gestiona todos los usuarios de la plataforma.</p>
+                        <h1 className="text-2xl font-bold">Supervisión de Invitaciones</h1>
+                        <p className="text-muted-foreground">Supervisa y gestiona invitaciones (sin crear usuarios desde aquí).</p>
                     </div>
                 </div>
                 {ENABLE_GLOBAL_INVITES && (
@@ -331,7 +332,6 @@ export default function AdminUsuariosPage() {
                                         <div className="flex gap-1 justify-end">
                                             {inv.estado === 'pendiente' && (
                                                 <>
-                                                    <Button variant="ghost" size="icon" onClick={() => handleResendInvitation(inv)} title="Reenviar invitación"><RefreshCw className="h-4 w-4" /></Button>
                                                     <AlertDialog>
                                                         <AlertDialogTrigger asChild>
                                                             <Button variant="ghost" size="icon" className="text-destructive" title="Revocar invitación"><Trash2 className="h-4 w-4" /></Button>
@@ -380,7 +380,7 @@ export default function AdminUsuariosPage() {
             {ENABLE_GLOBAL_INVITES && (
                  <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
                     <DialogContent>
-                        <form onSubmit={handleCreateInvitation}>
+                        <form>
                             <DialogHeader>
                                 <DialogTitle>Invitar Nuevo Usuario</DialogTitle>
                                 <DialogDescription>Seleccione la empresa, el rol e ingrese el email del nuevo usuario.</DialogDescription>
