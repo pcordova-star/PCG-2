@@ -6,14 +6,8 @@ if (!admin.apps.length) {
 }
 
 function buildAcceptInviteUrl(invId: string, email: string): string {
-  // CORRECCIÓN: Se reemplaza el dominio por defecto de Firebase por el dominio de producción en Vercel.
-  const rawBaseUrl = "https://pcg-2.vercel.app";
-
-  if (!rawBaseUrl) {
-    // Este error ya no debería ocurrir.
-    console.error("CRÍTICO: No se pudo determinar la URL base de la aplicación. No se puede crear un enlace de invitación válido.");
-    throw new HttpsError("internal", "El servidor no está configurado correctamente para enviar invitaciones. Falta la URL base de la aplicación.");
-  }
+  // SOLUCIÓN: Usar variable de entorno del backend o fallback a producción.
+  const rawBaseUrl = process.env.APP_BASE_URL || "https://www.pcgoperacion.com";
   
   const appBaseUrl = rawBaseUrl.replace(/\/+$/, "");
   return `${appBaseUrl}/accept-invite?invId=${encodeURIComponent(invId)}&email=${encodeURIComponent(email)}`;
