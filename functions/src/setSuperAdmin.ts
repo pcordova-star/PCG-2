@@ -41,7 +41,7 @@ export const setSuperAdminClaim = onCall(
 
       // 2. Asignar los custom claims
       await auth.setCustomUserClaims(uid, {
-        role: "SUPER_ADMIN"
+        role: "superadmin"
       });
 
       // 3. Actualizar el documento del usuario en Firestore
@@ -49,13 +49,13 @@ export const setSuperAdminClaim = onCall(
       await userRef.set(
         {
           isSuperAdmin: true,
-          role: "SUPER_ADMIN", // Opcional, para consistencia
+          role: "superadmin", // Opcional, para consistencia
         },
         { merge: true }
       );
 
       return {
-        message: `Éxito: El usuario ${email} (UID: ${uid}) ahora es SUPER_ADMIN.`,
+        message: `Éxito: El usuario ${email} (UID: ${uid}) ahora es superadmin.`,
       };
     } catch (error: any) {
       if (error.code === "auth/user-not-found") {
@@ -64,7 +64,7 @@ export const setSuperAdminClaim = onCall(
           `No se encontró ningún usuario con el email: ${email}`
         );
       }
-      console.error("Error al asignar SUPER_ADMIN:", error);
+      console.error("Error al asignar superadmin:", error);
       throw new HttpsError(
         "internal",
         "Ocurrió un error inesperado al procesar la solicitud.",
