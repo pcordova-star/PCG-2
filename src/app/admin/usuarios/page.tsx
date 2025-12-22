@@ -10,7 +10,7 @@ import { Label } from '@/components/ui/label';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
-import { PlusCircle, Loader2, Trash2, RefreshCw, ArrowLeft } from 'lucide-react';
+import { PlusCircle, Loader2, Trash2, RefreshCw, ArrowLeft, Info } from 'lucide-react';
 import { collection, doc, query, orderBy, onSnapshot, updateDoc, writeBatch, getDocs } from 'firebase/firestore';
 import { firebaseDb } from '@/lib/firebaseClient';
 import { Company, UserInvitation, RolInvitado } from '@/types/pcg';
@@ -20,6 +20,9 @@ import { invitarUsuario } from '@/lib/invitaciones/invitarUsuario';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { Checkbox } from '@/components/ui/checkbox';
+
+// Feature flag local para deshabilitar el formulario de invitación global.
+const ENABLE_GLOBAL_INVITES = false;
 
 export default function AdminUsuariosPage() {
     const { role, loading: authLoading } = useAuth();
@@ -121,6 +124,7 @@ export default function AdminUsuariosPage() {
                 empresaId: targetCompany.id,
                 empresaNombre: targetCompany.nombreFantasia || targetCompany.razonSocial,
                 roleDeseado: newInvitation.role,
+                creadoPorUid: "superadmin_global"
             });
             toast({ title: "Invitación Enviada", description: `Se ha enviado una invitación a ${newInvitation.email}.` });
             setDialogOpen(false);
@@ -135,13 +139,21 @@ export default function AdminUsuariosPage() {
 
     const handleResendInvitation = async (inv: UserInvitation) => {
         try {
-            await invitarUsuario({
+            // Reutiliza la función invitarUsuario para crear y enviar una nueva invitación.
+             await invitarUsuario({
                 email: inv.email,
                 empresaId: inv.empresaId,
                 empresaNombre: inv.empresaNombre,
                 roleDeseado: inv.roleDeseado,
+                creadoPorUid: "superadmin_reenvio"
             });
-            toast({ title: "Invitación Reenviada" });
+            
+            // Opcional: marcar la invitación antigua como revocada.
+            const oldInvRef = doc(firebaseDb, "invitacionesUsuarios", inv.id!);
+            await updateDoc(oldInvRef, { estado: 'revocada' });
+
+            toast({ title: "Invitación Reenviada", description: `Se ha enviado una nueva invitación a ${inv.email}.` });
+
         } catch (err: any) {
             toast({ variant: 'destructive', title: "Error", description: "No se pudo reenviar la invitación." });
         }
@@ -201,15 +213,38 @@ export default function AdminUsuariosPage() {
                         <p className="text-muted-foreground">Supervisa, invita y gestiona todos los usuarios de la plataforma.</p>
                     </div>
                 </div>
-                <Button onClick={() => setDialogOpen(true)}>
-                    <PlusCircle className="mr-2 h-4 w-4" />
-                    Invitar Usuario
-                </Button>
+                {ENABLE_GLOBAL_INVITES && (
+                    <Button onClick={() => setDialogOpen(true)}>
+                        <PlusCircle className="mr-2 h-4 w-4" />
+                        Invitar Usuario
+                    </Button>
+                )}
             </header>
+
+            {!ENABLE_GLOBAL_INVITES && (
+                 <Card className="bg-blue-50 border-blue-200">
+                    <CardHeader className="flex flex-row items-center gap-4">
+                        <Info className="h-6 w-6 text-blue-600"/>
+                        <div>
+                            <CardTitle className="text-blue-900">Gestión de Usuarios Centralizada</CardTitle>
+                            <CardDescription className="text-blue-700">
+                                Para crear, editar o eliminar usuarios, dirígete a la sección de Empresas, selecciona una empresa y gestiona sus usuarios desde allí.
+                            </CardDescription>
+                        </div>
+                    </CardHeader>
+                    <CardContent>
+                         <Button asChild>
+                            <Link href="/admin/empresas">
+                                Ir a Gestión de Empresas
+                            </Link>
+                        </Button>
+                    </CardContent>
+                </Card>
+            )}
 
             <Card>
                 <CardHeader>
-                    <CardTitle>Filtros</CardTitle>
+                    <CardTitle>Filtros de Invitaciones</CardTitle>
                 </CardHeader>
                 <CardContent className="flex flex-col md:flex-row gap-4">
                     <div className="flex-1 space-y-2">
@@ -342,48 +377,50 @@ export default function AdminUsuariosPage() {
                 </CardContent>
             </Card>
 
-            <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-                <DialogContent>
-                    <form onSubmit={handleCreateInvitation}>
-                        <DialogHeader>
-                            <DialogTitle>Invitar Nuevo Usuario</DialogTitle>
-                            <DialogDescription>Seleccione la empresa, el rol e ingrese el email del nuevo usuario.</DialogDescription>
-                        </DialogHeader>
-                        <div className="py-4 grid gap-4">
-                            <div className="space-y-2">
-                                <Label htmlFor="new-inv-company">Empresa*</Label>
-                                <Select value={newInvitation.companyId} onValueChange={v => setNewInvitation(p => ({ ...p, companyId: v }))}>
-                                    <SelectTrigger id="new-inv-company"><SelectValue placeholder="Seleccione una empresa" /></SelectTrigger>
-                                    <SelectContent>{companies.map(c => <SelectItem key={c.id} value={c.id}>{c.nombreFantasia || c.razonSocial}</SelectItem>)}</SelectContent>
-                                </Select>
+            {ENABLE_GLOBAL_INVITES && (
+                 <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+                    <DialogContent>
+                        <form onSubmit={handleCreateInvitation}>
+                            <DialogHeader>
+                                <DialogTitle>Invitar Nuevo Usuario</DialogTitle>
+                                <DialogDescription>Seleccione la empresa, el rol e ingrese el email del nuevo usuario.</DialogDescription>
+                            </DialogHeader>
+                            <div className="py-4 grid gap-4">
+                                <div className="space-y-2">
+                                    <Label htmlFor="new-inv-company">Empresa*</Label>
+                                    <Select value={newInvitation.companyId} onValueChange={v => setNewInvitation(p => ({ ...p, companyId: v }))}>
+                                        <SelectTrigger id="new-inv-company"><SelectValue placeholder="Seleccione una empresa" /></SelectTrigger>
+                                        <SelectContent>{companies.map(c => <SelectItem key={c.id} value={c.id}>{c.nombreFantasia || c.razonSocial}</SelectItem>)}</SelectContent>
+                                    </Select>
+                                </div>
+                                <div className="space-y-2">
+                                    <Label htmlFor="new-inv-email">Email del usuario*</Label>
+                                    <Input id="new-inv-email" type="email" value={newInvitation.email} onChange={e => setNewInvitation(p => ({ ...p, email: e.target.value }))} />
+                                </div>
+                                <div className="space-y-2">
+                                    <Label htmlFor="new-inv-role">Rol en la Empresa*</Label>
+                                    <Select value={newInvitation.role} onValueChange={v => setNewInvitation(p => ({ ...p, role: v as RolInvitado }))}>
+                                        <SelectTrigger id="new-inv-role"><SelectValue placeholder="Seleccione un rol" /></SelectTrigger>
+                                        <SelectContent>
+                                            <SelectItem value="admin_empresa">Admin Empresa</SelectItem>
+                                            <SelectItem value="jefe_obra">Jefe de Obra</SelectItem>
+                                            <SelectItem value="prevencionista">Prevencionista</SelectItem>
+                                            <SelectItem value="cliente">Cliente (Solo lectura)</SelectItem>
+                                        </SelectContent>
+                                    </Select>
+                                </div>
                             </div>
-                            <div className="space-y-2">
-                                <Label htmlFor="new-inv-email">Email del usuario*</Label>
-                                <Input id="new-inv-email" type="email" value={newInvitation.email} onChange={e => setNewInvitation(p => ({ ...p, email: e.target.value }))} />
-                            </div>
-                            <div className="space-y-2">
-                                <Label htmlFor="new-inv-role">Rol en la Empresa*</Label>
-                                <Select value={newInvitation.role} onValueChange={v => setNewInvitation(p => ({ ...p, role: v as RolInvitado }))}>
-                                    <SelectTrigger id="new-inv-role"><SelectValue placeholder="Seleccione un rol" /></SelectTrigger>
-                                    <SelectContent>
-                                        <SelectItem value="admin_empresa">Admin Empresa</SelectItem>
-                                        <SelectItem value="jefe_obra">Jefe de Obra</SelectItem>
-                                        <SelectItem value="prevencionista">Prevencionista</SelectItem>
-                                        <SelectItem value="cliente">Cliente (Solo lectura)</SelectItem>
-                                    </SelectContent>
-                                </Select>
-                            </div>
-                        </div>
-                        <DialogFooter>
-                            <Button type="button" variant="ghost" onClick={() => setDialogOpen(false)}>Cancelar</Button>
-                            <Button type="submit" disabled={isSaving}>
-                                {isSaving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                                {isSaving ? "Enviando..." : "Enviar Invitación"}
-                            </Button>
-                        </DialogFooter>
-                    </form>
-                </DialogContent>
-            </Dialog>
+                            <DialogFooter>
+                                <Button type="button" variant="ghost" onClick={() => setDialogOpen(false)}>Cancelar</Button>
+                                <Button type="submit" disabled={isSaving}>
+                                    {isSaving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                                    {isSaving ? "Enviando..." : "Enviar Invitación"}
+                                </Button>
+                            </DialogFooter>
+                        </form>
+                    </DialogContent>
+                </Dialog>
+            )}
         </div>
     );
 }
