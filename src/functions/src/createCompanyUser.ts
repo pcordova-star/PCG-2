@@ -98,7 +98,7 @@ export const createCompanyUser = onCall(
 
     const now = admin.firestore.FieldValue.serverTimestamp();
     
-    // 7. Guardar perfil de usuario en /users
+    // 7. Guardar perfil de usuario en /users, incluyendo el flag mustChangePassword
     const userProfileRef = db.collection("users").doc(uid);
     await userProfileRef.set({
       nombre: data.nombre,
@@ -106,6 +106,7 @@ export const createCompanyUser = onCall(
       role: data.role,
       empresaId: data.companyId,
       activo: true,
+      mustChangePassword: true, // <-- CAMBIO CLAVE
       createdAt: now,
       updatedAt: now,
     }, { merge: true });
@@ -134,11 +135,10 @@ export const createCompanyUser = onCall(
             <p>Hola ${data.nombre},</p>
             <p>Has sido registrado en la plataforma PCG para la empresa <strong>${companyData?.nombre}</strong>.</p>
             <p>Tu rol asignado es: <strong>${data.role}</strong>.</p>
-            <p>Para completar tu registro y acceder a la plataforma, por favor haz clic en el siguiente enlace. Se te pedirá que establezcas una nueva contraseña si es tu primer ingreso.</p>
+            <p>Para completar tu registro y acceder a la plataforma, por favor haz clic en el siguiente enlace. Se te pedirá que establezcas tu propia contraseña si es tu primer ingreso.</p>
             <p><a href="${acceptInviteUrl}">Activar mi cuenta y acceder a PCG</a></p>
             <p>Si el botón no funciona, copia y pega esta URL en tu navegador:</p>
             <p><a href="${acceptInviteUrl}">${acceptInviteUrl}</a></p>
-            <p>Tu contraseña temporal es: <strong>${data.password}</strong></p>
             <p>Gracias,<br>El equipo de PCG</p>`,
       },
     });
