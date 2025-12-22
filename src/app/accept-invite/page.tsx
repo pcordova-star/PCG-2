@@ -3,8 +3,8 @@
 
 import { useEffect, useState, Suspense, FormEvent } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
-import { doc, getDoc, updateDoc, writeBatch, serverTimestamp } from 'firebase/firestore';
-import { firebaseAuth, firebaseDb, firebaseFunctions } from '@/lib/firebaseClient';
+import { doc, getDoc, updateDoc } from 'firebase/firestore';
+import { firebaseDb, firebaseFunctions } from '@/lib/firebaseClient';
 import { Loader2, CheckCircle, ShieldX, Mail } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -17,7 +17,6 @@ import Link from 'next/link';
 import { HttpsError, httpsCallable } from 'firebase/functions';
 import { invitarUsuario } from '@/lib/invitaciones/invitarUsuario';
 import { useToast } from '@/hooks/use-toast';
-import { signInWithEmailAndPassword } from 'firebase/auth';
 
 
 function AcceptInvitePageInner() {
