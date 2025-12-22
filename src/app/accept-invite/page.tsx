@@ -14,7 +14,7 @@ import { UserInvitation } from '@/types/pcg';
 import { PcgLogo } from '@/components/branding/PcgLogo';
 import { useAuth } from '@/context/AuthContext';
 import Link from 'next/link';
-import { HttpsError, httpsCallable } from 'firebase/functions';
+import { httpsCallable } from 'firebase/functions';
 import { invitarUsuario } from '@/lib/invitaciones/invitarUsuario';
 import { useToast } from '@/hooks/use-toast';
 
@@ -68,7 +68,7 @@ function AcceptInvitePageInner() {
             try {
                 // LLAMADA A LA CLOUD FUNCTION SEGURA
                 const checkUserExists = httpsCallable(firebaseFunctions, 'checkUserExistsByEmail');
-                const response = await checkUserExists({ email: email });
+                const response = await checkUserExists({ email: email, invId: invId });
                 const exists = (response.data as { exists: boolean }).exists;
                 setUserExists(exists);
                 
