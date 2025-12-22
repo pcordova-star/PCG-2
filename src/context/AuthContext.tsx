@@ -15,7 +15,7 @@ import {
   ReactNode,
 } from "react";
 import { firebaseAuth, firebaseDb } from "@/lib/firebaseClient"; // Se importa firebaseAuth directamente
-import { useRouter } from "next/navigation";
+import { useRouter, usePathname } from "next/navigation";
 import { doc, getDoc, setDoc, serverTimestamp, collection, query, where, getDocs, writeBatch } from "firebase/firestore";
 import { resolveRole, UserRole } from "@/lib/roles";
 import { AppUser, UserInvitation } from "@/types/pcg";
@@ -68,17 +68,12 @@ async function ensureUserDocForAuthUser(user: User): Promise<AppUser | null> {
         const batch = writeBatch(firebaseDb);
         batch.set(userDocRef, newUserProfile, { merge: true });
         
-        // Opcional: podríamos cambiar la invitación a 'completada' o borrarla
-        // batch.update(firstInvitation.ref, { estado: "completada" });
-        
         await batch.commit();
 
-        // Volvemos a leer el doc para tener los datos frescos con el serverTimestamp
         userDocSnap = await getDoc(userDocRef);
         return { id: user.uid, ...userDocSnap.data() } as AppUser;
     }
 
-    // Si no hay invitación y el documento no existe, creamos uno básico.
     if (!userDocSnap.exists()) {
         const newUserProfile: Omit<AppUser, 'id'> = {
             email: emailLower,
@@ -92,8 +87,7 @@ async function ensureUserDocForAuthUser(user: User): Promise<AppUser | null> {
         userDocSnap = await getDoc(userDocRef);
         return { id: user.uid, ...userDocSnap.data() } as AppUser;
     }
-
-    // Si el documento existe pero sin empresa (y no hay invitación), lo devolvemos como está.
+    
     return { id: userDocSnap.id, ...userDocSnap.data() } as AppUser;
 }
 
@@ -105,6 +99,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [companyId, setCompanyId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const router = useRouter();
+  const pathname = usePathname();
 
   useEffect(() => {
     const unsub = onAuthStateChanged(firebaseAuth, async (firebaseUser) => {
@@ -113,11 +108,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setUser(firebaseUser);
         try {
             const userDoc = await ensureUserDocForAuthUser(firebaseUser);
-            const idTokenResult = await firebaseUser.getIdTokenResult(true); // Forzar la recarga de claims
+            const idTokenResult = await firebaseUser.getIdTokenResult(true); 
             const resolvedUserRole = resolveRole(firebaseUser, userDoc, idTokenResult.claims);
             
             setRole(resolvedUserRole);
             setCompanyId(userDoc?.empresaId || idTokenResult.claims.companyId as string || null);
+            
+            // Lógica de redirección para cambio de contraseña
+            if (userDoc?.mustChangePassword === true) {
+              if (pathname !== '/cambiar-password') {
+                router.replace('/cambiar-password');
+              }
+            }
+            
         } catch (error) {
             console.error("Error al procesar el login del usuario:", error);
             setRole("none");
@@ -132,7 +135,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     });
 
     return () => unsub();
-  }, []);
+  }, [pathname, router]);
 
   async function login(email: string, password: string) {
     await signInWithEmailAndPassword(firebaseAuth, email, password);
