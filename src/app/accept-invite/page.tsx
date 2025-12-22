@@ -4,7 +4,7 @@
 import { useEffect, useState, Suspense, FormEvent } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { doc, getDoc, updateDoc, writeBatch, serverTimestamp } from 'firebase/firestore';
-import { firebaseAuth, firebaseDb } from '@/lib/firebaseClient';
+import { firebaseAuth, firebaseDb, firebaseFunctions } from '@/lib/firebaseClient';
 import { Loader2, CheckCircle, ShieldX, Mail } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -14,7 +14,7 @@ import { UserInvitation } from '@/types/pcg';
 import { PcgLogo } from '@/components/branding/PcgLogo';
 import { useAuth } from '@/context/AuthContext';
 import Link from 'next/link';
-import { HttpsError } from 'firebase/functions';
+import { HttpsError, httpsCallable } from 'firebase/functions';
 import { invitarUsuario } from '@/lib/invitaciones/invitarUsuario';
 import { useToast } from '@/hooks/use-toast';
 import { signInWithEmailAndPassword } from 'firebase/auth';
@@ -65,29 +65,25 @@ function AcceptInvitePageInner() {
           throw new Error("El correo de la invitación no coincide con el de este enlace.");
         }
         
-        // El estado de la invitación ya no es 'pendiente'
         if (invData.estado !== 'pendiente') {
-             // VERIFICACIÓN REAL: ¿Existe el usuario en Firebase Auth?
             try {
-                // Usamos un intento de login con una clave imposible para verificar si el usuario existe.
-                await signInWithEmailAndPassword(firebaseAuth, email, `dummy-password-${Date.now()}`);
-                // Si el login falla por otra razón que no sea clave incorrecta, saltará al catch.
-                // Si llega aquí (improbable), asumimos que existe.
-                setUserExists(true);
-            } catch (authError: any) {
-                if (authError.code === 'auth/wrong-password' || authError.code === 'auth/invalid-credential') {
-                    // ¡ÉXITO! El usuario SÍ existe.
-                    setUserExists(true);
-                } else if (authError.code === 'auth/user-not-found') {
-                    // El usuario NO existe, aunque la invitación esté 'aceptada' o 'revocada'.
-                    setUserExists(false);
+                // LLAMADA A LA CLOUD FUNCTION SEGURA
+                const checkUserExists = httpsCallable(firebaseFunctions, 'checkUserExistsByEmail');
+                const response = await checkUserExists({ email: email });
+                const exists = (response.data as { exists: boolean }).exists;
+                setUserExists(exists);
+                
+                if (!exists) {
                     setError(`La invitación ya fue ${invData.estado}, pero no se encontró una cuenta de usuario activa. Puedes solicitar una nueva invitación.`);
-                } else {
-                    // Otro error de autenticación, podría ser un problema de red.
-                    throw authError;
                 }
+
+            } catch (authError: any) {
+                console.error("Error calling checkUserExistsByEmail function:", authError);
+                // Si la función falla, asumimos lo peor y mostramos un error genérico
+                setUserExists(false); 
+                setError("No se pudo verificar el estado de la cuenta. Por favor, intenta más tarde o contacta a soporte.");
             }
-            setStatus('prompt_password'); // Vamos a la misma pantalla, que ahora tiene lógica para manejar esto.
+            setStatus('prompt_password');
             return;
         }
 
