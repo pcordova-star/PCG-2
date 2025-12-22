@@ -14,7 +14,8 @@ import { firebaseDb } from '@/lib/firebaseClient';
 import { Company, UserInvitation } from '@/types/pcg';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/context/AuthContext';
-// import { invitarUsuario } from '@/lib/invitaciones/invitarUsuario'; // Flow global deshabilitado: fuente única createCompanyUser
+// Flow global deshabilitado: fuente única createCompanyUser
+// import { invitarUsuario } from '@/lib/invitaciones/invitarUsuario';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -162,7 +163,7 @@ export default function AdminUsuariosPage() {
                         <div>
                             <CardTitle className="text-blue-900">Gestión de Usuarios Centralizada</CardTitle>
                             <CardDescription className="text-blue-700">
-                                Para crear, editar o eliminar usuarios, dirígete a la sección de Empresas, selecciona una empresa y gestiona sus usuarios desde allí.
+                                La creación de usuarios se realiza solo desde: Admin &gt; Empresas &gt; Usuarios.
                             </CardDescription>
                         </div>
                     </CardHeader>
@@ -265,6 +266,10 @@ export default function AdminUsuariosPage() {
                                         <div className="flex gap-1 justify-end">
                                             {inv.estado === 'pendiente' && (
                                                 <>
+                                                    {ENABLE_GLOBAL_INVITES && (
+                                                        // <Button variant="ghost" size="icon" onClick={() => handleResendInvitation(inv)} title="Reenviar invitación"><RefreshCw className="h-4 w-4" /></Button>
+                                                        <></>
+                                                    )}
                                                     <AlertDialog>
                                                         <AlertDialogTrigger asChild>
                                                             <Button variant="ghost" size="icon" className="text-destructive" title="Revocar invitación"><Trash2 className="h-4 w-4" /></Button>
