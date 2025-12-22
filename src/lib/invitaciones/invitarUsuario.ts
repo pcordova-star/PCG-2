@@ -14,7 +14,6 @@ export type InvitarUsuarioParams = {
 
 
 function construirUrlInvitacion(invId: string, email: string): string {
-    // SOLUCIÓN: Usar variable de entorno del frontend o fallback a producción.
     const rawBaseUrl = process.env.NEXT_PUBLIC_APP_BASE_URL || "https://www.pcgoperacion.com";
     
     if (!rawBaseUrl) {
@@ -48,7 +47,6 @@ export async function invitarUsuario(params: InvitarUsuarioParams): Promise<void
     });
 
     const finalAcceptInviteUrl = construirUrlInvitacion(newInvitationRef.id, params.email);
-    // La platformUrl ahora también usará la misma fuente de verdad.
     const platformUrl = process.env.NEXT_PUBLIC_APP_BASE_URL || "https://www.pcgoperacion.com";
     const logoUrl = `${platformUrl}/logo.png`;
 

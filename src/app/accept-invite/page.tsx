@@ -3,9 +3,9 @@
 
 import { useEffect, useState, Suspense, FormEvent } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
-import { doc, getDoc, writeBatch, serverTimestamp } from 'firebase/firestore';
+import { doc, getDoc, updateDoc, writeBatch, serverTimestamp } from 'firebase/firestore';
 import { firebaseAuth, firebaseDb } from '@/lib/firebaseClient';
-import { Loader2, CheckCircle, ShieldX } from 'lucide-react';
+import { Loader2, CheckCircle, ShieldX, Mail } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -15,12 +15,16 @@ import { PcgLogo } from '@/components/branding/PcgLogo';
 import { useAuth } from '@/context/AuthContext';
 import Link from 'next/link';
 import { HttpsError } from 'firebase/functions';
+import { invitarUsuario } from '@/lib/invitaciones/invitarUsuario';
+import { useToast } from '@/hooks/use-toast';
+import { signInWithEmailAndPassword } from 'firebase/auth';
 
 
 function AcceptInvitePageInner() {
   const searchParams = useSearchParams();
   const router = useRouter();
-  const { user, login } = useAuth();
+  const { user } = useAuth();
+  const { toast } = useToast();
 
   const [status, setStatus] = useState<'loading' | 'prompt_password' | 'creating' | 'error' | 'success'>('loading');
   const [error, setError] = useState<string | null>(null);
@@ -55,62 +59,89 @@ function AcceptInvitePageInner() {
         }
 
         const invData = { id: invSnap.id, ...invSnap.data() } as UserInvitation;
+        setInvitation(invData);
 
-        if (invData.email.toLowerCase() !== email.toLowerCase()) {
+        if (invData.email.toLowerCase().trim() !== email.toLowerCase().trim()) {
           throw new Error("El correo de la invitación no coincide con el de este enlace.");
         }
         
-        // Simular un login para ver si el usuario ya existe
-        try {
-            await login(email, 'invalid-password-check');
-        } catch (authError: any) {
-            if (authError.code === 'auth/wrong-password' || authError.code === 'auth/invalid-credential') {
-                // Esto es bueno, significa que el usuario existe.
-                setUserExists(true);
-                setInvitation(invData);
-                setStatus('prompt_password');
-                return;
-            } else if (authError.code === 'auth/user-not-found' || authError.code === 'auth/invalid-email') {
-                 // El usuario no existe, flujo normal
-                 setUserExists(false);
-            } else {
-                // Otro error de autenticación, podría ser un problema real
-                throw authError;
-            }
-        }
-
-
+        // El estado de la invitación ya no es 'pendiente'
         if (invData.estado !== 'pendiente') {
-          setUserExists(true); // Si ya fue aceptada, el usuario debería existir
-          throw new Error(`Esta invitación ya fue ${invData.estado}.`);
+             // VERIFICACIÓN REAL: ¿Existe el usuario en Firebase Auth?
+            try {
+                // Usamos un intento de login con una clave imposible para verificar si el usuario existe.
+                await signInWithEmailAndPassword(firebaseAuth, email, `dummy-password-${Date.now()}`);
+                // Si el login falla por otra razón que no sea clave incorrecta, saltará al catch.
+                // Si llega aquí (improbable), asumimos que existe.
+                setUserExists(true);
+            } catch (authError: any) {
+                if (authError.code === 'auth/wrong-password' || authError.code === 'auth/invalid-credential') {
+                    // ¡ÉXITO! El usuario SÍ existe.
+                    setUserExists(true);
+                } else if (authError.code === 'auth/user-not-found') {
+                    // El usuario NO existe, aunque la invitación esté 'aceptada' o 'revocada'.
+                    setUserExists(false);
+                    setError(`La invitación ya fue ${invData.estado}, pero no se encontró una cuenta de usuario activa. Puedes solicitar una nueva invitación.`);
+                } else {
+                    // Otro error de autenticación, podría ser un problema de red.
+                    throw authError;
+                }
+            }
+            setStatus('prompt_password'); // Vamos a la misma pantalla, que ahora tiene lógica para manejar esto.
+            return;
         }
 
-        setInvitation(invData);
+        // Flujo normal: la invitación está pendiente
         setStatus('prompt_password');
 
       } catch (err: any) {
         console.error("Error al validar la invitación:", err);
         setError(err.message || 'Ocurrió un error inesperado.');
-        if (err.message.includes('invitación ya fue')) {
-            setUserExists(true);
-            setStatus('prompt_password');
-        } else {
-            setStatus('error');
-        }
+        setStatus('error');
       }
     };
 
     validateInvitation();
-  }, [invId, email, user, router, login]);
+  }, [invId, email, user, router]);
+
+  const handleResendInvitation = async () => {
+      if (!invitation) return;
+      
+      setStatus('creating');
+      setError(null);
+      
+      try {
+        // 1. Opcional: marcar la invitación antigua como revocada
+        const oldInvRef = doc(firebaseDb, "invitacionesUsuarios", invitation.id!);
+        await updateDoc(oldInvRef, { estado: 'revocada' });
+        
+        // 2. Crear y enviar una nueva invitación
+        await invitarUsuario({
+            email: invitation.email,
+            empresaId: invitation.empresaId,
+            empresaNombre: invitation.empresaNombre,
+            roleDeseado: invitation.roleDeseado,
+            creadoPorUid: "sistema_reenvio",
+        });
+        
+        toast({
+            title: "Nueva Invitación Enviada",
+            description: `Revisa tu correo electrónico (${invitation.email}) para encontrar el nuevo enlace de activación.`,
+        });
+
+        setStatus('success'); // Reutilizamos la pantalla de éxito
+        
+      } catch (err: any) {
+          console.error("Error al reenviar invitación:", err);
+          setError(err.message || 'No se pudo reenviar la invitación.');
+          setStatus('prompt_password'); // Volver al estado anterior en caso de error
+      }
+  };
+
 
   const handleCreateAccount = async (e: FormEvent) => {
     e.preventDefault();
     setError(null);
-    
-    if (userExists) {
-        setError("Ya tienes una cuenta. Por favor, inicia sesión.");
-        return;
-    }
 
     if (password.length < 6) {
       setError("La contraseña debe tener al menos 6 caracteres.");
@@ -125,24 +156,13 @@ function AcceptInvitePageInner() {
     setStatus('creating');
 
     try {
-      const userDocRef = doc(firebaseDb, "users");
-      const newUserProfile = {
-        email: email.toLowerCase(),
-        empresaId: invitation.empresaId,
-        role: invitation.roleDeseado,
-        nombre: email.split('@')[0],
-        createdAt: serverTimestamp(),
-        activo: true,
-      };
-      
+      // Esta función ahora solo debería ser alcanzable si la invitación es 'pendiente'.
       const invitationRef = doc(firebaseDb, "invitacionesUsuarios", invitation.id!);
-
-      const batch = writeBatch(firebaseDb);
-      batch.update(invitationRef, { estado: "aceptada" });
-      await batch.commit();
-
-      // Forzamos el cambio de contraseña al primer login
-      // La lógica en AuthContext se encargará de esto.
+      await updateDoc(invitationRef, { estado: "aceptada" });
+      
+      // La creación real del usuario se delega al proceso de createCompanyUser
+      // y la aceptación de la invitación es un paso de confirmación.
+      // El usuario debería haber sido pre-creado.
       
       setStatus('success');
       
@@ -172,10 +192,39 @@ function AcceptInvitePageInner() {
                 <div className="text-center space-y-4">
                     <ShieldX className="h-12 w-12 text-destructive mx-auto" />
                     <p className="text-destructive font-medium">{error || "No se pudo cargar la información de la invitación."}</p>
-                    <p className="text-sm">Si ya tienes una cuenta, puedes <Link href="/login/usuario" className="underline font-bold text-primary">iniciar sesión directamente</Link>.</p>
                 </div>
             );
         }
+
+        // Si la invitación NO está pendiente
+        if (invitation.estado !== 'pendiente') {
+            if (userExists) {
+                 return (
+                    <div className="text-center space-y-4">
+                        <CheckCircle className="h-12 w-12 text-green-500 mx-auto" />
+                        <p className="font-semibold">Esta invitación ya fue utilizada y tu cuenta está activa.</p>
+                        <p className="text-muted-foreground">Por favor, inicia sesión con tus credenciales.</p>
+                        <Button asChild className="w-full">
+                            <Link href="/login/usuario">Ir a Iniciar Sesión</Link>
+                        </Button>
+                    </div>
+                );
+            } else {
+                 return (
+                    <div className="text-center space-y-4">
+                        <ShieldX className="h-12 w-12 text-destructive mx-auto" />
+                        <p className="font-semibold">{error || `Esta invitación ya fue ${invitation.estado}.`}</p>
+                        <p className="text-muted-foreground">No se encontró una cuenta de usuario activa. Es posible que la invitación haya expirado o haya sido cancelada.</p>
+                        <Button onClick={handleResendInvitation} className="w-full">
+                            <Mail className="mr-2 h-4 w-4" />
+                            Reenviar una nueva invitación
+                        </Button>
+                    </div>
+                 );
+            }
+        }
+
+        // Flujo normal para invitaciones pendientes
         return (
           <form onSubmit={handleCreateAccount} className="space-y-4">
              <div className="text-center">
@@ -184,43 +233,34 @@ function AcceptInvitePageInner() {
                 <p className="text-sm text-muted-foreground">con el rol de <span className="font-semibold">{invitation.roleDeseado}</span>.</p>
             </div>
              
-            {userExists ? (
-                <div className="text-center text-destructive font-medium p-3 bg-destructive/10 rounded-md">
-                   Ya existe una cuenta con este correo. Por favor,{' '}
-                    <Link href="/login/usuario" className="underline font-bold">
-                        inicia sesión aquí
-                    </Link>.
+            <>
+                <p className="text-sm text-center font-semibold pt-4">Define una contraseña para tu cuenta:</p>
+                <div className="space-y-2">
+                <Label htmlFor="password">Contraseña (mín. 6 caracteres)</Label>
+                <Input
+                    id="password"
+                    type="password"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    required
+                />
                 </div>
-            ) : (
-                <>
-                    <p className="text-sm text-center font-semibold pt-4">Crea una contraseña para tu cuenta:</p>
-                    <div className="space-y-2">
-                    <Label htmlFor="password">Contraseña (mín. 6 caracteres)</Label>
-                    <Input
-                        id="password"
-                        type="password"
-                        value={password}
-                        onChange={(e) => setPassword(e.target.value)}
-                        required
-                    />
-                    </div>
-                    <div className="space-y-2">
-                    <Label htmlFor="passwordConfirm">Confirmar Contraseña</Label>
-                    <Input
-                        id="passwordConfirm"
-                        type="password"
-                        value={passwordConfirm}
-                        onChange={(e) => setPasswordConfirm(e.target.value)}
-                        required
-                    />
-                    </div>
-                </>
-            )}
+                <div className="space-y-2">
+                <Label htmlFor="passwordConfirm">Confirmar Contraseña</Label>
+                <Input
+                    id="passwordConfirm"
+                    type="password"
+                    value={passwordConfirm}
+                    onChange={(e) => setPasswordConfirm(e.target.value)}
+                    required
+                />
+                </div>
+            </>
 
-            {error && !userExists && <p className="text-sm font-medium text-destructive">{error}</p>}
+            {error && <p className="text-sm font-medium text-destructive">{error}</p>}
 
-            <Button type="submit" className="w-full" disabled={userExists}>
-                {userExists ? "Cuenta ya existente" : "Confirmar invitación y crear cuenta"}
+            <Button type="submit" className="w-full">
+                Confirmar invitación y crear cuenta
             </Button>
           </form>
         );
@@ -228,7 +268,7 @@ function AcceptInvitePageInner() {
         return (
           <div className="flex flex-col items-center justify-center text-center">
             <Loader2 className="h-10 w-10 animate-spin text-primary mb-4" />
-            <p className="text-muted-foreground">Procesando invitación...</p>
+            <p className="text-muted-foreground">Procesando...</p>
           </div>
         );
       case 'error':
@@ -237,7 +277,7 @@ function AcceptInvitePageInner() {
             <ShieldX className="h-12 w-12 text-destructive mx-auto" />
             <p className="text-destructive font-medium">{error}</p>
             <Button asChild variant="link">
-              <a href="/login/usuario">Ir a la página de inicio de sesión</a>
+              <Link href="/login/usuario">Ir a la página de inicio de sesión</Link>
             </Button>
           </div>
         );
@@ -245,8 +285,8 @@ function AcceptInvitePageInner() {
         return (
           <div className="flex flex-col items-center justify-center text-center space-y-4">
             <CheckCircle className="h-12 w-12 text-green-500 mx-auto" />
-            <p className="font-semibold">¡Invitación aceptada!</p>
-            <p className="text-muted-foreground">Ahora serás redirigido a la página de login para que ingreses con tu correo y la contraseña que creaste.</p>
+            <p className="font-semibold">¡Operación exitosa!</p>
+            <p className="text-muted-foreground">Ahora serás redirigido a la página de login para que puedas ingresar.</p>
             <Loader2 className="h-6 w-6 animate-spin text-primary" />
           </div>
         );
