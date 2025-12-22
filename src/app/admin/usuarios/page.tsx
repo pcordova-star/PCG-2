@@ -1,22 +1,20 @@
 "use client";
 
-import React, { useState, useEffect, useMemo, FormEvent } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
-import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
-import { PlusCircle, Loader2, Trash2, RefreshCw, ArrowLeft, Info } from 'lucide-react';
+import { Loader2, Trash2, ArrowLeft, Info } from 'lucide-react';
 import { collection, doc, query, orderBy, onSnapshot, updateDoc, writeBatch, getDocs } from 'firebase/firestore';
 import { firebaseDb } from '@/lib/firebaseClient';
-import { Company, UserInvitation, RolInvitado } from '@/types/pcg';
+import { Company, UserInvitation } from '@/types/pcg';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/context/AuthContext';
-// import { invitarUsuario } from '@/lib/invitaciones/invitarUsuario';
+// import { invitarUsuario } from '@/lib/invitaciones/invitarUsuario'; // Flow global deshabilitado: fuente única createCompanyUser
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -38,14 +36,6 @@ export default function AdminUsuariosPage() {
     const [filtroEstado, setFiltroEstado] = useState('all');
 
     const [selectedInvitations, setSelectedInvitations] = useState<Set<string>>(new Set());
-
-    const [dialogOpen, setDialogOpen] = useState(false);
-    const [isSaving, setIsSaving] = useState(false);
-    const [newInvitation, setNewInvitation] = useState<{
-        email: string;
-        companyId: string;
-        role: RolInvitado;
-    }>({ email: '', companyId: '', role: 'jefe_obra' });
 
     useEffect(() => {
         if (!authLoading && role !== 'superadmin') {
@@ -105,59 +95,8 @@ export default function AdminUsuariosPage() {
 
     /**
      * Flow global deshabilitado: fuente única createCompanyUser
-    const handleCreateInvitation = async (e: FormEvent) => {
-        e.preventDefault();
-        if (!newInvitation.email || !newInvitation.companyId || !newInvitation.role) {
-            toast({ variant: "destructive", title: "Error", description: "Todos los campos son obligatorios." });
-            return;
-        }
-
-        setIsSaving(true);
-        const targetCompany = companies.find(c => c.id === newInvitation.companyId);
-        if (!targetCompany) {
-            toast({ variant: "destructive", title: "Error", description: "La empresa seleccionada no es válida." });
-            setIsSaving(false);
-            return;
-        }
-
-        try {
-            await invitarUsuario({
-                email: newInvitation.email,
-                empresaId: targetCompany.id,
-                empresaNombre: targetCompany.nombreFantasia || targetCompany.razonSocial,
-                roleDeseado: newInvitation.role,
-                creadoPorUid: "superadmin_global"
-            });
-            toast({ title: "Invitación Enviada", description: `Se ha enviado una invitación a ${newInvitation.email}.` });
-            setDialogOpen(false);
-            setNewInvitation({ email: '', companyId: '', role: 'jefe_obra' });
-        } catch (err: any) {
-            console.error("Error creating invitation:", err);
-            toast({ variant: "destructive", title: "Error al invitar", description: err.message || "No se pudo enviar la invitación." });
-        } finally {
-            setIsSaving(false);
-        }
-    };
-    
-    const handleResendInvitation = async (inv: UserInvitation) => {
-        try {
-            await invitarUsuario({
-                email: inv.email,
-                empresaId: inv.empresaId,
-                empresaNombre: inv.empresaNombre,
-                roleDeseado: inv.roleDeseado,
-                creadoPorUid: "superadmin_reenvio"
-            });
-            
-            const oldInvRef = doc(firebaseDb, "invitacionesUsuarios", inv.id!);
-            await updateDoc(oldInvRef, { estado: 'revocada' });
-
-            toast({ title: "Invitación Reenviada", description: `Se ha enviado una nueva invitación a ${inv.email}.` });
-
-        } catch (err: any) {
-            toast({ variant: 'destructive', title: "Error", description: "No se pudo reenviar la invitación." });
-        }
-    };
+    const handleCreateInvitation = async (e: FormEvent) => { ... };
+    const handleResendInvitation = async (inv: UserInvitation) => { ... };
     */
 
     const handleRevokeInvitation = async (invitationId: string) => {
@@ -214,12 +153,6 @@ export default function AdminUsuariosPage() {
                         <p className="text-muted-foreground">Supervisa y gestiona invitaciones (sin crear usuarios desde aquí).</p>
                     </div>
                 </div>
-                {ENABLE_GLOBAL_INVITES && (
-                    <Button onClick={() => setDialogOpen(true)}>
-                        <PlusCircle className="mr-2 h-4 w-4" />
-                        Invitar Usuario
-                    </Button>
-                )}
             </header>
 
             {!ENABLE_GLOBAL_INVITES && (
@@ -376,51 +309,6 @@ export default function AdminUsuariosPage() {
                     </Table>
                 </CardContent>
             </Card>
-
-            {ENABLE_GLOBAL_INVITES && (
-                 <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-                    <DialogContent>
-                        <form>
-                            <DialogHeader>
-                                <DialogTitle>Invitar Nuevo Usuario</DialogTitle>
-                                <DialogDescription>Seleccione la empresa, el rol e ingrese el email del nuevo usuario.</DialogDescription>
-                            </DialogHeader>
-                            <div className="py-4 grid gap-4">
-                                <div className="space-y-2">
-                                    <Label htmlFor="new-inv-company">Empresa*</Label>
-                                    <Select value={newInvitation.companyId} onValueChange={v => setNewInvitation(p => ({ ...p, companyId: v }))}>
-                                        <SelectTrigger id="new-inv-company"><SelectValue placeholder="Seleccione una empresa" /></SelectTrigger>
-                                        <SelectContent>{companies.map(c => <SelectItem key={c.id} value={c.id}>{c.nombreFantasia || c.razonSocial}</SelectItem>)}</SelectContent>
-                                    </Select>
-                                </div>
-                                <div className="space-y-2">
-                                    <Label htmlFor="new-inv-email">Email del usuario*</Label>
-                                    <Input id="new-inv-email" type="email" value={newInvitation.email} onChange={e => setNewInvitation(p => ({ ...p, email: e.target.value }))} />
-                                </div>
-                                <div className="space-y-2">
-                                    <Label htmlFor="new-inv-role">Rol en la Empresa*</Label>
-                                    <Select value={newInvitation.role} onValueChange={v => setNewInvitation(p => ({ ...p, role: v as RolInvitado }))}>
-                                        <SelectTrigger id="new-inv-role"><SelectValue placeholder="Seleccione un rol" /></SelectTrigger>
-                                        <SelectContent>
-                                            <SelectItem value="admin_empresa">Admin Empresa</SelectItem>
-                                            <SelectItem value="jefe_obra">Jefe de Obra</SelectItem>
-                                            <SelectItem value="prevencionista">Prevencionista</SelectItem>
-                                            <SelectItem value="cliente">Cliente (Solo lectura)</SelectItem>
-                                        </SelectContent>
-                                    </Select>
-                                </div>
-                            </div>
-                            <DialogFooter>
-                                <Button type="button" variant="ghost" onClick={() => setDialogOpen(false)}>Cancelar</Button>
-                                <Button type="submit" disabled={isSaving}>
-                                    {isSaving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                                    {isSaving ? "Enviando..." : "Enviar Invitación"}
-                                </Button>
-                            </DialogFooter>
-                        </form>
-                    </DialogContent>
-                </Dialog>
-            )}
         </div>
     );
 }
