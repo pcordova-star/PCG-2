@@ -1,6 +1,7 @@
 "use client";
+// Convertido a client component para evitar errores de prerender en /admin/invitaciones con next export.
 
-import React, { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
@@ -11,11 +12,9 @@ import { Badge } from '@/components/ui/badge';
 import { Loader2, Trash2, ArrowLeft, Info } from 'lucide-react';
 import { collection, doc, query, orderBy, onSnapshot, updateDoc, writeBatch, getDocs } from 'firebase/firestore';
 import { firebaseDb } from '@/lib/firebaseClient';
-import { Company, UserInvitation } from '@/types/pcg';
+import { Company, UserInvitation, RolInvitado } from '@/types/pcg';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/context/AuthContext';
-// Flow global deshabilitado: fuente única createCompanyUser
-// import { invitarUsuario } from '@/lib/invitaciones/invitarUsuario';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -44,6 +43,7 @@ export default function AdminUsuariosPage() {
         }
     }, [authLoading, role, router]);
 
+    // La obtención de datos se mueve a useEffect para que se ejecute en el cliente.
     useEffect(() => {
         if (role !== 'superadmin') return;
 
@@ -55,20 +55,30 @@ export default function AdminUsuariosPage() {
                 const companiesSnap = await getDocs(query(companiesRef, orderBy("nombreFantasia")));
                 const companiesData = companiesSnap.docs.map(doc => ({ id: doc.id, ...doc.data() } as Company));
                 setCompanies(companiesData);
-            } catch (err: any) {
+            } catch (err) {
                  console.error("Error fetching companies:", err);
                  setError("No se pudieron cargar las empresas.");
             }
         };
-
+        
+        // Se quita el orderBy('createdAt') para evitar el error de índice compuesto en Firestore.
+        // El ordenamiento se hará en el cliente.
         const unsubInvitations = onSnapshot(
-            query(collection(firebaseDb, "invitacionesUsuarios"), orderBy("createdAt", "desc")),
+            query(collection(firebaseDb, "invitacionesUsuarios")),
             (snapshot) => {
                 const invitationsData = snapshot.docs.map(doc => ({
                     id: doc.id,
                     ...doc.data(),
                     createdAt: doc.data().createdAt?.toDate(),
                 } as UserInvitation));
+                
+                // Ordenar en el cliente
+                invitationsData.sort((a, b) => {
+                    const dateA = a.createdAt instanceof Date ? a.createdAt.getTime() : 0;
+                    const dateB = b.createdAt instanceof Date ? b.createdAt.getTime() : 0;
+                    return dateB - dateA;
+                });
+
                 setInvitations(invitationsData);
                 setLoading(false);
             },
@@ -265,27 +275,21 @@ export default function AdminUsuariosPage() {
                                     <TableCell className="text-right">
                                         <div className="flex gap-1 justify-end">
                                             {inv.estado === 'pendiente' && (
-                                                <>
-                                                    {ENABLE_GLOBAL_INVITES && (
-                                                        // <Button variant="ghost" size="icon" onClick={() => handleResendInvitation(inv)} title="Reenviar invitación"><RefreshCw className="h-4 w-4" /></Button>
-                                                        <></>
-                                                    )}
-                                                    <AlertDialog>
-                                                        <AlertDialogTrigger asChild>
-                                                            <Button variant="ghost" size="icon" className="text-destructive" title="Revocar invitación"><Trash2 className="h-4 w-4" /></Button>
-                                                        </AlertDialogTrigger>
-                                                        <AlertDialogContent>
-                                                            <AlertDialogHeader>
-                                                                <AlertDialogTitle>¿Revocar invitación?</AlertDialogTitle>
-                                                                <AlertDialogDescription>La invitación para {inv.email} será invalidada.</AlertDialogDescription>
-                                                            </AlertDialogHeader>
-                                                            <AlertDialogFooter>
-                                                                <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                                                                <AlertDialogAction onClick={() => handleRevokeInvitation(inv.id!)} className="bg-destructive hover:bg-destructive/90">Revocar</AlertDialogAction>
-                                                            </AlertDialogFooter>
-                                                        </AlertDialogContent>
-                                                    </AlertDialog>
-                                                </>
+                                                <AlertDialog>
+                                                    <AlertDialogTrigger asChild>
+                                                        <Button variant="ghost" size="icon" className="text-destructive" title="Revocar invitación"><Trash2 className="h-4 w-4" /></Button>
+                                                    </AlertDialogTrigger>
+                                                    <AlertDialogContent>
+                                                        <AlertDialogHeader>
+                                                            <AlertDialogTitle>¿Revocar invitación?</AlertDialogTitle>
+                                                            <AlertDialogDescription>La invitación para {inv.email} será invalidada.</AlertDialogDescription>
+                                                        </AlertDialogHeader>
+                                                        <AlertDialogFooter>
+                                                            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                                                            <AlertDialogAction onClick={() => handleRevokeInvitation(inv.id!)} className="bg-destructive hover:bg-destructive/90">Revocar</AlertDialogAction>
+                                                        </AlertDialogFooter>
+                                                    </AlertDialogContent>
+                                                </AlertDialog>
                                             )}
                                              {inv.estado === 'revocada' && (
                                                 <AlertDialog>
