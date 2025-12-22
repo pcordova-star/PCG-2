@@ -12,7 +12,7 @@ import { Badge } from '@/components/ui/badge';
 import { Loader2, Trash2, ArrowLeft, Info } from 'lucide-react';
 import { collection, doc, query, orderBy, onSnapshot, updateDoc, writeBatch, getDocs } from 'firebase/firestore';
 import { firebaseDb } from '@/lib/firebaseClient';
-import { Company, UserInvitation, RolInvitado } from '@/types/pcg';
+import { Company, UserInvitation } from '@/types/pcg';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/context/AuthContext';
 import { useRouter } from 'next/navigation';
