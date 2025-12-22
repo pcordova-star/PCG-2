@@ -14,11 +14,10 @@ export type InvitarUsuarioParams = {
 
 
 function construirUrlInvitacion(invId: string, email: string): string {
-    // Se usa directamente la URL de producción para evitar problemas con variables de entorno.
-    const rawBaseUrl = "https://pcg-2.vercel.app";
+    // SOLUCIÓN: Usar variable de entorno del frontend o fallback a producción.
+    const rawBaseUrl = process.env.NEXT_PUBLIC_APP_BASE_URL || "https://www.pcgoperacion.com";
     
     if (!rawBaseUrl) {
-      // Esta validación se mantiene por seguridad, aunque tengamos un fallback.
       throw new Error("La URL base de la aplicación no está configurada.");
     }
   
@@ -49,7 +48,8 @@ export async function invitarUsuario(params: InvitarUsuarioParams): Promise<void
     });
 
     const finalAcceptInviteUrl = construirUrlInvitacion(newInvitationRef.id, params.email);
-    const platformUrl = "https://pcg-2.vercel.app";
+    // La platformUrl ahora también usará la misma fuente de verdad.
+    const platformUrl = process.env.NEXT_PUBLIC_APP_BASE_URL || "https://www.pcgoperacion.com";
     const logoUrl = `${platformUrl}/logo.png`;
 
     const mailRef = collection(firebaseDb, "mail");
