@@ -8,7 +8,8 @@
     "start": "next start",
     "lint": "next lint",
     "export": "next build",
-    "postinstall": "cp node_modules/pdfjs-dist/build/pdf.worker.min.mjs public/"
+    "postinstall": "cp node_modules/pdfjs-dist/build/pdf.worker.min.mjs public/",
+    "deploy:functions": "npm run deploy --prefix functions"
   },
   "dependencies": {
     "@genkit-ai/core": "^1.0.0",
