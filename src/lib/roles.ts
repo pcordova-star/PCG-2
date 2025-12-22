@@ -32,7 +32,8 @@ export function resolveRole(user: User | null, userDoc?: any, tokenClaims?: { [k
   }
 
   // 2. Segunda prioridad: Custom Claims en el token de autenticación.
-  if (tokenClaims?.role === "SUPER_ADMIN") return "superadmin";
+  // CORRECCIÓN: Usar la cadena 'superadmin' en minúsculas para consistencia.
+  if (tokenClaims?.role === "superadmin") return "superadmin";
 
   // 3. Tercera prioridad: campo 'role' en el documento de Firestore.
   if (userDoc?.role === "superadmin") return "superadmin";
