@@ -108,6 +108,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setUser(firebaseUser);
         try {
             const userDoc = await ensureUserDocForAuthUser(firebaseUser);
+            // CORRECCIÓN: Forzar el refresco del token para obtener los custom claims más recientes.
             const idTokenResult = await firebaseUser.getIdTokenResult(true); 
             const resolvedUserRole = resolveRole(firebaseUser, userDoc, idTokenResult.claims);
             
@@ -115,7 +116,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             setCompanyId(userDoc?.empresaId || idTokenResult.claims.companyId as string || null);
             
             // Lógica de redirección para cambio de contraseña
-            if (userDoc?.mustChangePassword === true) {
+            if (idTokenResult.claims.mustChangePassword === true || userDoc?.mustChangePassword === true) {
               if (pathname !== '/cambiar-password') {
                 router.replace('/cambiar-password');
               }
