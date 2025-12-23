@@ -80,12 +80,14 @@ export default function AdminEmpresaUsuariosPage() {
                 createdAt: doc.data().createdAt?.toDate(),
             } as UserInvitation));
             setInvitations(invitationsData);
+            setLoading(false); // Asegurarse de que el loading termine aquí
         }, (err) => {
             console.error("Error fetching invitations:", err);
             setError("No se pudieron cargar las invitaciones.");
+            setLoading(false); // Y aquí también en caso de error
         });
         
-        fetchCompanyData().finally(() => setLoading(false));
+        fetchCompanyData(); // No necesita un finally porque el onSnapshot se encarga del loading
 
         return () => {
             unsubInvitations();
@@ -145,7 +147,7 @@ export default function AdminEmpresaUsuariosPage() {
     }
 
     if (loading) {
-        return <div className="p-8 text-center"><Loader2 className="animate-spin" /> Cargando datos...</div>;
+        return <div className="p-8 text-center"><Loader2 className="animate-spin mx-auto h-8 w-8" /> <p className="mt-2">Cargando datos de usuarios...</p></div>;
     }
     
     if (error) {
@@ -159,7 +161,7 @@ export default function AdminEmpresaUsuariosPage() {
                      <Button variant="outline" size="sm" asChild className="mb-4">
                         <Link href="/admin/empresas"><ArrowLeft className="mr-2 h-4 w-4" />Volver a Empresas</Link>
                     </Button>
-                    <h1 className="text-2xl font-bold">Invitaciones para {company?.nombreFantasia}</h1>
+                    <h1 className="text-2xl font-bold">Invitaciones para {company?.nombreFantasia || 'empresa no encontrada'}</h1>
                     <p className="text-muted-foreground">Crea y administra las invitaciones de usuarios para esta empresa.</p>
                 </div>
                 <Button onClick={() => setDialogOpen(true)} disabled={!company}>
