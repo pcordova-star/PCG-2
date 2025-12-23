@@ -13,25 +13,22 @@ if (getApps().length === 0) {
   initializeApp();
 }
 
-// ⚠️ CORRECCIÓN CLAVE: Centralizar la configuración para TODAS las funciones v2.
-// Esto asegura que todas las funciones usen la región y la cuenta de servicio correctas.
-// La cuenta de servicio 'pcg-functions-sa' DEBE tener el rol "Acceso a secretos de Secret Manager"
-// en el proyecto 'pcg-ia'.
+// Establece opciones globales para todas las funciones v2, asegurando la región
+// y la cuenta de servicio con permisos para acceder a secretos.
 setGlobalOptions({
   region: "southamerica-west1",
   serviceAccount: "pcg-functions-sa@pcg-2-8bf1b.iam.gserviceaccount.com"
 });
 
 
-// Exporta las funciones callable para que estén disponibles en el backend.
-// El nombre de la propiedad del objeto exportado será el nombre de la función en Firebase.
-export { createCompanyUser } from "./createCompanyUser";
+// Exporta solo la función necesaria para el bootstrap del superadmin
 export { setSuperAdminClaim } from "./setSuperAdmin";
-export { registrarAvanceRapido } from "./registrarAvanceRapido";
-export { convertHeicToJpg } from "./convertHeic";
-export { notifyDocumentDistribution } from "./notifyDocumentDistribution";
-export { processItemizadoJob } from "./processItemizadoJob";
-export { checkUserExistsByEmail } from "./checkUserExistsByEmail";
 
-// Se añade la nueva función de "smoke test"
-export { testGoogleAi } from "./test-google-ai";
+// --- TEMPORALMENTE DESHABILITADAS PARA DEPURACIÓN ---
+// export { createCompanyUser } from "./createCompanyUser";
+// export { registrarAvanceRapido } from "./registrarAvanceRapido";
+// export { convertHeicToJpg } from "./convertHeic";
+// export { notifyDocumentDistribution } from "./notifyDocumentDistribution";
+// export { processItemizadoJob } from "./processItemizadoJob";
+// export { checkUserExistsByEmail } from "./checkUserExistsByEmail";
+// export { testGoogleAi } from "./test-google-ai";
