@@ -14,11 +14,42 @@ import {
   useState,
   ReactNode,
 } from "react";
-import { firebaseAuth, firebaseDb } from "@/lib/firebaseClient"; // Se importa firebaseAuth directamente
-import { useRouter } from "next/navigation";
-import { doc, getDoc, setDoc, serverTimestamp, collection, query, where, getDocs, writeBatch } from "firebase/firestore";
-import { resolveRole, UserRole } from "@/lib/roles";
-import { AppUser, UserInvitation } from "@/types/pcg";
+import { firebaseAuth, firebaseDb } from "@/lib/firebaseClient";
+import { useRouter, usePathname } from "next/navigation";
+import { doc, getDoc, setDoc, serverTimestamp } from "firebase/firestore";
+import { UserRole } from "@/lib/roles";
+import { AppUser } from "@/types/pcg";
+
+
+/**
+ * Asegura que exista un documento en /users/{uid} para un usuario autenticado.
+ * Si no existe, lo crea con datos básicos. Esto es crucial para la consistencia
+ * de los datos en la plataforma.
+ * @param firebaseUser - El objeto de usuario de Firebase Auth.
+ */
+async function ensureUserDocForAuthUser(firebaseUser: User) {
+  const userRef = doc(firebaseDb, "users", firebaseUser.uid);
+  const userSnap = await getDoc(userRef);
+
+  if (!userSnap.exists()) {
+    // Si el documento no existe, lo creamos con valores por defecto.
+    // El rol y empresa se poblarán más adelante a través de custom claims o un flujo de invitación.
+    const newUserDoc: Omit<AppUser, "id"> = {
+      nombre: firebaseUser.displayName || firebaseUser.email || "Usuario sin nombre",
+      email: firebaseUser.email!,
+      role: "none",
+      empresaId: null,
+      activo: true, // Por defecto, los nuevos usuarios están activos
+      createdAt: serverTimestamp(),
+    };
+    try {
+      await setDoc(userRef, newUserDoc);
+      console.log(`Documento creado para el nuevo usuario: ${firebaseUser.uid}`);
+    } catch (error) {
+      console.error("Error al crear el documento del usuario en Firestore:", error);
+    }
+  }
+}
 
 
 type AuthContextValue = {
@@ -38,29 +69,35 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [companyId, setCompanyId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const router = useRouter();
+  const pathname = usePathname();
 
   useEffect(() => {
     const unsub = onAuthStateChanged(firebaseAuth, async (firebaseUser) => {
       setLoading(true);
       if (firebaseUser) {
+        // Asegurar que el documento del usuario exista en Firestore.
+        await ensureUserDocForAuthUser(firebaseUser);
+        
         setUser(firebaseUser);
+        
         try {
-            // Forzar refresco del token para obtener los claims más recientes.
             const idTokenResult = await firebaseUser.getIdTokenResult(true);
             const claims = idTokenResult.claims;
 
-            // Determinar rol EXCLUSIVAMENTE desde los claims.
             const userRole = (claims.role as UserRole) || 'none';
             setRole(userRole);
             
-            // Asignar companyId desde los claims si existe.
             setCompanyId((claims.companyId as string) || null);
             
+            // Redirección explícita si el usuario está logueado y en la página de login
+            if (pathname.startsWith('/login')) {
+                 router.replace('/dashboard');
+            }
+
         } catch (error) {
             console.error("Error al procesar el token de autenticación:", error);
             setRole("none");
             setCompanyId(null);
-            // Si falla, es más seguro desloguear al usuario para evitar inconsistencias.
             await signOut(firebaseAuth);
         }
       } else {
@@ -72,7 +109,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     });
 
     return () => unsub();
-  }, [router]);
+  }, [router, pathname]);
 
   async function login(email: string, password: string) {
     await signInWithEmailAndPassword(firebaseAuth, email, password);
