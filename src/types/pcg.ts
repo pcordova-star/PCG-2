@@ -498,7 +498,7 @@ export interface Rdi {
   adicionalMontoTotal?: number | null; // monto total del adicional asociado, si aplica
 }
 
-// --- CHECKLISTS PREVENCIÓN ---
+// --- CHECKLISTS PREVENCIÓN (LEGACY) ---
 export interface ChecklistTemplate {
     id: string;
     titulo: string;
@@ -571,5 +571,43 @@ export interface OperationalChecklistResponse {
         fotoUrl?: string;
     }[];
     firmaUrl?: string;
+    pdfUrl?: string;
+}
+
+// --- CHECKLISTS SEGURIDAD (NUEVO y AISLADO) ---
+export interface SafetyChecklistTemplate {
+    id: string;
+    companyId: string;
+    titulo: string;
+    descripcion: string;
+    createdAt: Timestamp;
+    createdBy: string; // UID del prevencionista
+    secciones: {
+        id: string;
+        titulo: string;
+        items: {
+            id: string;
+            texto: string;
+            tipo: "ok_nok_na" | "texto" | "numero" | "fecha";
+        }[];
+    }[];
+}
+
+export interface SafetyChecklistRecord {
+    id: string;
+    companyId: string;
+    obraId: string;
+    templateId: string;
+    templateTitulo: string;
+    userId: string; // UID del prevencionista que lo completa
+    userName: string;
+    createdAt: Timestamp;
+    respuestas: {
+        itemId: string;
+        respuesta: 'OK' | 'NOK' | 'NA' | string | number | null;
+        observacion?: string;
+        fotoUrl?: string;
+    }[];
+    firmaObligatoriaUrl: string; // La firma es obligatoria
     pdfUrl?: string;
 }

@@ -55,11 +55,11 @@ export default function PrevencionPage() {
       linkText: "Ir a Formularios"
     },
     {
-      title: "Listas de Chequeo (Plantillas)",
-      description: "Crea y gestiona las plantillas de checklists de seguridad para inspecciones y auditorías.",
-      href: "/prevencion/checklists",
+      title: "Listas de Chequeo de Seguridad",
+      description: "Crea y gestiona las plantillas de checklists exclusivas para inspecciones y auditorías de seguridad.",
+      href: "/prevencion/safety-checklists",
       icon: FileSignature,
-      linkText: "Gestionar Plantillas de Prevención"
+      linkText: "Gestionar Plantillas de Seguridad"
     },
     {
       title: "Capacitación e inducciones",
