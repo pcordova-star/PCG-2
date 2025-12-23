@@ -362,6 +362,107 @@ export type RegistroIncidente = {
   esAccidenteGraveFatal?: boolean | null;
 };
 
+// --- CHECKLISTS ---
+
+// Tipos comunes para ítems de checklist
+export type ChecklistItemType = "boolean" | "text" | "number" | "select";
+
+export interface ChecklistItem {
+    id: string;
+    order: number;
+    type: ChecklistItemType;
+    label: string;
+    required: boolean;
+    options?: string[];
+    allowComment?: boolean;
+    allowPhoto?: boolean;
+}
+
+export interface ChecklistSection {
+    id: string;
+    title: string;
+    order: number;
+    items: ChecklistItem[];
+}
+
+// Plantillas de Checklists OPERACIONALES
+export interface OperationalChecklistTemplate {
+    id: string;
+    companyId: string;
+    titulo: string;
+    descripcion: string;
+    status: 'draft' | 'active' | 'inactive';
+    secciones: ChecklistSection[];
+    createdAt: Timestamp;
+    updatedAt?: Timestamp;
+    createdBy: string;
+}
+
+// Respuestas de Checklists OPERACIONALES
+export interface OperationalChecklistRecord {
+    id: string;
+    companyId: string;
+    obraId?: string;
+    templateId: string;
+    templateTitleSnapshot: string;
+    filledByUid: string;
+    filledByEmail: string;
+    filledAt: Timestamp;
+    header?: {
+        fecha: string;
+        hora: string;
+        sector: string;
+        elemento: string;
+        actividad: string;
+        responsable: string;
+        observaciones: string;
+        evidenceUrls?: string[];
+    };
+    answers: Record<string, any>; // Clave es el itemId
+    signature?: { type: "none"|"typed"; name?: string, dataUrl?: string | null };
+    pdf: { generated: boolean, dataUri?: string };
+    status: "draft" | "submitted";
+}
+
+
+// --- CHECKLISTS SEGURIDAD (AISLADO) ---
+export interface SafetyChecklistTemplate {
+    id: string;
+    companyId: string;
+    titulo: string;
+    descripcion: string;
+    createdAt: Timestamp;
+    createdBy: string; // UID del prevencionista
+    secciones: {
+        id: string;
+        titulo: string;
+        items: {
+            id: string;
+            texto: string;
+            tipo: "ok_nok_na" | "texto" | "numero" | "fecha";
+        }[];
+    }[];
+}
+
+export interface SafetyChecklistRecord {
+    id: string;
+    companyId: string;
+    obraId: string;
+    templateId: string;
+    templateTitulo: string;
+    userId: string; // UID del prevencionista que lo completa
+    userName: string;
+    createdAt: Timestamp;
+    respuestas: {
+        itemId: string;
+        respuesta: 'OK' | 'NOK' | 'NA' | string | number | null;
+        observacion?: string;
+        fotoUrl?: string;
+    }[];
+    firmaObligatoriaUrl: string; // La firma es obligatoria
+    pdfUrl?: string;
+}
+
 // --- MÓDULO DE CONTROL DOCUMENTAL ---
 
 export interface CompanyDocument {
@@ -494,98 +595,4 @@ export interface Rdi {
   // --- Adicional / Itemizado asociado ---
   tieneAdicional?: boolean;             // true si esta RDI ya generó un adicional
   adicionalId?: string | null;         // id del itemizado/adicional en su colección
-  adicionalEstado?: 'borrador' | 'enviado' | 'aprobado' | 'rechazado' | null;
-  adicionalMontoTotal?: number | null; // monto total del adicional asociado, si aplica
-}
-
-// --- CHECKLISTS ---
-
-// Tipos comunes para ítems de checklist
-export type ChecklistItemType = "boolean" | "text" | "number" | "select";
-
-export interface ChecklistItem {
-    id: string;
-    order: number;
-    type: ChecklistItemType;
-    label: string;
-    required: boolean;
-    options?: string[];
-    allowComment?: boolean;
-    allowPhoto?: boolean;
-}
-
-export interface ChecklistSection {
-    id: string;
-    title: string;
-    order: number;
-    items: ChecklistItem[];
-}
-
-// Plantillas de Checklists OPERACIONALES
-export interface OperationalChecklistTemplate {
-    id: string;
-    companyId: string;
-    titulo: string;
-    descripcion: string;
-    status: 'draft' | 'active' | 'inactive';
-    secciones: ChecklistSection[];
-    createdAt: Timestamp;
-    updatedAt?: Timestamp;
-    createdBy: string;
-}
-
-// Respuestas de Checklists OPERACIONALES
-export interface OperationalChecklistRecord {
-    id: string;
-    companyId: string;
-    obraId?: string;
-    templateId: string;
-    templateTitleSnapshot: string;
-    filledByUid: string;
-    filledByEmail: string;
-    filledAt: Timestamp;
-    answers: Record<string, any>; // Clave es el itemId
-    observations?: string;
-    signature?: { type: "none"|"typed"; name?: string };
-    pdf: { generated: boolean, dataUri?: string };
-    status: "draft" | "submitted";
-}
-
-
-// --- CHECKLISTS SEGURIDAD (AISLADO) ---
-export interface SafetyChecklistTemplate {
-    id: string;
-    companyId: string;
-    titulo: string;
-    descripcion: string;
-    createdAt: Timestamp;
-    createdBy: string; // UID del prevencionista
-    secciones: {
-        id: string;
-        titulo: string;
-        items: {
-            id: string;
-            texto: string;
-            tipo: "ok_nok_na" | "texto" | "numero" | "fecha";
-        }[];
-    }[];
-}
-
-export interface SafetyChecklistRecord {
-    id: string;
-    companyId: string;
-    obraId: string;
-    templateId: string;
-    templateTitulo: string;
-    userId: string; // UID del prevencionista que lo completa
-    userName: string;
-    createdAt: Timestamp;
-    respuestas: {
-        itemId: string;
-        respuesta: 'OK' | 'NOK' | 'NA' | string | number | null;
-        observacion?: string;
-        fotoUrl?: string;
-    }[];
-    firmaObligatoriaUrl: string; // La firma es obligatoria
-    pdfUrl?: string;
-}
+  adicionalEstado?: 'borrador' | 'enviado' | 'ap
