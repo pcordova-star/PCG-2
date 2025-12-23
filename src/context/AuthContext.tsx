@@ -17,7 +17,7 @@ import {
 } from "react";
 import { firebaseAuth, firebaseDb } from "@/lib/firebaseClient";
 import { useRouter } from "next/navigation";
-import { doc, getDoc, setDoc, serverTimestamp, collection, query, where, limit, writeBatch } from "firebase/firestore";
+import { doc, getDoc, setDoc, serverTimestamp, collection, query, where, limit, writeBatch, getDocs } from "firebase/firestore";
 import { UserRole } from "@/lib/roles";
 import { AppUser, UserInvitation } from "@/types/pcg";
 
