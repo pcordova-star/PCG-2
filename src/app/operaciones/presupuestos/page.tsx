@@ -367,7 +367,7 @@ export default function PresupuestosPage() {
     return (
         <div className="space-y-6">
             <header className="flex items-center gap-4">
-                <Button variant="outline" size="icon" onClick={() => router.push('/operaciones')}><ArrowLeft /></Button>
+                <Button variant="outline" size="icon" onClick={() => router.push('/dashboard')}><ArrowLeft /></Button>
                 <div>
                     <h1 className="text-2xl font-bold">Itemizados</h1>
                     <p className="text-muted-foreground">Administra tu catálogo de ítems y crea itemizados por obra.</p>
