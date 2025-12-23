@@ -1,7 +1,7 @@
 // src/app/prevencion/formularios-dinamicos/plantillas/page.tsx
 "use client";
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { collection, query, where, orderBy, onSnapshot, addDoc, serverTimestamp, doc, updateDoc, deleteDoc } from 'firebase/firestore';
@@ -17,6 +17,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 
 export interface ChecklistTemplate {
     id: string;
@@ -43,6 +44,50 @@ const initialFormState: Omit<ChecklistTemplate, 'id' | 'createdAt' | 'createdBy'
     secciones: [{ id: crypto.randomUUID(), titulo: 'Sección 1', items: [] }],
 };
 
+const TemplateList = ({ templates, onEdit, onDelete }: { templates: ChecklistTemplate[], onEdit: (template: ChecklistTemplate) => void, onDelete: (id: string) => void }) => {
+    if (templates.length === 0) {
+        return (
+            <div className="text-center py-8 text-muted-foreground">
+                <p>No hay plantillas en esta categoría.</p>
+            </div>
+        );
+    }
+    return (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {templates.map(template => (
+                <Card key={template.id}>
+                    <CardHeader>
+                        <div className="flex justify-between items-start">
+                            <CardTitle className="text-lg">{template.titulo}</CardTitle>
+                            <Badge variant="outline">{template.categoria}</Badge>
+                        </div>
+                        <CardDescription>{template.descripcion}</CardDescription>
+                    </CardHeader>
+                    <CardFooter className="flex justify-end gap-2">
+                        <AlertDialog>
+                            <AlertDialogTrigger asChild>
+                                <Button variant="ghost" size="icon" className="text-destructive"><Trash2 className="h-4 w-4" /></Button>
+                            </AlertDialogTrigger>
+                            <AlertDialogContent>
+                                <AlertDialogHeader>
+                                    <AlertDialogTitle>¿Eliminar plantilla?</AlertDialogTitle>
+                                    <AlertDialogDescription>Esta acción no se puede deshacer.</AlertDialogDescription>
+                                </AlertDialogHeader>
+                                <AlertDialogFooter>
+                                    <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                                    <AlertDialogAction onClick={() => onDelete(template.id)} className="bg-destructive hover:bg-destructive/90">Eliminar</AlertDialogAction>
+                                </AlertDialogFooter>
+                            </AlertDialogContent>
+                        </AlertDialog>
+                        <Button variant="outline" size="sm" onClick={() => onEdit(template)}><Edit className="mr-2 h-4 w-4" />Editar</Button>
+                    </CardFooter>
+                </Card>
+            ))}
+        </div>
+    );
+};
+
+
 export default function PlantillasChecklistPage() {
     const { user, role } = useAuth();
     const { toast } = useToast();
@@ -57,13 +102,7 @@ export default function PlantillasChecklistPage() {
         setLoading(true);
 
         const templatesRef = collection(firebaseDb, "checklistTemplates");
-        let q;
-
-        if (role === 'prevencionista') {
-            q = query(templatesRef, where("categoria", "==", "prevencion"), orderBy("createdAt", "desc"));
-        } else {
-            q = query(templatesRef, orderBy("createdAt", "desc"));
-        }
+        const q = query(templatesRef, orderBy("createdAt", "desc"));
 
         const unsubscribe = onSnapshot(q, (snapshot) => {
             const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as ChecklistTemplate));
@@ -76,7 +115,17 @@ export default function PlantillasChecklistPage() {
         });
 
         return () => unsubscribe();
-    }, [user, role, toast]);
+    }, [user, toast]);
+
+    const filteredTemplates = useMemo(() => {
+        if (role === 'prevencionista') {
+            return plantillas.filter(p => p.categoria === 'prevencion');
+        }
+        return plantillas;
+    }, [plantillas, role]);
+
+    const plantillasPrevencion = filteredTemplates.filter(p => p.categoria === 'prevencion');
+    const plantillasOperaciones = filteredTemplates.filter(p => p.categoria === 'operaciones' || p.categoria === 'general');
     
     const handleOpenForm = (template?: ChecklistTemplate) => {
         setCurrentTemplate(template || { ...initialFormState });
@@ -145,46 +194,26 @@ export default function PlantillasChecklistPage() {
                     </Button>
                 </CardHeader>
                 <CardContent>
-                    {loading ? (
-                        <div className="text-center"><Loader2 className="animate-spin mx-auto" /></div>
-                    ) : plantillas.length === 0 ? (
-                        <div className="text-center py-8 text-muted-foreground">
-                            <p>No hay plantillas de checklist disponibles.</p>
-                            {role === 'prevencionista' && <p className="text-sm mt-1">Solo puedes ver plantillas de la categoría "Prevención".</p>}
-                        </div>
-                    ) : (
-                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                            {plantillas.map(template => (
-                                <Card key={template.id}>
-                                    <CardHeader>
-                                        <div className="flex justify-between items-start">
-                                            <CardTitle className="text-lg">{template.titulo}</CardTitle>
-                                            <Badge variant="outline">{template.categoria}</Badge>
-                                        </div>
-                                        <CardDescription>{template.descripcion}</CardDescription>
-                                    </CardHeader>
-                                    <CardFooter className="flex justify-end gap-2">
-                                         <AlertDialog>
-                                            <AlertDialogTrigger asChild>
-                                                <Button variant="ghost" size="icon" className="text-destructive"><Trash2 className="h-4 w-4" /></Button>
-                                            </AlertDialogTrigger>
-                                            <AlertDialogContent>
-                                                <AlertDialogHeader>
-                                                    <AlertDialogTitle>¿Eliminar plantilla?</AlertDialogTitle>
-                                                    <AlertDialogDescription>Esta acción no se puede deshacer.</AlertDialogDescription>
-                                                </AlertDialogHeader>
-                                                <AlertDialogFooter>
-                                                    <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                                                    <AlertDialogAction onClick={() => handleDeleteTemplate(template.id)} className="bg-destructive hover:bg-destructive/90">Eliminar</AlertDialogAction>
-                                                </AlertDialogFooter>
-                                            </AlertDialogContent>
-                                        </AlertDialog>
-                                        <Button variant="outline" size="sm" onClick={() => handleOpenForm(template)}><Edit className="mr-2 h-4 w-4"/>Editar</Button>
-                                    </CardFooter>
-                                </Card>
-                            ))}
-                        </div>
-                    )}
+                   <Tabs defaultValue="prevencion" className="w-full">
+                        <TabsList className="grid w-full grid-cols-2">
+                           <TabsTrigger value="prevencion">Prevención de Riesgos</TabsTrigger>
+                           <TabsTrigger value="operaciones" disabled={role === 'prevencionista'}>Operaciones y General</TabsTrigger>
+                        </TabsList>
+                        <TabsContent value="prevencion" className="mt-4">
+                           {loading ? (
+                                <div className="text-center"><Loader2 className="animate-spin mx-auto" /></div>
+                            ) : (
+                                <TemplateList templates={plantillasPrevencion} onEdit={handleOpenForm} onDelete={handleDeleteTemplate} />
+                            )}
+                        </TabsContent>
+                         <TabsContent value="operaciones" className="mt-4">
+                           {loading ? (
+                                <div className="text-center"><Loader2 className="animate-spin mx-auto" /></div>
+                            ) : role !== 'prevencionista' ? (
+                                <TemplateList templates={plantillasOperaciones} onEdit={handleOpenForm} onDelete={handleDeleteTemplate} />
+                            ) : null}
+                        </TabsContent>
+                   </Tabs>
                 </CardContent>
             </Card>
 
@@ -205,7 +234,7 @@ export default function PlantillasChecklistPage() {
                         </div>
                         <div className="space-y-2">
                             <Label htmlFor="categoria">Categoría*</Label>
-                            <Select value={currentTemplate.categoria || 'general'} onValueChange={(v) => handleInputChange('categoria', v)}>
+                            <Select value={currentTemplate.categoria || 'general'} onValueChange={(v) => handleInputChange('categoria', v)} disabled={role === 'prevencionista'}>
                                 <SelectTrigger id="categoria"><SelectValue /></SelectTrigger>
                                 <SelectContent>
                                     <SelectItem value="general">General</SelectItem>
