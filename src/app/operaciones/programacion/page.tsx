@@ -627,7 +627,7 @@ function ProgramacionPageInner() {
     <div className="space-y-8">
       <header className="flex items-start justify-between">
         <div className="flex items-center gap-4">
-            <Button variant="outline" size="icon" onClick={() => router.push('/operaciones')}>
+            <Button variant="outline" size="icon" onClick={() => router.push('/dashboard')}>
                 <ArrowLeft />
             </Button>
             <div>
