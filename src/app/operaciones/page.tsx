@@ -1,7 +1,7 @@
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
-import { Users, GanttChartSquare, DollarSign, BookCopy, ArrowLeft } from 'lucide-react';
+import { Users, GanttChartSquare, DollarSign, BookCopy, ArrowLeft, FileSignature } from 'lucide-react';
 
 export default function OperacionesPage() {
   const modules = [
@@ -25,6 +25,13 @@ export default function OperacionesPage() {
       href: "/operaciones/presupuestos",
       icon: BookCopy,
       linkText: "Ir a Itemizados"
+    },
+     {
+      title: "Listas de Chequeo / Formularios",
+      description: "Crea y gestiona plantillas de checklists para inspecciones y controles de calidad o procesos operativos.",
+      href: "/operaciones/checklists",
+      icon: FileSignature,
+      linkText: "Ir a Listas de Chequeo"
     },
     {
       title: "Personal de Obra",

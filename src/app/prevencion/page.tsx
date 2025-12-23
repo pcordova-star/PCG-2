@@ -56,10 +56,10 @@ export default function PrevencionPage() {
     },
     {
       title: "Listas de Chequeo (Plantillas)",
-      description: "Crea y gestiona las plantillas de checklists para inspecciones, auditorías y controles de calidad o seguridad.",
-      href: "/prevencion/formularios-dinamicos/plantillas",
+      description: "Crea y gestiona las plantillas de checklists de seguridad para inspecciones y auditorías.",
+      href: "/prevencion/checklists",
       icon: FileSignature,
-      linkText: "Gestionar Plantillas"
+      linkText: "Gestionar Plantillas de Prevención"
     },
     {
       title: "Capacitación e inducciones",
@@ -127,6 +127,7 @@ export default function PrevencionPage() {
               </Button>
             </CardFooter>
           </Card>
+        </Card>
         ))}
       </div>
     </div>
