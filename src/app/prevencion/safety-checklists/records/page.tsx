@@ -1,12 +1,33 @@
 // src/app/prevencion/safety-checklists/records/page.tsx
 "use client";
 
-import React from 'react';
+import React, { useEffect } from 'react';
 import { Button } from '@/components/ui/button';
-import { ArrowLeft } from 'lucide-react';
+import { ArrowLeft, Loader2 } from 'lucide-react';
 import Link from 'next/link';
+import { useAuth } from '@/context/AuthContext';
+import { useRouter } from 'next/navigation';
 
 export default function SafetyChecklistRecordsPage() {
+  const { role, loading } = useAuth();
+  const router = useRouter();
+
+  const allowedRoles = ['prevencionista', 'admin_empresa', 'superadmin'];
+
+  useEffect(() => {
+    if (!loading && !allowedRoles.includes(role)) {
+      router.replace('/dashboard');
+    }
+  }, [loading, role, router]);
+  
+  if (loading || !allowedRoles.includes(role)) {
+    return (
+        <div className="flex items-center justify-center h-full">
+            <Loader2 className="h-8 w-8 animate-spin" />
+        </div>
+    );
+  }
+
   return (
     <div className="space-y-6">
       <header className="flex items-center gap-4">

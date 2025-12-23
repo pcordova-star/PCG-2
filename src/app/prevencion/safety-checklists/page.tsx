@@ -13,13 +13,15 @@ export default function SafetyChecklistsPage() {
   const { role, loading } = useAuth();
   const router = useRouter();
 
+  const allowedRoles = ['prevencionista', 'admin_empresa', 'superadmin'];
+
   useEffect(() => {
-    if (!loading && role !== 'prevencionista') {
+    if (!loading && !allowedRoles.includes(role)) {
       router.replace('/dashboard');
     }
   }, [loading, role, router]);
 
-  if (loading || role !== 'prevencionista') {
+  if (loading || !allowedRoles.includes(role)) {
     return (
         <div className="flex items-center justify-center h-full">
             <Loader2 className="h-8 w-8 animate-spin" />
