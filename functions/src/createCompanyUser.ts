@@ -1,22 +1,25 @@
 // functions/src/createCompanyUser.ts
 import { onCall, HttpsError } from "firebase-functions/v2/https";
 import * as admin from "firebase-admin";
-import * as logger from "firebase-functions/logger";
 
+// Inicializa Firebase Admin SDK solo si no se ha hecho antes.
+// Esto se ejecuta una vez por instancia de función.
 if (!admin.apps.length) {
   admin.initializeApp();
 }
 
+/**
+ * Construye la URL de invitación usando una constante hardcodeada para máxima fiabilidad.
+ */
 function buildAcceptInviteUrl(invId: string, email: string): string {
-  // SOLUCIÓN DEFINITIVA: Usar una constante hardcodeada para la URL de producción.
-  const appBaseUrl = "https://www.pcgoperacion.com";
-  
-  return `${appBaseUrl}/accept-invite?invId=${encodeURIComponent(invId)}&email=${encodeURIComponent(email)}`;
+  const APP_BASE_URL = "https://www.pcgoperacion.com";
+  return `${APP_BASE_URL}/accept-invite?invId=${encodeURIComponent(invId)}&email=${encodeURIComponent(email)}`;
 }
 
 export const createCompanyUser = onCall(
   {
-    region: "southamerica-west1",
+    // Las opciones globales de región se heredan.
+    // Se definen los recursos específicos para esta función.
     cpu: 1,
     memory: "256MiB",
     timeoutSeconds: 60,
@@ -28,36 +31,19 @@ export const createCompanyUser = onCall(
 
     const ctx = request.auth;
 
-    // --- INICIO DE INSTRUMENTACIÓN 1 ---
-    logger.info("DEBUG CALLER", {
-      uid: ctx?.uid,
-      tokenRole: (ctx?.token as any)?.role,
-      tokenClaimsKeys: ctx?.token ? Object.keys(ctx.token) : null,
-    });
-    // --- FIN DE INSTRUMENTACIÓN 1 ---
-
-
     // 1. Validar que el usuario está autenticado
     if (!ctx) {
       throw new HttpsError("unauthenticated", "No autenticado.");
     }
 
     // 2. Validar que el usuario es SUPER_ADMIN vía customClaims
-    // Se elimina la validación estricta de companyId para el superadmin.
-    if (ctx.token.role !== "superadmin") {
+    const requesterClaims = await auth.getUser(ctx.uid);
+    if (requesterClaims.customClaims?.role !== "superadmin") {
       throw new HttpsError(
         "permission-denied",
         "Solo SUPER_ADMIN puede crear usuarios."
       );
     }
-
-    // --- INICIO DE INSTRUMENTACIÓN 2 ---
-    const ur = await admin.auth().getUser(request.auth!.uid);
-    logger.info("DEBUG ADMIN USER", {
-      uid: ur.uid,
-      customClaims: ur.customClaims,
-    });
-    // --- FIN DE INSTRUMENTACIÓN 2 ---
 
     // 3. Validar payload de entrada
     const data = request.data as {
