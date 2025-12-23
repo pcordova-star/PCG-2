@@ -1,7 +1,7 @@
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
-import { Users, Building, ClipboardPlus, BookUser, LayoutDashboard, ShieldAlert, ArrowLeft, Search, Siren, Settings } from 'lucide-react';
+import { Users, Building, ClipboardPlus, BookUser, LayoutDashboard, ShieldAlert, ArrowLeft, Search, Siren, Settings, FileSignature } from 'lucide-react';
 
 export default function PrevencionPage() {
   const modules = [
@@ -52,6 +52,13 @@ export default function PrevencionPage() {
       description: "IPER, investigación de incidentes, hallazgos, planes de acción y otros formularios del sistema.",
       href: "/prevencion/formularios-generales",
       icon: ClipboardPlus,
+      linkText: "Ir a Formularios"
+    },
+    {
+      title: "Formularios Dinámicos (Checklists)",
+      description: "Crea y responde checklists personalizados para inspecciones, auditorías y controles de calidad o seguridad.",
+      href: "/prevencion/formularios-dinamicos",
+      icon: FileSignature,
       linkText: "Ir a Formularios"
     },
     {
