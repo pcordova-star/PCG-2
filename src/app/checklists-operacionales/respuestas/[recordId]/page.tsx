@@ -10,10 +10,11 @@ import { useToast } from '@/hooks/use-toast';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
-import { ArrowLeft, Loader2, FileText } from 'lucide-react';
+import { ArrowLeft, Loader2, FileText, Download } from 'lucide-react';
 import { OperationalChecklistRecord, OperationalChecklistTemplate, Obra } from '@/types/pcg';
 import jsPDF from "jspdf";
 import autoTable from 'jspdf-autotable';
+import Image from 'next/image';
 
 export default function RecordDetailPage() {
     const { recordId } = useParams();
@@ -23,7 +24,6 @@ export default function RecordDetailPage() {
 
     const [record, setRecord] = useState<OperationalChecklistRecord | null>(null);
     const [template, setTemplate] = useState<OperationalChecklistTemplate | null>(null);
-    const [obra, setObra] = useState<Obra | null>(null);
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
@@ -46,15 +46,6 @@ export default function RecordDetailPage() {
                         setTemplate({ id: templateSnap.id, ...templateSnap.data() } as OperationalChecklistTemplate);
                     }
                     
-                    // Fetch Obra for context
-                    if (recordData.obraId) {
-                        const obraRef = doc(firebaseDb, "obras", recordData.obraId);
-                        const obraSnap = await getDoc(obraRef);
-                        if (obraSnap.exists()) {
-                            setObra({ id: obraSnap.id, ...obraSnap.data() } as Obra);
-                        }
-                    }
-
                 } else {
                     toast({ variant: 'destructive', title: 'Error', description: 'Registro no encontrado o acceso denegado.' });
                     router.push('/checklists-operacionales/respuestas');
@@ -78,11 +69,12 @@ export default function RecordDetailPage() {
         doc.text(template.titulo, 15, 20);
         
         doc.setFontSize(12);
-        doc.text(`Fecha: ${record.filledAt.toDate().toLocaleDateString()}`, 15, 30);
-        doc.text(`Realizado por: ${record.filledByEmail}`, 15, 36);
-        if(obra) doc.text(`Obra: ${obra.nombreFaena}`, 15, 42);
+        doc.text(`Fecha: ${record.header?.fecha || record.filledAt.toDate().toLocaleDateString()}`, 15, 30);
+        doc.text(`Realizado por: ${record.header?.responsable || record.filledByEmail}`, 15, 36);
+        doc.text(`Sector: ${record.header?.sector || 'N/A'}`, 15, 42);
+        doc.text(`Elemento: ${record.header?.elemento || 'N/A'}`, 15, 48);
 
-        let y = 55;
+        let y = 60;
         
         template.secciones.forEach(section => {
             if(y > 260) { doc.addPage(); y = 20; }
@@ -110,12 +102,12 @@ export default function RecordDetailPage() {
             y+= 5;
         });
 
-        if (record.observations) {
+        if (record.header?.observaciones) {
             if(y > 250) { doc.addPage(); y = 20; }
             doc.setFontSize(14);
             doc.text("Observaciones Generales", 15, y); y+=8;
             doc.setFontSize(10);
-            doc.text(record.observations, 15, y); y+=20;
+            doc.text(record.header.observaciones, 15, y); y+=20;
         }
 
         if (record.signature?.name) {
@@ -154,11 +146,32 @@ export default function RecordDetailPage() {
                 </Button>
             </header>
 
-            {obra && (
-                 <Card>
-                    <CardHeader><CardTitle>Información de la Obra</CardTitle></CardHeader>
-                    <CardContent>
-                        <p className="text-sm font-medium">{obra.nombreFaena}</p>
+            {record.header && (
+                <Card>
+                    <CardHeader><CardTitle>Encabezado del Registro</CardTitle></CardHeader>
+                    <CardContent className="grid grid-cols-2 md:grid-cols-3 gap-4 text-sm">
+                        <div><Label>Fecha</Label><p>{record.header.fecha}</p></div>
+                        <div><Label>Hora</Label><p>{record.header.hora}</p></div>
+                        <div><Label>Responsable</Label><p>{record.header.responsable}</p></div>
+                        <div><Label>Sector</Label><p>{record.header.sector}</p></div>
+                        <div><Label>Elemento</Label><p>{record.header.elemento}</p></div>
+                        <div><Label>Actividad</Label><p>{record.header.actividad || 'N/A'}</p></div>
+                        <div className="col-span-full"><Label>Observaciones</Label><p className="text-muted-foreground">{record.header.observaciones || 'Sin observaciones.'}</p></div>
+                        {record.header.evidenceUrls && record.header.evidenceUrls.length > 0 && (
+                            <div className="col-span-full">
+                                <Label>Evidencia</Label>
+                                <div className="flex gap-2 flex-wrap mt-2">
+                                    {record.header.evidenceUrls.map((url, i) => (
+                                        <a key={i} href={url} target="_blank" rel="noopener noreferrer" className="relative w-24 h-24 block border rounded-md overflow-hidden">
+                                            <Image src={url} alt={`Evidencia ${i + 1}`} layout="fill" objectFit="cover" />
+                                            <div className="absolute inset-0 bg-black/50 opacity-0 hover:opacity-100 transition-opacity flex items-center justify-center">
+                                                <Download className="h-6 w-6 text-white"/>
+                                            </div>
+                                        </a>
+                                    ))}
+                                </div>
+                            </div>
+                        )}
                     </CardContent>
                 </Card>
             )}
@@ -187,18 +200,12 @@ export default function RecordDetailPage() {
             ))}
 
             <Card>
-                <CardHeader><CardTitle>Observaciones y Firma</CardTitle></CardHeader>
-                <CardContent className="space-y-4">
-                    <div>
-                        <Label className="font-semibold">Observaciones Generales</Label>
-                        <p className="text-sm text-muted-foreground p-2 bg-muted rounded-md mt-1 min-h-[40px]">{record.observations || 'Sin observaciones.'}</p>
-                    </div>
-                     <div>
-                        <Label className="font-semibold">Firma</Label>
-                        <p className="text-sm text-muted-foreground p-2 bg-muted rounded-md mt-1">{record.signature?.name || 'No se registró firma.'}</p>
-                    </div>
-                </CardContent>
-            </Card>
-        </div>
-    );
-}
+                <CardHeader><CardTitle>Firma</CardTitle></CardHeader>
+                <CardContent>
+                     {record.signature?.dataUrl ? (
+                         <div>
+                            <p className="text-sm text-muted-foreground mb-2">Firmado por: {record.signature.name}</p>
+                             <Image src={record.signature.dataUrl} alt="Firma" width={200} height={100} className="border rounded-md bg-white"/>
+                         </div>
+                     ) : (
+                         <p className="text-sm text-muted-foreground">No se registró firma para este checklist

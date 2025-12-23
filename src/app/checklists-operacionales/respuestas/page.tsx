@@ -24,7 +24,7 @@ export default function OperationalChecklistRecordsPage() {
      useEffect(() => {
         if (!companyId) return;
 
-        const obrasQuery = query(collection(firebaseDb, "obras"), where("companyId", "==", companyId));
+        const obrasQuery = query(collection(firebaseDb, "obras"), where("empresaId", "==", companyId));
         const unsubObras = onSnapshot(obrasQuery, (snapshot) => {
             const obrasList = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Obra));
             setObras(obrasList);
@@ -127,7 +127,7 @@ export default function OperationalChecklistRecordsPage() {
                   <TableHead>Fecha</TableHead>
                   <TableHead>Nombre Formulario</TableHead>
                   <TableHead>Completado Por</TableHead>
-                  <TableHead>Obra</TableHead>
+                  <TableHead>Sector</TableHead>
                   <TableHead className="text-right">Acciones</TableHead>
                 </TableRow>
               </TableHeader>
@@ -137,7 +137,7 @@ export default function OperationalChecklistRecordsPage() {
                     <TableCell>{record.filledAt.toDate().toLocaleString('es-CL')}</TableCell>
                     <TableCell className="font-medium">{record.templateTitleSnapshot}</TableCell>
                     <TableCell>{record.filledByEmail}</TableCell>
-                    <TableCell>{obras.find(o => o.id === record.obraId)?.nombreFaena || 'General'}</TableCell>
+                    <TableCell>{record.header?.sector || 'N/A'}</TableCell>
                     <TableCell className="text-right">
                       <Button asChild variant="outline" size="sm">
                         <Link href={`/checklists-operacionales/respuestas/${record.id}`}>
@@ -156,3 +156,7 @@ export default function OperationalChecklistRecordsPage() {
     </div>
   );
 }
+```
+  </change>
+  <change>
+    <file>
