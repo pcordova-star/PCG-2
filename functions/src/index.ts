@@ -21,10 +21,13 @@ export { createCompanyUser } from "./createCompanyUser";
 export { registrarAvanceRapido } from "./registrarAvanceRapido";
 export { convertHeicToJpg } from "./convertHeic";
 export { notifyDocumentDistribution } from "./notifyDocumentDistribution";
-export { processItemizadoJob } from "./processItemizadoJob";
-export { testGoogleAi } from "./test-google-ai";
 
-// Las funciones setSuperAdminClaim y checkUserExistsByEmail se omiten de la exportación
-// para deshabilitarlas en producción, ya que solo eran necesarias para el bootstrap o
-// flujos de prueba que han sido reemplazados.
+// Se comentan temporalmente las funciones que dependen de la API de IA para evitar errores de deploy.
+// export { processItemizadoJob } from "./processItemizadoJob";
+// export { checkUserExistsByEmail } from "./checkUserExistsByEmail";
+// export { testGoogleAi } from "./test-google-ai";
 
+
+// La función setSuperAdminClaim se omite intencionalmente de la exportación
+// para deshabilitarla en producción, ya que solo era necesaria para el bootstrap inicial.
+// El archivo se conserva por si se necesita en el futuro, pero no estará desplegada.
