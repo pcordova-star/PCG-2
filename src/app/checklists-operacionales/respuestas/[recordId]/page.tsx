@@ -13,8 +13,25 @@ import { Label } from '@/components/ui/label';
 import { ArrowLeft, Loader2, FileText, Download } from 'lucide-react';
 import { OperationalChecklistRecord, OperationalChecklistTemplate, Obra } from '@/types/pcg';
 import jsPDF from "jspdf";
-import autoTable from 'jspdf-autotable';
 import Image from 'next/image';
+
+async function getBase64ImageFromUrl(imageUrl: string): Promise<string> {
+    try {
+        const response = await fetch(imageUrl);
+        if (!response.ok) return "";
+        const blob = await response.blob();
+        return new Promise((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onloadend = () => resolve(reader.result as string);
+            reader.onerror = reject;
+            reader.readAsDataURL(blob);
+        });
+    } catch (error) {
+        console.error("Error fetching image for PDF:", error);
+        return "";
+    }
+}
+
 
 export default function RecordDetailPage() {
     const { recordId } = useParams();
@@ -24,6 +41,7 @@ export default function RecordDetailPage() {
 
     const [record, setRecord] = useState<OperationalChecklistRecord | null>(null);
     const [template, setTemplate] = useState<OperationalChecklistTemplate | null>(null);
+    const [obra, setObra] = useState<Obra | null>(null);
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
@@ -46,6 +64,15 @@ export default function RecordDetailPage() {
                         setTemplate({ id: templateSnap.id, ...templateSnap.data() } as OperationalChecklistTemplate);
                     }
                     
+                    // Fetch Obra if it exists
+                    if (recordData.obraId) {
+                        const obraRef = doc(firebaseDb, "obras", recordData.obraId);
+                        const obraSnap = await getDoc(obraRef);
+                        if (obraSnap.exists()) {
+                            setObra({ id: obraSnap.id, ...obraSnap.data() } as Obra);
+                        }
+                    }
+                    
                 } else {
                     toast({ variant: 'destructive', title: 'Error', description: 'Registro no encontrado o acceso denegado.' });
                     router.push('/checklists-operacionales/respuestas');
@@ -61,67 +88,154 @@ export default function RecordDetailPage() {
         fetchData();
     }, [recordId, user, companyId, router, toast]);
     
-    const handleGeneratePdf = () => {
+    const handleGeneratePdf = async () => {
         if (!record || !template) return;
-        const doc = new jsPDF();
+    
+        const doc = new jsPDF("p", "mm", "a4");
+        const margin = 15;
+        const pageWidth = doc.internal.pageSize.getWidth();
+        const pageHeight = doc.internal.pageSize.getHeight();
+        let y = 20;
 
-        doc.setFontSize(18);
-        doc.text(template.titulo, 15, 20);
-        
-        doc.setFontSize(12);
-        const fechaStr =
-            (record.header && record.header.fecha) ||
-            (record.filledAt ? record.filledAt.toDate().toLocaleDateString() : "");
-        doc.text("Fecha: " + fechaStr, 15, 30);
-        doc.text("Realizado por: " + ((record.header && record.header.responsable) || record.filledByEmail || ""), 15, 36);
-        doc.text("Sector: " + ((record.header && record.header.sector) || "N/A"), 15, 42);
-        doc.text("Elemento: " + ((record.header && record.header.elemento) || "N/A"), 15, 48);
+        // --- Helpers ---
+        const addPageIfNeeded = (spaceNeeded: number) => {
+            if (y + spaceNeeded > pageHeight - margin) {
+                doc.addPage();
+                y = margin;
+                return true;
+            }
+            return false;
+        };
 
-        let y = 60;
+        const addHeader = () => {
+            // Placeholder para logo
+            try {
+                 // doc.addImage("/logo.png", "PNG", margin, 15, 20, 20);
+            } catch (e) { console.log("Logo no encontrado, omitiendo.")}
+            
+            doc.setFont("helvetica", "bold");
+            doc.setFontSize(16);
+            doc.text(template.titulo, pageWidth / 2, 20, { align: 'center' });
+            doc.setFontSize(10);
+            doc.setTextColor(100);
+            doc.text("Checklist Operacional", pageWidth / 2, 26, { align: 'center' });
+            y = 35;
+        };
         
-        template.secciones.forEach(section => {
-            if(y > 260) { doc.addPage(); y = 20; }
-            doc.setFontSize(14);
-            doc.text(section.title, 15, y);
+        const addMetadata = () => {
+            doc.setFont("helvetica", "normal");
+            doc.setFontSize(10);
+            const metadata = [
+                { label: "Fecha:", value: record.header?.fecha || record.filledAt.toDate().toLocaleDateString('es-CL') },
+                { label: "Responsable:", value: record.header?.responsable || record.filledByEmail },
+                { label: "Sector:", value: record.header?.sector || 'N/A' },
+                { label: "Elemento:", value: record.header?.elemento || 'N/A' },
+            ];
+            if(obra) metadata.unshift({label: "Obra:", value: obra.nombreFaena});
+            
+            let metadataY = y;
+            let col1 = "";
+            let col2 = "";
+            metadata.forEach((item, index) => {
+                if(index % 2 === 0) {
+                    col1 += item.label + " " + item.value + "\n";
+                } else {
+                    col2 += item.label + " " + item.value + "\n";
+                }
+            });
+            doc.text(col1, margin, metadataY);
+            doc.text(col2, pageWidth / 2 + 10, metadataY);
+            const lines = Math.ceil(metadata.length / 2);
+            y += lines * 6 + 4;
+        }
+
+        const addTableHeaders = () => {
+             doc.setFont("helvetica", "bold");
+             doc.setFillColor(240, 240, 240);
+             doc.rect(margin, y, pageWidth - (margin * 2), 7, 'F');
+             doc.text("Ítem", margin + 2, y + 5);
+             doc.text("Estado", margin + 110, y + 5);
+             doc.text("Observación", margin + 140, y + 5);
+             y += 7;
+        };
+
+        // --- Generación del Documento ---
+        addHeader();
+        addMetadata();
+
+        let summary = { conforme: 0, no_conforme: 0, no_aplica: 0 };
+
+        template.secciones.sort((a,b)=>a.order-b.order).forEach(section => {
+            if (addPageIfNeeded(20)) addHeader();
+            doc.setFont("helvetica", "bold");
+            doc.setFontSize(12);
+            doc.text(section.title, margin, y);
             y += 8;
+            addTableHeaders();
 
-            section.items.forEach(item => {
-                if(y > 270) { doc.addPage(); y = 20; }
+            section.items.sort((a,b)=>a.order-b.order).forEach(item => {
                 const answer = record.answers[item.id];
-                let answerText = 'No respondido';
+                let estadoTexto = "No respondido";
                 if(item.type === 'boolean') {
-                    answerText = answer ? 'Sí / Conforme' : 'No / No Conforme';
-                } else if (answer !== undefined && answer !== null) {
-                    answerText = String(answer);
+                    if(answer === true) { estadoTexto = "Conforme"; summary.conforme++; }
+                    else if (answer === false) { estadoTexto = "No Conforme"; summary.no_conforme++; }
+                    else { estadoTexto = "N/A"; summary.no_aplica++; }
+                } else {
+                     estadoTexto = String(answer || "-");
+                }
+                
+                const itemLines = doc.splitTextToSize(item.label, 105);
+                const obsLines = doc.splitTextToSize("", 30);
+                const rowHeight = Math.max(itemLines.length, obsLines.length) * 5 + 3;
+
+                if (addPageIfNeeded(rowHeight)) {
+                    addHeader();
+                    addTableHeaders();
                 }
 
-                doc.setFontSize(10);
-                doc.setFont('helvetica', 'bold');
-                doc.text(`- ${item.label}:`, 20, y);
-                doc.setFont('helvetica', 'normal');
-                doc.text(answerText, 60, y);
-                y += 7;
+                doc.setFont("helvetica", "normal");
+                doc.text(itemLines, margin + 2, y + 4);
+                doc.text(estadoTexto, margin + 110, y + 4);
+                // Aquí iría la observación si la tuvieras
+                // doc.text(obsLines, margin + 140, y + 4);
+
+                y += rowHeight;
+                doc.line(margin, y, pageWidth - margin, y);
             });
-            y+= 5;
+            y += 10;
         });
 
-        if (record.header?.observaciones) {
-            if(y > 250) { doc.addPage(); y = 20; }
-            doc.setFontSize(14);
-            doc.text("Observaciones Generales", 15, y); y+=8;
-            doc.setFontSize(10);
-            doc.text(record.header.observaciones, 15, y); y+=20;
+        // Resumen
+        if (addPageIfNeeded(30)) addHeader();
+        doc.setFont("helvetica", "bold");
+        doc.setFontSize(12);
+        doc.text("Resumen", margin, y); y+=6;
+        doc.setFont("helvetica", "normal");
+        doc.setFontSize(10);
+        doc.text("Conforme: " + summary.conforme, margin, y); y+=5;
+        doc.text("No Conforme: " + summary.no_conforme, margin, y); y+=5;
+        doc.text("No Aplica: " + summary.no_aplica, margin, y); y+=10;
+
+        // Firma
+        if (addPageIfNeeded(50)) addHeader();
+        doc.setFont("helvetica", "bold");
+        doc.setFontSize(12);
+        doc.text("Firma", margin, y); y+=6;
+        doc.setFont("helvetica", "normal");
+        doc.setFontSize(10);
+        doc.text("Firmado por: " + (record.signature?.name || record.filledByEmail), margin, y); y+=5;
+        
+        if (record.signature?.dataUrl) {
+            const imgData = await getBase64ImageFromUrl(record.signature.dataUrl);
+            if (imgData) {
+                doc.rect(margin, y, 60, 25);
+                doc.addImage(imgData, 'PNG', margin, y, 60, 25);
+            }
+        } else {
+            doc.text("Firma: No registrada", margin, y);
         }
 
-        if (record.signature?.name) {
-             if(y > 260) { doc.addPage(); y = 20; }
-            doc.setFontSize(14);
-            doc.text("Firma", 15, y); y+=8;
-            doc.setFontSize(10);
-            doc.text(`Firmado por: ${record.signature.name}`, 15, y);
-        }
-
-        doc.save(`checklist_${record.id}.pdf`);
+        doc.save("Checklist_" + record.id.substring(0, 8) + ".pdf");
     };
 
     if (loading) {
