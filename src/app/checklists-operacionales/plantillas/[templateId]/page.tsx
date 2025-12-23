@@ -12,7 +12,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { ArrowLeft, PlusCircle, Save, Trash2, ArrowUp, ArrowDown, Edit, X, Settings } from 'lucide-react';
+import { ArrowLeft, PlusCircle, Save, Trash2, ArrowUp, ArrowDown, Edit, X, Settings, Loader2 } from 'lucide-react';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import { OperationalChecklistTemplate, ChecklistSection, ChecklistItem } from '@/types/pcg';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from '@/components/ui/dialog';
@@ -336,9 +336,9 @@ export default function TemplateEditorPage() {
                                 </div>
                             )}
                              <div className="flex items-center justify-between pt-4">
-                                <Label className="flex items-center gap-2"><Checkbox checked={editingItem.item.required} onCheckedChange={c => setEditingItem(prev => prev ? {...prev, item: {...prev.item!, required: !!c}} : null)}/> Obligatorio</Label>
-                                <Label className="flex items-center gap-2"><Checkbox checked={editingItem.item.allowComment} onCheckedChange={c => setEditingItem(prev => prev ? {...prev, item: {...prev.item!, allowComment: !!c}} : null)}/> Permitir comentario</Label>
-                                <Label className="flex items-center gap-2"><Checkbox checked={editingItem.item.allowPhoto} onCheckedChange={c => setEditingItem(prev => prev ? {...prev, item: {...prev.item!, allowPhoto: !!c}} : null)}/> Permitir foto</Label>
+                                <Label className="flex items-center gap-2 font-normal"><Checkbox checked={editingItem.item.required} onCheckedChange={c => setEditingItem(prev => prev ? {...prev, item: {...prev.item!, required: !!c}} : null)}/> Obligatorio</Label>
+                                <Label className="flex items-center gap-2 font-normal"><Checkbox checked={editingItem.item.allowComment} onCheckedChange={c => setEditingItem(prev => prev ? {...prev, item: {...prev.item!, allowComment: !!c}} : null)}/> Permitir comentario</Label>
+                                <Label className="flex items-center gap-2 font-normal"><Checkbox checked={editingItem.item.allowPhoto} onCheckedChange={c => setEditingItem(prev => prev ? {...prev, item: {...prev.item!, allowPhoto: !!c}} : null)}/> Permitir foto</Label>
                             </div>
                         </div>
                     )}
