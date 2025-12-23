@@ -8,11 +8,13 @@ if (!admin.apps.length) {
   admin.initializeApp();
 }
 
+// Se define la URL base como una constante a nivel de módulo para máxima fiabilidad.
+const APP_BASE_URL = "https://www.pcgoperacion.com";
+
 /**
- * Construye la URL de invitación usando una constante hardcodeada para máxima fiabilidad.
+ * Construye la URL de invitación usando la constante global del módulo.
  */
 function buildAcceptInviteUrl(invId: string, email: string): string {
-  const APP_BASE_URL = "https://www.pcgoperacion.com";
   return `${APP_BASE_URL}/accept-invite?invId=${encodeURIComponent(invId)}&email=${encodeURIComponent(email)}`;
 }
 
@@ -146,7 +148,7 @@ export const createCompanyUser = onCall(
             <p><a href="${acceptInviteUrl}">Activar mi cuenta y acceder a PCG</a></p>
             <p>Si el botón no funciona, copia y pega esta URL en tu navegador:</p>
             <p><a href="${acceptInviteUrl}">${acceptInviteUrl}</a></p>
-            <p>Tu contraseña temporal es: <strong>${data.password}</strong></p>
+            <p>Por seguridad, establece tu contraseña desde el enlace de activación.</p>
             <p>Gracias,<br>El equipo de PCG</p>`,
       },
     });
