@@ -7,15 +7,17 @@ if (!admin.apps.length) {
   admin.initializeApp();
 }
 
-const APP_BASE_URL = "https://www.pcgoperacion.com";
-
 function buildAcceptInviteUrl(invId: string, email: string): string {
-  if (!APP_BASE_URL) {
-    logger.error("CRÍTICO: La constante APP_BASE_URL no está configurada. No se pueden generar enlaces de invitación.");
+  // CORRECTO: Usar una variable de entorno para la URL base.
+  const rawBaseUrl = process.env.APP_BASE_URL;
+
+  if (!rawBaseUrl) {
+    // FAIL FAST: Si la variable no está configurada, la función debe fallar para evitar enviar correos rotos.
+    logger.error("CRÍTICO: La variable de entorno APP_BASE_URL no está configurada. No se pueden generar enlaces de invitación.");
     throw new HttpsError("internal", "El servidor no está configurado correctamente para enviar invitaciones. Falta la URL base de la aplicación.");
   }
   
-  const appBaseUrl = APP_BASE_URL.replace(/\/+$/, "");
+  const appBaseUrl = rawBaseUrl.replace(/\/+$/, "");
   return `${appBaseUrl}/accept-invite?invId=${encodeURIComponent(invId)}&email=${encodeURIComponent(email)}`;
 }
 
@@ -33,17 +35,21 @@ export const createCompanyUser = onCall(
 
     const ctx = request.auth;
 
+    // 1. Validar que el usuario está autenticado
     if (!ctx) {
       throw new HttpsError("unauthenticated", "No autenticado.");
     }
 
-    if (ctx.token.role !== "superadmin") {
+    // 2. Validar que el usuario es SUPER_ADMIN vía customClaims de forma asíncrona
+    const requesterClaims = await auth.getUser(ctx.uid);
+    if (requesterClaims.customClaims?.role !== "superadmin") {
       throw new HttpsError(
         "permission-denied",
         "Solo SUPER_ADMIN puede crear usuarios."
       );
     }
 
+    // 3. Validar payload de entrada
     const data = request.data as {
       companyId: string;
       email: string;
@@ -66,6 +72,7 @@ export const createCompanyUser = onCall(
         );
     }
 
+    // 4. Verificar que la empresa existe y está activa
     const companyRef = db.collection("companies").doc(data.companyId);
     const companySnap = await companyRef.get();
     if (!companySnap.exists) {
@@ -73,6 +80,7 @@ export const createCompanyUser = onCall(
     }
     const companyData = companySnap.data();
 
+    // 5. Crear usuario en Firebase Auth
     let userRecord;
     try {
       userRecord = await auth.createUser({
@@ -94,6 +102,7 @@ export const createCompanyUser = onCall(
 
     const uid = userRecord.uid;
 
+    // 6. Asignar custom claims (role y companyId)
     await auth.setCustomUserClaims(uid, {
       role: data.role,
       companyId: data.companyId,
@@ -101,6 +110,7 @@ export const createCompanyUser = onCall(
 
     const now = admin.firestore.FieldValue.serverTimestamp();
     
+    // 7. Guardar perfil de usuario en /users
     const userProfileRef = db.collection("users").doc(uid);
     await userProfileRef.set({
       nombre: data.nombre,
@@ -112,6 +122,7 @@ export const createCompanyUser = onCall(
       updatedAt: now,
     }, { merge: true });
     
+    // 8. Crear una invitación para registro y trazabilidad
     const invitationRef = db.collection("invitacionesUsuarios").doc();
     const invitationId = invitationRef.id;
     await invitationRef.set({
@@ -124,15 +135,16 @@ export const createCompanyUser = onCall(
         creadoPorUid: ctx.uid,
     });
     
+    // 9. Enviar correo de invitación
     const acceptInviteUrl = buildAcceptInviteUrl(invitationId, data.email);
 
     await db.collection("mail").add({
       to: [data.email],
       message: {
-        subject: `Bienvenido a PCG - Acceso para ${companyData?.nombre}`,
+        subject: `Bienvenido a PCG - Acceso para ${companyData?.nombreFantasia || companyData?.razonSocial}`,
         html: `
             <p>Hola ${data.nombre},</p>
-            <p>Has sido registrado en la plataforma PCG para la empresa <strong>${companyData?.nombre}</strong>.</p>
+            <p>Has sido registrado en la plataforma PCG para la empresa <strong>${companyData?.nombreFantasia || companyData?.razonSocial}</strong>.</p>
             <p>Tu rol asignado es: <strong>${data.role}</strong>.</p>
             <p>Para completar tu registro y acceder a la plataforma, por favor haz clic en el siguiente enlace. Se te pedirá que establezcas una nueva contraseña si es tu primer ingreso.</p>
             <p><a href="${acceptInviteUrl}">Activar mi cuenta y acceder a PCG</a></p>
@@ -143,6 +155,7 @@ export const createCompanyUser = onCall(
       },
     });
 
+    // 10. Respuesta a frontend
     return {
       uid,
       email: data.email,
