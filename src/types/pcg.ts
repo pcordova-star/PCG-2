@@ -68,7 +68,7 @@ export interface UserInvitation {
     empresaId: string;
     empresaNombre: string;
     roleDeseado: RolInvitado;
-    estado: "pendiente" | "aceptada" | "revocada" | "pendiente_auth";
+    estado: "pendiente" | "aceptada" | "revocada" | "pendiente_auth" | "activado";
     creadoPorUid: string;
     createdAt: Date | Timestamp;
 }
@@ -498,7 +498,7 @@ export interface Rdi {
   adicionalMontoTotal?: number | null; // monto total del adicional asociado, si aplica
 }
 
-// --- CHECKLISTS DINÁMICOS ---
+// --- CHECKLISTS PREVENCIÓN ---
 export interface ChecklistTemplate {
     id: string;
     titulo: string;
@@ -535,3 +535,41 @@ export type FormSubmission = {
     respuestas: ChecklistItemRespuesta[];
     pdfUrl?: string; // URL al PDF generado en Storage
 };
+
+// --- CHECKLISTS OPERACIONALES (NUEVO) ---
+export interface OperationalChecklistTemplate {
+    id: string;
+    companyId: string;
+    titulo: string;
+    descripcion: string;
+    createdAt: Timestamp;
+    createdBy: string; // UID del usuario que lo creó
+    secciones: {
+        id: string;
+        titulo: string;
+        items: {
+            id: string;
+            texto: string;
+            tipo: "ok_nok_na" | "texto" | "numero" | "fecha";
+        }[];
+    }[];
+}
+
+export interface OperationalChecklistResponse {
+    id: string;
+    companyId: string;
+    obraId: string;
+    templateId: string;
+    templateTitulo: string;
+    userId: string;
+    userName: string;
+    createdAt: Timestamp;
+    respuestas: {
+        itemId: string;
+        respuesta: 'OK' | 'NOK' | 'NA' | string | number | null;
+        observacion?: string;
+        fotoUrl?: string;
+    }[];
+    firmaUrl?: string;
+    pdfUrl?: string;
+}

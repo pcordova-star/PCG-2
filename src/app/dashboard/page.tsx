@@ -149,6 +149,16 @@ const allMainModules = [
     roles: ['superadmin', 'admin_empresa', 'jefe_obra']
   },
   {
+    id: 'checklists-operacionales',
+    title: 'Listas de Chequeo Operacionales',
+    description: 'Crea y administra checklists para control de calidad, protocolos de entrega y otros formularios operativos.',
+    href: '/checklists-operacionales',
+    icon: ListChecks,
+    linkText: 'Gestionar Checklists',
+    tooltip: 'Define tus formularios de inspección y control de calidad.',
+    roles: ['superadmin', 'admin_empresa', 'jefe_obra']
+  },
+  {
     id: 'prevencion',
     title: 'Prevención de Riesgos',
     description: 'Gestiona la seguridad: IPER, incidentes, charlas, DS44 y control documental de contratistas.',
