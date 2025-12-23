@@ -51,11 +51,6 @@ export default function AdminEmpresaUsuariosPage() {
     const [currentUser, setCurrentUser] = useState<{ email: string, nombre: string, role: RolInvitado, password?: string, id?: string } | null>(null);
     const [isSaving, setIsSaving] = useState(false);
 
-    // DEBUGGING STATE
-    const [debugInfo, setDebugInfo] = useState<object | null>(null);
-    const [tokenResult, setTokenResult] = useState<IdTokenResult | null>(null);
-
-
     const isSuperAdmin = role === "superadmin";
 
     useEffect(() => {
@@ -64,17 +59,6 @@ export default function AdminEmpresaUsuariosPage() {
         }
     }, [authLoading, isSuperAdmin, router]);
     
-    // Efecto para cargar los claims del token para el usuario de debug
-    useEffect(() => {
-        const fetchToken = async () => {
-            if (user?.email === 'pauloandrescordova@gmail.com') {
-                const token = await user.getIdTokenResult(true);
-                setTokenResult(token);
-            }
-        };
-        fetchToken();
-    }, [user]);
-
     useEffect(() => {
         if (!isSuperAdmin || !companyIdParams) return;
 
@@ -169,25 +153,9 @@ export default function AdminEmpresaUsuariosPage() {
                     throw new Error("Email, nombre, rol y contraseña son obligatorios.");
                 }
 
-                // --- INICIO DE INSTRUMENTACIÓN ---
                 const u = firebaseAuth.currentUser;
                 if (!u) throw new Error("No hay usuario autenticado");
-
-                await u.getIdToken(true); // Forzar refresco
-                const tok = await u.getIdTokenResult();
-                
-                const debugData = {
-                    email: u.email,
-                    uid: u.uid,
-                    projectId: firebaseAuth.app.options.projectId,
-                    functionsRegion: firebaseFunctions.region,
-                    role: (tok.claims as any).role,
-                    claims: tok.claims,
-                };
-                
-                console.log("DEBUG AUTH", debugData);
-                setDebugInfo(debugData);
-                // --- FIN DE INSTRUMENTACIÓN ---
+                await u.getIdToken(true); 
 
                 const createCompanyUser = httpsCallable(firebaseFunctions, 'createCompanyUser');
                 await createCompanyUser({
@@ -206,7 +174,6 @@ export default function AdminEmpresaUsuariosPage() {
             console.error("Error al guardar:", err);
             const errorMessage = err.message || "Ocurrió un problema.";
             setError(errorMessage);
-            setDebugInfo(prev => ({ ...prev, callError: { code: err.code, message: err.message, details: err.details } }));
             toast({ variant: "destructive", title: "Error al guardar", description: errorMessage });
         } finally {
             setIsSaving(false);
@@ -276,27 +243,6 @@ export default function AdminEmpresaUsuariosPage() {
                     Crear Nuevo Usuario
                 </Button>
             </header>
-
-            {/* DEBUG UI para el usuario específico */}
-            {user?.email === 'pauloandrescordova@gmail.com' && (
-                <Card className="bg-blue-50 border-blue-200">
-                    <CardHeader>
-                        <CardTitle className="text-blue-900">Panel de Depuración de Auth (Solo para Superadmin)</CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                        <pre className="text-xs bg-white p-2 rounded-md overflow-x-auto">
-                            {JSON.stringify({
-                                userEmail: user.email,
-                                userUID: user.uid,
-                                contextRole: role,
-                                contextCompanyId: companyId,
-                                tokenRole: tokenResult?.claims.role,
-                                tokenClaims: tokenResult?.claims,
-                            }, null, 2)}
-                        </pre>
-                    </CardContent>
-                </Card>
-            )}
             
             <Card>
                 <CardHeader>
@@ -422,4 +368,3 @@ export default function AdminEmpresaUsuariosPage() {
         </div>
     );
 }
-
