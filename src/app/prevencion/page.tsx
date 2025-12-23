@@ -127,7 +127,6 @@ export default function PrevencionPage() {
               </Button>
             </CardFooter>
           </Card>
-        </Card>
         ))}
       </div>
     </div>
