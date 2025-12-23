@@ -8,13 +8,12 @@ if (!admin.apps.length) {
 }
 
 function buildAcceptInviteUrl(invId: string, email: string): string {
-  // SOLUCIÓN: Usar directamente la URL de producción.
-  // La variable de entorno NEXT_PUBLIC_APP_BASE_URL no está disponible en el backend de Cloud Functions.
-  const rawBaseUrl = "https://pcg-2-8bf1b.web.app";
+  // CORRECTO: Usar una variable de entorno para la URL base.
+  const rawBaseUrl = process.env.APP_BASE_URL;
 
   if (!rawBaseUrl) {
-    // Este error ya no debería ocurrir.
-    console.error("CRÍTICO: No se pudo determinar la URL base de la aplicación. No se puede crear un enlace de invitación válido.");
+    // FAIL FAST: Si la variable no está configurada, la función debe fallar para evitar enviar correos rotos.
+    logger.error("CRÍTICO: La variable de entorno APP_BASE_URL no está configurada. No se pueden generar enlaces de invitación.");
     throw new HttpsError("internal", "El servidor no está configurado correctamente para enviar invitaciones. Falta la URL base de la aplicación.");
   }
   
