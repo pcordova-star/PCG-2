@@ -3,10 +3,10 @@
 
 import { useEffect, useState, Suspense } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
-import { doc, getDoc, updateDoc } from 'firebase/firestore';
+import { doc, getDoc } from 'firebase/firestore';
 import { firebaseDb } from '@/lib/firebaseClient';
-import { Loader2, CheckCircle, ShieldX } from 'lucide-react';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
+import { Loader2, ShieldX } from 'lucide-react';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { UserInvitation } from '@/types/pcg';
 import { PcgLogo } from '@/components/branding/PcgLogo';
@@ -24,9 +24,9 @@ function AcceptInvitePageInner() {
 
   const invId = searchParams.get('invId');
   const email = searchParams.get('email');
-  const oobCode = searchParams.get('oobCode');
 
   useEffect(() => {
+    // Si el usuario ya está logueado, lo redirigimos al dashboard.
     if (user) {
         router.replace('/dashboard');
         return;
@@ -53,8 +53,10 @@ function AcceptInvitePageInner() {
           throw new Error("El correo de la invitación no coincide con el de este enlace.");
         }
         
+        // Ya no se cambia el estado aquí, solo se muestra la información.
+        // Se puede añadir lógica para mostrar mensajes diferentes si el estado no es 'pendiente'.
         if (invData.estado !== 'pendiente') {
-            setError(`Esta invitación ya fue ${invData.estado}. Si no tienes acceso, solicita una nueva o inicia sesión.`);
+            setError(`Esta invitación ya fue ${invData.estado}. Si tienes problemas para acceder, contacta al administrador o intenta iniciar sesión directamente.`);
             setStatus('error');
             return;
         }
@@ -71,14 +73,6 @@ function AcceptInvitePageInner() {
 
     validateInvitation();
   }, [invId, email, user, router]);
-
-  const handleActivate = async () => {
-    if (!invitation || !oobCode) return;
-
-    // Redirige a la página de cambio de contraseña de Firebase, pasando el oobCode
-    // El usuario definirá su contraseña allí, y Firebase lo autenticará.
-    router.push(`/auth/action?mode=resetPassword&oobCode=${oobCode}`);
-  };
 
 
   const renderContent = () => {
@@ -100,9 +94,10 @@ function AcceptInvitePageInner() {
                 <p className="text-sm text-muted-foreground">con el rol de <span className="font-semibold">{invitation.roleDeseado}</span>.</p>
             </div>
             
-            <p className="text-sm">Revisa tu correo electrónico. Sigue el enlace enviado para activar tu cuenta y definir tu contraseña de acceso.</p>
+            <p className="text-sm p-4 bg-blue-50 border border-blue-200 rounded-md text-blue-800">
+                Para activar tu cuenta, <strong>revisa tu correo electrónico</strong>. Sigue el enlace enviado para definir tu contraseña y luego podrás iniciar sesión.
+            </p>
             
-            <p className="text-xs text-muted-foreground">Si ya has definido tu contraseña, puedes iniciar sesión directamente.</p>
              <Button asChild className="w-full">
                <Link href="/login/usuario">Ir a Iniciar Sesión</Link>
             </Button>
