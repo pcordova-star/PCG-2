@@ -47,7 +47,7 @@ export default function AdminEmpresaUsuariosPage() {
     const [error, setError] = useState<string | null>(null);
 
     const [dialogOpen, setDialogOpen] = useState(false);
-    const [currentUser, setCurrentUser] = useState<{ email: string, nombre: string, role: RolInvitado, password?: string, id?: string } | null>(null);
+    const [currentUser, setCurrentUser] = useState<{ email: string, nombre: string, role: RolInvitado, id?: string } | null>(null);
     const [isSaving, setIsSaving] = useState(false);
 
     const isSuperAdmin = role === "superadmin";
@@ -106,7 +106,7 @@ export default function AdminEmpresaUsuariosPage() {
         };
     }, [isSuperAdmin, companyIdParams]);
 
-    const handleOpenDialog = (data: Partial<AppUser> & { password?: string } | null = null) => {
+    const handleOpenDialog = (data: Partial<AppUser> | null = null) => {
         if (data && data.id) { // Editando usuario existente
             setCurrentUser({
                 id: data.id,
@@ -119,7 +119,6 @@ export default function AdminEmpresaUsuariosPage() {
                 email: '',
                 nombre: '',
                 role: 'jefe_obra',
-                password: '',
             });
         }
         setDialogOpen(true);
@@ -148,13 +147,9 @@ export default function AdminEmpresaUsuariosPage() {
             } else {
                 // CREAR USUARIO
                 if (!company) throw new Error("No se ha cargado la empresa");
-                if (!currentUser.email || !currentUser.nombre || !currentUser.role || !currentUser.password) {
-                    throw new Error("Email, nombre, rol y contraseña son obligatorios.");
+                if (!currentUser.email || !currentUser.nombre || !currentUser.role) {
+                    throw new Error("Email, nombre y rol son obligatorios.");
                 }
-
-                const u = firebaseAuth.currentUser;
-                if (!u) throw new Error("No hay usuario autenticado");
-                await u.getIdToken(true); 
 
                 const createCompanyUser = httpsCallable(firebaseFunctions, 'createCompanyUser');
                 await createCompanyUser({
@@ -162,7 +157,6 @@ export default function AdminEmpresaUsuariosPage() {
                     email: currentUser.email,
                     nombre: currentUser.nombre,
                     role: currentUser.role,
-                    password: currentUser.password,
                 });
                 
                 toast({ title: "Usuario Creado e Invitado", description: `Se ha enviado una invitación por correo a ${currentUser.email}.` });
@@ -237,7 +231,7 @@ export default function AdminEmpresaUsuariosPage() {
                     <h1 className="text-2xl font-bold">Usuarios de {company?.nombreFantasia}</h1>
                     <p className="text-muted-foreground">Crea, edita y administra los usuarios para esta empresa.</p>
                 </div>
-                <Button onClick={() => handleOpenDialog()}>
+                <Button onClick={() => handleOpenDialog()} disabled={!company}>
                     <PlusCircle className="mr-2 h-4 w-4" />
                     Crear Nuevo Usuario
                 </Button>
@@ -334,13 +328,6 @@ export default function AdminEmpresaUsuariosPage() {
                                 <Input id="nombre" name="nombre" value={currentUser?.nombre || ''} onChange={e => setCurrentUser(prev => prev ? ({...prev, nombre: e.target.value}) : null)} />
                             </div>
                            
-                            {!currentUser?.id && (
-                                <div className="space-y-2">
-                                    <Label htmlFor="password">Contraseña Temporal*</Label>
-                                    <Input id="password" name="password" type="text" value={currentUser?.password || ''} onChange={e => setCurrentUser(prev => prev ? ({...prev, password: e.target.value}) : null)} />
-                                </div>
-                            )}
-
                             <div className="space-y-2">
                                 <Label htmlFor="role">Rol en la Empresa</Label>
                                 <Select value={currentUser?.role || 'jefe_obra'} onValueChange={v => setCurrentUser(prev => prev ? ({...prev, role: v as RolInvitado}) : null)}>
@@ -367,5 +354,3 @@ export default function AdminEmpresaUsuariosPage() {
         </div>
     );
 }
-
-    
