@@ -156,7 +156,3 @@ export default function OperationalChecklistRecordsPage() {
     </div>
   );
 }
-```
-  </change>
-  <change>
-    <file>
