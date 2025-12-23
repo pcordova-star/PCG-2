@@ -19,8 +19,8 @@ export default function SafetyChecklistsPage() {
     if (!loading && !allowedRoles.includes(role)) {
       router.replace('/dashboard');
     }
-  }, [loading, role, router, allowedRoles]);
-
+  }, [loading, role, router]);
+  
   if (loading || !allowedRoles.includes(role)) {
     return (
         <div className="flex items-center justify-center h-full">
