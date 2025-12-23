@@ -102,7 +102,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         let userRole: UserRole = 'none';
         let userCompanyId: string | null = null;
         
-        if (userDocSnap.exists()) {
+        if (userDocSnap.exists() && userDocSnap.data().role && userDocSnap.data().empresaId) {
             const userData = userDocSnap.data() as AppUser;
             userRole = userData.role;
             userCompanyId = userData.empresaId;
@@ -119,7 +119,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         
         // Redirección explícita si el usuario está logueado y en la página de login
         if (window.location.pathname.startsWith('/login')) {
-             router.replace('/dashboard');
+             if (userRole === 'none') {
+                router.replace('/sin-acceso');
+             } else {
+                router.replace('/dashboard');
+             }
+        } else if (userRole === 'none' && !window.location.pathname.startsWith('/sin-acceso')) {
+             router.replace('/sin-acceso');
         }
 
       } else {
