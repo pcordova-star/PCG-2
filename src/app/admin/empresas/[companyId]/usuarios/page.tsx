@@ -1,7 +1,7 @@
 
 "use client";
 
-import React, { useState, useEffect, FormEvent } from 'react';
+import React, { useState, useEffect, FormEvent, useMemo } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardFooter, CardDescription } from '@/components/ui/card';
@@ -14,10 +14,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Badge } from '@/components/ui/badge';
 import { PlusCircle, ArrowLeft, Loader2, Trash2, Edit } from 'lucide-react';
 import Link from 'next/link';
-import { collection, doc, getDoc, query, orderBy, where, onSnapshot, updateDoc, writeBatch } from 'firebase/firestore';
-import { httpsCallable } from 'firebase/functions';
-import { firebaseDb, firebaseFunctions } from '@/lib/firebaseClient';
-import { Company, AppUser, RolInvitado } from '@/types/pcg';
+import { collection, doc, getDoc, query, orderBy, where, onSnapshot, updateDoc, writeBatch, addDoc, serverTimestamp } from 'firebase/firestore';
+import { firebaseDb } from '@/lib/firebaseClient';
+import { Company, AppUser, RolInvitado, UserInvitation } from '@/types/pcg';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/context/AuthContext';
 
@@ -37,8 +36,12 @@ export default function AdminEmpresaUsuariosPage() {
     const { toast } = useToast();
 
     const [company, setCompany] = useState<Company | null>(null);
-    const [users, setUsers] = useState<AppUser[]>([]);
-    const [loading, setLoading] = useState(true);
+    const [activeUsers, setActiveUsers] = useState<AppUser[]>([]);
+    const [pendingInvitations, setPendingInvitations] = useState<UserInvitation[]>([]);
+
+    const [loadingCompany, setLoadingCompany] = useState(true);
+    const [loadingUsers, setLoadingUsers] = useState(true);
+    const [loadingInvites, setLoadingInvites] = useState(true);
     const [error, setError] = useState<string | null>(null);
 
     const [dialogOpen, setDialogOpen] = useState(false);
@@ -53,20 +56,22 @@ export default function AdminEmpresaUsuariosPage() {
 
     useEffect(() => {
         if (!isSuperAdmin || !companyId) {
-          if (!loading) router.replace('/dashboard');
+          if (!loadingCompany) router.replace('/dashboard');
           return;
         };
 
-        const unsub = onSnapshot(doc(firebaseDb, "companies", companyId), (doc) => {
+        const unsubCompany = onSnapshot(doc(firebaseDb, "companies", companyId), (doc) => {
             if (doc.exists()) {
                 setCompany({ id: doc.id, ...doc.data() } as Company);
             } else {
                 setError("Empresa no encontrada.");
                 setCompany(null);
             }
+            setLoadingCompany(false);
         }, (err) => {
             console.error("Error fetching company data:", err);
             setError("No se pudieron cargar los datos de la empresa.");
+            setLoadingCompany(false);
         });
 
         const usersQuery = query(
@@ -76,23 +81,43 @@ export default function AdminEmpresaUsuariosPage() {
         );
         
         const unsubUsers = onSnapshot(usersQuery, (snapshot) => {
-            setLoading(true);
-            console.log(`[AdminUsuarios] Cargando usuarios para companyId: ${companyId}. Encontrados: ${snapshot.size}`);
             const usersData = snapshot.docs.map(doc => ({
                 id: doc.id,
                 ...doc.data(),
             } as AppUser));
-            setUsers(usersData);
-            setLoading(false);
+            setActiveUsers(usersData);
+            setLoadingUsers(false);
         }, (err) => {
-            console.error("Error fetching users:", err);
-            setError("No se pudieron cargar los usuarios de la empresa.");
-            setLoading(false);
+            console.error("Error fetching active users:", err);
+            setError("No se pudieron cargar los usuarios activos. Es posible que falte un índice en Firestore.");
+            setLoadingUsers(false);
         });
 
+        const invitesQuery = query(
+            collection(firebaseDb, "invitacionesUsuarios"),
+            where("empresaId", "==", companyId),
+            where("estado", "==", "pendiente"),
+            orderBy("createdAt", "desc")
+        );
+
+        const unsubInvites = onSnapshot(invitesQuery, (snapshot) => {
+            const invitesData = snapshot.docs.map(doc => ({
+                id: doc.id,
+                ...doc.data(),
+            } as UserInvitation));
+            setPendingInvitations(invitesData);
+            setLoadingInvites(false);
+        }, (err) => {
+            console.error("Error fetching pending invites:", err);
+            setError("No se pudieron cargar las invitaciones pendientes. Es posible que falte un índice en Firestore.");
+            setLoadingInvites(false);
+        });
+
+
         return () => {
-            unsub();
+            unsubCompany();
             unsubUsers();
+            unsubInvites();
         };
     }, [isSuperAdmin, companyId, router]);
 
@@ -113,44 +138,33 @@ export default function AdminEmpresaUsuariosPage() {
         setError(null);
         
         try {
-            const createCompanyUserFn = httpsCallable(firebaseFunctions, 'createCompanyUser');
-            await createCompanyUserFn({
-                email: newUser.email,
+            await addDoc(collection(firebaseDb, "invitacionesUsuarios"), {
+                email: newUser.email.toLowerCase().trim(),
                 nombre: newUser.nombre,
-                role: newUser.role,
-                companyId: company.id,
+                empresaId: company.id,
+                empresaNombre: company.nombreFantasia || company.razonSocial || '',
+                roleDeseado: newUser.role,
+                estado: 'pendiente',
+                createdAt: serverTimestamp(),
+                creadoPorUid: user.uid,
             });
             
-            toast({ title: "Usuario Creado", description: `Se ha enviado una invitación a ${newUser.email} para unirse a ${company.nombreFantasia}.` });
+            toast({ title: "Invitación Creada", description: `${newUser.email} ha sido invitado a ${company.nombreFantasia}.` });
             setDialogOpen(false);
             setNewUser({ nombre: '', email: '', role: 'jefe_obra' });
             
         } catch (err: any) {
-            console.error("Error al crear el usuario:", err);
-            const errorMessage = err.message || "Ocurrió un problema al crear el usuario. Revisa las Cloud Functions.";
+            console.error("Error al crear la invitación:", err);
+            const errorMessage = err.message || "Ocurrió un problema al crear la invitación.";
             setError(errorMessage);
-            toast({ variant: "destructive", title: "Error al crear", description: errorMessage });
+            toast({ variant: "destructive", title: "Error al invitar", description: errorMessage });
         } finally {
             setIsSaving(false);
         }
     };
-    
-    const handleDeleteUser = async (userToDelete: AppUser) => {
-        if (!userToDelete.id) return;
-        try {
-            // Lógica para borrar un usuario. Puede ser complejo (borrar de Auth, etc.)
-            // Por ahora, solo lo marcaremos como inactivo.
-            const userRef = doc(firebaseDb, "users", userToDelete.id);
-            await updateDoc(userRef, { activo: false, eliminado: true, eliminadoAt: serverTimestamp() });
-            toast({ title: "Usuario desactivado", description: `${userToDelete.nombre} ha sido marcado como inactivo.` });
-        } catch (err) {
-            console.error("Error deleting user:", err);
-            toast({ variant: 'destructive', title: "Error", description: "No se pudo desactivar el usuario." });
-        }
-    }
 
-    if (loading && !company && !error) {
-        return <div className="p-8 text-center"><Loader2 className="animate-spin mx-auto h-8 w-8" /> <p className="mt-2">Cargando datos de la empresa y usuarios...</p></div>;
+    if (loadingCompany) {
+        return <div className="p-8 text-center"><Loader2 className="animate-spin mx-auto h-8 w-8" /> <p className="mt-2">Cargando datos...</p></div>;
     }
     
     if (error) {
@@ -176,65 +190,57 @@ export default function AdminEmpresaUsuariosPage() {
                 </div>
                 <Button onClick={() => setDialogOpen(true)} disabled={!company}>
                     <PlusCircle className="mr-2 h-4 w-4" />
-                    Crear Usuario
+                    Invitar Usuario
                 </Button>
             </header>
             
             <Card>
                 <CardHeader>
-                    <CardTitle>Usuarios Registrados</CardTitle>
-                    <CardDescription>
-                       Lista de todos los usuarios (activos e inactivos) asociados a esta empresa.
-                    </CardDescription>
+                    <CardTitle>Usuarios Activos</CardTitle>
                 </CardHeader>
                 <CardContent>
                     <Table>
                         <TableHeader>
-                            <TableRow>
-                                <TableHead>Nombre</TableHead>
-                                <TableHead>Email</TableHead>
-                                <TableHead>Rol</TableHead>
-                                <TableHead>Estado</TableHead>
-                                <TableHead className="text-right">Acciones</TableHead>
-                            </TableRow>
+                            <TableRow><TableHead>Nombre</TableHead><TableHead>Email</TableHead><TableHead>Rol</TableHead><TableHead>Estado</TableHead></TableRow>
                         </TableHeader>
                         <TableBody>
-                            {loading ? (
-                                 <TableRow><TableCell colSpan={5} className="text-center h-24"><Loader2 className="animate-spin mx-auto" /></TableCell></TableRow>
-                            ) : users.length === 0 ? (
-                                <TableRow><TableCell colSpan={5} className="text-center h-24">No hay usuarios para esta empresa.</TableCell></TableRow>
-                            ) : users.map((u) => (
-                                <TableRow key={u.id} className={u.eliminado ? 'text-muted-foreground opacity-60' : ''}>
+                            {loadingUsers ? (
+                                <TableRow><TableCell colSpan={4} className="text-center h-24"><Loader2 className="animate-spin mx-auto" /></TableCell></TableRow>
+                            ) : activeUsers.length === 0 ? (
+                                <TableRow><TableCell colSpan={4} className="text-center h-24">No hay usuarios activos para esta empresa.</TableCell></TableRow>
+                            ) : activeUsers.map((u) => (
+                                <TableRow key={u.id}>
                                     <TableCell className="font-medium">{u.nombre}</TableCell>
                                     <TableCell>{u.email}</TableCell>
                                     <TableCell><Badge variant="secondary">{u.role}</Badge></TableCell>
-                                    <TableCell>
-                                        <Badge variant={u.activo && !u.eliminado ? 'default' : 'destructive'}>
-                                            {u.eliminado ? 'Eliminado' : (u.activo ? 'Activo' : 'Inactivo')}
-                                        </Badge>
-                                    </TableCell>
-                                    <TableCell className="text-right">
-                                       <div className="flex gap-1 justify-end">
-                                            <Button variant="ghost" size="icon" disabled><Edit className="h-4 w-4" /></Button>
-                                            <AlertDialog>
-                                                <AlertDialogTrigger asChild>
-                                                    <Button variant="ghost" size="icon" className="text-destructive"><Trash2 className="h-4 w-4" /></Button>
-                                                </AlertDialogTrigger>
-                                                <AlertDialogContent>
-                                                    <AlertDialogHeader>
-                                                        <AlertDialogTitle>¿Desactivar usuario?</AlertDialogTitle>
-                                                        <AlertDialogDescription>
-                                                            Esta acción marcará al usuario {u.email} como inactivo/eliminado y revocará su acceso. No se puede deshacer.
-                                                        </AlertDialogDescription>
-                                                    </AlertDialogHeader>
-                                                    <AlertDialogFooter>
-                                                        <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                                                        <AlertDialogAction onClick={() => handleDeleteUser(u)} className="bg-destructive hover:bg-destructive/90">Confirmar</AlertDialogAction>
-                                                    </AlertDialogFooter>
-                                                </AlertDialogContent>
-                                            </AlertDialog>
-                                       </div>
-                                    </TableCell>
+                                    <TableCell><Badge variant={u.activo ? 'default' : 'destructive'}>{u.activo ? 'Activo' : 'Inactivo'}</Badge></TableCell>
+                                </TableRow>
+                            ))}
+                        </TableBody>
+                    </Table>
+                </CardContent>
+            </Card>
+
+            <Card>
+                <CardHeader>
+                    <CardTitle>Usuarios Pendientes de Activación</CardTitle>
+                </CardHeader>
+                <CardContent>
+                     <Table>
+                        <TableHeader>
+                            <TableRow><TableHead>Email</TableHead><TableHead>Nombre</TableHead><TableHead>Rol Asignado</TableHead><TableHead>Fecha Invitación</TableHead></TableRow>
+                        </TableHeader>
+                        <TableBody>
+                           {loadingInvites ? (
+                                <TableRow><TableCell colSpan={4} className="text-center h-24"><Loader2 className="animate-spin mx-auto" /></TableCell></TableRow>
+                            ) : pendingInvitations.length === 0 ? (
+                                <TableRow><TableCell colSpan={4} className="text-center h-24">No hay usuarios pendientes de activación.</TableCell></TableRow>
+                            ) : pendingInvitations.map((inv) => (
+                                <TableRow key={inv.id}>
+                                    <TableCell>{inv.email}</TableCell>
+                                    <TableCell>{inv.nombre}</TableCell>
+                                    <TableCell><Badge variant="outline">{inv.roleDeseado}</Badge></TableCell>
+                                    <TableCell>{inv.createdAt.toDate().toLocaleDateString()}</TableCell>
                                 </TableRow>
                             ))}
                         </TableBody>
@@ -246,9 +252,9 @@ export default function AdminEmpresaUsuariosPage() {
                 <DialogContent>
                     <form onSubmit={handleFormSubmit}>
                         <DialogHeader>
-                            <DialogTitle>Crear Nuevo Usuario</DialogTitle>
+                            <DialogTitle>Invitar Nuevo Usuario</DialogTitle>
                              <DialogDescription>
-                                Completa los datos para invitar un nuevo usuario a {company?.nombreFantasia}. Recibirá un correo para activar su cuenta.
+                                Completa los datos para invitar un nuevo usuario a {company?.nombreFantasia}. El usuario deberá ser creado manualmente en Firebase Auth.
                             </DialogDescription>
                         </DialogHeader>
                         <div className="py-4 grid gap-4">
@@ -277,7 +283,7 @@ export default function AdminEmpresaUsuariosPage() {
                             <Button type="button" variant="ghost" onClick={() => setDialogOpen(false)}>Cancelar</Button>
                             <Button type="submit" disabled={isSaving}>
                                 {isSaving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                                {isSaving ? "Creando usuario..." : "Crear y Enviar Invitación"}
+                                {isSaving ? "Creando invitación..." : "Crear Invitación"}
                             </Button>
                         </DialogFooter>
                     </form>
