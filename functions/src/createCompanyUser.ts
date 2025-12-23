@@ -2,14 +2,13 @@
 import { onCall, HttpsError } from "firebase-functions/v2/https";
 import * as admin from "firebase-admin";
 import * as logger from "firebase-functions/logger";
-import { doc } from 'firebase/firestore';
 
 if (!admin.apps.length) {
   admin.initializeApp();
 }
 
 // Se define la URL base de la aplicación. Para producción, esto debería ser una variable de entorno.
-const APP_BASE_URL = "https://www.pcgoperacion.com";
+const APP_BASE_URL = process.env.APP_BASE_URL || "https://www.pcgoperacion.com";
 
 export const createCompanyUser = onCall(
   {
@@ -51,8 +50,8 @@ export const createCompanyUser = onCall(
       );
     }
 
-    const companyRef = doc(db, "companies", data.companyId);
-    const companySnap = await getDoc(companyRef);
+    const companyRef = db.collection("companies").doc(data.companyId);
+    const companySnap = await companyRef.get();
     if (!companySnap.exists()) {
       throw new HttpsError("not-found", "La empresa no existe.");
     }
