@@ -34,14 +34,16 @@ export default function SafetyChecklistTemplatesPage() {
     const [isSaving, setIsSaving] = useState(false);
     const [currentTemplate, setCurrentTemplate] = useState<Partial<SafetyChecklistTemplate>>(initialFormState);
 
+    const allowedRoles = ['prevencionista', 'admin_empresa', 'superadmin'];
+
     useEffect(() => {
-        if (!authLoading && role !== 'prevencionista') {
+        if (!authLoading && !allowedRoles.includes(role)) {
             router.replace('/dashboard');
         }
     }, [authLoading, role, router]);
     
     useEffect(() => {
-        if (!user || !companyId || role !== 'prevencionista') {
+        if (!user || !companyId || !allowedRoles.includes(role)) {
             setLoading(false);
             return;
         }
@@ -115,7 +117,7 @@ export default function SafetyChecklistTemplatesPage() {
         setCurrentTemplate(prev => ({...prev, [field]: value}));
     };
     
-    if (authLoading || role !== 'prevencionista') {
+    if (authLoading || !allowedRoles.includes(role)) {
       return (
         <div className="flex items-center justify-center h-full">
             <Loader2 className="h-8 w-8 animate-spin" />
