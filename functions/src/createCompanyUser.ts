@@ -2,6 +2,7 @@
 import { onCall, HttpsError } from "firebase-functions/v2/https";
 import * as admin from "firebase-admin";
 import * as logger from "firebase-functions/logger";
+import { doc } from 'firebase/firestore';
 
 if (!admin.apps.length) {
   admin.initializeApp();
@@ -51,8 +52,8 @@ export const createCompanyUser = onCall(
     }
 
     const companyRef = doc(db, "companies", data.companyId);
-    const companySnap = await companyRef.get();
-    if (!companySnap.exists) {
+    const companySnap = await getDoc(companyRef);
+    if (!companySnap.exists()) {
       throw new HttpsError("not-found", "La empresa no existe.");
     }
     const companyData = companySnap.data()!;
@@ -80,7 +81,6 @@ export const createCompanyUser = onCall(
     await auth.setCustomUserClaims(uid, {
       role: data.role,
       companyId: data.companyId,
-      mustChangePassword: true, // Forzamos el cambio de contraseña en el primer login
     });
 
     const now = admin.firestore.FieldValue.serverTimestamp();
