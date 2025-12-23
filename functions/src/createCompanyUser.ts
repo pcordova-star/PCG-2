@@ -7,20 +7,6 @@ if (!admin.apps.length) {
   admin.initializeApp();
 }
 
-function buildAcceptInviteUrl(invId: string, email: string): string {
-  // CORRECTO: Usar una variable de entorno para la URL base.
-  const rawBaseUrl = process.env.APP_BASE_URL;
-
-  if (!rawBaseUrl) {
-    // FAIL FAST: Si la variable no está configurada, la función debe fallar para evitar enviar correos rotos.
-    logger.error("CRÍTICO: La variable de entorno APP_BASE_URL no está configurada. No se pueden generar enlaces de invitación.");
-    throw new HttpsError("internal", "El servidor no está configurado correctamente para enviar invitaciones. Falta la URL base de la aplicación.");
-  }
-  
-  const appBaseUrl = rawBaseUrl.replace(/\/+$/, "");
-  return `${appBaseUrl}/accept-invite?invId=${encodeURIComponent(invId)}&email=${encodeURIComponent(email)}`;
-}
-
 export const createCompanyUser = onCall(
   {
     region: "southamerica-west1",
@@ -32,15 +18,12 @@ export const createCompanyUser = onCall(
   async (request) => {
     const auth = admin.auth();
     const db = admin.firestore();
-
     const ctx = request.auth;
 
-    // 1. Validar que el usuario está autenticado
     if (!ctx) {
       throw new HttpsError("unauthenticated", "No autenticado.");
     }
 
-    // 2. Validar que el usuario es SUPER_ADMIN vía customClaims de forma asíncrona
     const requesterClaims = await auth.getUser(ctx.uid);
     if (requesterClaims.customClaims?.role !== "superadmin") {
       throw new HttpsError(
@@ -49,11 +32,9 @@ export const createCompanyUser = onCall(
       );
     }
 
-    // 3. Validar payload de entrada
     const data = request.data as {
       companyId: string;
       email: string;
-      password?: string;
       nombre: string;
       role: "admin_empresa" | "jefe_obra" | "prevencionista" | "cliente";
     };
@@ -64,30 +45,20 @@ export const createCompanyUser = onCall(
         "Faltan campos obligatorios: companyId, email, nombre, role."
       );
     }
-    
-    if (!data.password || data.password.length < 6) {
-        throw new HttpsError(
-            "invalid-argument",
-            "La contraseña es obligatoria y debe tener al menos 6 caracteres."
-        );
-    }
 
-    // 4. Verificar que la empresa existe y está activa
     const companyRef = db.collection("companies").doc(data.companyId);
     const companySnap = await companyRef.get();
     if (!companySnap.exists) {
       throw new HttpsError("not-found", "La empresa no existe.");
     }
-    const companyData = companySnap.data();
+    const companyData = companySnap.data()!;
 
-    // 5. Crear usuario en Firebase Auth
     let userRecord;
     try {
       userRecord = await auth.createUser({
         email: data.email,
-        password: data.password,
         displayName: data.nombre,
-        emailVerified: false, 
+        emailVerified: false,
         disabled: false,
       });
     } catch (error: any) {
@@ -102,15 +73,14 @@ export const createCompanyUser = onCall(
 
     const uid = userRecord.uid;
 
-    // 6. Asignar custom claims (role y companyId)
     await auth.setCustomUserClaims(uid, {
       role: data.role,
       companyId: data.companyId,
+      mustChangePassword: true, // Forzamos el cambio de contraseña
     });
 
     const now = admin.firestore.FieldValue.serverTimestamp();
     
-    // 7. Guardar perfil de usuario en /users
     const userProfileRef = db.collection("users").doc(uid);
     await userProfileRef.set({
       nombre: data.nombre,
@@ -122,7 +92,6 @@ export const createCompanyUser = onCall(
       updatedAt: now,
     }, { merge: true });
     
-    // 8. Crear una invitación para registro y trazabilidad
     const invitationRef = db.collection("invitacionesUsuarios").doc();
     const invitationId = invitationRef.id;
     await invitationRef.set({
@@ -135,8 +104,12 @@ export const createCompanyUser = onCall(
         creadoPorUid: ctx.uid,
     });
     
-    // 9. Enviar correo de invitación
-    const acceptInviteUrl = buildAcceptInviteUrl(invitationId, data.email);
+    const actionCodeSettings = {
+        url: `${process.env.APP_BASE_URL || 'https://www.pcgoperacion.com'}/login/usuario?email=${encodeURIComponent(data.email)}`,
+        handleCodeInApp: true,
+    };
+
+    const passwordResetLink = await auth.generatePasswordResetLink(data.email, actionCodeSettings);
 
     await db.collection("mail").add({
       to: [data.email],
@@ -146,16 +119,14 @@ export const createCompanyUser = onCall(
             <p>Hola ${data.nombre},</p>
             <p>Has sido registrado en la plataforma PCG para la empresa <strong>${companyData?.nombreFantasia || companyData?.razonSocial}</strong>.</p>
             <p>Tu rol asignado es: <strong>${data.role}</strong>.</p>
-            <p>Para completar tu registro y acceder a la plataforma, por favor haz clic en el siguiente enlace. Se te pedirá que establezcas una nueva contraseña si es tu primer ingreso.</p>
-            <p><a href="${acceptInviteUrl}">Activar mi cuenta y acceder a PCG</a></p>
+            <p>Para completar tu registro y activar tu cuenta, por favor establece tu contraseña haciendo clic en el siguiente enlace:</p>
+            <p><a href="${passwordResetLink}">Activar mi cuenta y definir contraseña</a></p>
             <p>Si el botón no funciona, copia y pega esta URL en tu navegador:</p>
-            <p><a href="${acceptInviteUrl}">${acceptInviteUrl}</a></p>
-            <p>Por seguridad, establece tu contraseña desde el enlace de activación.</p>
+            <p><a href="${passwordResetLink}">${passwordResetLink}</a></p>
             <p>Gracias,<br>El equipo de PCG</p>`,
       },
     });
 
-    // 10. Respuesta a frontend
     return {
       uid,
       email: data.email,
