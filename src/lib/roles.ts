@@ -11,15 +11,13 @@ export const SUPERADMIN_EMAILS = ["pauloandrescordova@gmail.com"];
 /**
  * Determina el rol de un usuario basándose en un orden de prioridad:
  * 1. Correo electrónico maestro (SUPERADMIN_EMAILS).
- * 2. Custom Claims en el token de autenticación.
- * 3. Campo 'role' en el documento del usuario en Firestore.
+ * 2. Campo 'role' en el documento del usuario en Firestore.
  *
  * @param user - El objeto de usuario de Firebase Auth.
  * @param userDoc - El documento del usuario desde la colección 'users' de Firestore.
- * @param tokenClaims - Los custom claims del token de ID del usuario.
  * @returns El rol del usuario como un string `UserRole`.
  */
-export function resolveRole(user: User | null, userDoc?: any, tokenClaims?: { [key: string]: any }): UserRole {
+export function resolveRole(user: User | null, userDoc?: any): UserRole {
   if (!user) {
     return "none";
   }
@@ -31,11 +29,7 @@ export function resolveRole(user: User | null, userDoc?: any, tokenClaims?: { [k
     return "superadmin";
   }
 
-  // 2. Segunda prioridad: Custom Claims en el token de autenticación.
-  // CORRECCIÓN: Usar la cadena 'superadmin' en minúsculas para consistencia.
-  if (tokenClaims?.role === "superadmin") return "superadmin";
-
-  // 3. Tercera prioridad: campo 'role' en el documento de Firestore.
+  // 2. Segunda prioridad: campo 'role' en el documento de Firestore.
   if (userDoc?.role === "superadmin") return "superadmin";
   if (userDoc?.role === "admin_empresa") return "admin_empresa";
   if (userDoc?.role === "jefe_obra") return "jefe_obra";

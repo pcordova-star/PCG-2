@@ -1,3 +1,4 @@
+
 // src/context/AuthContext.tsx
 "use client";
 
@@ -15,39 +16,60 @@ import {
   ReactNode,
 } from "react";
 import { firebaseAuth, firebaseDb } from "@/lib/firebaseClient";
-import { useRouter, usePathname } from "next/navigation";
-import { doc, getDoc, setDoc, serverTimestamp } from "firebase/firestore";
+import { useRouter } from "next/navigation";
+import { doc, getDoc, setDoc, serverTimestamp, collection, query, where, limit, writeBatch } from "firebase/firestore";
 import { UserRole } from "@/lib/roles";
-import { AppUser } from "@/types/pcg";
+import { AppUser, UserInvitation } from "@/types/pcg";
 
 
-/**
- * Asegura que exista un documento en /users/{uid} para un usuario autenticado.
- * Si no existe, lo crea con datos básicos. Esto es crucial para la consistencia
- * de los datos en la plataforma.
- * @param firebaseUser - El objeto de usuario de Firebase Auth.
- */
-async function ensureUserDocForAuthUser(firebaseUser: User) {
-  const userRef = doc(firebaseDb, "users", firebaseUser.uid);
-  const userSnap = await getDoc(userRef);
+async function activateUserFromInvitation(firebaseUser: User): Promise<{role: UserRole, companyId: string | null}> {
+  const db = firebaseDb;
+  const email = firebaseUser.email?.toLowerCase().trim();
 
-  if (!userSnap.exists()) {
-    // Si el documento no existe, lo creamos con valores por defecto.
-    const newUserDoc: Omit<AppUser, "id"> = {
-      nombre: firebaseUser.displayName || firebaseUser.email || "Usuario sin nombre",
-      email: firebaseUser.email!,
-      role: "none",
-      empresaId: null,
-      activo: true, // Por defecto, los nuevos usuarios están activos
-      createdAt: serverTimestamp(),
-    };
-    try {
-      await setDoc(userRef, newUserDoc);
-      console.log(`Documento creado para el nuevo usuario: ${firebaseUser.uid}`);
-    } catch (error) {
-      console.error("Error al crear el documento del usuario en Firestore:", error);
-    }
+  if (!email) return { role: 'none', companyId: null };
+
+  const q = query(
+    collection(db, "invitacionesUsuarios"),
+    where("email", "==", email),
+    where("estado", "==", "pendiente_auth"),
+    limit(1)
+  );
+
+  const invitationSnap = await getDocs(q);
+
+  if (invitationSnap.empty) {
+    console.log(`No hay invitación pendiente para ${email}.`);
+    return { role: 'none', companyId: null };
   }
+
+  const invitationDoc = invitationSnap.docs[0];
+  const invitationData = invitationDoc.data() as UserInvitation;
+
+  const userRef = doc(db, "users", firebaseUser.uid);
+  const batch = writeBatch(db);
+
+  // 1. Crear/actualizar el documento del usuario
+  batch.set(userRef, {
+    nombre: invitationData.nombre || firebaseUser.displayName,
+    email: email,
+    role: invitationData.roleDeseado,
+    empresaId: invitationData.empresaId,
+    activo: true,
+    createdAt: serverTimestamp(),
+    updatedAt: serverTimestamp(),
+  }, { merge: true });
+
+  // 2. Actualizar la invitación
+  batch.update(invitationDoc.ref, {
+    estado: "activado",
+    uid: firebaseUser.uid,
+    activatedAt: serverTimestamp(),
+  });
+
+  await batch.commit();
+
+  console.log(`Usuario ${email} activado con rol ${invitationData.roleDeseado} en empresa ${invitationData.empresaId}.`);
+  return { role: invitationData.roleDeseado, companyId: invitationData.empresaId };
 }
 
 
@@ -68,53 +90,38 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [companyId, setCompanyId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const router = useRouter();
-  const pathname = usePathname();
 
   useEffect(() => {
     const unsub = onAuthStateChanged(firebaseAuth, async (firebaseUser) => {
       setLoading(true);
       if (firebaseUser) {
         
-        try {
-            await ensureUserDocForAuthUser(firebaseUser);
-            const idTokenResult = await firebaseUser.getIdTokenResult(true);
-            const claims = idTokenResult.claims;
-
-            // Primero, intentar obtener desde los claims
-            let userRole = (claims.role as UserRole) || 'none';
-            let userCompanyId = (claims.companyId as string) || null;
-
-            // Si los claims no son suficientes, consultar Firestore como fallback
-            if (userRole === 'none' || !userCompanyId) {
-                const userDocRef = doc(firebaseDb, "users", firebaseUser.uid);
-                const userDocSnap = await getDoc(userDocRef);
-                if (userDocSnap.exists()) {
-                    const userDocData = userDocSnap.data() as AppUser;
-                    if (userRole === 'none') {
-                        userRole = (userDocData.role as UserRole) || 'none';
-                    }
-                    if (!userCompanyId) {
-                        userCompanyId = userDocData.empresaId || null;
-                    }
-                }
-            }
-
-            setRole(userRole);
-            setCompanyId(userCompanyId);
-            setUser(firebaseUser);
-            
-            // Redirección explícita si el usuario está logueado y en la página de login
-            if (pathname.startsWith('/login/usuario')) {
-                 router.replace('/dashboard');
-            }
-
-        } catch (error) {
-            console.error("Error al procesar el token de autenticación (posiblemente expirado):", error);
-            setUser(null);
-            setRole("none");
-            setCompanyId(null);
-            await signOut(firebaseAuth);
+        const userDocRef = doc(firebaseDb, "users", firebaseUser.uid);
+        const userDocSnap = await getDoc(userDocRef);
+        
+        let userRole: UserRole = 'none';
+        let userCompanyId: string | null = null;
+        
+        if (userDocSnap.exists()) {
+            const userData = userDocSnap.data() as AppUser;
+            userRole = userData.role;
+            userCompanyId = userData.empresaId;
+        } else {
+            // Si el documento de usuario no existe, es un primer login. Intentar activarlo.
+            const activationResult = await activateUserFromInvitation(firebaseUser);
+            userRole = activationResult.role;
+            userCompanyId = activationResult.companyId;
         }
+
+        setRole(userRole);
+        setCompanyId(userCompanyId);
+        setUser(firebaseUser);
+        
+        // Redirección explícita si el usuario está logueado y en la página de login
+        if (window.location.pathname.startsWith('/login')) {
+             router.replace('/dashboard');
+        }
+
       } else {
         setUser(null);
         setRole("none");
@@ -124,7 +131,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     });
 
     return () => unsub();
-  }, []);
+  }, [router]);
 
   async function login(email: string, password: string) {
     await signInWithEmailAndPassword(firebaseAuth, email, password);
