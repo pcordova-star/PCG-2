@@ -5,10 +5,26 @@ import React from 'react';
 import { Button } from '@/components/ui/button';
 import { ArrowLeft } from 'lucide-react';
 import { useRouter } from 'next/navigation';
-import ChecklistTemplateManager from '@/components/prevencion/ChecklistTemplateManager';
+import { useAuth } from '@/context/AuthContext';
+import { Loader2 } from 'lucide-react';
 
+// Este componente ahora redirige al nuevo módulo.
+// Se mantiene por si hay enlaces antiguos apuntando aquí.
 export default function OperacionesChecklistsPage() {
     const router = useRouter();
+    const { loading } = useAuth();
+    
+    useEffect(() => {
+        router.replace('/checklists-operacionales');
+    }, [router]);
+
+    if (loading) {
+        return (
+             <div className="flex items-center justify-center h-full">
+                <Loader2 className="h-8 w-8 animate-spin" />
+            </div>
+        )
+    }
 
     return (
         <div className="space-y-6">
@@ -18,15 +34,12 @@ export default function OperacionesChecklistsPage() {
                 </Button>
                 <div>
                     <h1 className="text-2xl font-bold">Listas de Chequeo de Operaciones</h1>
-                    <p className="text-muted-foreground">Plantillas para inspecciones, controles de calidad y otros formularios operativos.</p>
+                    <p className="text-muted-foreground">Redirigiendo al nuevo módulo...</p>
                 </div>
             </header>
-            
-            <ChecklistTemplateManager 
-                categoryFilter={["operaciones", "general"]}
-                title="Plantillas de Operaciones y Generales"
-                description="Listado de plantillas de checklist para uso en operaciones y áreas generales."
-            />
+            <div className="flex items-center justify-center h-48">
+                <Loader2 className="h-8 w-8 animate-spin" />
+            </div>
         </div>
     );
 }

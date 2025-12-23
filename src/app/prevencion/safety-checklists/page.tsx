@@ -19,7 +19,7 @@ export default function SafetyChecklistsPage() {
     if (!loading && !allowedRoles.includes(role)) {
       router.replace('/dashboard');
     }
-  }, [loading, role, router]);
+  }, [loading, role, router, allowedRoles]);
 
   if (loading || !allowedRoles.includes(role)) {
     return (
