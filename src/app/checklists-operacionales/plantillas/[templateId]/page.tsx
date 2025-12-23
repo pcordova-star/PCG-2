@@ -18,6 +18,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogD
 import { Checkbox } from '@/components/ui/checkbox';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
+import Link from 'next/link';
 
 const initialTemplate: Omit<OperationalChecklistTemplate, 'id' | 'createdAt' | 'createdBy' | 'companyId'> = {
     titulo: 'Nueva Plantilla',
@@ -270,7 +271,7 @@ export default function TemplateEditorPage() {
                 {template.secciones?.sort((a,b) => a.order - b.order).map((section, sectionIndex) => (
                     <Card key={section.id}>
                         <CardHeader className="flex flex-row justify-between items-center">
-                            <CardTitle className="text-lg">{section.title}</CardTitle>
+                            <CardTitle className="text-lg">{section.title ?? ''}</CardTitle>
                             <div className="flex items-center gap-2">
                                 <Button size="icon" variant="ghost" onClick={() => setEditingSection(section)}><Settings className="h-4 w-4"/></Button>
                                 <Button size="icon" variant="ghost" onClick={() => moveSection(sectionIndex, 'up')} disabled={sectionIndex === 0}><ArrowUp className="h-4 w-4"/></Button>
@@ -345,7 +346,7 @@ export default function TemplateEditorPage() {
                             </div>
                             <div className="space-y-2">
                                 <Label>Tipo de Campo</Label>
-                                <Select value={editingItem.item.type} onValueChange={(v) => setEditingItem(prev => prev ? {...prev, item: {...prev.item!, type: v as ChecklistItem['type']}} : null)}>
+                                <Select value={editingItem.item.type ?? 'boolean'} onValueChange={(v) => setEditingItem(prev => prev ? {...prev, item: {...prev.item!, type: v as ChecklistItem['type']}} : null)}>
                                     <SelectTrigger><SelectValue /></SelectTrigger>
                                     <SelectContent>
                                         <SelectItem value="boolean">Checkbox (Sí/No/N.A.)</SelectItem>
@@ -362,7 +363,7 @@ export default function TemplateEditorPage() {
                                 </div>
                             )}
                              <div className="flex items-center justify-between pt-4">
-                                <Label className="flex items-center gap-2 font-normal"><Checkbox checked={editingItem.item.required} onCheckedChange={c => setEditingItem(prev => prev ? {...prev, item: {...prev.item!, required: !!c}} : null)}/> Obligatorio</Label>
+                                <Label className="flex items-center gap-2 font-normal"><Checkbox checked={editingItem.item.required ?? false} onCheckedChange={c => setEditingItem(prev => prev ? {...prev, item: {...prev.item!, required: !!c}} : null)}/> Obligatorio</Label>
                              </div>
                         </div>
                     )}
