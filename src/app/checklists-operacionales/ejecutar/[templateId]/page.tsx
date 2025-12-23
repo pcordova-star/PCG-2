@@ -25,7 +25,7 @@ export default function EjecutarChecklistPage() {
 
     const [template, setTemplate] = useState<OperationalChecklistTemplate | null>(null);
     const [obras, setObras] = useState<Obra[]>([]);
-    const [selectedObraId, setSelectedObraId] = useState('');
+    const [selectedObraId, setSelectedObraId] = useState('__none__');
     const [answers, setAnswers] = useState<Record<string, any>>({});
     const [observations, setObservations] = useState('');
     const [signatureName, setSignatureName] = useState('');
@@ -54,9 +54,6 @@ export default function EjecutarChecklistPage() {
                 const obrasSnap = await getDocs(obrasQuery);
                 const obrasList = obrasSnap.docs.map(doc => ({ id: doc.id, ...doc.data() } as Obra));
                 setObras(obrasList);
-                if (obrasList.length > 0) {
-                    setSelectedObraId(obrasList[0].id);
-                }
 
             } catch (error) {
                 console.error("Error fetching data:", error);
@@ -77,22 +74,27 @@ export default function EjecutarChecklistPage() {
         if (!user || !companyId || !template) return;
 
         // Validar campos requeridos
-        for (const section of template.secciones) {
-            for (const item of section.items) {
-                if (item.required && (answers[item.id] === undefined || answers[item.id] === '')) {
-                    toast({ variant: 'destructive', title: 'Validación fallida', description: `El campo "${item.label}" es obligatorio.` });
-                    return;
+        if (template.secciones) {
+            for (const section of template.secciones) {
+                for (const item of section.items) {
+                    if (item.required && (answers[item.id] === undefined || answers[item.id] === '')) {
+                        toast({ variant: 'destructive', title: 'Validación fallida', description: `El campo "${item.label}" es obligatorio.` });
+                        return;
+                    }
                 }
             }
         }
 
+
         setIsSaving(true);
         try {
+            const obraIdFinal = selectedObraId === '__none__' ? null : selectedObraId;
+
             const newRecordRef = await addDoc(collection(firebaseDb, "operationalChecklistRecords"), {
                 companyId,
                 templateId,
                 templateTitleSnapshot: template.titulo,
-                obraId: selectedObraId || null,
+                obraId: obraIdFinal,
                 filledByUid: user.uid,
                 filledByEmail: user.email,
                 filledAt: serverTimestamp(),
@@ -148,7 +150,7 @@ export default function EjecutarChecklistPage() {
                         <Select value={selectedObraId} onValueChange={setSelectedObraId}>
                             <SelectTrigger><SelectValue placeholder="Seleccionar obra..." /></SelectTrigger>
                             <SelectContent>
-                                <SelectItem value="">Sin Obra Específica</SelectItem>
+                                <SelectItem value="__none__">Sin Obra Específica</SelectItem>
                                 {obras.map(o => <SelectItem key={o.id} value={o.id}>{o.nombreFaena}</SelectItem>)}
                             </SelectContent>
                         </Select>
@@ -156,7 +158,7 @@ export default function EjecutarChecklistPage() {
                 </CardContent>
             </Card>
 
-            {template.secciones.sort((a,b) => a.order-b.order).map(section => (
+            {template.secciones?.sort((a,b) => a.order-b.order).map(section => (
                 <Card key={section.id}>
                     <CardHeader><CardTitle>{section.title}</CardTitle></CardHeader>
                     <CardContent className="space-y-4">
