@@ -6,3 +6,4 @@ setGlobalOptions({ region: "southamerica-west1" });
 
 // Exporta ÚNICAMENTE la función requerida para aislar el despliegue.
 export { createCompanyUser } from "./createCompanyUser";
+export { checkUserExistsByEmail } from "./checkUserExistsByEmail";

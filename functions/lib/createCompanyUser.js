@@ -37,16 +37,17 @@ exports.createCompanyUser = void 0;
 // functions/src/createCompanyUser.ts
 const https_1 = require("firebase-functions/v2/https");
 const admin = __importStar(require("firebase-admin"));
+const logger = __importStar(require("firebase-functions/logger"));
 if (!admin.apps.length) {
     admin.initializeApp();
 }
+const APP_BASE_URL = "https://www.pcgoperacion.com";
 function buildAcceptInviteUrl(invId, email) {
-    const rawBaseUrl = "https://pcg-2-8bf1b.web.app";
-    if (!rawBaseUrl) {
-        console.error("CRÍTICO: No se pudo determinar la URL base de la aplicación. No se puede crear un enlace de invitación válido.");
+    if (!APP_BASE_URL) {
+        logger.error("CRÍTICO: La constante APP_BASE_URL no está configurada. No se pueden generar enlaces de invitación.");
         throw new https_1.HttpsError("internal", "El servidor no está configurado correctamente para enviar invitaciones. Falta la URL base de la aplicación.");
     }
-    const appBaseUrl = rawBaseUrl.replace(/\/+$/, "");
+    const appBaseUrl = APP_BASE_URL.replace(/\/+$/, "");
     return `${appBaseUrl}/accept-invite?invId=${encodeURIComponent(invId)}&email=${encodeURIComponent(email)}`;
 }
 exports.createCompanyUser = (0, https_1.onCall)({
@@ -59,16 +60,12 @@ exports.createCompanyUser = (0, https_1.onCall)({
     const auth = admin.auth();
     const db = admin.firestore();
     const ctx = request.auth;
-    // 1. Validar que el usuario está autenticado
     if (!ctx) {
         throw new https_1.HttpsError("unauthenticated", "No autenticado.");
     }
-    // 2. Validar que el usuario es SUPER_ADMIN vía customClaims
-    const requesterClaims = await auth.getUser(ctx.uid);
-    if (requesterClaims.customClaims?.role !== "superadmin") {
+    if (ctx.token.role !== "superadmin") {
         throw new https_1.HttpsError("permission-denied", "Solo SUPER_ADMIN puede crear usuarios.");
     }
-    // 3. Validar payload de entrada
     const data = request.data;
     if (!data.companyId || !data.email || !data.nombre || !data.role) {
         throw new https_1.HttpsError("invalid-argument", "Faltan campos obligatorios: companyId, email, nombre, role.");
@@ -76,14 +73,12 @@ exports.createCompanyUser = (0, https_1.onCall)({
     if (!data.password || data.password.length < 6) {
         throw new https_1.HttpsError("invalid-argument", "La contraseña es obligatoria y debe tener al menos 6 caracteres.");
     }
-    // 4. Verificar que la empresa existe y está activa
     const companyRef = db.collection("companies").doc(data.companyId);
     const companySnap = await companyRef.get();
     if (!companySnap.exists) {
         throw new https_1.HttpsError("not-found", "La empresa no existe.");
     }
     const companyData = companySnap.data();
-    // 5. Crear usuario en Firebase Auth
     let userRecord;
     try {
         userRecord = await auth.createUser({
@@ -101,13 +96,11 @@ exports.createCompanyUser = (0, https_1.onCall)({
         throw new https_1.HttpsError("internal", "Error creando el usuario en Auth.", error);
     }
     const uid = userRecord.uid;
-    // 6. Asignar custom claims (role y companyId)
     await auth.setCustomUserClaims(uid, {
         role: data.role,
         companyId: data.companyId,
     });
     const now = admin.firestore.FieldValue.serverTimestamp();
-    // 7. Guardar perfil de usuario en /users
     const userProfileRef = db.collection("users").doc(uid);
     await userProfileRef.set({
         nombre: data.nombre,
@@ -118,7 +111,6 @@ exports.createCompanyUser = (0, https_1.onCall)({
         createdAt: now,
         updatedAt: now,
     }, { merge: true });
-    // 8. Crear una invitación para registro y trazabilidad
     const invitationRef = db.collection("invitacionesUsuarios").doc();
     const invitationId = invitationRef.id;
     await invitationRef.set({
@@ -130,7 +122,6 @@ exports.createCompanyUser = (0, https_1.onCall)({
         createdAt: now,
         creadoPorUid: ctx.uid,
     });
-    // 9. Enviar correo de invitación
     const acceptInviteUrl = buildAcceptInviteUrl(invitationId, data.email);
     await db.collection("mail").add({
         to: [data.email],
@@ -144,11 +135,10 @@ exports.createCompanyUser = (0, https_1.onCall)({
             <p><a href="${acceptInviteUrl}">Activar mi cuenta y acceder a PCG</a></p>
             <p>Si el botón no funciona, copia y pega esta URL en tu navegador:</p>
             <p><a href="${acceptInviteUrl}">${acceptInviteUrl}</a></p>
-            <p>Tu contraseña temporal es: <strong>${data.password}</strong></p>
+            <p>Por seguridad, establece tu contraseña desde el enlace de activación.</p>
             <p>Gracias,<br>El equipo de PCG</p>`,
         },
     });
-    // 10. Respuesta a frontend
     return {
         uid,
         email: data.email,
