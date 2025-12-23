@@ -1,4 +1,5 @@
 
+
 "use client";
 
 import React, { useState, useEffect, FormEvent } from 'react';
@@ -92,7 +93,7 @@ export default function AdminEmpresaUsuariosPage() {
         return () => {
             unsubInvitations();
         };
-    }, [isSuperAdmin, companyIdParams, loading, router]);
+    }, [isSuperAdmin, companyIdParams, router]);
 
 
     const handleFormSubmit = async (e: FormEvent) => {
