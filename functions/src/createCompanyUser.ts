@@ -50,7 +50,7 @@ export const createCompanyUser = onCall(
       );
     }
 
-    const companyRef = db.collection("companies").doc(data.companyId);
+    const companyRef = doc(db, "companies", data.companyId);
     const companySnap = await companyRef.get();
     if (!companySnap.exists) {
       throw new HttpsError("not-found", "La empresa no existe.");
@@ -109,8 +109,8 @@ export const createCompanyUser = onCall(
     });
     
     const actionCodeSettings = {
-        url: `${APP_BASE_URL}/login/usuario?email=${encodeURIComponent(data.email)}`,
-        handleCodeInApp: true,
+        url: `${APP_BASE_URL}/accept-invite?invId=${encodeURIComponent(invitationId)}&email=${encodeURIComponent(data.email)}`,
+        handleCodeInApp: false,
     };
 
     const passwordResetLink = await auth.generatePasswordResetLink(data.email, actionCodeSettings);
