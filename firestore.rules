@@ -27,6 +27,13 @@ service cloud.firestore {
     function getAuthEmail() {
       return isSignedIn() ? request.auth.token.email : null;
     }
+    
+    // --------- Regla para companies (SUPERADMIN) ---------
+    match /companies/{companyId} {
+      // Superadmin puede leer para gestionar y crear usuarios.
+      // La escritura se maneja desde un panel de admin específico.
+      allow read: if isSuperadmin();
+    }
 
     // --------- Regla para invitacionesUsuarios ---------
     match /invitacionesUsuarios/{inviteId} {
@@ -53,7 +60,7 @@ service cloud.firestore {
     // Distribución (ISO)
     match /documentDistribution/{docId} {
       allow read: if isSignedIn() && getAuthCompanyId() == resource.data.companyId;
-      allow write: if isSuperadmin() || isAdminEmpresa(); // solo backend normalmente
+      allow write: if isSuperadmin() || isAdminEmpresa(); // solo backend normally
     }
 
 
