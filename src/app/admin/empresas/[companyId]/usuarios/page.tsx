@@ -5,7 +5,7 @@
 import React, { useState, useEffect, FormEvent } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { Input } from '@/components/ui/input';
@@ -16,7 +16,7 @@ import { Badge } from '@/components/ui/badge';
 import { PlusCircle, ArrowLeft, Loader2, Trash2, Edit, UserX, UserCheck, RefreshCw } from 'lucide-react';
 import Link from 'next/link';
 import { collection, doc, getDoc, query, orderBy, where, onSnapshot, updateDoc, serverTimestamp } from 'firebase/firestore';
-import { firebaseDb, firebaseFunctions } from '@/lib/firebaseClient';
+import { firebaseDb, firebaseFunctions, firebaseAuth } from '@/lib/firebaseClient';
 import { Company, AppUser, UserInvitation, RolInvitado } from '@/types/pcg';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/context/AuthContext';
@@ -48,6 +48,9 @@ export default function AdminEmpresaUsuariosPage() {
     const [dialogOpen, setDialogOpen] = useState(false);
     const [currentUser, setCurrentUser] = useState<{ email: string, nombre: string, role: RolInvitado, password?: string, id?: string } | null>(null);
     const [isSaving, setIsSaving] = useState(false);
+
+    // DEBUGGING STATE
+    const [debugInfo, setDebugInfo] = useState<object | null>(null);
 
     const isSuperAdmin = role === "superadmin";
 
@@ -126,6 +129,41 @@ export default function AdminEmpresaUsuariosPage() {
 
     const handleFormSubmit = async (e: FormEvent) => {
         e.preventDefault();
+        
+        // --- INICIO DE INSTRUMENTACIÓN ---
+        setDebugInfo(null);
+        const authUser = firebaseAuth.currentUser;
+
+        if (!authUser) {
+            const errorMsg = "Error de diagnóstico: El usuario no está autenticado en `firebaseAuth.currentUser`.";
+            setError(errorMsg);
+            setDebugInfo({ error: errorMsg });
+            return;
+        }
+
+        try {
+            await authUser.getIdToken(true); // Forzar refresco del token
+            const tokenResult = await authUser.getIdTokenResult();
+            
+            const debugData = {
+                email: authUser.email,
+                uid: authUser.uid,
+                tokenClaims: tokenResult.claims,
+                projectId: firebaseAuth.app.options.projectId,
+                functionsRegion: firebaseFunctions.region,
+            };
+
+            console.log("DEBUG: Auth State before Callable", debugData);
+            setDebugInfo(debugData);
+
+        } catch (tokenError) {
+            console.error("Error obteniendo token:", tokenError);
+            setError("Error crítico al obtener el token de autenticación.");
+            setDebugInfo({ error: "Fallo en getIdTokenResult()", message: (tokenError as Error).message });
+            return;
+        }
+        // --- FIN DE INSTRUMENTACIÓN ---
+
         if (!user || !isSuperAdmin || !currentUser) {
             setError("No tienes permisos para realizar esta acción.");
             return;
@@ -135,16 +173,13 @@ export default function AdminEmpresaUsuariosPage() {
         setError(null);
         
         try {
-            if (currentUser.id) { // Editando usuario existente
+            if (currentUser.id) {
                 const userRef = doc(firebaseDb, "users", currentUser.id);
-                // Aquí iría la lógica para llamar a una función de actualización si fuera necesario
-                // Por ahora, solo actualizamos en Firestore
                 await updateDoc(userRef, {
                     nombre: currentUser.nombre,
-                    // El rol no se puede cambiar desde aquí por ahora, se maneja con claims
                 });
                 toast({ title: "Usuario Actualizado", description: `Los datos de ${currentUser.nombre} han sido actualizados.` });
-            } else { // Creando nuevo usuario
+            } else {
                 if (!company) throw new Error("No se ha cargado la empresa");
                 if (!currentUser.email || !currentUser.nombre || !currentUser.role || !currentUser.password) {
                     throw new Error("Email, nombre, rol y contraseña son obligatorios.");
@@ -167,6 +202,7 @@ export default function AdminEmpresaUsuariosPage() {
             console.error("Error al guardar:", err);
             const errorMessage = err.message || "Ocurrió un problema.";
             setError(errorMessage);
+            setDebugInfo(prev => ({ ...prev, callError: { code: err.code, message: err.message } }));
             toast({ variant: "destructive", title: "Error al guardar", description: errorMessage });
         } finally {
             setIsSaving(false);
@@ -201,14 +237,11 @@ export default function AdminEmpresaUsuariosPage() {
             await updateDoc(invitationRef, { estado: 'revocada' });
             toast({ title: "Invitación Revocada" });
         } catch (err) {
-            console.error("Error revoking invitation:", err);
             toast({ variant: 'destructive', title: "Error", description: "No se pudo revocar la invitación." });
         }
     }
     
     const handleResendInvitation = async (inv: UserInvitation) => {
-        // Esta función ahora necesitaría llamar a una cloud function que reenvíe el email.
-        // Por ahora, solo mostraremos un toast.
         toast({ title: "Función no implementada", description: "La capacidad de reenviar invitaciones aún está en desarrollo." });
     }
     
@@ -220,7 +253,7 @@ export default function AdminEmpresaUsuariosPage() {
         return <div className="p-8 text-center text-muted-foreground">Cargando datos de la empresa...</div>;
     }
     
-    if (error && !dialogOpen) { // No mostrar error global si el error es del formulario
+    if (error && !dialogOpen) {
         return <div className="p-8 text-center text-destructive">{error}</div>;
     }
 
@@ -239,6 +272,20 @@ export default function AdminEmpresaUsuariosPage() {
                     Crear Nuevo Usuario
                 </Button>
             </header>
+
+            {/* DEBUG UI */}
+            {debugInfo && (
+                <Card className="bg-blue-50 border-blue-200">
+                    <CardHeader>
+                        <CardTitle className="text-blue-900">Información de Depuración de Auth</CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                        <pre className="text-xs bg-white p-2 rounded-md overflow-x-auto">
+                            {JSON.stringify(debugInfo, null, 2)}
+                        </pre>
+                    </CardContent>
+                </Card>
+            )}
             
             <Card>
                 <CardHeader>
