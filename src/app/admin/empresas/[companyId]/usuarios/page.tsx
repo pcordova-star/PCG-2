@@ -1,5 +1,4 @@
 
-
 "use client";
 
 import React, { useState, useEffect, FormEvent } from 'react';
@@ -71,7 +70,7 @@ export default function AdminEmpresaUsuariosPage() {
                 if (companySnap.exists()) {
                     setCompany({ id: companySnap.id, ...companySnap.data() } as Company);
                 } else {
-                    throw new Error("Empresa no encontrada");
+                    setError("Empresa no encontrada.");
                 }
             } catch (err: any) {
                 console.error("Error fetching company data:", err);
@@ -368,3 +367,5 @@ export default function AdminEmpresaUsuariosPage() {
         </div>
     );
 }
+
+    
