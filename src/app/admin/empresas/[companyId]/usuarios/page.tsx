@@ -1,4 +1,5 @@
 
+
 "use client";
 
 import React, { useState, useEffect, FormEvent, useMemo } from 'react';
@@ -119,7 +120,7 @@ export default function AdminEmpresaUsuariosPage() {
             unsubUsers();
             unsubInvites();
         };
-    }, [isSuperAdmin, companyId, router]);
+    }, [isSuperAdmin, companyId, router, loadingCompany]);
 
 
     const handleFormSubmit = async (e: FormEvent) => {
@@ -240,7 +241,7 @@ export default function AdminEmpresaUsuariosPage() {
                                     <TableCell>{inv.email}</TableCell>
                                     <TableCell>{inv.nombre}</TableCell>
                                     <TableCell><Badge variant="outline">{inv.roleDeseado}</Badge></TableCell>
-                                    <TableCell>{inv.createdAt.toDate().toLocaleDateString()}</TableCell>
+                                    <TableCell>{inv.createdAt?.toDate().toLocaleDateString() || 'N/A'}</TableCell>
                                 </TableRow>
                             ))}
                         </TableBody>
