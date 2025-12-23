@@ -3,7 +3,7 @@
 
 import { useEffect, useState, useMemo } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { doc, getDoc, addDoc, serverTimestamp, collection, setDoc, updateDoc, arrayUnion } from 'firebase/firestore';
+import { doc, getDoc, addDoc, serverTimestamp, collection, setDoc, updateDoc, arrayUnion, getDocs } from 'firebase/firestore';
 import { firebaseDb, firebaseStorage } from '@/lib/firebaseClient';
 import { useAuth } from '@/context/AuthContext';
 import { useToast } from '@/hooks/use-toast';
