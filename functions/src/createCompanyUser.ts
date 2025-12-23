@@ -7,6 +7,9 @@ if (!admin.apps.length) {
   admin.initializeApp();
 }
 
+// Se define la URL base de la aplicación. Para producción, esto debería ser una variable de entorno.
+const APP_BASE_URL = "https://www.pcgoperacion.com";
+
 export const createCompanyUser = onCall(
   {
     region: "southamerica-west1",
@@ -24,6 +27,7 @@ export const createCompanyUser = onCall(
       throw new HttpsError("unauthenticated", "No autenticado.");
     }
 
+    // Validación de permisos robusta para superadmin
     const requesterClaims = await auth.getUser(ctx.uid);
     if (requesterClaims.customClaims?.role !== "superadmin") {
       throw new HttpsError(
@@ -55,20 +59,20 @@ export const createCompanyUser = onCall(
 
     let userRecord;
     try {
-      userRecord = await auth.createUser({
-        email: data.email,
-        displayName: data.nombre,
-        emailVerified: false,
-        disabled: false,
-      });
+      userRecord = await auth.getUserByEmail(data.email);
+      logger.info(`Usuario existente encontrado para ${data.email}. Reutilizando UID: ${userRecord.uid}`);
     } catch (error: any) {
-      if (error.code === "auth/email-already-exists") {
-        throw new HttpsError(
-          "already-exists",
-          "Ya existe un usuario con este email."
-        );
+      if (error.code === 'auth/user-not-found') {
+        logger.info(`No existe usuario para ${data.email}. Creando uno nuevo.`);
+        userRecord = await auth.createUser({
+          email: data.email,
+          displayName: data.nombre,
+          emailVerified: false,
+          disabled: false,
+        });
+      } else {
+        throw new HttpsError("internal", "Error verificando el usuario en Auth.", error);
       }
-      throw new HttpsError("internal", "Error creando el usuario en Auth.", error);
     }
 
     const uid = userRecord.uid;
@@ -76,7 +80,7 @@ export const createCompanyUser = onCall(
     await auth.setCustomUserClaims(uid, {
       role: data.role,
       companyId: data.companyId,
-      mustChangePassword: true, // Forzamos el cambio de contraseña
+      mustChangePassword: true, // Forzamos el cambio de contraseña en el primer login
     });
 
     const now = admin.firestore.FieldValue.serverTimestamp();
@@ -105,7 +109,7 @@ export const createCompanyUser = onCall(
     });
     
     const actionCodeSettings = {
-        url: `${process.env.APP_BASE_URL || 'https://www.pcgoperacion.com'}/login/usuario?email=${encodeURIComponent(data.email)}`,
+        url: `${APP_BASE_URL}/login/usuario?email=${encodeURIComponent(data.email)}`,
         handleCodeInApp: true,
     };
 
@@ -123,6 +127,7 @@ export const createCompanyUser = onCall(
             <p><a href="${passwordResetLink}">Activar mi cuenta y definir contraseña</a></p>
             <p>Si el botón no funciona, copia y pega esta URL en tu navegador:</p>
             <p><a href="${passwordResetLink}">${passwordResetLink}</a></p>
+            <p>Por seguridad, establece tu contraseña desde el enlace de activación.</p>
             <p>Gracias,<br>El equipo de PCG</p>`,
       },
     });
