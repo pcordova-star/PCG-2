@@ -52,7 +52,7 @@ export const createCompanyUser = onCall(
 
     const companyRef = db.collection("companies").doc(data.companyId);
     const companySnap = await companyRef.get();
-    if (!companySnap.exists()) {
+    if (!companySnap.exists) {
       throw new HttpsError("not-found", "La empresa no existe.");
     }
     const companyData = companySnap.data()!;

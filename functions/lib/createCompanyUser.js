@@ -41,15 +41,8 @@ const logger = __importStar(require("firebase-functions/logger"));
 if (!admin.apps.length) {
     admin.initializeApp();
 }
-const APP_BASE_URL = "https://www.pcgoperacion.com";
-function buildAcceptInviteUrl(invId, email) {
-    if (!APP_BASE_URL) {
-        logger.error("CRÍTICO: La constante APP_BASE_URL no está configurada. No se pueden generar enlaces de invitación.");
-        throw new https_1.HttpsError("internal", "El servidor no está configurado correctamente para enviar invitaciones. Falta la URL base de la aplicación.");
-    }
-    const appBaseUrl = APP_BASE_URL.replace(/\/+$/, "");
-    return `${appBaseUrl}/accept-invite?invId=${encodeURIComponent(invId)}&email=${encodeURIComponent(email)}`;
-}
+// Se define la URL base de la aplicación. Para producción, esto debería ser una variable de entorno.
+const APP_BASE_URL = process.env.APP_BASE_URL || "https://www.pcgoperacion.com";
 exports.createCompanyUser = (0, https_1.onCall)({
     region: "southamerica-west1",
     cpu: 1,
@@ -63,37 +56,39 @@ exports.createCompanyUser = (0, https_1.onCall)({
     if (!ctx) {
         throw new https_1.HttpsError("unauthenticated", "No autenticado.");
     }
-    if (ctx.token.role !== "superadmin") {
+    // Validación de permisos robusta para superadmin
+    const requesterClaims = await auth.getUser(ctx.uid);
+    if (requesterClaims.customClaims?.role !== "superadmin") {
         throw new https_1.HttpsError("permission-denied", "Solo SUPER_ADMIN puede crear usuarios.");
     }
     const data = request.data;
     if (!data.companyId || !data.email || !data.nombre || !data.role) {
         throw new https_1.HttpsError("invalid-argument", "Faltan campos obligatorios: companyId, email, nombre, role.");
     }
-    if (!data.password || data.password.length < 6) {
-        throw new https_1.HttpsError("invalid-argument", "La contraseña es obligatoria y debe tener al menos 6 caracteres.");
-    }
     const companyRef = db.collection("companies").doc(data.companyId);
     const companySnap = await companyRef.get();
-    if (!companySnap.exists) {
+    if (!companySnap.exists()) {
         throw new https_1.HttpsError("not-found", "La empresa no existe.");
     }
     const companyData = companySnap.data();
     let userRecord;
     try {
-        userRecord = await auth.createUser({
-            email: data.email,
-            password: data.password,
-            displayName: data.nombre,
-            emailVerified: false,
-            disabled: false,
-        });
+        userRecord = await auth.getUserByEmail(data.email);
+        logger.info(`Usuario existente encontrado para ${data.email}. Reutilizando UID: ${userRecord.uid}`);
     }
     catch (error) {
-        if (error.code === "auth/email-already-exists") {
-            throw new https_1.HttpsError("already-exists", "Ya existe un usuario con este email.");
+        if (error.code === 'auth/user-not-found') {
+            logger.info(`No existe usuario para ${data.email}. Creando uno nuevo.`);
+            userRecord = await auth.createUser({
+                email: data.email,
+                displayName: data.nombre,
+                emailVerified: false,
+                disabled: false,
+            });
         }
-        throw new https_1.HttpsError("internal", "Error creando el usuario en Auth.", error);
+        else {
+            throw new https_1.HttpsError("internal", "Error verificando el usuario en Auth.", error);
+        }
     }
     const uid = userRecord.uid;
     await auth.setCustomUserClaims(uid, {
@@ -122,19 +117,23 @@ exports.createCompanyUser = (0, https_1.onCall)({
         createdAt: now,
         creadoPorUid: ctx.uid,
     });
-    const acceptInviteUrl = buildAcceptInviteUrl(invitationId, data.email);
+    const actionCodeSettings = {
+        url: `${APP_BASE_URL}/accept-invite?invId=${encodeURIComponent(invitationId)}&email=${encodeURIComponent(data.email)}`,
+        handleCodeInApp: false,
+    };
+    const passwordResetLink = await auth.generatePasswordResetLink(data.email, actionCodeSettings);
     await db.collection("mail").add({
         to: [data.email],
         message: {
-            subject: `Bienvenido a PCG - Acceso para ${companyData?.nombre}`,
+            subject: `Bienvenido a PCG - Acceso para ${companyData?.nombreFantasia || companyData?.razonSocial}`,
             html: `
             <p>Hola ${data.nombre},</p>
-            <p>Has sido registrado en la plataforma PCG para la empresa <strong>${companyData?.nombre}</strong>.</p>
+            <p>Has sido registrado en la plataforma PCG para la empresa <strong>${companyData?.nombreFantasia || companyData?.razonSocial}</strong>.</p>
             <p>Tu rol asignado es: <strong>${data.role}</strong>.</p>
-            <p>Para completar tu registro y acceder a la plataforma, por favor haz clic en el siguiente enlace. Se te pedirá que establezcas una nueva contraseña si es tu primer ingreso.</p>
-            <p><a href="${acceptInviteUrl}">Activar mi cuenta y acceder a PCG</a></p>
+            <p>Para completar tu registro y activar tu cuenta, por favor establece tu contraseña haciendo clic en el siguiente enlace:</p>
+            <p><a href="${passwordResetLink}">Activar mi cuenta y definir contraseña</a></p>
             <p>Si el botón no funciona, copia y pega esta URL en tu navegador:</p>
-            <p><a href="${acceptInviteUrl}">${acceptInviteUrl}</a></p>
+            <p><a href="${passwordResetLink}">${passwordResetLink}</a></p>
             <p>Por seguridad, establece tu contraseña desde el enlace de activación.</p>
             <p>Gracias,<br>El equipo de PCG</p>`,
         },
