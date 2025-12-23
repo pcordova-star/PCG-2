@@ -107,25 +107,30 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (firebaseUser) {
         setUser(firebaseUser);
         try {
-            const userDoc = await ensureUserDocForAuthUser(firebaseUser);
-            // CORRECCIÓN: Forzar el refresco del token para obtener los custom claims más recientes.
-            const idTokenResult = await firebaseUser.getIdTokenResult(true); 
-            const resolvedUserRole = resolveRole(firebaseUser, userDoc, idTokenResult.claims);
+            // Forzar refresco del token para obtener los claims más recientes.
+            const idTokenResult = await firebaseUser.getIdTokenResult(true);
+            const claims = idTokenResult.claims;
+
+            // Determinar rol EXCLUSIVAMENTE desde los claims.
+            const userRole = (claims.role as UserRole) || 'none';
+            setRole(userRole);
             
-            setRole(resolvedUserRole);
-            setCompanyId(userDoc?.empresaId || idTokenResult.claims.companyId as string || null);
+            // Asignar companyId desde los claims si existe.
+            setCompanyId((claims.companyId as string) || null);
             
             // Lógica de redirección para cambio de contraseña
-            if (idTokenResult.claims.mustChangePassword === true || userDoc?.mustChangePassword === true) {
+            if (claims.mustChangePassword === true) {
               if (pathname !== '/cambiar-password') {
                 router.replace('/cambiar-password');
               }
             }
             
         } catch (error) {
-            console.error("Error al procesar el login del usuario:", error);
+            console.error("Error al procesar el token de autenticación:", error);
             setRole("none");
             setCompanyId(null);
+            // Si falla, es más seguro desloguear al usuario para evitar inconsistencias.
+            await signOut(firebaseAuth);
         }
       } else {
         setUser(null);
