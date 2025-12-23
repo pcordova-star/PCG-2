@@ -17,7 +17,7 @@ import { Label } from '@/components/ui/label';
 export default function OperationalChecklistRecordsPage() {
     const { user, companyId } = useAuth();
     const [obras, setObras] = useState<Obra[]>([]);
-    const [selectedObraId, setSelectedObraId] = useState('');
+    const [selectedObraId, setSelectedObraId] = useState('__all__');
     const [records, setRecords] = useState<OperationalChecklistRecord[]>([]);
     const [loading, setLoading] = useState(true);
 
@@ -41,17 +41,21 @@ export default function OperationalChecklistRecordsPage() {
 
         setLoading(true);
         let recordsQuery;
-        if(selectedObraId) {
+        
+        const baseQuery = collection(firebaseDb, "operationalChecklistRecords");
+        const companyFilter = where("companyId", "==", companyId);
+
+        if(selectedObraId === '__all__') {
              recordsQuery = query(
-                collection(firebaseDb, "operationalChecklistRecords"),
-                where("companyId", "==", companyId),
-                where("obraId", "==", selectedObraId),
+                baseQuery,
+                companyFilter,
                 orderBy("filledAt", "desc")
             );
         } else {
             recordsQuery = query(
-                collection(firebaseDb, "operationalChecklistRecords"),
-                where("companyId", "==", companyId),
+                baseQuery,
+                companyFilter,
+                where("obraId", "==", selectedObraId),
                 orderBy("filledAt", "desc")
             );
         }
@@ -95,7 +99,7 @@ export default function OperationalChecklistRecordsPage() {
                 <SelectValue placeholder="Todas las obras" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="">Todas las obras</SelectItem>
+                <SelectItem value="__all__">Todas las obras</SelectItem>
                 {obras.map(obra => (
                   <SelectItem key={obra.id} value={obra.id}>{obra.nombreFaena}</SelectItem>
                 ))}
