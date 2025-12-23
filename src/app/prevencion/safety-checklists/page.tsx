@@ -2,7 +2,7 @@
 "use client";
 
 import { Button } from "@/components/ui/button";
-import { ListChecks, FilePlus } from "lucide-react";
+import { ListChecks, FilePlus, ArrowLeft } from "lucide-react";
 import Link from "next/link";
 import { useAuth } from "@/context/AuthContext";
 import { useRouter } from "next/navigation";
@@ -32,6 +32,11 @@ export default function SafetyChecklistsPage() {
   return (
     <div className="space-y-6">
       <header className="flex items-center gap-4">
+        <Button variant="outline" size="icon" asChild>
+          <Link href="/prevencion">
+            <ArrowLeft className="h-4 w-4" />
+          </Link>
+        </Button>
         <div>
           <h1 className="text-2xl font-bold">Listas de Chequeo de Seguridad</h1>
           <p className="text-muted-foreground">
