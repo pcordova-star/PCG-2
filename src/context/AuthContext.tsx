@@ -1,4 +1,3 @@
-
 // src/context/AuthContext.tsx
 "use client";
 
@@ -72,6 +71,32 @@ async function activateUserFromInvitation(firebaseUser: User): Promise<{role: Us
   return { role: invitationData.roleDeseado, companyId: invitationData.empresaId };
 }
 
+/**
+ * Lógica de Bootstrap solo para desarrollo.
+ * Crea el documento del superadmin si no existe.
+ */
+async function bootstrapSuperAdmin(firebaseUser: User): Promise<void> {
+    if (process.env.NODE_ENV !== 'development' || firebaseUser.email !== 'pauloandrescordova@gmail.com') {
+        return;
+    }
+
+    const userDocRef = doc(firebaseDb, "users", firebaseUser.uid);
+    const userDocSnap = await getDoc(userDocRef);
+
+    if (!userDocSnap.exists()) {
+        console.warn(`[Bootstrap] Creando documento para superadmin: ${firebaseUser.email}`);
+        await setDoc(userDocRef, {
+            nombre: "Super Admin",
+            email: firebaseUser.email,
+            role: "superadmin",
+            empresaId: null, // Superadmin no pertenece a una empresa
+            activo: true,
+            createdAt: serverTimestamp(),
+            updatedAt: serverTimestamp(),
+        });
+    }
+}
+
 
 type AuthContextValue = {
   user: User | null;
@@ -93,21 +118,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     const unsub = onAuthStateChanged(firebaseAuth, async (firebaseUser) => {
-      setLoading(true);
       if (firebaseUser) {
         
+        await bootstrapSuperAdmin(firebaseUser); // Ejecuta el bootstrap
+
         const userDocRef = doc(firebaseDb, "users", firebaseUser.uid);
         const userDocSnap = await getDoc(userDocRef);
         
         let userRole: UserRole = 'none';
         let userCompanyId: string | null = null;
         
-        if (userDocSnap.exists() && userDocSnap.data().role && userDocSnap.data().empresaId) {
+        if (userDocSnap.exists() && userDocSnap.data().role && userDocSnap.data().empresaId !== undefined) {
             const userData = userDocSnap.data() as AppUser;
             userRole = userData.role;
             userCompanyId = userData.empresaId;
         } else {
-            // Si el documento de usuario no existe, es un primer login. Intentar activarlo.
             const activationResult = await activateUserFromInvitation(firebaseUser);
             userRole = activationResult.role;
             userCompanyId = activationResult.companyId;
@@ -117,17 +142,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setCompanyId(userCompanyId);
         setUser(firebaseUser);
         
-        // Redirección explícita si el usuario está logueado y en la página de login
-        if (window.location.pathname.startsWith('/login')) {
-             if (userRole === 'none') {
-                router.replace('/sin-acceso');
-             } else {
+        if (userRole === 'none') {
+            router.replace('/sin-acceso');
+        } else {
+             if (window.location.pathname.startsWith('/login')) {
                 router.replace('/dashboard');
-             }
-        } else if (userRole === 'none' && !window.location.pathname.startsWith('/sin-acceso')) {
-             router.replace('/sin-acceso');
+            }
         }
-
+        
       } else {
         setUser(null);
         setRole("none");
