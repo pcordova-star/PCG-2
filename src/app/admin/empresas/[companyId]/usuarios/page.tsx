@@ -130,40 +130,6 @@ export default function AdminEmpresaUsuariosPage() {
     const handleFormSubmit = async (e: FormEvent) => {
         e.preventDefault();
         
-        // --- INICIO DE INSTRUMENTACIÓN ---
-        setDebugInfo(null);
-        const authUser = firebaseAuth.currentUser;
-
-        if (!authUser) {
-            const errorMsg = "Error de diagnóstico: El usuario no está autenticado en `firebaseAuth.currentUser`.";
-            setError(errorMsg);
-            setDebugInfo({ error: errorMsg });
-            return;
-        }
-
-        try {
-            await authUser.getIdToken(true); // Forzar refresco del token
-            const tokenResult = await authUser.getIdTokenResult();
-            
-            const debugData = {
-                email: authUser.email,
-                uid: authUser.uid,
-                tokenClaims: tokenResult.claims,
-                projectId: firebaseAuth.app.options.projectId,
-                functionsRegion: firebaseFunctions.region,
-            };
-
-            console.log("DEBUG: Auth State before Callable", debugData);
-            setDebugInfo(debugData);
-
-        } catch (tokenError) {
-            console.error("Error obteniendo token:", tokenError);
-            setError("Error crítico al obtener el token de autenticación.");
-            setDebugInfo({ error: "Fallo en getIdTokenResult()", message: (tokenError as Error).message });
-            return;
-        }
-        // --- FIN DE INSTRUMENTACIÓN ---
-
         if (!user || !isSuperAdmin || !currentUser) {
             setError("No tienes permisos para realizar esta acción.");
             return;
@@ -173,17 +139,40 @@ export default function AdminEmpresaUsuariosPage() {
         setError(null);
         
         try {
-            if (currentUser.id) {
+             if (currentUser.id) {
+                // EDITAR USUARIO
                 const userRef = doc(firebaseDb, "users", currentUser.id);
                 await updateDoc(userRef, {
                     nombre: currentUser.nombre,
+                    // El rol se cambia con una función de admin, no aquí
                 });
                 toast({ title: "Usuario Actualizado", description: `Los datos de ${currentUser.nombre} han sido actualizados.` });
             } else {
+                // CREAR USUARIO
                 if (!company) throw new Error("No se ha cargado la empresa");
                 if (!currentUser.email || !currentUser.nombre || !currentUser.role || !currentUser.password) {
                     throw new Error("Email, nombre, rol y contraseña son obligatorios.");
                 }
+
+                // --- INICIO DE INSTRUMENTACIÓN ---
+                const u = firebaseAuth.currentUser;
+                if (!u) throw new Error("No hay usuario autenticado");
+
+                await u.getIdToken(true); // Forzar refresco
+                const tok = await u.getIdTokenResult();
+                
+                const debugData = {
+                    email: u.email,
+                    uid: u.uid,
+                    projectId: firebaseAuth.app.options.projectId,
+                    functionsRegion: firebaseFunctions.region,
+                    role: (tok.claims as any).role,
+                    claims: tok.claims,
+                };
+                
+                console.log("DEBUG AUTH", debugData);
+                setDebugInfo(debugData);
+                // --- FIN DE INSTRUMENTACIÓN ---
 
                 const createCompanyUser = httpsCallable(firebaseFunctions, 'createCompanyUser');
                 await createCompanyUser({
@@ -202,7 +191,7 @@ export default function AdminEmpresaUsuariosPage() {
             console.error("Error al guardar:", err);
             const errorMessage = err.message || "Ocurrió un problema.";
             setError(errorMessage);
-            setDebugInfo(prev => ({ ...prev, callError: { code: err.code, message: err.message } }));
+            setDebugInfo(prev => ({ ...prev, callError: { code: err.code, message: err.message, details: err.details } }));
             toast({ variant: "destructive", title: "Error al guardar", description: errorMessage });
         } finally {
             setIsSaving(false);
