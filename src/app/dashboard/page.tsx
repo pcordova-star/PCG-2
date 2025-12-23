@@ -158,13 +158,13 @@ const allMainModules = [
   },
   {
     id: 'formularios',
-    title: 'Formularios Dinámicos',
-    description: 'Crea y gestiona plantillas de checklists para inspecciones, auditorías y controles de seguridad o calidad.',
-    href: '/prevencion/formularios-dinamicos/plantillas',
+    title: 'Listas de Chequeo / Formularios',
+    description: 'Crea y gestiona plantillas para inspecciones, auditorías y controles de seguridad o calidad.',
+    href: '/operaciones/checklists',
     icon: FileSignature,
-    linkText: 'Ir a Formularios',
+    linkText: 'Ir a Listas de Chequeo',
     tooltip: 'Gestiona plantillas de listas de chequeo para toda la empresa.',
-    roles: ['superadmin', 'admin_empresa', 'jefe_obra', 'prevencionista']
+    roles: ['superadmin', 'admin_empresa', 'jefe_obra']
   },
   {
     id: 'rdi',
