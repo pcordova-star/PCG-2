@@ -1,20 +1,16 @@
 // functions/src/createCompanyUser.ts
 import { onCall, HttpsError } from "firebase-functions/v2/https";
 import * as admin from "firebase-admin";
+import * as logger from "firebase-functions/logger";
 
 if (!admin.apps.length) {
   admin.initializeApp();
 }
 
 function buildAcceptInviteUrl(invId: string, email: string): string {
-  const rawBaseUrl = "https://pcg-2-8bf1b.web.app";
-
-  if (!rawBaseUrl) {
-    console.error("CRÍTICO: No se pudo determinar la URL base de la aplicación. No se puede crear un enlace de invitación válido.");
-    throw new HttpsError("internal", "El servidor no está configurado correctamente para enviar invitaciones. Falta la URL base de la aplicación.");
-  }
+  // SOLUCIÓN DEFINITIVA: Usar una constante hardcodeada para la URL de producción.
+  const appBaseUrl = "https://www.pcgoperacion.com";
   
-  const appBaseUrl = rawBaseUrl.replace(/\/+$/, "");
   return `${appBaseUrl}/accept-invite?invId=${encodeURIComponent(invId)}&email=${encodeURIComponent(email)}`;
 }
 
@@ -32,19 +28,36 @@ export const createCompanyUser = onCall(
 
     const ctx = request.auth;
 
+    // --- INICIO DE INSTRUMENTACIÓN 1 ---
+    logger.info("DEBUG CALLER", {
+      uid: ctx?.uid,
+      tokenRole: (ctx?.token as any)?.role,
+      tokenClaimsKeys: ctx?.token ? Object.keys(ctx.token) : null,
+    });
+    // --- FIN DE INSTRUMENTACIÓN 1 ---
+
+
     // 1. Validar que el usuario está autenticado
     if (!ctx) {
       throw new HttpsError("unauthenticated", "No autenticado.");
     }
 
     // 2. Validar que el usuario es SUPER_ADMIN vía customClaims
-    const requesterClaims = await auth.getUser(ctx.uid);
-    if (requesterClaims.customClaims?.role !== "superadmin") {
+    // Se elimina la validación estricta de companyId para el superadmin.
+    if (ctx.token.role !== "superadmin") {
       throw new HttpsError(
         "permission-denied",
         "Solo SUPER_ADMIN puede crear usuarios."
       );
     }
+
+    // --- INICIO DE INSTRUMENTACIÓN 2 ---
+    const ur = await admin.auth().getUser(request.auth!.uid);
+    logger.info("DEBUG ADMIN USER", {
+      uid: ur.uid,
+      customClaims: ur.customClaims,
+    });
+    // --- FIN DE INSTRUMENTACIÓN 2 ---
 
     // 3. Validar payload de entrada
     const data = request.data as {
