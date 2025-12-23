@@ -5,13 +5,7 @@
  * Cada función se importa desde su propio archivo y se exporta para que Firebase la despliegue.
  */
 
-import { initializeApp, getApps } from "firebase-admin/app";
 import { setGlobalOptions } from "firebase-functions/v2";
-
-// Inicializa Firebase Admin SDK solo si no se ha hecho antes.
-if (getApps().length === 0) {
-  initializeApp();
-}
 
 // Establece opciones globales para todas las funciones v2, asegurando la región.
 // Se elimina la cuenta de servicio explícita para usar la default de App Engine.
@@ -23,7 +17,6 @@ setGlobalOptions({
 // Exporta las funciones callable para que estén disponibles en el backend.
 // El nombre de la propiedad del objeto exportado será el nombre de la función en Firebase.
 export { createCompanyUser } from "./createCompanyUser";
-export { setSuperAdminClaim } from "./setSuperAdmin";
 export { registrarAvanceRapido } from "./registrarAvanceRapido";
 export { convertHeicToJpg } from "./convertHeic";
 export { notifyDocumentDistribution } from "./notifyDocumentDistribution";
@@ -33,5 +26,7 @@ export { notifyDocumentDistribution } from "./notifyDocumentDistribution";
 // export { checkUserExistsByEmail } from "./checkUserExistsByEmail";
 // export { testGoogleAi } from "./test-google-ai";
 
-// La siguiente línea está comentada porque el archivo de origen fue eliminado.
-// export { getSecureDownloadUrl } from "./secureDownload";
+
+// La función setSuperAdminClaim se omite intencionalmente de la exportación
+// para deshabilitarla en producción, ya que solo era necesaria para el bootstrap inicial.
+// El archivo se conserva por si se necesita en el futuro, pero no estará desplegada.

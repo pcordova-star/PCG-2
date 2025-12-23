@@ -33,7 +33,6 @@ async function ensureUserDocForAuthUser(firebaseUser: User) {
 
   if (!userSnap.exists()) {
     // Si el documento no existe, lo creamos con valores por defecto.
-    // El rol y empresa se poblarán más adelante a través de custom claims o un flujo de invitación.
     const newUserDoc: Omit<AppUser, "id"> = {
       nombre: firebaseUser.displayName || firebaseUser.email || "Usuario sin nombre",
       email: firebaseUser.email!,
@@ -81,11 +80,28 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             const idTokenResult = await firebaseUser.getIdTokenResult(true);
             const claims = idTokenResult.claims;
 
-            const userRole = (claims.role as UserRole) || 'none';
+            // Primero, intentar obtener desde los claims
+            let userRole = (claims.role as UserRole) || 'none';
+            let userCompanyId = (claims.companyId as string) || null;
+
+            // Si los claims no son suficientes, consultar Firestore como fallback
+            if (userRole === 'none' || !userCompanyId) {
+                const userDocRef = doc(firebaseDb, "users", firebaseUser.uid);
+                const userDocSnap = await getDoc(userDocRef);
+                if (userDocSnap.exists()) {
+                    const userDocData = userDocSnap.data() as AppUser;
+                    if (userRole === 'none') {
+                        userRole = (userDocData.role as UserRole) || 'none';
+                    }
+                    if (!userCompanyId) {
+                        userCompanyId = userDocData.empresaId || null;
+                    }
+                }
+            }
+
             setRole(userRole);
-            
-            setCompanyId((claims.companyId as string) || null);
-            setUser(firebaseUser); // Set user only after successful claim retrieval
+            setCompanyId(userCompanyId);
+            setUser(firebaseUser);
             
             // Redirección explícita si el usuario está logueado y en la página de login
             if (pathname.startsWith('/login/usuario')) {
@@ -94,7 +110,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
         } catch (error) {
             console.error("Error al procesar el token de autenticación (posiblemente expirado):", error);
-            // Si falla la obtención del token, cerramos la sesión para evitar bucles.
             setUser(null);
             setRole("none");
             setCompanyId(null);
@@ -109,11 +124,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     });
 
     return () => unsub();
-  }, [router, pathname]);
+  }, []);
 
   async function login(email: string, password: string) {
     await signInWithEmailAndPassword(firebaseAuth, email, password);
-    // onAuthStateChanged se encargará del resto
   }
 
   async function logout() {
