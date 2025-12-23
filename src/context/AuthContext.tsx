@@ -75,12 +75,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const unsub = onAuthStateChanged(firebaseAuth, async (firebaseUser) => {
       setLoading(true);
       if (firebaseUser) {
-        // Asegurar que el documento del usuario exista en Firestore.
-        await ensureUserDocForAuthUser(firebaseUser);
-        
-        setUser(firebaseUser);
         
         try {
+            await ensureUserDocForAuthUser(firebaseUser);
             const idTokenResult = await firebaseUser.getIdTokenResult(true);
             const claims = idTokenResult.claims;
 
@@ -88,14 +85,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             setRole(userRole);
             
             setCompanyId((claims.companyId as string) || null);
+            setUser(firebaseUser); // Set user only after successful claim retrieval
             
             // Redirección explícita si el usuario está logueado y en la página de login
-            if (pathname.startsWith('/login')) {
+            if (pathname.startsWith('/login/usuario')) {
                  router.replace('/dashboard');
             }
 
         } catch (error) {
-            console.error("Error al procesar el token de autenticación:", error);
+            console.error("Error al procesar el token de autenticación (posiblemente expirado):", error);
+            // Si falla la obtención del token, cerramos la sesión para evitar bucles.
+            setUser(null);
             setRole("none");
             setCompanyId(null);
             await signOut(firebaseAuth);
