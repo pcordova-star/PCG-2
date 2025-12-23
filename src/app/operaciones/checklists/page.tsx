@@ -13,7 +13,7 @@ export default function OperacionesChecklistsPage() {
     return (
         <div className="space-y-6">
             <header className="flex items-center gap-4">
-                <Button variant="outline" size="icon" onClick={() => router.push('/operaciones')}>
+                <Button variant="outline" size="icon" onClick={() => router.push('/dashboard')}>
                     <ArrowLeft />
                 </Button>
                 <div>
