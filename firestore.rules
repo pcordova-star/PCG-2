@@ -8,41 +8,48 @@ service cloud.firestore {
       return request.auth != null;
     }
 
-    function getRole() {
-      return isSignedIn() ? request.auth.token.role : null;
+    function getUserRole(uid) {
+      return get(/databases/$(database)/documents/users/$(uid)).data.role;
     }
 
     function isSuperadmin() {
-      return getRole() == "superadmin";
+      // El rol de superadmin se valida leyendo el perfil del usuario que hace la petición.
+      return isSignedIn() && getUserRole(request.auth.uid) == "superadmin";
     }
     
     function isAdminEmpresa() {
-      return getRole() == "admin_empresa";
+      return isSignedIn() && getUserRole(request.auth.uid) == "admin_empresa";
     }
 
     function getAuthCompanyId() {
-      return isSignedIn() ? request.auth.token.companyId : null;
-    }
-    
-    function getAuthEmail() {
-      return isSignedIn() ? request.auth.token.email : null;
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data.empresaId;
     }
     
     // --------- Regla para companies (SUPERADMIN) ---------
     match /companies/{companyId} {
-      // Superadmin puede leer para gestionar y crear usuarios.
-      // La escritura se maneja desde un panel de admin específico.
-      allow read: if isSuperadmin();
+      // Superadmin puede leer y escribir para gestionar empresas.
+      allow read, write: if isSuperadmin();
+    }
+    
+    // --------- Regla para users/{uid} ---------
+    match /users/{userId} {
+      // Un usuario puede leer su propio perfil.
+      allow get: if isSignedIn() && request.auth.uid == userId;
+      // La creación y actualización de perfiles se maneja desde el backend (AuthContext en primer login)
+      // o funciones de confianza. Se permite la escritura si está autenticado para el flujo de activación.
+      allow write: if isSignedIn();
     }
 
     // --------- Regla para invitacionesUsuarios ---------
     match /invitacionesUsuarios/{inviteId} {
-      allow create: if isSuperadmin() || isAdminEmpresa();
+      // Superadmin puede crear invitaciones.
+      allow create: if isSuperadmin();
 
-      allow read, update, delete: if 
-        isSuperadmin() ||
-        (getAuthCompanyId() == resource.data.empresaId) ||
-        (getAuthEmail() == resource.data.emailInvitado);
+      // El usuario puede leer su propia invitación durante el proceso de activación.
+      allow read: if isSignedIn() && request.auth.token.email == resource.data.email;
+      
+      // El usuario autenticado puede actualizar su propia invitación para marcarla como 'activada'.
+      allow update: if isSignedIn() && request.auth.uid == request.resource.data.uid;
     }
     
     // Documentos corporativos (empresa)
@@ -62,7 +69,6 @@ service cloud.firestore {
       allow read: if isSignedIn() && getAuthCompanyId() == resource.data.companyId;
       allow write: if isSuperadmin() || isAdminEmpresa(); // solo backend normally
     }
-
 
     // --------- Reglas ultra abiertas para el resto (desarrollo) ---------
     match /{document=**} {
