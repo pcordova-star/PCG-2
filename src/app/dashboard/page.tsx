@@ -139,6 +139,16 @@ const allMainModules = [
     roles: ['superadmin', 'admin_empresa', 'jefe_obra']
   },
    {
+    id: 'estados_de_pago',
+    title: 'Estados de Pago',
+    description: 'Gestiona y visualiza el avance económico de tus obras en base a los contratos y avances registrados.',
+    href: '/operaciones/estados-de-pago',
+    icon: DollarSign,
+    linkText: 'Ir a Estados de Pago',
+    tooltip: 'Necesitas una obra con programación y avances para usar este módulo.',
+    roles: ['superadmin', 'admin_empresa', 'jefe_obra']
+  },
+  {
     id: 'prevencion',
     title: 'Prevención de Riesgos',
     description: 'Gestiona la seguridad: IPER, incidentes, charlas, DS44 y control documental de contratistas.',
@@ -155,16 +165,6 @@ const allMainModules = [
     icon: BookCopy,
     linkText: 'Ir a Documentos',
     roles: ['superadmin', 'admin_empresa', 'prevencionista']
-  },
-  {
-    id: 'formularios',
-    title: 'Listas de Chequeo / Formularios',
-    description: 'Crea y gestiona plantillas para inspecciones, auditorías y controles de seguridad o calidad.',
-    href: '/operaciones/checklists',
-    icon: FileSignature,
-    linkText: 'Ir a Listas de Chequeo',
-    tooltip: 'Gestiona plantillas de listas de chequeo para toda la empresa.',
-    roles: ['superadmin', 'admin_empresa', 'jefe_obra']
   },
   {
     id: 'rdi',
@@ -296,7 +296,7 @@ export default function DashboardPage() {
             const [rdiSnap, avancesSnap, edpSnap] = await Promise.all([
                 getDocs(rdiQuery),
                 getDocs(avancesQuery),
-                getDocs(edpQuery)
+                getDocs(edpSnap)
             ]);
 
             let rdiItems: ActivityItem[] = rdiSnap.docs

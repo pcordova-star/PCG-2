@@ -13,13 +13,6 @@ export default function OperacionesPage() {
       linkText: "Ir a Programación"
     },
     {
-      title: "Estados de Pago",
-      description: "Gestiona y visualiza el avance económico de tus obras.",
-      href: "/operaciones/estados-de-pago",
-      icon: DollarSign,
-      linkText: "Ir a Estados de Pago"
-    },
-    {
       title: "Itemizados",
       description: "Administra tu catálogo de ítems y crea itemizados por obra.",
       href: "/operaciones/presupuestos",
