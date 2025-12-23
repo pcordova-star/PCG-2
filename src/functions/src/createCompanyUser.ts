@@ -33,14 +33,13 @@ export const createCompanyUser = onCall(
 
     const ctx = request.auth;
 
-    // --- INICIO DE INSTRUMENTACIÓN ---
-    logger.info("createCompanyUser: Invocada la función.", {
-        authContext: {
-            uid: ctx?.uid,
-            tokenRole: ctx?.token.role,
-        }
+    // --- INICIO DE INSTRUMENTACIÓN 1 ---
+    logger.info("DEBUG CALLER", {
+      uid: ctx?.uid,
+      tokenRole: (ctx?.token as any)?.role,
+      tokenClaimsKeys: ctx?.token ? Object.keys(ctx.token) : null,
     });
-    // --- FIN DE INSTRUMENTACIÓN ---
+    // --- FIN DE INSTRUMENTACIÓN 1 ---
 
 
     // 1. Validar que el usuario está autenticado
@@ -51,14 +50,13 @@ export const createCompanyUser = onCall(
     // 2. Validar que el usuario es SUPER_ADMIN vía customClaims
     const requesterClaims = await auth.getUser(ctx.uid);
     
-    // --- INICIO DE INSTRUMENTACIÓN ---
-    logger.info("createCompanyUser: Verificando claims del invocador.", {
-        uid: ctx.uid,
-        customClaims: requesterClaims.customClaims,
-        // Log solo las llaves para no exponer valores sensibles
-        claimKeys: requesterClaims.customClaims ? Object.keys(requesterClaims.customClaims) : [],
+    // --- INICIO DE INSTRUMENTACIÓN 2 ---
+    const ur = await admin.auth().getUser(request.auth!.uid);
+    logger.info("DEBUG ADMIN USER", {
+      uid: ur.uid,
+      customClaims: ur.customClaims,
     });
-    // --- FIN DE INSTRUMENTACIÓN ---
+    // --- FIN DE INSTRUMENTACIÓN 2 ---
 
     if (requesterClaims.customClaims?.role !== "superadmin") {
       throw new HttpsError(
