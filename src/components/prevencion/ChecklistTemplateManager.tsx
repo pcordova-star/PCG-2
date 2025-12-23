@@ -7,7 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter }
 import { collection, query, where, orderBy, onSnapshot, addDoc, serverTimestamp, doc, updateDoc, deleteDoc, WhereFilterOp } from 'firebase/firestore';
 import { firebaseDb } from '@/lib/firebaseClient';
 import { useAuth } from '@/context/AuthContext';
-import { Loader2, Edit, Trash2 } from 'lucide-react';
+import { Loader2, Edit, Trash2, PlusCircle } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -120,13 +120,17 @@ export default function ChecklistTemplateManager({ categoryFilter, title, descri
                     <CardTitle>{title}</CardTitle>
                     <CardDescription>{description}</CardDescription>
                 </div>
+                 <Button onClick={() => handleOpenForm()}>
+                    <PlusCircle className="mr-2" />
+                    Nueva Plantilla
+                </Button>
             </CardHeader>
             <CardContent>
                 {loading ? (
                     <div className="text-center py-8"><Loader2 className="animate-spin mx-auto" /></div>
                 ) : plantillas.length === 0 ? (
-                    <div className="text-center py-8 text-muted-foreground">
-                        <p>No hay plantillas en esta categoría.</p>
+                    <div className="text-center py-8 text-muted-foreground border-2 border-dashed rounded-lg">
+                        <p>No hay plantillas en esta categoría. ¡Crea la primera!</p>
                     </div>
                 ) : (
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">

@@ -11,7 +11,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { ArrowLeft, PlusCircle, Save, Trash2, ArrowUp, ArrowDown, Edit, X, Settings, Loader2 } from 'lucide-react';
+import { ArrowLeft, PlusCircle, Save, Trash2, ArrowUp, ArrowDown, Edit, X, Settings, Loader2, Play } from 'lucide-react';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import { OperationalChecklistTemplate, ChecklistSection, ChecklistItem } from '@/types/pcg';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from '@/components/ui/dialog';
@@ -22,13 +22,13 @@ import { Textarea } from '@/components/ui/textarea';
 const initialTemplate: Omit<OperationalChecklistTemplate, 'id' | 'createdAt' | 'createdBy' | 'companyId'> = {
     titulo: 'Nueva Plantilla',
     descripcion: '',
-    status: 'draft',
+    status: 'inactive',
     secciones: [],
 };
 
 const initialItem: Omit<ChecklistItem, 'id' | 'order'> = {
     label: 'Nuevo Ítem',
-    type: 'checkbox',
+    type: 'boolean',
     required: false,
     options: [],
     allowComment: false,
@@ -189,7 +189,7 @@ export default function TemplateEditorPage() {
         if (publish && !validateTemplate()) return;
 
         setIsSaving(true);
-        const dataToSave: Partial<OperationalChecklistTemplate> = { ...template, status: publish ? 'active' : 'draft' };
+        const dataToSave: Partial<OperationalChecklistTemplate> = { ...template, status: publish ? 'active' : 'inactive' };
         
         try {
             if (isNew) {
@@ -240,6 +240,13 @@ export default function TemplateEditorPage() {
                         {isSaving ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <Save className="mr-2 h-4 w-4"/>}
                         Guardar y Publicar
                     </Button>
+                     {!isNew && (
+                        <Button asChild>
+                            <Link href={`/checklists-operacionales/ejecutar/${templateId}`}>
+                                <Play className="mr-2 h-4 w-4" /> Usar esta Plantilla
+                            </Link>
+                        </Button>
+                    )}
                 </div>
             </header>
 
@@ -341,7 +348,7 @@ export default function TemplateEditorPage() {
                                 <Select value={editingItem.item.type} onValueChange={(v) => setEditingItem(prev => prev ? {...prev, item: {...prev.item!, type: v as ChecklistItem['type']}} : null)}>
                                     <SelectTrigger><SelectValue /></SelectTrigger>
                                     <SelectContent>
-                                        <SelectItem value="checkbox">Checkbox (Sí/No/N.A.)</SelectItem>
+                                        <SelectItem value="boolean">Checkbox (Sí/No/N.A.)</SelectItem>
                                         <SelectItem value="text">Texto</SelectItem>
                                         <SelectItem value="number">Número</SelectItem>
                                         <SelectItem value="select">Selección</SelectItem>
@@ -356,9 +363,7 @@ export default function TemplateEditorPage() {
                             )}
                              <div className="flex items-center justify-between pt-4">
                                 <Label className="flex items-center gap-2 font-normal"><Checkbox checked={editingItem.item.required} onCheckedChange={c => setEditingItem(prev => prev ? {...prev, item: {...prev.item!, required: !!c}} : null)}/> Obligatorio</Label>
-                                <Label className="flex items-center gap-2 font-normal"><Checkbox checked={editingItem.item.allowComment} onCheckedChange={c => setEditingItem(prev => prev ? {...prev, item: {...prev.item!, allowComment: !!c}} : null)}/> Permitir comentario</Label>
-                                <Label className="flex items-center gap-2 font-normal"><Checkbox checked={editingItem.item.allowPhoto} onCheckedChange={c => setEditingItem(prev => prev ? {...prev, item: {...prev.item!, allowPhoto: !!c}} : null)}/> Permitir foto</Label>
-                            </div>
+                             </div>
                         </div>
                     )}
                     <DialogFooter>

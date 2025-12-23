@@ -7,7 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter }
 import { collection, query, where, orderBy, onSnapshot, doc, updateDoc, deleteDoc } from 'firebase/firestore';
 import { firebaseDb } from '@/lib/firebaseClient';
 import { useAuth } from '@/context/AuthContext';
-import { Loader2, Edit, Trash2, PlusCircle, ArrowLeft, Copy, Eye } from 'lucide-react';
+import { Loader2, Edit, Trash2, PlusCircle, ArrowLeft, Copy, Eye, Play } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import { OperationalChecklistTemplate } from '@/types/pcg';
@@ -60,7 +60,7 @@ export default function OperationalChecklistTemplatesPage() {
     }
 
     const toggleStatus = async (template: OperationalChecklistTemplate) => {
-        const newStatus = template.status === 'active' ? 'draft' : 'active';
+        const newStatus = template.status === 'active' ? 'inactive' : 'active';
         try {
             const docRef = doc(firebaseDb, "operationalChecklistTemplates", template.id);
             await updateDoc(docRef, { status: newStatus });
@@ -118,7 +118,7 @@ export default function OperationalChecklistTemplatesPage() {
                                         <div className="flex justify-between items-start">
                                             <CardTitle className="text-lg">{template.titulo}</CardTitle>
                                             <Badge variant={template.status === 'active' ? 'default' : 'secondary'}>
-                                                {template.status === 'active' ? 'Activa' : 'Borrador'}
+                                                {template.status === 'active' ? 'Activa' : 'Inactiva'}
                                             </Badge>
                                         </div>
                                         <CardDescription>{template.descripcion}</CardDescription>
@@ -136,6 +136,9 @@ export default function OperationalChecklistTemplatesPage() {
                                             {template.status === 'active' ? 'Desactivar' : 'Activar'}
                                         </Button>
                                         <div className="flex gap-1">
+                                             <Button variant="outline" size="sm" asChild>
+                                                <Link href={`/checklists-operacionales/ejecutar/${template.id}`}><Play className="mr-2 h-4 w-4"/>Usar</Link>
+                                            </Button>
                                             <AlertDialog>
                                                 <AlertDialogTrigger asChild>
                                                     <Button variant="ghost" size="icon" className="text-destructive"><Trash2 className="h-4 w-4" /></Button>

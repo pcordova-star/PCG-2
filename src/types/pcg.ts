@@ -501,7 +501,7 @@ export interface Rdi {
 // --- CHECKLISTS ---
 
 // Tipos comunes para ítems de checklist
-export type ChecklistItemType = "checkbox" | "text" | "number" | "select";
+export type ChecklistItemType = "boolean" | "text" | "number" | "select";
 
 export interface ChecklistItem {
     id: string;
@@ -527,28 +527,28 @@ export interface OperationalChecklistTemplate {
     companyId: string;
     titulo: string;
     descripcion: string;
-    status: 'draft' | 'active';
+    status: 'draft' | 'active' | 'inactive';
     secciones: ChecklistSection[];
     createdAt: Timestamp;
-    updatedAt: Timestamp;
+    updatedAt?: Timestamp;
     createdBy: string;
 }
 
 // Respuestas de Checklists OPERACIONALES
-export interface OperationalChecklistResponse {
+export interface OperationalChecklistRecord {
     id: string;
     companyId: string;
-    obraId: string;
+    obraId?: string;
     templateId: string;
-    templateTitle: string;
-    userId: string;
-    userName: string;
-    createdAt: Timestamp;
-    updatedAt: Timestamp;
+    templateTitleSnapshot: string;
+    filledByUid: string;
+    filledByEmail: string;
+    filledAt: Timestamp;
     answers: Record<string, any>; // Clave es el itemId
+    observations?: string;
+    signature?: { type: "none"|"typed"; name?: string };
+    pdf: { generated: boolean, dataUri?: string };
     status: "draft" | "submitted";
-    pdfUrl?: string;
-    signatureUrl?: string; // Firma opcional
 }
 
 
