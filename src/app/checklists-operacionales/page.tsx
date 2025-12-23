@@ -1,10 +1,14 @@
+// src/app/checklists-operacionales/page.tsx
 "use client";
 
 import { Button } from "@/components/ui/button";
 import { ArrowLeft, ListChecks, FilePlus } from "lucide-react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 
 export default function ChecklistsOperacionalesPage() {
+  const router = useRouter();
+
   return (
     <div className="space-y-6">
       <header className="flex items-center gap-4">
