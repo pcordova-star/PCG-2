@@ -55,11 +55,11 @@ export default function PrevencionPage() {
       linkText: "Ir a Formularios"
     },
     {
-      title: "Formularios Dinámicos (Checklists)",
-      description: "Crea y responde checklists personalizados para inspecciones, auditorías y controles de calidad o seguridad.",
-      href: "/prevencion/formularios-dinamicos",
+      title: "Listas de Chequeo (Plantillas)",
+      description: "Crea y gestiona las plantillas de checklists para inspecciones, auditorías y controles de calidad o seguridad.",
+      href: "/prevencion/formularios-dinamicos/plantillas",
       icon: FileSignature,
-      linkText: "Ir a Formularios"
+      linkText: "Gestionar Plantillas"
     },
     {
       title: "Capacitación e inducciones",
