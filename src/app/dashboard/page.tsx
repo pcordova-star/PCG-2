@@ -26,6 +26,7 @@ import {
   TrendingUp,
   DollarSign,
   BrainCircuit,
+  FileSignature,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useEffect, useState } from 'react';
@@ -154,6 +155,16 @@ const allMainModules = [
     icon: BookCopy,
     linkText: 'Ir a Documentos',
     roles: ['superadmin', 'admin_empresa', 'prevencionista']
+  },
+  {
+    id: 'formularios',
+    title: 'Formularios Dinámicos',
+    description: 'Crea y gestiona plantillas de checklists para inspecciones, auditorías y controles de seguridad o calidad.',
+    href: '/prevencion/formularios-dinamicos/plantillas',
+    icon: FileSignature,
+    linkText: 'Ir a Formularios',
+    tooltip: 'Gestiona plantillas de listas de chequeo para toda la empresa.',
+    roles: ['superadmin', 'admin_empresa', 'jefe_obra', 'prevencionista']
   },
   {
     id: 'rdi',
