@@ -3,28 +3,38 @@
 
 import { useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { doc, getDoc, setDoc, addDoc, updateDoc, serverTimestamp, collection } from 'firebase/firestore';
+import { doc, getDoc, updateDoc, addDoc, serverTimestamp, collection } from 'firebase/firestore';
 import { firebaseDb } from '@/lib/firebaseClient';
 import { useAuth } from '@/context/AuthContext';
 import { useToast } from '@/hooks/use-toast';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { ArrowLeft, PlusCircle, Save, Trash2, ArrowUp, ArrowDown, Edit, X, Settings, Loader2 } from 'lucide-react';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import { OperationalChecklistTemplate, ChecklistSection, ChecklistItem } from '@/types/pcg';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from '@/components/ui/dialog';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Textarea } from '@/components/ui/textarea';
 
-const initialTemplate: Partial<OperationalChecklistTemplate> = {
+const initialTemplate: Omit<OperationalChecklistTemplate, 'id' | 'createdAt' | 'createdBy' | 'companyId'> = {
     titulo: 'Nueva Plantilla',
     descripcion: '',
     status: 'draft',
     secciones: [],
 };
+
+const initialItem: Omit<ChecklistItem, 'id' | 'order'> = {
+    label: 'Nuevo Ítem',
+    type: 'checkbox',
+    required: false,
+    options: [],
+    allowComment: false,
+    allowPhoto: false
+};
+
 
 export default function TemplateEditorPage() {
     const { templateId } = useParams();
@@ -35,7 +45,7 @@ export default function TemplateEditorPage() {
     const [template, setTemplate] = useState<Partial<OperationalChecklistTemplate>>(initialTemplate);
     const [loading, setLoading] = useState(true);
     const [isSaving, setIsSaving] = useState(false);
-    const [isNew, setIsNew] = useState(false);
+    const isNew = templateId === 'nuevo';
 
     const [editingSection, setEditingSection] = useState<ChecklistSection | null>(null);
     const [editingItem, setEditingItem] = useState<{ sectionId: string; item: ChecklistItem | null } | null>(null);
@@ -44,7 +54,6 @@ export default function TemplateEditorPage() {
         if (!user || !companyId) return;
 
         if (templateId === 'nuevo') {
-            setIsNew(true);
             setTemplate({ ...initialTemplate, companyId });
             setLoading(false);
         } else {
@@ -97,18 +106,28 @@ export default function TemplateEditorPage() {
     };
 
     const addItem = (sectionId: string) => {
-        setEditingItem({ sectionId, item: { id: crypto.randomUUID(), label: 'Nuevo ítem', type: 'checkbox', order: 1, required: false } });
+        const section = template.secciones?.find(s => s.id === sectionId);
+        if (!section) return;
+
+        setEditingItem({ 
+            sectionId, 
+            item: { 
+                id: crypto.randomUUID(), 
+                order: (section.items?.length || 0) + 1, 
+                ...initialItem 
+            } 
+        });
     };
 
-    const updateItem = (item: ChecklistItem) => {
+    const updateItem = (itemToSave: ChecklistItem) => {
         if (!editingItem) return;
         const newSections = template.secciones?.map(s => {
             if (s.id === editingItem.sectionId) {
-                const existing = s.items.find(i => i.id === item.id);
+                const existing = s.items?.find(i => i.id === itemToSave.id);
                 const newItems = existing
-                    ? s.items.map(i => i.id === item.id ? item : i)
-                    : [...s.items, { ...item, order: s.items.length + 1 }];
-                return { ...s, items: newItems };
+                    ? s.items.map(i => i.id === itemToSave.id ? itemToSave : i)
+                    : [...(s.items || []), itemToSave];
+                return { ...s, items: newItems.sort((a, b) => a.order - b.order) };
             }
             return s;
         });
@@ -170,7 +189,7 @@ export default function TemplateEditorPage() {
         if (publish && !validateTemplate()) return;
 
         setIsSaving(true);
-        const dataToSave = { ...template, status: publish ? 'active' : 'draft' };
+        const dataToSave: Partial<OperationalChecklistTemplate> = { ...template, status: publish ? 'active' : 'draft' };
         
         try {
             if (isNew) {
@@ -231,11 +250,11 @@ export default function TemplateEditorPage() {
                 <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div className="space-y-2">
                         <Label htmlFor="template-title">Título de la Plantilla</Label>
-                        <Input id="template-title" value={template.titulo} onChange={e => updateField('titulo', e.target.value)} />
+                        <Input id="template-title" value={template.titulo ?? ''} onChange={e => updateField('titulo', e.target.value)} />
                     </div>
                     <div className="space-y-2">
                         <Label htmlFor="template-desc">Descripción</Label>
-                        <Input id="template-desc" value={template.descripcion} onChange={e => updateField('descripcion', e.target.value)} />
+                        <Textarea id="template-desc" value={template.descripcion ?? ''} onChange={e => updateField('descripcion', e.target.value)} />
                     </div>
                 </CardContent>
             </Card>
@@ -298,7 +317,7 @@ export default function TemplateEditorPage() {
                     <DialogHeader><DialogTitle>Editar Sección</DialogTitle></DialogHeader>
                     <div className="py-4">
                         <Label htmlFor="section-title">Título de la Sección</Label>
-                        <Input id="section-title" value={editingSection?.title} onChange={e => setEditingSection(prev => prev ? {...prev, title: e.target.value} : null)} />
+                        <Input id="section-title" value={editingSection?.title ?? ''} onChange={e => setEditingSection(prev => prev ? {...prev, title: e.target.value} : null)} />
                     </div>
                     <DialogFooter>
                         <Button variant="ghost" onClick={() => setEditingSection(null)}>Cancelar</Button>
@@ -315,7 +334,7 @@ export default function TemplateEditorPage() {
                         <div className="space-y-4 py-4">
                              <div className="space-y-2">
                                 <Label>Etiqueta / Pregunta</Label>
-                                <Input value={editingItem.item.label} onChange={e => setEditingItem(prev => prev ? {...prev, item: {...prev.item!, label: e.target.value}} : null)} />
+                                <Input value={editingItem.item.label ?? ''} onChange={e => setEditingItem(prev => prev ? {...prev, item: {...prev.item!, label: e.target.value}} : null)} />
                             </div>
                             <div className="space-y-2">
                                 <Label>Tipo de Campo</Label>
@@ -332,7 +351,7 @@ export default function TemplateEditorPage() {
                             {editingItem.item.type === 'select' && (
                                 <div className="space-y-2">
                                     <Label>Opciones (separadas por coma)</Label>
-                                    <Input value={editingItem.item.options?.join(', ')} onChange={e => setEditingItem(prev => prev ? {...prev, item: {...prev.item!, options: e.target.value.split(',').map(s => s.trim())}} : null)} />
+                                    <Input value={editingItem.item.options?.join(', ') ?? ''} onChange={e => setEditingItem(prev => prev ? {...prev, item: {...prev.item!, options: e.target.value.split(',').map(s => s.trim())}} : null)} />
                                 </div>
                             )}
                              <div className="flex items-center justify-between pt-4">
