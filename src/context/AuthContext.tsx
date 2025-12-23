@@ -15,7 +15,7 @@ import {
   ReactNode,
 } from "react";
 import { firebaseAuth, firebaseDb } from "@/lib/firebaseClient"; // Se importa firebaseAuth directamente
-import { useRouter, usePathname } from "next/navigation";
+import { useRouter } from "next/navigation";
 import { doc, getDoc, setDoc, serverTimestamp, collection, query, where, getDocs, writeBatch } from "firebase/firestore";
 import { resolveRole, UserRole } from "@/lib/roles";
 import { AppUser, UserInvitation } from "@/types/pcg";
@@ -32,74 +32,12 @@ type AuthContextValue = {
 
 const AuthContext = createContext<AuthContextValue | undefined>(undefined);
 
-async function ensureUserDocForAuthUser(user: User): Promise<AppUser | null> {
-    const userDocRef = doc(firebaseDb, "users", user.uid);
-    let userDocSnap = await getDoc(userDocRef);
-    
-    // Si ya existe un perfil con empresaId, no hacemos nada más.
-    if (userDocSnap.exists() && userDocSnap.data().empresaId) {
-        return { id: userDocSnap.id, ...userDocSnap.data() } as AppUser;
-    }
-
-    const emailLower = user.email!.toLowerCase().trim();
-
-    // Buscamos si hay una invitación aceptada (no pendiente) para este correo.
-    const invitationsRef = collection(firebaseDb, "invitacionesUsuarios");
-    const q = query(
-        invitationsRef,
-        where("email", "==", emailLower),
-        where("estado", "==", "aceptada") // Importante: solo las aceptadas
-    );
-    const invitationSnapshot = await getDocs(q);
-
-    if (!invitationSnapshot.empty) {
-        const firstInvitation = invitationSnapshot.docs[0];
-        const invitationData = firstInvitation.data() as UserInvitation;
-        
-        const newUserProfile: Omit<AppUser, 'id'> = {
-            email: emailLower,
-            nombre: user.displayName || user.email!.split('@')[0],
-            empresaId: invitationData.empresaId,
-            role: invitationData.roleDeseado,
-            createdAt: serverTimestamp(),
-            activo: true,
-        };
-
-        const batch = writeBatch(firebaseDb);
-        batch.set(userDocRef, newUserProfile, { merge: true });
-        
-        await batch.commit();
-
-        userDocSnap = await getDoc(userDocRef);
-        return { id: user.uid, ...userDocSnap.data() } as AppUser;
-    }
-
-    if (!userDocSnap.exists()) {
-        const newUserProfile: Omit<AppUser, 'id'> = {
-            email: emailLower,
-            nombre: user.displayName || user.email!.split('@')[0],
-            empresaId: null,
-            role: "none",
-            createdAt: serverTimestamp(),
-            activo: true,
-        };
-        await setDoc(userDocRef, newUserProfile);
-        userDocSnap = await getDoc(userDocRef);
-        return { id: user.uid, ...userDocSnap.data() } as AppUser;
-    }
-    
-    return { id: userDocSnap.id, ...userDocSnap.data() } as AppUser;
-}
-
-
-
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [role, setRole] = useState<UserRole>("none");
   const [companyId, setCompanyId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const router = useRouter();
-  const pathname = usePathname();
 
   useEffect(() => {
     const unsub = onAuthStateChanged(firebaseAuth, async (firebaseUser) => {
@@ -118,13 +56,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             // Asignar companyId desde los claims si existe.
             setCompanyId((claims.companyId as string) || null);
             
-            // Lógica de redirección para cambio de contraseña
-            if (claims.mustChangePassword === true) {
-              if (pathname !== '/cambiar-password') {
-                router.replace('/cambiar-password');
-              }
-            }
-            
         } catch (error) {
             console.error("Error al procesar el token de autenticación:", error);
             setRole("none");
@@ -141,7 +72,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     });
 
     return () => unsub();
-  }, []);
+  }, [router]);
 
   async function login(email: string, password: string) {
     await signInWithEmailAndPassword(firebaseAuth, email, password);
