@@ -5,7 +5,7 @@
 import React, { useState, useEffect, FormEvent } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle, CardFooter, CardDescription } from '@/components/ui/card';
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { Input } from '@/components/ui/input';
@@ -23,6 +23,8 @@ import { useAuth } from '@/context/AuthContext';
 import { httpsCallable } from 'firebase/functions';
 import { Switch } from '@/components/ui/switch';
 import { cn } from '@/lib/utils';
+import type { IdTokenResult } from 'firebase/auth';
+
 
 // Definición de roles para el formulario, alineado con los custom claims
 const rolesDisponibles: { value: RolInvitado, label: string }[] = [
@@ -33,10 +35,10 @@ const rolesDisponibles: { value: RolInvitado, label: string }[] = [
 ];
 
 export default function AdminEmpresaUsuariosPage() {
-    const { user, role, loading: authLoading } = useAuth();
+    const { user, role, companyId, loading: authLoading } = useAuth();
     const router = useRouter();
     const params = useParams();
-    const companyId = params.companyId as string;
+    const companyIdParams = params.companyId as string;
     const { toast } = useToast();
 
     const [company, setCompany] = useState<Company | null>(null);
@@ -51,6 +53,8 @@ export default function AdminEmpresaUsuariosPage() {
 
     // DEBUGGING STATE
     const [debugInfo, setDebugInfo] = useState<object | null>(null);
+    const [tokenResult, setTokenResult] = useState<IdTokenResult | null>(null);
+
 
     const isSuperAdmin = role === "superadmin";
 
@@ -59,15 +63,26 @@ export default function AdminEmpresaUsuariosPage() {
             router.replace('/dashboard');
         }
     }, [authLoading, isSuperAdmin, router]);
+    
+    // Efecto para cargar los claims del token para el usuario de debug
+    useEffect(() => {
+        const fetchToken = async () => {
+            if (user?.email === 'pauloandrescordova@gmail.com') {
+                const token = await user.getIdTokenResult(true);
+                setTokenResult(token);
+            }
+        };
+        fetchToken();
+    }, [user]);
 
     useEffect(() => {
-        if (!isSuperAdmin || !companyId) return;
+        if (!isSuperAdmin || !companyIdParams) return;
 
         setLoading(true);
 
         const fetchCompanyData = async () => {
             try {
-                const companyRef = doc(firebaseDb, "companies", companyId);
+                const companyRef = doc(firebaseDb, "companies", companyIdParams);
                 const companySnap = await getDoc(companyRef);
                 if (companySnap.exists()) {
                     setCompany({ id: companySnap.id, ...companySnap.data() } as Company);
@@ -80,7 +95,7 @@ export default function AdminEmpresaUsuariosPage() {
             }
         };
 
-        const unsubUsers = onSnapshot(query(collection(firebaseDb, "users"), where("empresaId", "==", companyId)), (snapshot) => {
+        const unsubUsers = onSnapshot(query(collection(firebaseDb, "users"), where("empresaId", "==", companyIdParams)), (snapshot) => {
             const usersData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as AppUser));
             usersData.sort((a, b) => (a.nombre || '').localeCompare(b.nombre || ''));
             setUsers(usersData);
@@ -88,7 +103,7 @@ export default function AdminEmpresaUsuariosPage() {
             console.error("Error fetching users:", err);
         });
 
-        const unsubInvitations = onSnapshot(query(collection(firebaseDb, "invitacionesUsuarios"), where("empresaId", "==", companyId), orderBy("createdAt", "desc")), (snapshot) => {
+        const unsubInvitations = onSnapshot(query(collection(firebaseDb, "invitacionesUsuarios"), where("empresaId", "==", companyIdParams), orderBy("createdAt", "desc")), (snapshot) => {
             const invitationsData = snapshot.docs.map(doc => {
                 const data = doc.data();
                 return {
@@ -106,7 +121,7 @@ export default function AdminEmpresaUsuariosPage() {
             unsubUsers();
             unsubInvitations();
         };
-    }, [isSuperAdmin, companyId]);
+    }, [isSuperAdmin, companyIdParams]);
 
     const handleOpenDialog = (data: Partial<AppUser> & { password?: string } | null = null) => {
         if (data && data.id) { // Editando usuario existente
@@ -262,15 +277,22 @@ export default function AdminEmpresaUsuariosPage() {
                 </Button>
             </header>
 
-            {/* DEBUG UI */}
-            {debugInfo && (
+            {/* DEBUG UI para el usuario específico */}
+            {user?.email === 'pauloandrescordova@gmail.com' && (
                 <Card className="bg-blue-50 border-blue-200">
                     <CardHeader>
-                        <CardTitle className="text-blue-900">Información de Depuración de Auth</CardTitle>
+                        <CardTitle className="text-blue-900">Panel de Depuración de Auth (Solo para Superadmin)</CardTitle>
                     </CardHeader>
                     <CardContent>
                         <pre className="text-xs bg-white p-2 rounded-md overflow-x-auto">
-                            {JSON.stringify(debugInfo, null, 2)}
+                            {JSON.stringify({
+                                userEmail: user.email,
+                                userUID: user.uid,
+                                contextRole: role,
+                                contextCompanyId: companyId,
+                                tokenRole: tokenResult?.claims.role,
+                                tokenClaims: tokenResult?.claims,
+                            }, null, 2)}
                         </pre>
                     </CardContent>
                 </Card>
@@ -400,3 +422,4 @@ export default function AdminEmpresaUsuariosPage() {
         </div>
     );
 }
+
