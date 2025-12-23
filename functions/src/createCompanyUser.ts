@@ -1,27 +1,27 @@
 // functions/src/createCompanyUser.ts
 import { onCall, HttpsError } from "firebase-functions/v2/https";
 import * as admin from "firebase-admin";
+import * as logger from "firebase-functions/logger";
 
-// Inicializa Firebase Admin SDK solo si no se ha hecho antes.
-// Esto se ejecuta una vez por instancia de función.
 if (!admin.apps.length) {
   admin.initializeApp();
 }
 
-// Se define la URL base como una constante a nivel de módulo para máxima fiabilidad.
 const APP_BASE_URL = "https://www.pcgoperacion.com";
 
-/**
- * Construye la URL de invitación usando la constante global del módulo.
- */
 function buildAcceptInviteUrl(invId: string, email: string): string {
-  return `${APP_BASE_URL}/accept-invite?invId=${encodeURIComponent(invId)}&email=${encodeURIComponent(email)}`;
+  if (!APP_BASE_URL) {
+    logger.error("CRÍTICO: La constante APP_BASE_URL no está configurada. No se pueden generar enlaces de invitación.");
+    throw new HttpsError("internal", "El servidor no está configurado correctamente para enviar invitaciones. Falta la URL base de la aplicación.");
+  }
+  
+  const appBaseUrl = APP_BASE_URL.replace(/\/+$/, "");
+  return `${appBaseUrl}/accept-invite?invId=${encodeURIComponent(invId)}&email=${encodeURIComponent(email)}`;
 }
 
 export const createCompanyUser = onCall(
   {
-    // Las opciones globales de región se heredan.
-    // Se definen los recursos específicos para esta función.
+    region: "southamerica-west1",
     cpu: 1,
     memory: "256MiB",
     timeoutSeconds: 60,
@@ -33,21 +33,17 @@ export const createCompanyUser = onCall(
 
     const ctx = request.auth;
 
-    // 1. Validar que el usuario está autenticado
     if (!ctx) {
       throw new HttpsError("unauthenticated", "No autenticado.");
     }
 
-    // 2. Validar que el usuario es SUPER_ADMIN vía customClaims
-    const requesterClaims = await auth.getUser(ctx.uid);
-    if (requesterClaims.customClaims?.role !== "superadmin") {
+    if (ctx.token.role !== "superadmin") {
       throw new HttpsError(
         "permission-denied",
         "Solo SUPER_ADMIN puede crear usuarios."
       );
     }
 
-    // 3. Validar payload de entrada
     const data = request.data as {
       companyId: string;
       email: string;
@@ -70,7 +66,6 @@ export const createCompanyUser = onCall(
         );
     }
 
-    // 4. Verificar que la empresa existe y está activa
     const companyRef = db.collection("companies").doc(data.companyId);
     const companySnap = await companyRef.get();
     if (!companySnap.exists) {
@@ -78,7 +73,6 @@ export const createCompanyUser = onCall(
     }
     const companyData = companySnap.data();
 
-    // 5. Crear usuario en Firebase Auth
     let userRecord;
     try {
       userRecord = await auth.createUser({
@@ -100,7 +94,6 @@ export const createCompanyUser = onCall(
 
     const uid = userRecord.uid;
 
-    // 6. Asignar custom claims (role y companyId)
     await auth.setCustomUserClaims(uid, {
       role: data.role,
       companyId: data.companyId,
@@ -108,7 +101,6 @@ export const createCompanyUser = onCall(
 
     const now = admin.firestore.FieldValue.serverTimestamp();
     
-    // 7. Guardar perfil de usuario en /users
     const userProfileRef = db.collection("users").doc(uid);
     await userProfileRef.set({
       nombre: data.nombre,
@@ -120,7 +112,6 @@ export const createCompanyUser = onCall(
       updatedAt: now,
     }, { merge: true });
     
-    // 8. Crear una invitación para registro y trazabilidad
     const invitationRef = db.collection("invitacionesUsuarios").doc();
     const invitationId = invitationRef.id;
     await invitationRef.set({
@@ -133,7 +124,6 @@ export const createCompanyUser = onCall(
         creadoPorUid: ctx.uid,
     });
     
-    // 9. Enviar correo de invitación
     const acceptInviteUrl = buildAcceptInviteUrl(invitationId, data.email);
 
     await db.collection("mail").add({
@@ -153,7 +143,6 @@ export const createCompanyUser = onCall(
       },
     });
 
-    // 10. Respuesta a frontend
     return {
       uid,
       email: data.email,
