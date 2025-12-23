@@ -8,9 +8,12 @@ if (!admin.apps.length) {
 }
 
 function buildAcceptInviteUrl(invId: string, email: string): string {
+  // SOLUCIÓN: Usar directamente la URL de producción.
+  // La variable de entorno NEXT_PUBLIC_APP_BASE_URL no está disponible en el backend de Cloud Functions.
   const rawBaseUrl = "https://pcg-2-8bf1b.web.app";
 
   if (!rawBaseUrl) {
+    // Este error ya no debería ocurrir.
     console.error("CRÍTICO: No se pudo determinar la URL base de la aplicación. No se puede crear un enlace de invitación válido.");
     throw new HttpsError("internal", "El servidor no está configurado correctamente para enviar invitaciones. Falta la URL base de la aplicación.");
   }
@@ -48,8 +51,14 @@ export const createCompanyUser = onCall(
     }
 
     // 2. Validar que el usuario es SUPER_ADMIN vía customClaims
-    const requesterClaims = await auth.getUser(ctx.uid);
-    
+    // Se elimina la validación estricta de companyId para el superadmin.
+    if (ctx.token.role !== "superadmin") {
+      throw new HttpsError(
+        "permission-denied",
+        "Solo SUPER_ADMIN puede crear usuarios."
+      );
+    }
+
     // --- INICIO DE INSTRUMENTACIÓN 2 ---
     const ur = await admin.auth().getUser(request.auth!.uid);
     logger.info("DEBUG ADMIN USER", {
@@ -57,13 +66,6 @@ export const createCompanyUser = onCall(
       customClaims: ur.customClaims,
     });
     // --- FIN DE INSTRUMENTACIÓN 2 ---
-
-    if (requesterClaims.customClaims?.role !== "superadmin") {
-      throw new HttpsError(
-        "permission-denied",
-        "Solo SUPER_ADMIN puede crear usuarios."
-      );
-    }
 
     // 3. Validar payload de entrada
     const data = request.data as {
