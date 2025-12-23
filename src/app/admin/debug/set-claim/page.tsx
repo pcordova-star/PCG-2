@@ -5,24 +5,17 @@ import { useState } from "react";
 import { firebaseFunctions } from "@/lib/firebaseClient";
 import { httpsCallable } from "firebase/functions";
 import { Button } from "@/components/ui/button";
-import { Loader2 } from "lucide-react";
+import { Loader2, AlertTriangle } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { useAuth } from "@/context/AuthContext";
-import Link from "next/link";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 
 export default function SetSuperAdminClaimPage() {
-  const { user, role } = useAuth();
   const [result, setResult] = useState<any>(null);
   const [loading, setLoading] = useState(false);
 
   const emailToSet = "pauloandrescordova@gmail.com";
 
   const runSetClaim = async () => {
-    if (role !== 'superadmin') {
-        setResult({ ok: false, message: "Error: Solo un superadmin puede ejecutar esta acción."});
-        return;
-    }
-
     setLoading(true);
     setResult(null);
 
@@ -38,28 +31,24 @@ export default function SetSuperAdminClaimPage() {
     }
   };
   
-  if (role !== 'superadmin') {
-      return (
-          <div className="p-8 text-center">
-              <p className="text-destructive">No tienes permisos para ver esta página.</p>
-               <Button asChild variant="link"><Link href="/dashboard">Volver al dashboard</Link></Button>
-          </div>
-      )
-  }
-
   return (
     <div className="container mx-auto p-8 max-w-2xl">
         <Card>
             <CardHeader>
                 <CardTitle>Asignar Rol de Superadministrador</CardTitle>
                 <CardDescription>
-                    Esta página es una herramienta de un solo uso para asignar el custom claim `{"role": "superadmin"}`
-                    a un usuario y sincronizar los permisos del backend.
+                    Esta página es una herramienta de desarrollador para la configuración inicial del primer usuario Superadministrador.
                 </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
+                 <Alert variant="destructive">
+                    <AlertTriangle className="h-4 w-4" />
+                    <AlertDescription>
+                        <strong>Atención:</strong> Esta es una página de uso único para desarrolladores. No debe ser expuesta a usuarios finales. Una vez utilizada, se recomienda eliminarla.
+                    </AlertDescription>
+                </Alert>
                 <p>
-                    Se asignará el rol de superadministrador al usuario: <br />
+                    Se intentará asignar el rol de superadministrador al usuario: <br />
                     <strong className="font-mono">{emailToSet}</strong>
                 </p>
 
