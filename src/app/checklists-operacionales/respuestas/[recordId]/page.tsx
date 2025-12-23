@@ -69,10 +69,13 @@ export default function RecordDetailPage() {
         doc.text(template.titulo, 15, 20);
         
         doc.setFontSize(12);
-        doc.text(`Fecha: ${record.header?.fecha || record.filledAt.toDate().toLocaleDateString()}`, 15, 30);
-        doc.text(`Realizado por: ${record.header?.responsable || record.filledByEmail}`, 15, 36);
-        doc.text(`Sector: ${record.header?.sector || 'N/A'}`, 15, 42);
-        doc.text(`Elemento: ${record.header?.elemento || 'N/A'}`, 15, 48);
+        const fechaStr =
+            (record.header && record.header.fecha) ||
+            (record.filledAt ? record.filledAt.toDate().toLocaleDateString() : "");
+        doc.text("Fecha: " + fechaStr, 15, 30);
+        doc.text("Realizado por: " + ((record.header && record.header.responsable) || record.filledByEmail || ""), 15, 36);
+        doc.text("Sector: " + ((record.header && record.header.sector) || "N/A"), 15, 42);
+        doc.text("Elemento: " + ((record.header && record.header.elemento) || "N/A"), 15, 48);
 
         let y = 60;
         
@@ -208,4 +211,10 @@ export default function RecordDetailPage() {
                              <Image src={record.signature.dataUrl} alt="Firma" width={200} height={100} className="border rounded-md bg-white"/>
                          </div>
                      ) : (
-                         <p className="text-sm text-muted-foreground">No se registró firma para este checklist
+                         <p className="text-sm text-muted-foreground">No se registró firma para este checklist.</p>
+                     )}
+                </CardContent>
+            </Card>
+        </div>
+    );
+}
