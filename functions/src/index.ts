@@ -1,4 +1,4 @@
-// functions/src/index.ts
+// src/functions/src/index.ts
 import { setGlobalOptions } from "firebase-functions/v2";
 
 // Define la región para todas las funciones v2 exportadas desde este archivo.

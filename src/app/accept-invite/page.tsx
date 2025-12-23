@@ -100,10 +100,11 @@ function AcceptInvitePageInner() {
                 <p className="text-sm text-muted-foreground">con el rol de <span className="font-semibold">{invitation.roleDeseado}</span>.</p>
             </div>
             
-            <p className="text-sm">Haz clic en el botón para activar tu cuenta y definir tu contraseña de acceso.</p>
+            <p className="text-sm">Revisa tu correo electrónico. Sigue el enlace enviado para activar tu cuenta y definir tu contraseña de acceso.</p>
             
-            <Button onClick={handleActivate} className="w-full">
-                Activar mi cuenta ahora
+            <p className="text-xs text-muted-foreground">Si ya has definido tu contraseña, puedes iniciar sesión directamente.</p>
+             <Button asChild className="w-full">
+               <Link href="/login/usuario">Ir a Iniciar Sesión</Link>
             </Button>
           </div>
         );
