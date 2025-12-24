@@ -17,8 +17,9 @@ import { useToast } from '@/hooks/use-toast';
 type JobStatus = 'queued' | 'processing' | 'done' | 'error';
 type JobResponse = {
   status: JobStatus;
-  obraId?: string; // Incluir obraId en la respuesta
+  obraId?: string;
   obraNombre?: string;
+  companyId?: string;
   result?: ItemizadoImportOutput | null;
   error?: string | null;
 };
@@ -36,6 +37,7 @@ export default function ImportStatusPage() {
   const [error, setError] = useState<string | null>(null);
   const [progress, setProgress] = useState(0);
   const [isSaving, setIsSaving] = useState(false);
+  const [isSaved, setIsSaved] = useState(false);
 
   useEffect(() => {
     if (!jobId) return;
@@ -81,7 +83,7 @@ export default function ImportStatusPage() {
       toast({
         variant: "destructive",
         title: "Error",
-        description: "No hay datos suficientes para guardar el itemizado.",
+        description: "No hay datos suficientes para guardar el presupuesto.",
       });
       return;
     }
@@ -89,13 +91,14 @@ export default function ImportStatusPage() {
     setIsSaving(true);
     try {
         const totalPresupuesto = result.rows.reduce((sum, row) => sum + (row.total || 0), 0);
+        const nombrePresupuesto = `Presupuesto importado de ${result.meta.sourceFileName || 'PDF'} - ${new Date().toLocaleDateString()}`;
 
         const newPresupuesto = {
             obraId: obraInfo.id,
-            nombre: `Itemizado importado desde PDF - ${new Date().toLocaleDateString()}`,
-            moneda: 'CLP',
-            observaciones: `Generado automáticamente por IA a partir de un PDF. Job ID: ${jobId}.`,
-            gastosGeneralesPorcentaje: 25, // Valor por defecto
+            nombre: nombrePresupuesto,
+            moneda: result.meta.currency || 'CLP',
+            observaciones: `Generado automáticamente por IA a partir de un PDF. Job ID: ${jobId}. ${result.meta.notes || ''}`,
+            gastosGeneralesPorcentaje: 25,
             items: result.rows.map(({ id, ...rest }) => rest), // Quitar el id temporal
             fechaCreacion: serverTimestamp(),
             updatedAt: serverTimestamp(),
@@ -103,24 +106,23 @@ export default function ImportStatusPage() {
             companyId: companyId,
             source: "IA_PDF",
             jobId: jobId,
-            totalPresupuesto, // Guardar el total calculado
+            totalPresupuesto,
         };
 
-        const docRef = await addDoc(collection(firebaseDb, "presupuestos"), newPresupuesto);
+        await addDoc(collection(firebaseDb, "presupuestos"), newPresupuesto);
         
         toast({
-            title: "Itemizado Guardado",
-            description: "El itemizado ha sido guardado y ahora puedes editarlo.",
+            title: "Presupuesto Guardado",
+            description: "El presupuesto ha sido guardado correctamente.",
         });
-
-        router.push(`/operaciones/presupuestos/${docRef.id}`);
+        setIsSaved(true);
 
     } catch (err) {
-        console.error("Error saving itemizado:", err);
+        console.error("Error saving presupuesto:", err);
         toast({
             variant: "destructive",
             title: "Error al guardar",
-            description: "No se pudo crear el documento de itemizado en la base de datos.",
+            description: "No se pudo crear el documento de presupuesto.",
         });
     } finally {
         setIsSaving(false);
@@ -158,9 +160,9 @@ export default function ImportStatusPage() {
                 </p>
             )}
              <div className="mt-6 flex justify-center gap-4">
-                <Button onClick={handleSaveItemizado} disabled={isSaving}>
+                <Button onClick={handleSaveItemizado} disabled={isSaving || isSaved}>
                     {isSaving ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <Save className="mr-2 h-4 w-4"/>}
-                    {isSaving ? "Guardando..." : "Guardar como Itemizado"}
+                    {isSaved ? "Guardado" : (isSaving ? "Guardando..." : "Guardar como Presupuesto")}
                 </Button>
                 <Button variant="outline">Descargar JSON</Button>
             </div>
