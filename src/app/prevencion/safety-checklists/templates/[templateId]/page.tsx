@@ -1,4 +1,4 @@
-// src/app/prevencion/safety-checklists/templates/[[...templateId]]/page.tsx
+// src/app/prevencion/safety-checklists/templates/[templateId]/page.tsx
 "use client";
 
 import { useEffect, useState } from 'react';
@@ -20,34 +20,17 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Textarea } from '@/components/ui/textarea';
 import Link from 'next/link';
 
-const initialTemplate: Omit<OperationalChecklistTemplate, 'id' | 'createdAt' | 'createdBy' | 'companyId'> = {
-    titulo: 'Nueva Plantilla de Seguridad',
-    descripcion: '',
-    status: 'inactive',
-    secciones: [],
-};
-
-const initialItem: Omit<ChecklistItem, 'id' | 'order'> = {
-    label: 'Nuevo Ítem de Verificación',
-    type: 'boolean',
-    required: false,
-    options: [],
-    allowComment: false,
-    allowPhoto: false
-};
-
-
+// Este componente ahora es SOLO para editar. La creación se maneja en /nuevo/page.tsx
 export default function SafetyTemplateEditorPage() {
     const params = useParams();
     const router = useRouter();
     const { user, companyId } = useAuth();
     const { toast } = useToast();
     
-    // Adjusted to handle optional catch-all segment
-    const templateId = params.templateId?.[0];
-    const isNew = !templateId || templateId === 'nuevo';
+    const templateId = params.templateId as string;
+    const isNew = false; // Esta página ya no maneja la creación.
 
-    const [template, setTemplate] = useState<Partial<OperationalChecklistTemplate>>(initialTemplate);
+    const [template, setTemplate] = useState<Partial<OperationalChecklistTemplate> | null>(null);
     const [loading, setLoading] = useState(true);
     const [isSaving, setIsSaving] = useState(false);
 
@@ -55,32 +38,40 @@ export default function SafetyTemplateEditorPage() {
     const [editingItem, setEditingItem] = useState<{ sectionId: string; item: ChecklistItem | null } | null>(null);
 
     useEffect(() => {
-        if (!user || !companyId) return;
-
-        if (isNew) {
-            setTemplate({ ...initialTemplate, companyId });
-            setLoading(false);
-        } else {
-            const fetchTemplate = async () => {
-                const docRef = doc(firebaseDb, "safetyChecklistTemplates", templateId as string);
-                const docSnap = await getDoc(docRef);
-                if (docSnap.exists() && docSnap.data().companyId === companyId) {
-                    setTemplate({ id: docSnap.id, ...docSnap.data() } as OperationalChecklistTemplate);
-                } else {
-                    toast({ variant: 'destructive', title: 'Error', description: 'Plantilla de seguridad no encontrada o acceso denegado.' });
-                    router.push('/prevencion/safety-checklists/templates');
-                }
-                setLoading(false);
-            };
-            fetchTemplate();
+        // Redirige si alguien llega aquí con la URL "nuevo"
+        if (templateId === 'nuevo') {
+            router.replace('/prevencion/safety-checklists/templates/nuevo');
+            return;
         }
-    }, [templateId, user, companyId, router, toast, isNew]);
+
+        if (!user || !companyId || !templateId) {
+            setLoading(false);
+            return;
+        };
+
+        const fetchTemplate = async () => {
+            setLoading(true);
+            const docRef = doc(firebaseDb, "safetyChecklistTemplates", templateId);
+            const docSnap = await getDoc(docRef);
+            if (docSnap.exists() && docSnap.data().companyId === companyId) {
+                setTemplate({ id: docSnap.id, ...docSnap.data() } as OperationalChecklistTemplate);
+            } else {
+                toast({ variant: 'destructive', title: 'Error', description: 'Plantilla de seguridad no encontrada o acceso denegado.' });
+                router.push('/prevencion/safety-checklists/templates');
+            }
+            setLoading(false);
+        };
+        
+        fetchTemplate();
+        
+    }, [templateId, user, companyId, router, toast]);
 
     const updateField = (field: keyof OperationalChecklistTemplate, value: any) => {
-        setTemplate(prev => ({ ...prev, [field]: value }));
+        setTemplate(prev => prev ? ({ ...prev, [field]: value }) : null);
     };
 
     const addSection = () => {
+        if (!template) return;
         const newSection: ChecklistSection = {
             id: crypto.randomUUID(),
             title: `Nueva Sección ${ (template.secciones?.length || 0) + 1 }`,
@@ -91,16 +82,18 @@ export default function SafetyTemplateEditorPage() {
     };
 
     const updateSection = (section: ChecklistSection) => {
+        if (!template) return;
         updateField('secciones', template.secciones?.map(s => s.id === section.id ? section : s));
         setEditingSection(null);
     };
 
     const deleteSection = (sectionId: string) => {
+        if (!template) return;
         updateField('secciones', template.secciones?.filter(s => s.id !== sectionId));
     };
 
     const moveSection = (index: number, direction: 'up' | 'down') => {
-        if (!template.secciones) return;
+        if (!template?.secciones) return;
         const newSections = [...template.secciones];
         const targetIndex = direction === 'up' ? index - 1 : index + 1;
         if (targetIndex < 0 || targetIndex >= newSections.length) return;
@@ -110,6 +103,7 @@ export default function SafetyTemplateEditorPage() {
     };
 
     const addItem = (sectionId: string) => {
+        if (!template) return;
         const section = template.secciones?.find(s => s.id === sectionId);
         if (!section) return;
 
@@ -118,13 +112,18 @@ export default function SafetyTemplateEditorPage() {
             item: { 
                 id: crypto.randomUUID(), 
                 order: (section.items?.length || 0) + 1, 
-                ...initialItem 
+                label: 'Nuevo Ítem de Verificación',
+                type: 'boolean',
+                required: false,
+                options: [],
+                allowComment: false,
+                allowPhoto: false
             } 
         });
     };
 
     const updateItem = (itemToSave: ChecklistItem) => {
-        if (!editingItem) return;
+        if (!editingItem || !template) return;
         const newSections = template.secciones?.map(s => {
             if (s.id === editingItem.sectionId) {
                 const existing = s.items?.find(i => i.id === itemToSave.id);
@@ -140,13 +139,14 @@ export default function SafetyTemplateEditorPage() {
     };
 
     const deleteItem = (sectionId: string, itemId: string) => {
+        if (!template) return;
         updateField('secciones', template.secciones?.map(s => 
             s.id === sectionId ? { ...s, items: s.items.filter(i => i.id !== itemId) } : s
         ));
     };
     
     const moveItem = (sectionId: string, itemIndex: number, direction: 'up' | 'down') => {
-        if (!template.secciones) return;
+        if (!template?.secciones) return;
         const newSections = [...template.secciones];
         const sectionIndex = newSections.findIndex(s => s.id === sectionId);
         if (sectionIndex === -1) return;
@@ -162,7 +162,7 @@ export default function SafetyTemplateEditorPage() {
     };
 
     const validateTemplate = (): boolean => {
-        if (!template.titulo?.trim()) {
+        if (!template?.titulo?.trim()) {
             toast({ variant: 'destructive', title: 'Validación fallida', description: 'El título de la plantilla es obligatorio.' });
             return false;
         }
@@ -190,26 +190,16 @@ export default function SafetyTemplateEditorPage() {
     }
 
     const handleSave = async (publish = false) => {
+        if (!template || !template.id) return;
         if (publish && !validateTemplate()) return;
 
         setIsSaving(true);
         const dataToSave: Partial<OperationalChecklistTemplate> = { ...template, status: publish ? 'active' : 'inactive' };
         
         try {
-            if (isNew) {
-                const newDocRef = await addDoc(collection(firebaseDb, "safetyChecklistTemplates"), {
-                    ...dataToSave,
-                    createdAt: serverTimestamp(),
-                    updatedAt: serverTimestamp(),
-                    createdBy: user?.uid,
-                });
-                toast({ title: 'Plantilla de seguridad creada', description: 'Se ha guardado el borrador de tu nueva plantilla.' });
-                router.replace(`/prevencion/safety-checklists/templates/${newDocRef.id}`);
-            } else {
-                const docRef = doc(firebaseDb, "safetyChecklistTemplates", templateId as string);
-                await updateDoc(docRef, { ...dataToSave, updatedAt: serverTimestamp() });
-                toast({ title: 'Plantilla de seguridad guardada', description: `Se han guardado los cambios ${publish ? 'y se ha publicado' : 'como borrador'}.` });
-            }
+            const docRef = doc(firebaseDb, "safetyChecklistTemplates", template.id);
+            await updateDoc(docRef, { ...dataToSave, updatedAt: serverTimestamp() });
+            toast({ title: 'Plantilla de seguridad guardada', description: `Se han guardado los cambios ${publish ? 'y se ha publicado' : 'como borrador'}.` });
         } catch (error) {
             console.error(error);
             toast({ variant: 'destructive', title: 'Error', description: 'No se pudo guardar la plantilla de seguridad.' });
@@ -219,7 +209,7 @@ export default function SafetyTemplateEditorPage() {
     };
 
 
-    if (loading) {
+    if (loading || !template) {
         return <div className="text-center p-8"><Loader2 className="animate-spin" /> Cargando editor de plantillas de seguridad...</div>;
     }
 
@@ -244,7 +234,7 @@ export default function SafetyTemplateEditorPage() {
                         {isSaving ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <Save className="mr-2 h-4 w-4"/>}
                         Guardar y Publicar
                     </Button>
-                     {!isNew && (
+                    {!isNew && (
                         <Button asChild>
                             <Link href={`/prevencion/safety-checklists/execute/${templateId}`}>
                                 <Play className="mr-2 h-4 w-4" /> Usar esta Plantilla
@@ -340,7 +330,7 @@ export default function SafetyTemplateEditorPage() {
             {/* Dialog para editar/crear Ítem */}
             <Dialog open={!!editingItem} onOpenChange={() => setEditingItem(null)}>
                 <DialogContent>
-                    <DialogHeader><DialogTitle>{editingItem?.item?.id && template.secciones?.flatMap(s=>s.items).some(i=>i.id===editingItem.item?.id) ? 'Editar Ítem' : 'Nuevo Ítem'}</DialogTitle></DialogHeader>
+                    <DialogHeader><DialogTitle>{editingItem?.item?.id && template?.secciones?.flatMap(s=>s.items).some(i=>i.id===editingItem.item?.id) ? 'Editar Ítem' : 'Nuevo Ítem'}</DialogTitle></DialogHeader>
                     {editingItem?.item && (
                         <div className="space-y-4 py-4">
                              <div className="space-y-2">

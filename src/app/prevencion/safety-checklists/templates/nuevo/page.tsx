@@ -1,9 +1,9 @@
-
+// src/app/prevencion/safety-checklists/templates/nuevo/page.tsx
 "use client";
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { doc, getDoc, updateDoc, addDoc, serverTimestamp, collection } from 'firebase/firestore';
+import { doc, updateDoc, addDoc, serverTimestamp, collection } from 'firebase/firestore';
 import { firebaseDb } from '@/lib/firebaseClient';
 import { useAuth } from '@/context/AuthContext';
 import { useToast } from '@/hooks/use-toast';
@@ -36,31 +36,26 @@ const initialItem: Omit<ChecklistItem, 'id' | 'order'> = {
     allowPhoto: false
 };
 
-
-export default function SafetyTemplateEditorPage() {
+export default function NewSafetyTemplateEditorPage() {
     const router = useRouter();
     const { user, companyId } = useAuth();
     const { toast } = useToast();
     
-    // Para esta ruta estática, siempre es una plantilla nueva.
-    const templateId = 'nuevo';
     const isNew = true;
+    const templateId = 'nuevo'; // Valor fijo para esta página
 
     const [template, setTemplate] = useState<Partial<OperationalChecklistTemplate>>(initialTemplate);
-    const [loading, setLoading] = useState(true);
+    const [loading, setLoading] = useState(false); // No se carga nada, pero se mantiene por consistencia
     const [isSaving, setIsSaving] = useState(false);
 
     const [editingSection, setEditingSection] = useState<ChecklistSection | null>(null);
     const [editingItem, setEditingItem] = useState<{ sectionId: string; item: ChecklistItem | null } | null>(null);
 
     useEffect(() => {
-        if (!user || !companyId) return;
-
-        // Como esta es la página 'nuevo', siempre inicializamos una plantilla vacía.
-        setTemplate({ ...initialTemplate, companyId });
-        setLoading(false);
-        
-    }, [user, companyId, router, toast]);
+        if (user && companyId) {
+            setTemplate({ ...initialTemplate, companyId });
+        }
+    }, [user, companyId]);
 
     const updateField = (field: keyof OperationalChecklistTemplate, value: any) => {
         setTemplate(prev => ({ ...prev, [field]: value }));
@@ -182,21 +177,14 @@ export default function SafetyTemplateEditorPage() {
         const dataToSave: Partial<OperationalChecklistTemplate> = { ...template, status: publish ? 'active' : 'inactive' };
         
         try {
-            if (isNew) {
-                const newDocRef = await addDoc(collection(firebaseDb, "safetyChecklistTemplates"), {
-                    ...dataToSave,
-                    createdAt: serverTimestamp(),
-                    updatedAt: serverTimestamp(),
-                    createdBy: user?.uid,
-                });
-                toast({ title: 'Plantilla de seguridad creada', description: 'Se ha guardado el borrador de tu nueva plantilla.' });
-                router.replace(`/prevencion/safety-checklists/templates/${newDocRef.id}`);
-            } else {
-                // Esta lógica se mantiene por si se reutiliza este componente para editar.
-                const docRef = doc(firebaseDb, "safetyChecklistTemplates", templateId as string);
-                await updateDoc(docRef, { ...dataToSave, updatedAt: serverTimestamp() });
-                toast({ title: 'Plantilla de seguridad guardada', description: `Se han guardado los cambios ${publish ? 'y se ha publicado' : 'como borrador'}.` });
-            }
+            const newDocRef = await addDoc(collection(firebaseDb, "safetyChecklistTemplates"), {
+                ...dataToSave,
+                createdAt: serverTimestamp(),
+                updatedAt: serverTimestamp(),
+                createdBy: user?.uid,
+            });
+            toast({ title: 'Plantilla de seguridad creada', description: 'Se ha guardado el borrador de tu nueva plantilla.' });
+            router.replace(`/prevencion/safety-checklists/templates/${newDocRef.id}`);
         } catch (error) {
             console.error(error);
             toast({ variant: 'destructive', title: 'Error', description: 'No se pudo guardar la plantilla de seguridad.' });
@@ -207,7 +195,7 @@ export default function SafetyTemplateEditorPage() {
 
 
     if (loading) {
-        return <div className="text-center p-8"><Loader2 className="animate-spin" /> Cargando editor de plantillas de seguridad...</div>;
+        return <div className="text-center p-8"><Loader2 className="animate-spin" /> Cargando editor...</div>;
     }
 
     return (
@@ -218,7 +206,7 @@ export default function SafetyTemplateEditorPage() {
                         <ArrowLeft className="h-4 w-4" />
                     </Button>
                     <div>
-                        <h1 className="text-2xl font-bold">Editor de Plantilla de Seguridad</h1>
+                        <h1 className="text-2xl font-bold">Nueva Plantilla de Seguridad</h1>
                         <p className="text-muted-foreground">Define la estructura y campos de tu checklist de prevención.</p>
                     </div>
                 </div>
@@ -231,13 +219,6 @@ export default function SafetyTemplateEditorPage() {
                         {isSaving ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <Save className="mr-2 h-4 w-4"/>}
                         Guardar y Publicar
                     </Button>
-                     {!isNew && (
-                        <Button asChild>
-                            <Link href={`/prevencion/safety-checklists/execute/${templateId}`}>
-                                <Play className="mr-2 h-4 w-4" /> Usar esta Plantilla
-                            </Link>
-                        </Button>
-                    )}
                 </div>
             </header>
 
