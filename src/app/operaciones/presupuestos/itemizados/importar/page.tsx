@@ -1,7 +1,7 @@
 // src/app/operaciones/presupuestos/itemizados/importar/page.tsx
 "use client";
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, FormEvent } from 'react';
 import { useRouter } from 'next/navigation';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -14,12 +14,18 @@ import { useAuth } from '@/context/AuthContext';
 import { pdfPageToDataUrl } from '@/lib/pdf/pdfToImage';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import Image from 'next/image';
+import { collection, query, where, orderBy, getDocs } from 'firebase/firestore';
+import { firebaseDb } from '@/lib/firebaseClient';
+import { Obra } from '@/types/pcg';
 
 
 export default function ImportarItemizadoPage() {
   const router = useRouter();
   const { toast } = useToast();
-  const { user, company, companyId } = useAuth();
+  const { user, company, companyId, role } = useAuth();
+  
+  const [obras, setObras] = useState<Obra[]>([]);
+  const [selectedObraId, setSelectedObraId] = useState('');
 
   const [pdfFile, setPdfFile] = useState<File | null>(null);
   const [pageCount, setPageCount] = useState(0);
@@ -28,6 +34,26 @@ export default function ImportarItemizadoPage() {
   const [isConverting, setIsConverting] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
   const [convertedImageDataUrl, setConvertedImageDataUrl] = useState<string | null>(null);
+
+   useEffect(() => {
+    if (!companyId && role !== 'superadmin') return;
+    const fetchObras = async () => {
+        let q;
+        if(role === 'superadmin') {
+            q = query(collection(firebaseDb, "obras"), orderBy("nombreFaena"));
+        } else {
+            q = query(collection(firebaseDb, "obras"), where("empresaId", "==", companyId), orderBy("nombreFaena"));
+        }
+        const snapshot = await getDocs(q);
+        const obrasList = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Obra));
+        setObras(obrasList);
+        if (obrasList.length > 0) {
+            setSelectedObraId(obrasList[0].id);
+        }
+    };
+    fetchObras();
+  }, [companyId, role]);
+
 
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -66,15 +92,22 @@ export default function ImportarItemizadoPage() {
 
   const handleStartAnalysis = async () => {
     if (!convertedImageDataUrl) {
-      toast({ variant: 'destructive', title: 'Error', description: 'No hay una imagen generada para analizar.' });
+      toast({ variant: 'destructive', title: 'Error', description: 'Primero debes convertir una página del PDF a imagen.' });
       return;
     }
-    if (!companyId || !company) {
-      toast({ variant: 'destructive', title: 'Error', description: 'No se pudo identificar la obra o empresa.' });
+    if (!selectedObraId) {
+      toast({ variant: 'destructive', title: 'Error', description: 'Debes seleccionar una obra para asociar el itemizado.' });
       return;
     }
 
+    const selectedObra = obras.find(o => o.id === selectedObraId);
+    if (!selectedObra) {
+        toast({ variant: 'destructive', title: 'Error', description: 'La obra seleccionada no es válida.' });
+        return;
+    }
+
     setIsUploading(true);
+    console.log("Iniciando análisis para la obra:", selectedObraId);
 
     try {
       const response = await fetch('/api/itemizados/importar', {
@@ -82,8 +115,8 @@ export default function ImportarItemizadoPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           pdfDataUri: convertedImageDataUrl,
-          obraId: companyId, // Se asume que companyId es la obraId para este contexto
-          obraNombre: company.nombreFantasia,
+          obraId: selectedObraId,
+          obraNombre: selectedObra.nombreFaena,
           notas,
         }),
       });
@@ -100,7 +133,7 @@ export default function ImportarItemizadoPage() {
 
     } catch (err: any) {
       console.error(err);
-      toast({ variant: 'destructive', title: 'Error', description: err.message });
+      toast({ variant: 'destructive', title: 'Error al iniciar análisis', description: err.message });
       setIsUploading(false);
     }
   };
@@ -120,14 +153,23 @@ export default function ImportarItemizadoPage() {
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="space-y-2">
-            <Label htmlFor="pdf-upload">1. Archivo PDF del itemizado*</Label>
+            <Label htmlFor="obra-select">1. Obra a la que pertenece el itemizado*</Label>
+             <Select value={selectedObraId} onValueChange={setSelectedObraId} required>
+                <SelectTrigger id="obra-select"><SelectValue placeholder="Seleccionar obra..." /></SelectTrigger>
+                <SelectContent>
+                    {obras.map(o => <SelectItem key={o.id} value={o.id}>{o.nombreFaena}</SelectItem>)}
+                </SelectContent>
+            </Select>
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="pdf-upload">2. Archivo PDF del itemizado*</Label>
             <Input id="pdf-upload" type="file" accept="application/pdf" onChange={handleFileChange} required />
           </div>
 
           {pdfFile && pageCount > 0 && (
             <div className="flex flex-col sm:flex-row gap-4 items-end pt-4 border-t">
               <div className="space-y-2 flex-grow">
-                <Label htmlFor="page-select">2. Página a analizar*</Label>
+                <Label htmlFor="page-select">3. Página a analizar*</Label>
                 <Select value={selectedPage} onValueChange={setSelectedPage} disabled={isConverting}>
                     <SelectTrigger id="page-select"><SelectValue /></SelectTrigger>
                     <SelectContent>
@@ -148,7 +190,7 @@ export default function ImportarItemizadoPage() {
 
           {convertedImageDataUrl && (
             <div className="space-y-4 pt-4 border-t">
-                <h3 className="font-semibold">3. Previsualización y Análisis</h3>
+                <h3 className="font-semibold">4. Previsualización y Análisis</h3>
                 <div className="border rounded-md p-2 bg-muted">
                     <Image src={convertedImageDataUrl} alt={`Página ${selectedPage} del PDF`} width={800} height={600} className="w-full h-auto object-contain rounded-md" />
                 </div>
