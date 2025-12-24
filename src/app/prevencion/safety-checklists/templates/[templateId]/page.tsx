@@ -1,4 +1,4 @@
-// src/app/prevencion/safety-checklists/templates/[templateId]/page.tsx
+// src/app/prevencion/safety-checklists/templates/[[...templateId]]/page.tsx
 "use client";
 
 import { useEffect, useState } from 'react';
@@ -38,15 +38,18 @@ const initialItem: Omit<ChecklistItem, 'id' | 'order'> = {
 
 
 export default function SafetyTemplateEditorPage() {
-    const { templateId } = useParams();
+    const params = useParams();
     const router = useRouter();
     const { user, companyId } = useAuth();
     const { toast } = useToast();
+    
+    // Adjusted to handle optional catch-all segment
+    const templateId = params.templateId?.[0];
+    const isNew = !templateId || templateId === 'nuevo';
 
     const [template, setTemplate] = useState<Partial<OperationalChecklistTemplate>>(initialTemplate);
     const [loading, setLoading] = useState(true);
     const [isSaving, setIsSaving] = useState(false);
-    const isNew = templateId === 'nuevo';
 
     const [editingSection, setEditingSection] = useState<ChecklistSection | null>(null);
     const [editingItem, setEditingItem] = useState<{ sectionId: string; item: ChecklistItem | null } | null>(null);
@@ -54,7 +57,7 @@ export default function SafetyTemplateEditorPage() {
     useEffect(() => {
         if (!user || !companyId) return;
 
-        if (templateId === 'nuevo') {
+        if (isNew) {
             setTemplate({ ...initialTemplate, companyId });
             setLoading(false);
         } else {
@@ -71,7 +74,7 @@ export default function SafetyTemplateEditorPage() {
             };
             fetchTemplate();
         }
-    }, [templateId, user, companyId, router, toast]);
+    }, [templateId, user, companyId, router, toast, isNew]);
 
     const updateField = (field: keyof OperationalChecklistTemplate, value: any) => {
         setTemplate(prev => ({ ...prev, [field]: value }));
