@@ -25,9 +25,8 @@ export async function GET(req: Request, ctx: { params: { jobId: string } }) {
     return NextResponse.json(
       {
         status: jobData.status,
-        obraId: jobData.obraId,
-        obraNombre: jobData.obraNombre,
-        companyId: jobData.companyId,
+        obraId: jobData.obraId ?? null,
+        obraNombre: jobData.obraNombre ?? null,
         result: jobData.status === "done" ? jobData.result : null,
         error: jobData.status === "error" ? jobData.errorMessage : null,
       },
