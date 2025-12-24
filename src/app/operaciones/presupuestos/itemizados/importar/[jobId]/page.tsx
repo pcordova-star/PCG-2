@@ -1,3 +1,4 @@
+
 // src/app/operaciones/presupuestos/itemizados/importar/[jobId]/page.tsx
 "use client";
 
@@ -31,10 +32,7 @@ export default function ImportStatusPage() {
   const { toast } = useToast();
   const jobId = params.jobId as string;
 
-  const [status, setStatus] = useState<JobStatus>('queued');
-  const [result, setResult] = useState<ItemizadoImportOutput | null>(null);
-  const [obraInfo, setObraInfo] = useState<{ id: string, nombre: string } | null>(null);
-  const [error, setError] = useState<string | null>(null);
+  const [jobData, setJobData] = useState<JobResponse | null>(null);
   const [progress, setProgress] = useState(0);
   const [isSaving, setIsSaving] = useState(false);
   const [isSaved, setIsSaved] = useState(false);
@@ -50,36 +48,29 @@ export default function ImportStatusPage() {
         }
         const data: JobResponse = await res.json();
         
-        setStatus(data.status);
-
-        if (data.obraId && data.obraNombre) {
-            setObraInfo({ id: data.obraId, nombre: data.obraNombre });
-        }
+        setJobData(data);
 
         if (data.status === 'done') {
-          setResult(data.result || null);
           setProgress(100);
         } else if (data.status === 'error') {
-          setError(data.error || 'Ocurrió un error desconocido.');
           setProgress(100);
         } else if (data.status === 'processing') {
             setProgress(prev => Math.min(prev + 5, 90)); // Simula progreso
         }
 
       } catch (err: any) {
-        setError(err.message);
-        setStatus('error');
+        setJobData({ status: 'error', error: err.message });
       }
     };
 
-    if (status === 'queued' || status === 'processing') {
+    if (jobData?.status !== 'done' && jobData?.status !== 'error') {
       const interval = setInterval(pollStatus, 3000);
       return () => clearInterval(interval);
     }
-  }, [jobId, status]);
+  }, [jobId, jobData?.status]);
 
   const handleSaveItemizado = async () => {
-    if (!result || !obraInfo || !user || !companyId) {
+    if (!jobData?.result || !jobData?.obraId || !user || !companyId) {
       toast({
         variant: "destructive",
         title: "Error",
@@ -90,16 +81,18 @@ export default function ImportStatusPage() {
 
     setIsSaving(true);
     try {
-        const totalPresupuesto = result.rows.reduce((sum, row) => sum + (row.total || 0), 0);
-        const nombrePresupuesto = `Presupuesto importado de ${result.meta.sourceFileName || 'PDF'} - ${new Date().toLocaleDateString()}`;
-
+        // FIX: Usar optional chaining y nullish coalescing para evitar el TypeError.
+        const sourceFileName = jobData.result?.meta?.sourceFileName ?? "Itemizado IA";
+        const nombrePresupuesto = `Presupuesto importado de ${sourceFileName} - ${new Date().toLocaleDateString()}`;
+        const totalPresupuesto = jobData.result.rows.reduce((sum, row) => sum + (row.total || 0), 0);
+        
         const newPresupuesto = {
-            obraId: obraInfo.id,
+            obraId: jobData.obraId,
             nombre: nombrePresupuesto,
-            moneda: result.meta.currency || 'CLP',
-            observaciones: `Generado automáticamente por IA a partir de un PDF. Job ID: ${jobId}. ${result.meta.notes || ''}`,
+            moneda: jobData.result.meta?.currency || 'CLP',
+            observaciones: `Generado automáticamente por IA a partir de un PDF. Job ID: ${jobId}. ${jobData.result.meta?.notes || ''}`,
             gastosGeneralesPorcentaje: 25,
-            items: result.rows.map(({ id, ...rest }) => rest), // Quitar el id temporal
+            items: jobData.result.rows.map(({ id, ...rest }) => rest), // Quitar el id temporal
             fechaCreacion: serverTimestamp(),
             updatedAt: serverTimestamp(),
             createdBy: user.uid,
@@ -109,20 +102,21 @@ export default function ImportStatusPage() {
             totalPresupuesto,
         };
 
-        await addDoc(collection(firebaseDb, "presupuestos"), newPresupuesto);
+        const docRef = await addDoc(collection(firebaseDb, "presupuestos"), newPresupuesto);
         
         toast({
             title: "Presupuesto Guardado",
             description: "El presupuesto ha sido guardado correctamente.",
         });
         setIsSaved(true);
+        router.push(`/operaciones/presupuestos/${docRef.id}`);
 
-    } catch (err) {
+    } catch (err: any) {
         console.error("Error saving presupuesto:", err);
         toast({
             variant: "destructive",
             title: "Error al guardar",
-            description: "No se pudo crear el documento de presupuesto.",
+            description: `No se pudo crear el documento de presupuesto. Detalles: ${err.message}`,
         });
     } finally {
         setIsSaving(false);
@@ -131,7 +125,16 @@ export default function ImportStatusPage() {
 
 
   const renderContent = () => {
-    switch (status) {
+    if (!jobData) {
+        return (
+             <div className="text-center">
+                <Loader2 className="mx-auto h-12 w-12 animate-spin text-primary" />
+                <p className="mt-4 font-semibold">Cargando estado del trabajo...</p>
+            </div>
+        );
+    }
+
+    switch (jobData.status) {
       case 'queued':
         return (
           <div className="text-center">
@@ -154,9 +157,9 @@ export default function ImportStatusPage() {
           <div className="text-center">
             <CheckCircle className="mx-auto h-12 w-12 text-green-500" />
             <p className="mt-4 font-semibold">¡Análisis completado!</p>
-            {result && (
+            {jobData.result && (
                 <p className="text-sm text-muted-foreground">
-                    Se encontraron {result.chapters.length} capítulos y {result.rows.length} partidas.
+                    Se encontraron {jobData.result.chapters.length} capítulos y {jobData.result.rows.length} partidas.
                 </p>
             )}
              <div className="mt-6 flex justify-center gap-4">
@@ -173,7 +176,7 @@ export default function ImportStatusPage() {
           <div className="text-center">
             <AlertCircle className="mx-auto h-12 w-12 text-destructive" />
             <p className="mt-4 font-semibold">Error en el análisis</p>
-            <p className="text-sm text-destructive bg-destructive/10 p-2 rounded-md">{error}</p>
+            <p className="text-sm text-destructive bg-destructive/10 p-2 rounded-md">{jobData.error}</p>
             <Button onClick={() => router.push('/operaciones/presupuestos/itemizados/importar')} className="mt-4">
                 <Redo className="mr-2"/> Intentar de Nuevo
             </Button>
@@ -192,7 +195,7 @@ export default function ImportStatusPage() {
       <Card className="min-h-[300px] flex items-center justify-center">
         <CardContent className="pt-6">
             <AnimatePresence mode="wait">
-                <motion.div key={status} initial={{opacity: 0, y: 10}} animate={{opacity: 1, y: 0}} exit={{opacity: 0, y: -10}}>
+                <motion.div key={jobData?.status || 'loading'} initial={{opacity: 0, y: 10}} animate={{opacity: 1, y: 0}} exit={{opacity: 0, y: -10}}>
                     {renderContent()}
                 </motion.div>
             </AnimatePresence>
