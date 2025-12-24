@@ -3,7 +3,7 @@
 
 import { useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { doc, getDoc, updateDoc, addDoc, serverTimestamp, collection } from 'firebase/firestore';
+import { doc, getDoc, updateDoc, serverTimestamp } from 'firebase/firestore';
 import { firebaseDb } from '@/lib/firebaseClient';
 import { useAuth } from '@/context/AuthContext';
 import { useToast } from '@/hooks/use-toast';
@@ -27,8 +27,15 @@ export default function SafetyTemplateEditorPage() {
     const { user, companyId } = useAuth();
     const { toast } = useToast();
     
-    const templateId = params.templateId as string;
-    const isNew = false; // Esta página ya no maneja la creación.
+    const templateId = String((params as any)?.templateId || "");
+
+    useEffect(() => {
+        if (templateId === "nuevo") {
+          router.replace("/prevencion/safety-checklists/templates/nuevo");
+        }
+    }, [templateId, router]);
+
+    const isNew = false;
 
     const [template, setTemplate] = useState<Partial<OperationalChecklistTemplate> | null>(null);
     const [loading, setLoading] = useState(true);
@@ -38,13 +45,12 @@ export default function SafetyTemplateEditorPage() {
     const [editingItem, setEditingItem] = useState<{ sectionId: string; item: ChecklistItem | null } | null>(null);
 
     useEffect(() => {
-        // Redirige si alguien llega aquí con la URL "nuevo"
-        if (templateId === 'nuevo') {
-            router.replace('/prevencion/safety-checklists/templates/nuevo');
+        if (!templateId || templateId === 'nuevo') {
+            setLoading(false);
             return;
         }
 
-        if (!user || !companyId || !templateId) {
+        if (!user || !companyId) {
             setLoading(false);
             return;
         };
