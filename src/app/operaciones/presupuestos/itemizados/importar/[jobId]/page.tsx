@@ -5,14 +5,20 @@ import { useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Loader2, AlertCircle, CheckCircle, FileText, ArrowLeft, Redo } from 'lucide-react';
+import { Loader2, AlertCircle, CheckCircle, ArrowLeft, Redo, Save } from 'lucide-react';
 import { Progress } from '@/components/ui/progress';
 import { ItemizadoImportOutput } from '@/types/itemizados-import';
 import { motion, AnimatePresence } from 'framer-motion';
+import { addDoc, collection, serverTimestamp } from 'firebase/firestore';
+import { firebaseDb } from '@/lib/firebaseClient';
+import { useAuth } from '@/context/AuthContext';
+import { useToast } from '@/hooks/use-toast';
 
 type JobStatus = 'queued' | 'processing' | 'done' | 'error';
 type JobResponse = {
   status: JobStatus;
+  obraId?: string; // Incluir obraId en la respuesta
+  obraNombre?: string;
   result?: ItemizadoImportOutput | null;
   error?: string | null;
 };
@@ -20,12 +26,16 @@ type JobResponse = {
 export default function ImportStatusPage() {
   const params = useParams();
   const router = useRouter();
+  const { user, companyId } = useAuth();
+  const { toast } = useToast();
   const jobId = params.jobId as string;
 
   const [status, setStatus] = useState<JobStatus>('queued');
   const [result, setResult] = useState<ItemizadoImportOutput | null>(null);
+  const [obraInfo, setObraInfo] = useState<{ id: string, nombre: string } | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [progress, setProgress] = useState(0);
+  const [isSaving, setIsSaving] = useState(false);
 
   useEffect(() => {
     if (!jobId) return;
@@ -39,6 +49,10 @@ export default function ImportStatusPage() {
         const data: JobResponse = await res.json();
         
         setStatus(data.status);
+
+        if (data.obraId && data.obraNombre) {
+            setObraInfo({ id: data.obraId, nombre: data.obraNombre });
+        }
 
         if (data.status === 'done') {
           setResult(data.result || null);
@@ -61,6 +75,58 @@ export default function ImportStatusPage() {
       return () => clearInterval(interval);
     }
   }, [jobId, status]);
+
+  const handleSaveItemizado = async () => {
+    if (!result || !obraInfo || !user || !companyId) {
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "No hay datos suficientes para guardar el itemizado.",
+      });
+      return;
+    }
+
+    setIsSaving(true);
+    try {
+        const totalPresupuesto = result.rows.reduce((sum, row) => sum + (row.total || 0), 0);
+
+        const newPresupuesto = {
+            obraId: obraInfo.id,
+            nombre: `Itemizado importado desde PDF - ${new Date().toLocaleDateString()}`,
+            moneda: 'CLP',
+            observaciones: `Generado automáticamente por IA a partir de un PDF. Job ID: ${jobId}.`,
+            gastosGeneralesPorcentaje: 25, // Valor por defecto
+            items: result.rows.map(({ id, ...rest }) => rest), // Quitar el id temporal
+            fechaCreacion: serverTimestamp(),
+            updatedAt: serverTimestamp(),
+            createdBy: user.uid,
+            companyId: companyId,
+            source: "IA_PDF",
+            jobId: jobId,
+            totalPresupuesto, // Guardar el total calculado
+        };
+
+        const docRef = await addDoc(collection(firebaseDb, "presupuestos"), newPresupuesto);
+        
+        toast({
+            title: "Itemizado Guardado",
+            description: "El itemizado ha sido guardado y ahora puedes editarlo.",
+        });
+
+        router.push(`/operaciones/presupuestos/${docRef.id}`);
+
+    } catch (err) {
+        console.error("Error saving itemizado:", err);
+        toast({
+            variant: "destructive",
+            title: "Error al guardar",
+            description: "No se pudo crear el documento de itemizado en la base de datos.",
+        });
+    } finally {
+        setIsSaving(false);
+    }
+  };
+
 
   const renderContent = () => {
     switch (status) {
@@ -92,7 +158,10 @@ export default function ImportStatusPage() {
                 </p>
             )}
              <div className="mt-6 flex justify-center gap-4">
-                <Button>Ver Itemizado (Próximamente)</Button>
+                <Button onClick={handleSaveItemizado} disabled={isSaving}>
+                    {isSaving ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <Save className="mr-2 h-4 w-4"/>}
+                    {isSaving ? "Guardando..." : "Guardar como Itemizado"}
+                </Button>
                 <Button variant="outline">Descargar JSON</Button>
             </div>
           </div>
