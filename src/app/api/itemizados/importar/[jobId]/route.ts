@@ -1,13 +1,7 @@
 import { NextResponse } from "next/server";
-import { getApps, initializeApp } from "firebase-admin/app";
-import { getFirestore } from "firebase-admin/firestore";
+import { getAdminDb } from "@/lib/firebaseAdmin";
 
 export const runtime = "nodejs";
-
-function getAdminDb() {
-  if (!getApps().length) initializeApp();
-  return getFirestore();
-}
 
 export async function GET(req: Request, ctx: { params: { jobId: string } }) {
   const jobIdFromParams = ctx?.params?.jobId;
