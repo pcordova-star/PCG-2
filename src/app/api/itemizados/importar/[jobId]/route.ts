@@ -16,7 +16,7 @@ export async function GET(req: Request, ctx: { params: { jobId: string } }) {
       .doc(jobId)
       .get();
 
-    if (!snap.exists) {
+    if (!snap.exists()) {
       return NextResponse.json({ error: "Trabajo no encontrado" }, { status: 404 });
     }
 
@@ -25,6 +25,9 @@ export async function GET(req: Request, ctx: { params: { jobId: string } }) {
     return NextResponse.json(
       {
         status: jobData.status,
+        obraId: jobData.obraId,
+        obraNombre: jobData.obraNombre,
+        companyId: jobData.companyId,
         result: jobData.status === "done" ? jobData.result : null,
         error: jobData.status === "error" ? jobData.errorMessage : null,
       },
@@ -32,6 +35,9 @@ export async function GET(req: Request, ctx: { params: { jobId: string } }) {
     );
   } catch (e) {
     console.error("GET itemizadoImportJobs status error:", e);
-    return NextResponse.json({ error: "Error interno del servidor al consultar el trabajo." }, { status: 500 });
+    return NextResponse.json(
+      { error: "Error interno del servidor al consultar el trabajo." },
+      { status: 500 }
+    );
   }
 }
