@@ -21,9 +21,9 @@ export { createCompanyUser } from "./createCompanyUser";
 export { registrarAvanceRapido } from "./registrarAvanceRapido";
 export { convertHeicToJpg } from "./convertHeic";
 export { notifyDocumentDistribution } from "./notifyDocumentDistribution";
+export { processItemizadoJob } from "./processItemizadoJob";
 
 // Se comentan temporalmente las funciones que dependen de la API de IA para evitar errores de deploy.
-// export { processItemizadoJob } from "./processItemizadoJob";
 // export { checkUserExistsByEmail } from "./checkUserExistsByEmail";
 // export { testGoogleAi } from "./test-google-ai";
 
