@@ -9,12 +9,10 @@ function getAdminDb() {
   return getFirestore();
 }
 
-type GetParams = {
-  params: { jobId: string };
-};
-
-export async function GET(_: Request, { params }: GetParams) {
-  const jobId = params?.jobId;
+export async function GET(req: Request, ctx: { params: { jobId: string } }) {
+  const jobIdFromParams = ctx?.params?.jobId;
+  const jobIdFromUrl = new URL(req.url).pathname.split("/").pop();
+  const jobId = jobIdFromParams || jobIdFromUrl;
 
   if (!jobId) {
     return NextResponse.json({ error: "jobId es requerido" }, { status: 400 });
