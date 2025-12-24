@@ -1,51 +1,50 @@
-// src/app/api/itemizados/importar/[jobId]/route.ts
-import { NextResponse } from 'next/server';
-import { doc, getDoc } from 'firebase/firestore';
-import { firebaseDb } from '@/lib/firebaseClient';
+import { NextResponse } from "next/server";
+import { getApps, initializeApp } from "firebase-admin/app";
+import { getFirestore } from "firebase-admin/firestore";
 
-export const runtime = 'nodejs';
+export const runtime = "nodejs";
+
+function getAdminDb() {
+  if (!getApps().length) initializeApp();
+  return getFirestore();
+}
 
 type GetParams = {
-  params: {
-    jobId: string;
-  };
+  params: { jobId: string };
 };
 
-/**
- * Endpoint para consultar el estado de un trabajo de importación de itemizado.
- */
-export async function GET(request: Request, { params }: GetParams) {
-  const { jobId } = params;
-
-  // Logging para diagnóstico
-  console.log("GET [dynamic route] status params.jobId:", params?.jobId);
-  console.log("GET [dynamic route] request URL:", request.url);
+export async function GET(_: Request, { params }: GetParams) {
+  const jobId = params?.jobId;
 
   if (!jobId) {
-    return NextResponse.json({ error: 'jobId es requerido' }, { status: 400 });
+    return NextResponse.json({ error: "jobId es requerido" }, { status: 400 });
   }
 
   try {
-    const jobRef = doc(firebaseDb, 'itemizadoImportJobs', jobId);
-    const jobSnap = await getDoc(jobRef);
+    const snap = await getAdminDb()
+      .collection("itemizadoImportJobs")
+      .doc(jobId)
+      .get();
 
-    if (!jobSnap.exists()) {
-      return NextResponse.json({ error: 'Trabajo no encontrado' }, { status: 404 });
+    if (!snap.exists) {
+      return NextResponse.json({ error: "Trabajo no encontrado" }, { status: 404 });
     }
 
-    const jobData = jobSnap.data();
-    
-    // Devolvemos solo los campos necesarios para el cliente
-    const response = {
-        status: jobData.status,
-        result: jobData.status === 'done' ? jobData.result : null,
-        error: jobData.status === 'error' ? jobData.errorMessage : null,
-    };
+    const jobData = snap.data() || {};
 
-    return NextResponse.json(response, { status: 200 });
-    
-  } catch (error: any) {
-    console.error(`[API /status] Error fetching job ${jobId}:`, error);
-    return NextResponse.json({ error: 'Error interno del servidor al consultar el trabajo.' }, { status: 500 });
+    return NextResponse.json(
+      {
+        status: jobData.status,
+        result: jobData.status === "done" ? jobData.result : null,
+        error: jobData.status === "error" ? jobData.errorMessage : null,
+      },
+      { status: 200 }
+    );
+  } catch (e) {
+    console.error("GET itemizadoImportJobs status error:", e);
+    return NextResponse.json(
+      { error: "Error interno del servidor al consultar el trabajo." },
+      { status: 500 }
+    );
   }
 }
