@@ -92,26 +92,24 @@ export default function RecordDetailPage() {
         if (!record || !template) return;
     
         const doc = new jsPDF("p", "mm", "a4");
-        const margin = 15;
-        const pageWidth = doc.internal.pageSize.getWidth();
-        const pageHeight = doc.internal.pageSize.getHeight();
-        let y = 20;
+        const marginX = 15;
+        let cursorY = 20;
 
         // --- Helpers ---
         const addPageIfNeeded = (spaceNeeded: number) => {
-            if (y + spaceNeeded > pageHeight - margin) {
+            if (cursorY + spaceNeeded > 270) {
                 doc.addPage();
-                y = margin;
+                cursorY = 20;
                 return true;
             }
             return false;
         };
 
         const addHeader = () => {
-            // Placeholder para logo
             try {
-                 // doc.addImage("/logo.png", "PNG", margin, 15, 20, 20);
-            } catch (e) { console.log("Logo no encontrado, omitiendo.")}
+                 const imgData = '/logo.png';
+                 doc.addImage(imgData, 'PNG', 15, 15, 20, 20);
+            } catch(e) { console.log("logo no encontrado")}
             
             doc.setFont("helvetica", "bold");
             doc.setFontSize(16);
@@ -119,58 +117,49 @@ export default function RecordDetailPage() {
             doc.setFontSize(10);
             doc.setTextColor(100);
             doc.text("Checklist Operacional", pageWidth / 2, 26, { align: 'center' });
-            y = 35;
+            cursorY = 35;
         };
         
         const addMetadata = () => {
-            doc.setFont("helvetica", "normal");
-            doc.setFontSize(10);
-            const metadata = [
-                { label: "Fecha:", value: record.header?.fecha || record.filledAt.toDate().toLocaleDateString('es-CL') },
-                { label: "Responsable:", value: record.header?.responsable || record.filledByEmail },
-                { label: "Sector:", value: record.header?.sector || 'N/A' },
-                { label: "Elemento:", value: record.header?.elemento || 'N/A' },
-            ];
-            if(obra) metadata.unshift({label: "Obra:", value: obra.nombreFaena});
-            
-            let metadataY = y;
-            let col1 = "";
-            let col2 = "";
-            metadata.forEach((item, index) => {
-                if(index % 2 === 0) {
-                    col1 += item.label + " " + item.value + "\n";
-                } else {
-                    col2 += item.label + " " + item.value + "\n";
-                }
-            });
-            doc.text(col1, margin, metadataY);
-            doc.text(col2, pageWidth / 2 + 10, metadataY);
-            const lines = Math.ceil(metadata.length / 2);
-            y += lines * 6 + 4;
+             doc.setFont("helvetica", "normal");
+             doc.setFontSize(10);
+             if (obra) {
+                doc.text("Obra: " + obra.nombreFaena, marginX, cursorY);
+                cursorY += 6;
+             }
+             const fechaStr = (record.header && record.header.fecha) || (record.filledAt ? record.filledAt.toDate().toLocaleDateString('es-CL') : "");
+             doc.text("Fecha: " + fechaStr, marginX, cursorY);
+             cursorY += 6;
+             doc.text("Realizado por: " + ((record.header && record.header.responsable) || record.filledByEmail || ""), marginX, cursorY);
+             cursorY += 6;
+             doc.text("Sector: " + ((record.header && record.header.sector) || "N/A"), marginX, cursorY);
+             cursorY += 6;
+             doc.text("Elemento: " + ((record.header && record.header.elemento) || "N/A"), marginX, cursorY);
+             cursorY += 10;
         }
 
         const addTableHeaders = () => {
              doc.setFont("helvetica", "bold");
              doc.setFillColor(240, 240, 240);
-             doc.rect(margin, y, pageWidth - (margin * 2), 7, 'F');
-             doc.text("Ítem", margin + 2, y + 5);
-             doc.text("Estado", margin + 110, y + 5);
-             doc.text("Observación", margin + 140, y + 5);
-             y += 7;
+             doc.rect(margin, cursorY, pageWidth - (margin * 2), 7, 'F');
+             doc.text("Ítem", margin + 2, cursorY + 5);
+             doc.text("Estado", margin + 140, cursorY + 5);
+             cursorY += 7;
         };
 
         // --- Generación del Documento ---
+        const pageWidth = doc.internal.pageSize.getWidth();
         addHeader();
         addMetadata();
 
         let summary = { conforme: 0, no_conforme: 0, no_aplica: 0 };
 
         template.secciones.sort((a,b)=>a.order-b.order).forEach(section => {
-            if (addPageIfNeeded(20)) addHeader();
+            if (addPageIfNeeded(20)) { addHeader(); addMetadata(); }
             doc.setFont("helvetica", "bold");
             doc.setFontSize(12);
-            doc.text(section.title, margin, y);
-            y += 8;
+            doc.text(section.title, marginX, cursorY);
+            cursorY += 8;
             addTableHeaders();
 
             section.items.sort((a,b)=>a.order-b.order).forEach(item => {
@@ -184,55 +173,55 @@ export default function RecordDetailPage() {
                      estadoTexto = String(answer || "-");
                 }
                 
-                const itemLines = doc.splitTextToSize(item.label, 105);
-                const obsLines = doc.splitTextToSize("", 30);
-                const rowHeight = Math.max(itemLines.length, obsLines.length) * 5 + 3;
+                const itemLines = doc.splitTextToSize(item.label, 135);
+                const rowHeight = itemLines.length * 5 + 4;
 
                 if (addPageIfNeeded(rowHeight)) {
                     addHeader();
+                    addMetadata();
                     addTableHeaders();
                 }
 
                 doc.setFont("helvetica", "normal");
-                doc.text(itemLines, margin + 2, y + 4);
-                doc.text(estadoTexto, margin + 110, y + 4);
-                // Aquí iría la observación si la tuvieras
-                // doc.text(obsLines, margin + 140, y + 4);
+                doc.text(itemLines, marginX + 2, cursorY + 4);
+                doc.text(estadoTexto, marginX + 140, cursorY + 4);
 
-                y += rowHeight;
-                doc.line(margin, y, pageWidth - margin, y);
+                cursorY += rowHeight;
+                doc.line(marginX, cursorY, pageWidth - marginX, cursorY);
             });
-            y += 10;
+            cursorY += 10;
         });
 
         // Resumen
-        if (addPageIfNeeded(30)) addHeader();
+        if (addPageIfNeeded(30)) { addHeader(); addMetadata(); }
         doc.setFont("helvetica", "bold");
         doc.setFontSize(12);
-        doc.text("Resumen", margin, y); y+=6;
+        doc.text("Resumen", marginX, cursorY); cursorY+=6;
         doc.setFont("helvetica", "normal");
         doc.setFontSize(10);
-        doc.text("Conforme: " + summary.conforme, margin, y); y+=5;
-        doc.text("No Conforme: " + summary.no_conforme, margin, y); y+=5;
-        doc.text("No Aplica: " + summary.no_aplica, margin, y); y+=10;
+        doc.text("Conforme: " + summary.conforme, marginX, cursorY); cursorY+=5;
+        doc.text("No Conforme: " + summary.no_conforme, marginX, cursorY); cursorY+=5;
+        doc.text("No Aplica: " + summary.no_aplica, marginX, cursorY);
+        let y = cursorY; // Reasignar cursorY a y para mantener el scope.
+        y+=10;
 
         // Firma
-        if (addPageIfNeeded(50)) addHeader();
+        if (addPageIfNeeded(50)) { addHeader(); addMetadata(); }
         doc.setFont("helvetica", "bold");
         doc.setFontSize(12);
-        doc.text("Firma", margin, y); y+=6;
+        doc.text("Firma", marginX, cursorY); cursorY+=6;
         doc.setFont("helvetica", "normal");
         doc.setFontSize(10);
-        doc.text("Firmado por: " + (record.signature?.name || record.filledByEmail), margin, y); y+=5;
+        doc.text("Firmado por: " + (record.signature?.name || record.filledByEmail), marginX, cursorY); cursorY+=5;
         
         if (record.signature?.dataUrl) {
             const imgData = await getBase64ImageFromUrl(record.signature.dataUrl);
             if (imgData) {
-                doc.rect(margin, y, 60, 25);
-                doc.addImage(imgData, 'PNG', margin, y, 60, 25);
+                doc.rect(marginX, cursorY, 60, 25);
+                doc.addImage(imgData, 'PNG', marginX, cursorY, 60, 25);
             }
         } else {
-            doc.text("Firma: No registrada", margin, y);
+            doc.text("Firma: No registrada", marginX, cursorY);
         }
 
         doc.save("Checklist_" + record.id.substring(0, 8) + ".pdf");
