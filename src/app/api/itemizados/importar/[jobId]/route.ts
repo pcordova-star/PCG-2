@@ -4,9 +4,7 @@ import { getAdminDb } from "@/lib/firebaseAdmin";
 export const runtime = "nodejs";
 
 export async function GET(req: Request, ctx: { params: { jobId: string } }) {
-  const jobIdFromParams = ctx?.params?.jobId;
-  const jobIdFromUrl = new URL(req.url).pathname.split("/").pop();
-  const jobId = jobIdFromParams || jobIdFromUrl;
+  const jobId = ctx?.params?.jobId || new URL(req.url).pathname.split("/").pop();
 
   if (!jobId) {
     return NextResponse.json({ error: "jobId es requerido" }, { status: 400 });
@@ -34,9 +32,6 @@ export async function GET(req: Request, ctx: { params: { jobId: string } }) {
     );
   } catch (e) {
     console.error("GET itemizadoImportJobs status error:", e);
-    return NextResponse.json(
-      { error: "Error interno del servidor al consultar el trabajo." },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: "Error interno del servidor al consultar el trabajo." }, { status: 500 });
   }
 }
