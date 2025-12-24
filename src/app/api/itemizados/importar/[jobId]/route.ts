@@ -16,7 +16,7 @@ export async function GET(req: Request, ctx: { params: { jobId: string } }) {
       .doc(jobId)
       .get();
 
-    if (!snap.exists()) {
+    if (!snap.exists) {
       return NextResponse.json({ error: "Trabajo no encontrado" }, { status: 404 });
     }
 
