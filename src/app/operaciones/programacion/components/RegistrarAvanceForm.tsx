@@ -20,7 +20,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 // Tipos para la función callable
 type RegistrarAvanceRapidoInput = {
   obraId: string;
-  actividadId: string | null;
+  actividadId: string;
   porcentaje: number;
   comentario: string;
   fotos: string[];
@@ -154,7 +154,7 @@ export default function RegistrarAvanceForm({ obraId: initialObraId, obras = [],
         }
 
         const cantidadAcumuladaAnterior = avancesPorActividad[actividadId]?.cantidadAcumulada || 0;
-        const maxPermitidaHoy = Math.max(0, actividad.cantidad - cantidadAcumuladaAnterior);
+        const maxPermitidaHoy = Math.max(0, baseCantidad - cantidadAcumuladaAnterior);
 
         if (cantidadHoy > maxPermitidaHoy) {
            throw new Error(`La cantidad para "${actividad.nombreActividad}" (${cantidadHoy}) excede la disponible (${maxPermitidaHoy.toFixed(2)}).`);
@@ -178,10 +178,12 @@ export default function RegistrarAvanceForm({ obraId: initialObraId, obras = [],
           }
         }
         
+        const porcentajeFraccion = Math.min(1, Math.max(0, porcentaje / 100));
+
         const payload: RegistrarAvanceRapidoInput = {
           obraId: selectedObraId,
-          actividadId: actividadId ?? null,
-          porcentaje: porcentaje,
+          actividadId: actividadId,
+          porcentaje: porcentajeFraccion,
           comentario: comentarios[actividadId] || '',
           fotos: urlsFotos,
           visibleCliente: true
@@ -213,6 +215,7 @@ export default function RegistrarAvanceForm({ obraId: initialObraId, obras = [],
       }
       
     } catch (err: any) {
+        // Extraer TODO lo posible, incluso si las props no son enumerables
         const rawString = String(err);
         const name = err?.name;
         const code = err?.code;
