@@ -4,7 +4,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { firebaseFunctions, firebaseStorage } from '@/lib/firebaseClient';
-import { httpsCallable } from 'firebase/functions';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
@@ -137,7 +136,7 @@ export default function RegistrarAvanceForm({ obraId: initialObraId, obras = [],
     setIsSaving(true);
     setError(null);
     
-    const registrarAvanceFn = httpsCallable<RegistrarAvanceRapidoInput, RegistrarAvanceRapidoOutput>(firebaseFunctions, "registrarAvanceRapido");
+    const token = await user.getIdToken();
 
     try {
       const omitidas: string[] = [];
@@ -165,7 +164,7 @@ export default function RegistrarAvanceForm({ obraId: initialObraId, obras = [],
             omitidas.push(actividad.nombreActividad);
             continue;
         }
-        porcentaje = Math.min(100, porcentaje);
+        porcentaje = Math.min(100, Math.max(0, porcentaje));
 
         const urlsFotos: string[] = [];
         if (fotos[actividadId] && fotos[actividadId].length > 0) {
@@ -190,7 +189,24 @@ export default function RegistrarAvanceForm({ obraId: initialObraId, obras = [],
         };
         
         console.log("registrarAvanceRapido payload:", payload);
-        await registrarAvanceFn(payload);
+        const res = await fetch(
+          "https://southamerica-west1-pcg-2-8bf1b.cloudfunctions.net/registrarAvanceRapido",
+          {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${token}`,
+            },
+            body: JSON.stringify(payload),
+          }
+        );
+
+        const json = await res.json();
+
+        if (!res.ok) {
+          throw new Error(json?.details || "Error al registrar avance");
+        }
+
         guardadas++;
       }
 
@@ -215,7 +231,6 @@ export default function RegistrarAvanceForm({ obraId: initialObraId, obras = [],
       }
       
     } catch (err: any) {
-        // Extraer TODO lo posible, incluso si las props no son enumerables
         const rawString = String(err);
         const name = err?.name;
         const code = err?.code;
