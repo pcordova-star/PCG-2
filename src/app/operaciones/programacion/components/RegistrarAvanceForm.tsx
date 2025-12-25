@@ -137,7 +137,6 @@ export default function RegistrarAvanceForm({ obraId: initialObraId, obras = [],
     setError(null);
     
     try {
-      const token = await user.getIdToken(true);
       const omitidas: string[] = [];
       let guardadas = 0;
 
@@ -153,8 +152,8 @@ export default function RegistrarAvanceForm({ obraId: initialObraId, obras = [],
 
         let porcentaje = (cantidadHoy / baseCantidad) * 100;
         if (!Number.isFinite(porcentaje) || porcentaje < 0) {
-            omitidas.push(actividad.nombreActividad);
-            continue;
+          omitidas.push(actividad.nombreActividad);
+          continue;
         }
         porcentaje = Math.min(100, porcentaje);
         
@@ -180,22 +179,30 @@ export default function RegistrarAvanceForm({ obraId: initialObraId, obras = [],
           visibleCliente: true
         };
         
-        console.log("registrarAvanceRapido payload:", payload);
+        const FN_URL = "https://southamerica-west1-pcg-2-8bf1b.cloudfunctions.net/registrarAvanceRapido";
+        const token = await user.getIdToken(true);
 
         console.log("AUTH PROJECT:", user?.auth?.app?.options?.projectId);
-        console.log("AUTH DOMAIN:", user?.auth?.app?.options?.authDomain);
-        
-        const res = await fetch(
-          "https://southamerica-west1-pcg-2-8bf1b.cloudfunctions.net/registrarAvanceRapido",
-          {
+        console.log("TOKEN length:", token?.length);
+        try {
+          const payloadPart = token.split(".")[1] || "";
+          const decoded = JSON.parse(atob(payloadPart.replace(/-/g, "+").replace(/_/g, "/")));
+          console.log("JWT aud:", decoded?.aud);
+          console.log("JWT iss:", decoded?.iss);
+          console.log("JWT sub:", decoded?.sub);
+        } catch (e) {
+          console.log("JWT decode failed");
+        }
+
+
+        const res = await fetch(FN_URL, {
             method: "POST",
             headers: {
               "Content-Type": "application/json",
               Authorization: `Bearer ${token}`,
             },
             body: JSON.stringify(payload),
-          }
-        );
+        });
         
         const json = await res.json().catch(() => ({}));
         
