@@ -23,6 +23,7 @@ type JobResponse = {
   companyId?: string;
   result?: ItemizadoImportOutput | null;
   error?: string | null;
+  sourceFileName?: string;
 };
 
 // Función para parsear números en formato chileno (ej: "1.234,56")
@@ -41,7 +42,19 @@ function parseNumberCL(value: string | number | null | undefined): number {
 function normalizeRowsToPresupuestoItems(rows: any[]): Array<{ parentId: string | null; type: "chapter" | "subchapter" | "item"; descripcion: string; unidad: string; cantidad: number; precioUnitario: number; }> {
     if (!rows) return [];
 
-    return rows.map(row => {
+    const excludedTokens = [
+        "iva", "total", "subtotal", "costo directo", "costos directos", 
+        "gastos generales", "ggyu", "utilidad", "administración", 
+        "imprevistos", "neto", "bruto"
+    ];
+
+    return rows
+      .filter(row => {
+        const descripcion = (row.descripcion ?? row.description ?? row.nombre ?? row.name ?? "").trim().toLowerCase();
+        if (!descripcion) return false; // Excluir filas sin descripción
+        return !excludedTokens.some(token => descripcion.includes(token));
+      })
+      .map(row => {
         const descripcion = row.descripcion ?? row.description ?? row.nombre ?? row.name ?? "";
         const unidad = row.unidad ?? row.unit ?? row.u ?? "";
         const cantidad = parseNumberCL(row.cantidad ?? row.qty ?? row.quantity);
@@ -130,7 +143,10 @@ export default function ImportStatusPage() {
 
     setIsSaving(true);
     try {
-        const sourceFileName = jobData.result?.meta?.sourceFileName ?? "Itemizado IA";
+        const sourceFileName =
+          jobData.result?.meta?.sourceFileName ??
+          jobData?.sourceFileName ??
+          "Itemizado IA";
         const nombrePresupuesto = `Presupuesto importado de ${sourceFileName} - ${new Date().toLocaleDateString()}`;
         
         const normalizedItems = normalizeRowsToPresupuestoItems(jobData.result?.rows ?? []);
@@ -139,7 +155,7 @@ export default function ImportStatusPage() {
         const newPresupuesto = {
             obraId: jobData.obraId,
             nombre: nombrePresupuesto,
-            moneda: "CLP", // Forzar CLP como moneda por defecto
+            moneda: "CLP",
             observaciones: `Generado automáticamente por IA a partir de un PDF. Job ID: ${jobId}. ${jobData.result.meta?.notes || ''}`,
             gastosGeneralesPorcentaje: 25,
             items: normalizedItems,
