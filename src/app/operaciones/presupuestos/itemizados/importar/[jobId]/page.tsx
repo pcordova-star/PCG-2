@@ -14,6 +14,7 @@ import { addDoc, collection, serverTimestamp } from 'firebase/firestore';
 import { firebaseDb } from '@/lib/firebaseClient';
 import { useAuth } from '@/context/AuthContext';
 import { useToast } from '@/hooks/use-toast';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 
 type JobStatus = 'queued' | 'processing' | 'done' | 'error';
 type JobResponse = {
@@ -52,6 +53,8 @@ function normalizeRowsToPresupuestoItems(rows: any[]): Array<{ parentId: string 
       .filter(row => {
         const descripcion = (row.descripcion ?? row.description ?? row.nombre ?? row.name ?? "").trim().toLowerCase();
         if (!descripcion) return false; // Excluir filas sin descripción
+        
+        // Excluir si alguna de las palabras clave está en la descripción
         return !excludedTokens.some(token => descripcion.includes(token));
       })
       .map(row => {
@@ -220,14 +223,23 @@ export default function ImportStatusPage() {
         );
       case 'done':
         return (
-          <div className="text-center">
+          <div className="text-center space-y-4">
             <CheckCircle className="mx-auto h-12 w-12 text-green-500" />
-            <p className="mt-4 font-semibold">¡Análisis completado!</p>
+            <p className="mt-2 font-semibold text-xl">¡Análisis completado!</p>
             {jobData.result && (
                 <p className="text-sm text-muted-foreground">
-                    Se encontraron {jobData.result.chapters.length} capítulos y {jobData.result.rows.length} partidas.
+                    Se encontraron {jobData.result.chapters.length} capítulos y {normalizeRowsToPresupuestoItems(jobData.result?.rows).length} partidas válidas.
                 </p>
             )}
+
+            <Alert variant="destructive" className="text-left">
+                <AlertCircle className="h-4 w-4" />
+                <AlertTitle>Revisión Manual Requerida</AlertTitle>
+                <AlertDescription>
+                    La extracción de datos por IA es una interpretación y puede contener errores. Verifique cuidadosamente las partidas, cantidades y precios antes de guardar.
+                </AlertDescription>
+            </Alert>
+
              <div className="mt-6 flex justify-center gap-4">
                 <Button onClick={handleSaveItemizado} disabled={isSaving || isSaved}>
                     {isSaving ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <Save className="mr-2 h-4 w-4"/>}
@@ -259,7 +271,7 @@ export default function ImportStatusPage() {
             <ArrowLeft className="mr-2"/> Volver a Presupuestos
         </Button>
       <Card className="min-h-[300px] flex items-center justify-center">
-        <CardContent className="pt-6">
+        <CardContent className="pt-6 w-full max-w-lg">
             <AnimatePresence mode="wait">
                 <motion.div key={jobData?.status || 'loading'} initial={{opacity: 0, y: 10}} animate={{opacity: 1, y: 0}} exit={{opacity: 0, y: -10}}>
                     {renderContent()}
