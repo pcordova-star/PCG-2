@@ -180,33 +180,38 @@ export default function RegistrarAvanceForm({ obraId: initialObraId, obras = [],
         };
         
         const FN_URL = "https://southamerica-west1-pcg-2-8bf1b.cloudfunctions.net/registrarAvanceRapido";
+        
         const token = await user.getIdToken(true);
 
-        console.log("AUTH PROJECT:", user?.auth?.app?.options?.projectId);
         console.log("TOKEN length:", token?.length);
         try {
           const payloadPart = token.split(".")[1] || "";
-          const decoded = JSON.parse(atob(payloadPart.replace(/-/g, "+").replace(/_/g, "/")));
+          const decoded = JSON.parse(
+            atob(payloadPart.replace(/-/g, "+").replace(/_/g, "/"))
+          );
+
           console.log("JWT aud:", decoded?.aud);
           console.log("JWT iss:", decoded?.iss);
           console.log("JWT sub:", decoded?.sub);
-        } catch (e) {
+          console.log("JWT email:", decoded?.email);
+        } catch {
           console.log("JWT decode failed");
         }
 
+        console.log("USANDO FETCH registrarAvanceRapido, payload:", payload);
 
         const res = await fetch(FN_URL, {
             method: "POST",
             headers: {
               "Content-Type": "application/json",
-              Authorization: `Bearer ${token}`,
+              "Authorization": `Bearer ${token}`,
             },
             body: JSON.stringify(payload),
         });
         
         const json = await res.json().catch(() => ({}));
         
-        console.log("USANDO FETCH registrarAvanceRapido", { status: res.status, json });
+        console.log("USANDO FETCH registrarAvanceRapido, response:", { status: res.status, json });
 
         if (!res.ok) {
           throw new Error(json?.details || json?.error || `HTTP ${res.status}`);
