@@ -25,6 +25,18 @@ type JobResponse = {
   error?: string | null;
 };
 
+// Función para parsear números en formato chileno (ej: "1.234,56")
+function parseNumberCL(value: string | number | null | undefined): number {
+    if (typeof value === 'number') return value;
+    if (typeof value !== 'string' || value.trim() === '') return 0;
+
+    // Eliminar signo peso y puntos de miles, luego reemplazar coma decimal por punto.
+    const cleanValue = value.replace(/\$/g, '').replace(/\./g, '').replace(/,/g, '.').trim();
+    const parsed = parseFloat(cleanValue);
+    return isNaN(parsed) ? 0 : parsed;
+}
+
+
 // Función de normalización solicitada
 function normalizeRowsToPresupuestoItems(rows: any[]): Array<{ parentId: string | null; type: "chapter" | "subchapter" | "item"; descripcion: string; unidad: string; cantidad: number; precioUnitario: number; }> {
     if (!rows) return [];
@@ -32,8 +44,8 @@ function normalizeRowsToPresupuestoItems(rows: any[]): Array<{ parentId: string 
     return rows.map(row => {
         const descripcion = row.descripcion ?? row.description ?? row.nombre ?? row.name ?? "";
         const unidad = row.unidad ?? row.unit ?? row.u ?? "";
-        const cantidad = Number(row.cantidad ?? row.qty ?? row.quantity ?? 0) || 0;
-        const precioUnitario = Number(row.precioUnitario ?? row.unitPrice ?? row.price ?? 0) || 0;
+        const cantidad = parseNumberCL(row.cantidad ?? row.qty ?? row.quantity);
+        const precioUnitario = parseNumberCL(row.precioUnitario ?? row.unitPrice ?? row.price);
         
         let type: "chapter" | "subchapter" | "item";
         if (row.type && ["chapter", "subchapter", "item"].includes(row.type)) {
@@ -127,7 +139,7 @@ export default function ImportStatusPage() {
         const newPresupuesto = {
             obraId: jobData.obraId,
             nombre: nombrePresupuesto,
-            moneda: jobData.result.meta?.currency || 'CLP',
+            moneda: "CLP", // Forzar CLP como moneda por defecto
             observaciones: `Generado automáticamente por IA a partir de un PDF. Job ID: ${jobId}. ${jobData.result.meta?.notes || ''}`,
             gastosGeneralesPorcentaje: 25,
             items: normalizedItems,
