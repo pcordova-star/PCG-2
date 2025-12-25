@@ -178,7 +178,7 @@ export default function RegistrarAvanceForm({ obraId: initialObraId, obras = [],
           }
         }
         
-        const payload = {
+        const payload: RegistrarAvanceRapidoInput = {
           obraId: selectedObraId,
           actividadId: actividadId ?? null,
           porcentaje: porcentaje,
@@ -213,17 +213,35 @@ export default function RegistrarAvanceForm({ obraId: initialObraId, obras = [],
       }
       
     } catch (err: any) {
+        const rawString = String(err);
+        const name = err?.name;
         const code = err?.code;
-        const message = err?.message || "Ocurrió un error inesperado al registrar el avance.";
+        const message =
+          err?.message ||
+          (typeof err === "string" ? err : "") ||
+          rawString ||
+          "Ocurrió un error inesperado al registrar el avance.";
+
         const details = err?.details;
 
-        console.error("registrarAvanceRapido error:", { code, message, details, err });
+        let ownProps: any = {};
+        try {
+            const keys = Object.getOwnPropertyNames(err || {});
+            for (const k of keys) ownProps[k] = err[k];
+        } catch {}
 
+        console.error("registrarAvanceRapido error (raw):", err);
+        console.error("registrarAvanceRapido error (string):", rawString);
+        console.error("registrarAvanceRapido error (props):", ownProps);
+        
         setError(message);
         toast({
             variant: "destructive",
             title: code ? `Error (${code})` : "Error al registrar",
-            description: details ? `${message} — ${JSON.stringify(details)}` : message,
+            description:
+            details
+                ? `${message} — ${JSON.stringify(details)}`
+                : message,
             duration: 10000,
         });
     } finally {
@@ -286,12 +304,12 @@ export default function RegistrarAvanceForm({ obraId: initialObraId, obras = [],
                           const base = Number(act.cantidad);
                           const nuevoPorcentaje = Number.isFinite(base) && base > 0 ? (nuevaCantidadAcumulada / base) * 100 : NaN;
                           
-                          const maxPermitidaHoy = Math.max(0, act.cantidad - avanceActual.cantidadAcumulada);
+                          const maxPermitidaHoy = act.cantidad ? Math.max(0, act.cantidad - avanceActual.cantidadAcumulada) : 0;
 
                           return (
                               <TableRow key={act.id}>
                                   <TableCell className="font-medium text-xs">{act.nombreActividad}</TableCell>
-                                  <TableCell className="text-xs">{act.cantidad} {act.unidad}</TableCell>
+                                  <TableCell className="text-xs">{act.cantidad || 0} {act.unidad}</TableCell>
                                   <TableCell className="text-xs font-semibold">{avanceActual.cantidadAcumulada.toFixed(2)} ({avanceActual.porcentajeAcumulado.toFixed(1)}%)</TableCell>
                                   <TableCell>
                                       <Input 
@@ -299,7 +317,7 @@ export default function RegistrarAvanceForm({ obraId: initialObraId, obras = [],
                                         placeholder="0" 
                                         value={cantidadesHoy[act.id] || ''} 
                                         onChange={(e) => {
-                                          const value = Number(e.target.value);
+                                          const value = parseFloat(e.target.value);
                                           setCantidadesHoy(prev => ({...prev, [act.id]: Number.isFinite(value) ? value : 0}));
                                         }} 
                                         className="h-8 text-xs"
