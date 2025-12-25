@@ -81,7 +81,6 @@ export default function ImportStatusPage() {
 
     setIsSaving(true);
     try {
-        // FIX: Usar optional chaining y nullish coalescing para evitar el TypeError.
         const sourceFileName = jobData.result?.meta?.sourceFileName ?? "Itemizado IA";
         const nombrePresupuesto = `Presupuesto importado de ${sourceFileName} - ${new Date().toLocaleDateString()}`;
         const totalPresupuesto = jobData.result.rows.reduce((sum, row) => sum + (row.total || 0), 0);
