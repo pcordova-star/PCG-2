@@ -21,7 +21,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 // Tipos para la función callable
 type RegistrarAvanceRapidoInput = {
   obraId: string;
-  actividadId: string;
+  actividadId: string | null;
   porcentaje: number;
   comentario: string;
   fotos: string[];
