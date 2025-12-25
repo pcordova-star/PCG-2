@@ -1,3 +1,4 @@
+
 // src/app/operaciones/programacion/components/RegistrarAvanceForm.tsx
 "use client";
 
@@ -190,7 +191,13 @@ export default function RegistrarAvanceForm({ obraId: initialObraId, obras = [],
             body: JSON.stringify(payload),
         });
         
-        const json = await res.json().catch(() => ({}));
+        console.log("[registrarAvanceRapido] status", res.status);
+        console.log("[registrarAvanceRapido] headers", Object.fromEntries(res.headers.entries()));
+        const raw = await res.text();
+        console.log("[registrarAvanceRapido] raw body", raw);
+
+        let json: any = null;
+        try { json = JSON.parse(raw); } catch {}
         
         if (!res.ok) {
           throw new Error(json?.details || json?.error || `HTTP ${res.status}`);
