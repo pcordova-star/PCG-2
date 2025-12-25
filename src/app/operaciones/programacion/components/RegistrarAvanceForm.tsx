@@ -148,7 +148,7 @@ export default function RegistrarAvanceForm({ obraId: initialObraId, obras = [],
         const cantidadAcumuladaAnterior = avancesPorActividad[actividadId]?.cantidadAcumulada || 0;
         const maxPermitidaHoy = Math.max(0, actividad.cantidad - cantidadAcumuladaAnterior);
 
-        if (maxPermitidaHoy <= 0 || cantidadHoy > maxPermitidaHoy) {
+        if (cantidadHoy > maxPermitidaHoy) {
            throw new Error(`La cantidad para "${actividad.nombreActividad}" (${cantidadHoy}) excede la disponible (${maxPermitidaHoy.toFixed(2)}).`);
         }
         
@@ -188,7 +188,7 @@ export default function RegistrarAvanceForm({ obraId: initialObraId, obras = [],
           }
         }
         
-        const payload: RegistrarAvanceRapidoInput = {
+        const payload = {
           obraId: selectedObraId,
           actividadId: actividadId ?? null,
           porcentaje: porcentaje,
