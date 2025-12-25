@@ -151,6 +151,31 @@ export default function RegistrarAvanceForm({ obraId: initialObraId, obras = [],
         if (maxPermitidaHoy <= 0 || cantidadHoy > maxPermitidaHoy) {
            throw new Error(`La cantidad para "${actividad.nombreActividad}" (${cantidadHoy}) excede la disponible (${maxPermitidaHoy.toFixed(2)}).`);
         }
+        
+        // --- VALIDACIÓN DE PORCENTAJE ---
+        const baseCantidad = Number(actividad.cantidad);
+        if (!Number.isFinite(baseCantidad) || baseCantidad <= 0) {
+            toast({
+                variant: "destructive",
+                title: "Error de Cálculo",
+                description: `La actividad "${actividad.nombreActividad}" no tiene una cantidad base válida (> 0) para calcular el porcentaje. No se puede registrar el avance.`
+            });
+            setIsSaving(false);
+            return;
+        }
+
+        let porcentaje = (cantidadHoy / baseCantidad) * 100;
+        if (!Number.isFinite(porcentaje)) {
+            toast({
+                variant: "destructive",
+                title: "Error de Cálculo",
+                description: `El cálculo de porcentaje para "${actividad.nombreActividad}" resultó en un valor inválido. Avance no registrado.`
+            });
+            setIsSaving(false);
+            return;
+        }
+        
+        porcentaje = Math.min(100, Math.max(0, porcentaje)); // Clamp entre 0 y 100
 
         const urlsFotos: string[] = [];
         if (fotos[actividadId] && fotos[actividadId].length > 0) {
@@ -163,14 +188,13 @@ export default function RegistrarAvanceForm({ obraId: initialObraId, obras = [],
           }
         }
         
-        // Construir el payload con una whitelist estricta para cumplir con el esquema de Zod en el backend.
         const payload: RegistrarAvanceRapidoInput = {
           obraId: selectedObraId,
           actividadId: actividadId ?? null,
-          porcentaje: (cantidadHoy / actividad.cantidad) * 100,
+          porcentaje: porcentaje,
           comentario: comentarios[actividadId] || '',
           fotos: urlsFotos,
-          visibleCliente: true // O el valor que corresponda
+          visibleCliente: true
         };
 
         await registrarAvanceFn(payload);
