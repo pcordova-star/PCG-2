@@ -582,9 +582,12 @@ function ProgramacionPageInner() {
             const batch = writeBatch(firebaseDb);
             const actividadesNuevas: ActividadProgramada[] = [];
 
+            const excludedDescriptions = ["iva", "total", "total bruto", "costo directo", "costo total"];
+
             for (const item of presupuestoAImportar.items) {
                 if (item.type === 'item') {
-                    if (!actividadesActuales.has(item.descripcion.trim().toLowerCase())) {
+                    const normalizedDescription = item.descripcion.trim().toLowerCase();
+                    if (!excludedDescriptions.includes(normalizedDescription) && !actividadesActuales.has(normalizedDescription)) {
                         const nuevaActividadRef = doc(collection(firebaseDb, "obras", obraSeleccionadaId, "actividades"));
                         const nuevaActividadData = {
                             obraId: obraSeleccionadaId,
@@ -602,7 +605,7 @@ function ProgramacionPageInner() {
             }
 
             if (actividadesNuevas.length === 0) {
-                 toast({ title: "Nada que importar", description: "Todas las partidas del presupuesto ya existen en la programación." });
+                 toast({ title: "Nada que importar", description: "Todas las partidas del presupuesto ya existen en la programación o son ítems no válidos." });
             } else {
                 await batch.commit();
                 setActividades(prev => [...prev, ...actividadesNuevas]);
