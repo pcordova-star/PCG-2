@@ -4,29 +4,31 @@
  * Este archivo es el punto de entrada para todas las Cloud Functions.
  * Cada función se importa desde su propio archivo y se exporta para que Firebase la despliegue.
  */
+import * as functions from 'firebase-functions';
+import * as admin from 'firebase-admin';
 
-import { setGlobalOptions } from "firebase-functions/v2";
+// Inicializa Firebase Admin SDK solo si no se ha hecho antes.
+if (!admin.apps.length) {
+  admin.initializeApp();
+}
 
-// Establece opciones globales para todas las funciones v2, asegurando la región.
-// Se elimina la cuenta de servicio explícita para usar la default de App Engine.
-setGlobalOptions({
-  region: "southamerica-west1",
-});
+// Establece la región global para todas las funciones v1
+const region = "southamerica-west1";
 
+// Exporta las funciones callable y onRequest para que estén disponibles en el backend.
 
-// Exporta las funciones callable para que estén disponibles en el backend.
-// El nombre de la propiedad del objeto exportado será el nombre de la función en Firebase.
+// Funciones v2 (onCall)
 export { createCompanyUser } from "./createCompanyUser";
-export { registrarAvanceRapido } from "./registrarAvanceRapido";
-export { convertHeicToJpg } from "./convertHeic";
 export { notifyDocumentDistribution } from "./notifyDocumentDistribution";
 
-// Se comentan temporalmente las funciones que dependen de la API de IA para evitar errores de deploy.
-// export { processItemizadoJob } from "./processItemizadoJob";
-// export { checkUserExistsByEmail } from "./checkUserExistsByEmail";
-// export { testGoogleAi } from "./test-google-ai";
+// Funciones v1 (convertidas para estabilidad)
+import { registrarAvanceRapido as registrarAvanceRapidoV1 } from './registrarAvanceRapido';
+export const registrarAvanceRapido = registrarAvanceRapidoV1;
 
 
-// La función setSuperAdminClaim se omite intencionalmente de la exportación
-// para deshabilitarla en producción, ya que solo era necesaria para el bootstrap inicial.
-// El archivo se conserva por si se necesita en el futuro, pero no estará desplegada.
+// Funciones v2 (Storage & Firestore Triggers)
+export { convertHeicToJpg } from "./convertHeic";
+export { processItemizadoJob } from "./processItemizadoJob";
+export { testGoogleAi } from "./test-google-ai";
+export { setSuperAdminClaim } from "./setSuperAdmin";
+export { checkUserExistsByEmail } from './checkUserExistsByEmail';
