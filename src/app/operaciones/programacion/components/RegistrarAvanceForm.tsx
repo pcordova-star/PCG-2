@@ -141,6 +141,9 @@ export default function RegistrarAvanceForm({ obraId: initialObraId, obras = [],
     const registrarAvanceFn = httpsCallable<RegistrarAvanceRapidoInput, RegistrarAvanceRapidoOutput>(firebaseFunctions, "registrarAvanceRapido");
 
     try {
+      const omitidas: string[] = [];
+      let guardadas = 0;
+
       for (const [actividadId, cantidadHoy] of avancesParaGuardar) {
         const actividad = actividadesAMostrar.find(a => a.id === actividadId);
         if (!actividad) continue;
@@ -152,30 +155,19 @@ export default function RegistrarAvanceForm({ obraId: initialObraId, obras = [],
            throw new Error(`La cantidad para "${actividad.nombreActividad}" (${cantidadHoy}) excede la disponible (${maxPermitidaHoy.toFixed(2)}).`);
         }
         
-        // --- VALIDACIÓN DE PORCENTAJE ---
         const baseCantidad = Number(actividad.cantidad);
         if (!Number.isFinite(baseCantidad) || baseCantidad <= 0) {
-            toast({
-                variant: "destructive",
-                title: "Error de Cálculo",
-                description: `La actividad "${actividad.nombreActividad}" no tiene una cantidad base válida (> 0) para calcular el porcentaje. No se puede registrar el avance.`
-            });
-            setIsSaving(false);
-            return;
+            omitidas.push(actividad.nombreActividad);
+            continue;
         }
 
         let porcentaje = (cantidadHoy / baseCantidad) * 100;
-        if (!Number.isFinite(porcentaje)) {
-            toast({
-                variant: "destructive",
-                title: "Error de Cálculo",
-                description: `El cálculo de porcentaje para "${actividad.nombreActividad}" resultó en un valor inválido. Avance no registrado.`
-            });
-            setIsSaving(false);
-            return;
+        if (!Number.isFinite(porcentaje) || porcentaje < 0) {
+            omitidas.push(actividad.nombreActividad);
+            continue;
         }
         
-        porcentaje = Math.min(100, Math.max(0, porcentaje)); // Clamp entre 0 y 100
+        porcentaje = Math.min(100, porcentaje);
 
         const urlsFotos: string[] = [];
         if (fotos[actividadId] && fotos[actividadId].length > 0) {
@@ -198,12 +190,27 @@ export default function RegistrarAvanceForm({ obraId: initialObraId, obras = [],
         };
 
         await registrarAvanceFn(payload);
+        guardadas++;
       }
 
-      toast({ title: 'Avance registrado con éxito', description: `Se guardaron ${avancesParaGuardar.length} registros de avance.` });
-      onAvanceRegistrado?.(avancesParaGuardar);
-      resetFormStates();
+      if (guardadas > 0) {
+        toast({
+          title: "Avance registrado con éxito",
+          description: `Se guardaron ${guardadas} registros de avance.`,
+        });
+        onAvanceRegistrado?.(avancesParaGuardar);
+        resetFormStates();
+      }
 
+      if (omitidas.length > 0) {
+        toast({
+          variant: "destructive",
+          title: "Algunas actividades no se registraron",
+          description: `Sin cantidad base válida (> 0): ${omitidas.slice(0, 3).join(", ")}${omitidas.length > 3 ? "..." : ""}`,
+          duration: 8000,
+        });
+      }
+      
     } catch (err: any) {
         let errorMessage = "Ocurrió un error inesperado al registrar el avance.";
         const firebaseError = err as FirebaseError;
@@ -272,7 +279,8 @@ export default function RegistrarAvanceForm({ obraId: initialObraId, obras = [],
                           const avanceActual = avancesPorActividad[act.id] || { cantidadAcumulada: 0, porcentajeAcumulado: 0 };
                           const cantidadHoy = cantidadesHoy[act.id] || 0;
                           const nuevaCantidadAcumulada = avanceActual.cantidadAcumulada + cantidadHoy;
-                          const nuevoPorcentaje = act.cantidad > 0 ? (nuevaCantidadAcumulada / act.cantidad) * 100 : 0;
+                          const base = Number(act.cantidad);
+                          const nuevoPorcentaje = Number.isFinite(base) && base > 0 ? (nuevaCantidadAcumulada / base) * 100 : NaN;
                           const maxPermitidaHoy = Math.max(0, act.cantidad - avanceActual.cantidadAcumulada);
 
                           return (
@@ -281,10 +289,21 @@ export default function RegistrarAvanceForm({ obraId: initialObraId, obras = [],
                                   <TableCell className="text-xs">{act.cantidad} {act.unidad}</TableCell>
                                   <TableCell className="text-xs font-semibold">{avanceActual.cantidadAcumulada.toFixed(2)} ({avanceActual.porcentajeAcumulado.toFixed(1)}%)</TableCell>
                                   <TableCell>
-                                      <Input type="number" placeholder="0" value={cantidadesHoy[act.id] || ''} onChange={(e) => setCantidadesHoy(prev => ({...prev, [act.id]: Number(e.target.value)}))} className="h-8 text-xs" />
+                                      <Input 
+                                        type="number" 
+                                        placeholder="0" 
+                                        value={cantidadesHoy[act.id] || ''} 
+                                        onChange={(e) => {
+                                          const value = Number(e.target.value);
+                                          setCantidadesHoy(prev => ({...prev, [act.id]: Number.isFinite(value) ? value : 0}));
+                                        }} 
+                                        className="h-8 text-xs"
+                                      />
                                        <p className="text-xs text-muted-foreground mt-1">Disponible: {maxPermitidaHoy.toFixed(2)}</p>
                                   </TableCell>
-                                  <TableCell className="text-xs font-bold text-primary">{Math.min(100, nuevoPorcentaje).toFixed(1)}%</TableCell>
+                                  <TableCell className="text-xs font-bold text-primary">
+                                    {Number.isFinite(nuevoPorcentaje) ? `${Math.min(100, nuevoPorcentaje).toFixed(1)}%` : "N/A"}
+                                  </TableCell>
                                   <TableCell className="w-[250px] space-y-2">
                                       <Input type="text" placeholder="Comentario..." value={comentarios[act.id] || ''} onChange={(e) => setComentarios(prev => ({...prev, [act.id]: e.target.value}))} className="h-8 text-xs" />
                                       <Input type="file" accept="image/*" capture="environment" multiple onChange={(e) => handleFileChange(act.id, e)} className="h-8 text-xs" />
