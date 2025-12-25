@@ -182,10 +182,9 @@ export default function RegistrarAvanceForm({ obraId: initialObraId, obras = [],
         
         console.log("registrarAvanceRapido payload:", payload);
 
-        console.log(
-          "AUTH PROJECT:",
-          user?.auth?.app?.options?.projectId
-        );
+        console.log("AUTH PROJECT:", user?.auth?.app?.options?.projectId);
+        console.log("AUTH DOMAIN:", user?.auth?.app?.options?.authDomain);
+        
         const res = await fetch(
           "https://southamerica-west1-pcg-2-8bf1b.cloudfunctions.net/registrarAvanceRapido",
           {
