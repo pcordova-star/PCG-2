@@ -163,14 +163,14 @@ export default function RegistrarAvanceForm({ obraId: initialObraId, obras = [],
           }
         }
         
-        // CORRECCIÓN: El objeto que se envía a la función no debe incluir el campo 'fecha'.
+        // Construir el payload con una whitelist estricta para cumplir con el esquema de Zod en el backend.
         const payload: RegistrarAvanceRapidoInput = {
           obraId: selectedObraId,
-          actividadId: actividadId,
+          actividadId: actividadId ?? null,
           porcentaje: (cantidadHoy / actividad.cantidad) * 100,
           comentario: comentarios[actividadId] || '',
           fotos: urlsFotos,
-          visibleCliente: true
+          visibleCliente: true // O el valor que corresponda
         };
 
         await registrarAvanceFn(payload);
