@@ -582,12 +582,17 @@ function ProgramacionPageInner() {
             const batch = writeBatch(firebaseDb);
             const actividadesNuevas: ActividadProgramada[] = [];
 
-            const excludedDescriptions = ["iva", "total", "total bruto", "costo directo", "costo total"];
+            const excludedDescriptions = ["iva", "total", "total bruto", "costo directo", "costo total", "gastos generales", "utilidad", "administración", "imprevistos"];
 
             for (const item of presupuestoAImportar.items) {
                 if (item.type === 'item') {
+                    const desc = (item.descripcion ?? '').trim().toLowerCase();
+                    if (excludedDescriptions.includes(desc)) {
+                        continue;
+                    }
+                    
                     const normalizedDescription = item.descripcion.trim().toLowerCase();
-                    if (!excludedDescriptions.includes(normalizedDescription) && !actividadesActuales.has(normalizedDescription)) {
+                    if (!actividadesActuales.has(normalizedDescription)) {
                         const nuevaActividadRef = doc(collection(firebaseDb, "obras", obraSeleccionadaId, "actividades"));
                         const nuevaActividadData = {
                             obraId: obraSeleccionadaId,
