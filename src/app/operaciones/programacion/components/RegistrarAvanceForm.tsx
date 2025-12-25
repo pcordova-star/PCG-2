@@ -26,7 +26,6 @@ type RegistrarAvanceRapidoInput = {
   comentario: string;
   fotos: string[];
   visibleCliente: boolean;
-  fecha: string;
 };
 
 type RegistrarAvanceRapidoOutput = { ok: boolean; id?: string };
@@ -164,15 +163,17 @@ export default function RegistrarAvanceForm({ obraId: initialObraId, obras = [],
           }
         }
         
-        await registrarAvanceFn({
+        // CORRECCIÓN: El objeto que se envía a la función no debe incluir el campo 'fecha'.
+        const payload: RegistrarAvanceRapidoInput = {
           obraId: selectedObraId,
           actividadId: actividadId,
-          porcentaje: (cantidadHoy / actividad.cantidad) * 100, // Enviar porcentaje
+          porcentaje: (cantidadHoy / actividad.cantidad) * 100,
           comentario: comentarios[actividadId] || '',
           fotos: urlsFotos,
-          visibleCliente: true,
-          fecha: fechaAvance
-        });
+          visibleCliente: true
+        };
+
+        await registrarAvanceFn(payload);
       }
 
       toast({ title: 'Avance registrado con éxito', description: `Se guardaron ${avancesParaGuardar.length} registros de avance.` });
