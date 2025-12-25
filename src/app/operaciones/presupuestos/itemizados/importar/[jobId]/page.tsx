@@ -25,6 +25,43 @@ type JobResponse = {
   error?: string | null;
 };
 
+// Función de normalización solicitada
+function normalizeRowsToPresupuestoItems(rows: any[]): Array<{ parentId: string | null; type: "chapter" | "subchapter" | "item"; descripcion: string; unidad: string; cantidad: number; precioUnitario: number; }> {
+    if (!rows) return [];
+
+    return rows.map(row => {
+        const descripcion = row.descripcion ?? row.description ?? row.nombre ?? row.name ?? "";
+        const unidad = row.unidad ?? row.unit ?? row.u ?? "";
+        const cantidad = Number(row.cantidad ?? row.qty ?? row.quantity ?? 0) || 0;
+        const precioUnitario = Number(row.precioUnitario ?? row.unitPrice ?? row.price ?? 0) || 0;
+        
+        let type: "chapter" | "subchapter" | "item";
+        if (row.type && ["chapter", "subchapter", "item"].includes(row.type)) {
+            type = row.type;
+        } else {
+            if (row.isChapter === true || row.level === 0) {
+                type = "chapter";
+            } else if (row.isSubchapter === true || row.level === 1) {
+                type = "subchapter";
+            } else {
+                type = "item";
+            }
+        }
+        
+        const parentId = row.parentId ?? row.parent_id ?? null;
+
+        return {
+            parentId,
+            type,
+            descripcion,
+            unidad,
+            cantidad,
+            precioUnitario
+        };
+    });
+}
+
+
 export default function ImportStatusPage() {
   const params = useParams();
   const router = useRouter();
@@ -83,7 +120,9 @@ export default function ImportStatusPage() {
     try {
         const sourceFileName = jobData.result?.meta?.sourceFileName ?? "Itemizado IA";
         const nombrePresupuesto = `Presupuesto importado de ${sourceFileName} - ${new Date().toLocaleDateString()}`;
-        const totalPresupuesto = jobData.result.rows.reduce((sum, row) => sum + (row.total || 0), 0);
+        
+        const normalizedItems = normalizeRowsToPresupuestoItems(jobData.result?.rows ?? []);
+        const totalPresupuesto = normalizedItems.reduce((sum, item) => sum + (item.cantidad * item.precioUnitario), 0);
         
         const newPresupuesto = {
             obraId: jobData.obraId,
@@ -91,7 +130,7 @@ export default function ImportStatusPage() {
             moneda: jobData.result.meta?.currency || 'CLP',
             observaciones: `Generado automáticamente por IA a partir de un PDF. Job ID: ${jobId}. ${jobData.result.meta?.notes || ''}`,
             gastosGeneralesPorcentaje: 25,
-            items: jobData.result.rows.map(({ id, ...rest }) => rest), // Quitar el id temporal
+            items: normalizedItems,
             fechaCreacion: serverTimestamp(),
             updatedAt: serverTimestamp(),
             createdBy: user.uid,
