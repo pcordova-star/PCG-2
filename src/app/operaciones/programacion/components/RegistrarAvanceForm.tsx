@@ -3,7 +3,7 @@
 
 import React, { useState, useEffect, useMemo } from 'react';
 import { useAuth } from '@/context/AuthContext';
-import { firebaseFunctions, firebaseStorage } from '@/lib/firebaseClient';
+import { firebaseStorage } from '@/lib/firebaseClient';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
@@ -136,9 +136,8 @@ export default function RegistrarAvanceForm({ obraId: initialObraId, obras = [],
     setIsSaving(true);
     setError(null);
     
-    const token = await user.getIdToken();
-
     try {
+      const token = await user.getIdToken();
       const omitidas: string[] = [];
       let guardadas = 0;
 
@@ -152,19 +151,14 @@ export default function RegistrarAvanceForm({ obraId: initialObraId, obras = [],
           continue;
         }
 
-        const cantidadAcumuladaAnterior = avancesPorActividad[actividadId]?.cantidadAcumulada || 0;
-        const maxPermitidaHoy = Math.max(0, baseCantidad - cantidadAcumuladaAnterior);
-
-        if (cantidadHoy > maxPermitidaHoy) {
-           throw new Error(`La cantidad para "${actividad.nombreActividad}" (${cantidadHoy}) excede la disponible (${maxPermitidaHoy.toFixed(2)}).`);
-        }
-        
         let porcentaje = (cantidadHoy / baseCantidad) * 100;
         if (!Number.isFinite(porcentaje) || porcentaje < 0) {
             omitidas.push(actividad.nombreActividad);
             continue;
         }
         porcentaje = Math.min(100, Math.max(0, porcentaje));
+        
+        const porcentajeFraccion = porcentaje / 100;
 
         const urlsFotos: string[] = [];
         if (fotos[actividadId] && fotos[actividadId].length > 0) {
@@ -176,8 +170,6 @@ export default function RegistrarAvanceForm({ obraId: initialObraId, obras = [],
             urlsFotos.push(url);
           }
         }
-        
-        const porcentajeFraccion = Math.min(1, Math.max(0, porcentaje / 100));
 
         const payload: RegistrarAvanceRapidoInput = {
           obraId: selectedObraId,
@@ -189,6 +181,7 @@ export default function RegistrarAvanceForm({ obraId: initialObraId, obras = [],
         };
         
         console.log("registrarAvanceRapido payload:", payload);
+
         const res = await fetch(
           "https://southamerica-west1-pcg-2-8bf1b.cloudfunctions.net/registrarAvanceRapido",
           {
@@ -200,11 +193,13 @@ export default function RegistrarAvanceForm({ obraId: initialObraId, obras = [],
             body: JSON.stringify(payload),
           }
         );
-
-        const json = await res.json();
+        
+        const json = await res.json().catch(() => ({}));
+        
+        console.log("USANDO FETCH registrarAvanceRapido", { status: res.status, json });
 
         if (!res.ok) {
-          throw new Error(json?.details || "Error al registrar avance");
+          throw new Error(json?.details || json?.error || `HTTP ${res.status}`);
         }
 
         guardadas++;
