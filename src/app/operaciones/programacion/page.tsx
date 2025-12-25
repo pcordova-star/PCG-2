@@ -62,7 +62,7 @@ import {
 import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
 import Link from "next/link";
-import { FilePlus2, FileText, Trash2, Edit, PlusCircle, Camera, Download, X, DollarSign, FileDown, ArrowLeft } from 'lucide-react';
+import { FilePlus2, FileText, Trash2, Edit, PlusCircle, Camera, Download, X, DollarSign, FileDown, ArrowLeft, RefreshCw } from 'lucide-react';
 import RegistrarAvanceForm from "./components/RegistrarAvanceForm";
 import RegistroFotograficoForm from "./components/RegistroFotograficoForm";
 import { useActividadAvance } from "./hooks/useActividadAvance";
@@ -626,6 +626,44 @@ function ProgramacionPageInner() {
             setImportando(false);
         }
     };
+    
+  const handleResetProgramacion = async () => {
+    if (!obraSeleccionadaId) return;
+
+    try {
+      // Obtener todas las actividades y avances para borrarlos
+      const actividadesRef = collection(firebaseDb, "obras", obraSeleccionadaId, "actividades");
+      const avancesRef = collection(firebaseDb, "obras", obraSeleccionadaId, "avancesDiarios");
+      
+      const [actividadesSnap, avancesSnap] = await Promise.all([
+        getDocs(actividadesRef),
+        getDocs(avancesRef)
+      ]);
+      
+      if (actividadesSnap.empty && avancesSnap.empty) {
+        toast({ title: "Nada que reiniciar", description: "La programación de esta obra ya está vacía." });
+        return;
+      }
+
+      const batch = writeBatch(firebaseDb);
+      
+      actividadesSnap.forEach(doc => batch.delete(doc.ref));
+      avancesSnap.forEach(doc => batch.delete(doc.ref));
+      
+      await batch.commit();
+      
+      // Limpiar estado local
+      setActividades([]);
+      refetchAvances();
+      
+      toast({ title: "Programación Reiniciada", description: "Se han eliminado todas las actividades y avances de la obra." });
+
+    } catch (err) {
+      console.error("Error al reiniciar la programación:", err);
+      toast({ variant: "destructive", title: "Error", description: "No se pudo reiniciar la programación." });
+    }
+  };
+
 
   
   if (loadingAuth) return <p className="text-sm text-muted-foreground">Cargando sesión...</p>;
@@ -711,6 +749,26 @@ function ProgramacionPageInner() {
                     <PlusCircle className="mr-2 h-4 w-4" />
                     Nueva Actividad
                 </Button>
+                 <AlertDialog>
+                    <AlertDialogTrigger asChild>
+                        <Button variant="destructive" disabled={!obraSeleccionadaId || actividades.length === 0}>
+                            <RefreshCw className="mr-2 h-4 w-4" />
+                            Reiniciar Programación
+                        </Button>
+                    </AlertDialogTrigger>
+                    <AlertDialogContent>
+                        <AlertDialogHeader>
+                            <AlertDialogTitle>¿Está seguro de reiniciar la programación?</AlertDialogTitle>
+                            <AlertDialogDescription>
+                                Esta acción eliminará TODAS las actividades y avances diarios de la obra seleccionada. Es irreversible. Los Estados de Pago generados previamente NO se eliminarán.
+                            </AlertDialogDescription>
+                        </AlertDialogHeader>
+                        <AlertDialogFooter>
+                            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                            <AlertDialogAction onClick={handleResetProgramacion}>Sí, reiniciar programación</AlertDialogAction>
+                        </AlertDialogFooter>
+                    </AlertDialogContent>
+                </AlertDialog>
             </div>
         </CardHeader>
         <CardContent className="p-0">
