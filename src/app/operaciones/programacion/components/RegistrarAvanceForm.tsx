@@ -157,8 +157,6 @@ export default function RegistrarAvanceForm({ obraId: initialObraId, obras = [],
         }
         porcentaje = Math.min(100, porcentaje);
         
-        const porcentajeFraccion = porcentaje / 100;
-
         const urlsFotos: string[] = [];
         if (fotos[actividadId] && fotos[actividadId].length > 0) {
           for (const file of fotos[actividadId]) {
@@ -173,7 +171,7 @@ export default function RegistrarAvanceForm({ obraId: initialObraId, obras = [],
         const payload: RegistrarAvanceRapidoInput = {
           obraId: selectedObraId,
           actividadId: actividadId,
-          porcentaje: porcentajeFraccion,
+          porcentaje: porcentaje,
           comentario: comentarios[actividadId] || '',
           fotos: urlsFotos,
           visibleCliente: true
@@ -182,23 +180,6 @@ export default function RegistrarAvanceForm({ obraId: initialObraId, obras = [],
         const FN_URL = "https://southamerica-west1-pcg-2-8bf1b.cloudfunctions.net/registrarAvanceRapido";
         
         const token = await user.getIdToken(true);
-
-        console.log("TOKEN length:", token?.length);
-        try {
-          const payloadPart = token.split(".")[1] || "";
-          const decoded = JSON.parse(
-            atob(payloadPart.replace(/-/g, "+").replace(/_/g, "/"))
-          );
-
-          console.log("JWT aud:", decoded?.aud);
-          console.log("JWT iss:", decoded?.iss);
-          console.log("JWT sub:", decoded?.sub);
-          console.log("JWT email:", decoded?.email);
-        } catch {
-          console.log("JWT decode failed");
-        }
-
-        console.log("USANDO FETCH registrarAvanceRapido, payload:", payload);
 
         const res = await fetch(FN_URL, {
             method: "POST",
@@ -211,8 +192,6 @@ export default function RegistrarAvanceForm({ obraId: initialObraId, obras = [],
         
         const json = await res.json().catch(() => ({}));
         
-        console.log("USANDO FETCH registrarAvanceRapido, response:", { status: res.status, json });
-
         if (!res.ok) {
           throw new Error(json?.details || json?.error || `HTTP ${res.status}`);
         }
