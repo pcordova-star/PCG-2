@@ -1,4 +1,3 @@
-
 // src/app/operaciones/programacion/components/RegistrarAvanceForm.tsx
 "use client";
 
@@ -6,6 +5,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { firebaseStorage } from '@/lib/firebaseClient';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
+import { getAuth } from "firebase/auth";
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -123,6 +123,10 @@ export default function RegistrarAvanceForm({ obraId: initialObraId, obras = [],
 
   const handleAvanceSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    const auth = getAuth();
+    const user = auth.currentUser;
+
     if (!selectedObraId || !user) {
       setError('Debes seleccionar una obra y estar autenticado.');
       return;
@@ -182,6 +186,25 @@ export default function RegistrarAvanceForm({ obraId: initialObraId, obras = [],
         
         const token = await user.getIdToken(true);
 
+        console.log("AUTH PROJECT:", user?.auth?.app?.options?.projectId);
+        console.log("AUTH DOMAIN:", user?.auth?.app?.options?.authDomain);
+        console.log("TOKEN length:", token?.length);
+
+        try {
+            const payloadPart = token.split(".")[1] || "";
+            const decoded = JSON.parse(
+                atob(payloadPart.replace(/-/g, "+").replace(/_/g, "/"))
+            );
+
+            console.log("JWT aud:", decoded?.aud);
+            console.log("JWT iss:", decoded?.iss);
+            console.log("JWT sub:", decoded?.sub);
+            console.log("JWT email:", decoded?.email);
+        } catch {
+            console.log("JWT decode failed");
+        }
+        
+
         const res = await fetch(FN_URL, {
             method: "POST",
             headers: {
@@ -227,7 +250,6 @@ export default function RegistrarAvanceForm({ obraId: initialObraId, obras = [],
       }
       
     } catch (err: any) {
-        // Extraer TODO lo posible, incluso si las props no son enumerables
         const rawString = String(err);
         const name = err?.name;
         const code = err?.code;
