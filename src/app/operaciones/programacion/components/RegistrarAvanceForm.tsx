@@ -137,7 +137,7 @@ export default function RegistrarAvanceForm({ obraId: initialObraId, obras = [],
     setError(null);
     
     try {
-      const token = await user.getIdToken();
+      const token = await user.getIdToken(true);
       const omitidas: string[] = [];
       let guardadas = 0;
 
@@ -156,7 +156,7 @@ export default function RegistrarAvanceForm({ obraId: initialObraId, obras = [],
             omitidas.push(actividad.nombreActividad);
             continue;
         }
-        porcentaje = Math.min(100, Math.max(0, porcentaje));
+        porcentaje = Math.min(100, porcentaje);
         
         const porcentajeFraccion = porcentaje / 100;
 
@@ -182,6 +182,10 @@ export default function RegistrarAvanceForm({ obraId: initialObraId, obras = [],
         
         console.log("registrarAvanceRapido payload:", payload);
 
+        console.log(
+          "AUTH PROJECT:",
+          user?.auth?.app?.options?.projectId
+        );
         const res = await fetch(
           "https://southamerica-west1-pcg-2-8bf1b.cloudfunctions.net/registrarAvanceRapido",
           {
@@ -204,7 +208,7 @@ export default function RegistrarAvanceForm({ obraId: initialObraId, obras = [],
 
         guardadas++;
       }
-
+      
       if (guardadas > 0) {
         toast({
           title: "Avance registrado con éxito",
@@ -226,6 +230,7 @@ export default function RegistrarAvanceForm({ obraId: initialObraId, obras = [],
       }
       
     } catch (err: any) {
+        // Extraer TODO lo posible, incluso si las props no son enumerables
         const rawString = String(err);
         const name = err?.name;
         const code = err?.code;
