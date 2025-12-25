@@ -5,7 +5,6 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { firebaseFunctions, firebaseStorage } from '@/lib/firebaseClient';
 import { httpsCallable } from 'firebase/functions';
-import type { FirebaseError } from 'firebase/app';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
@@ -37,7 +36,7 @@ type RegistrarAvanceFormProps = {
   actividades: ActividadProgramada[];
   onAvanceRegistrado?: (avance: any) => void;
   allowObraSelection?: boolean; 
-  onObraChanged?: (obraId: string) => void; 
+  onObraChanged?: (obraId: string) => void;
 };
 
 const MAX_FOTOS = 5;
@@ -129,7 +128,7 @@ export default function RegistrarAvanceForm({ obraId: initialObraId, obras = [],
       return;
     }
 
-    const avancesParaGuardar = Object.entries(cantidadesHoy).filter(([_, cant]) => cant > 0);
+    const avancesParaGuardar = Object.entries(cantidadesHoy).filter(([_, cant]) => Number.isFinite(cant) && cant > 0);
     if (avancesParaGuardar.length === 0) {
       setError('No hay cantidades para registrar. Ingresa un valor en "Cantidad de Hoy" para al menos una actividad.');
       return;
@@ -148,6 +147,12 @@ export default function RegistrarAvanceForm({ obraId: initialObraId, obras = [],
         const actividad = actividadesAMostrar.find(a => a.id === actividadId);
         if (!actividad) continue;
 
+        const baseCantidad = Number(actividad.cantidad);
+        if (!Number.isFinite(baseCantidad) || baseCantidad <= 0) {
+          omitidas.push(actividad.nombreActividad);
+          continue;
+        }
+
         const cantidadAcumuladaAnterior = avancesPorActividad[actividadId]?.cantidadAcumulada || 0;
         const maxPermitidaHoy = Math.max(0, actividad.cantidad - cantidadAcumuladaAnterior);
 
@@ -155,18 +160,11 @@ export default function RegistrarAvanceForm({ obraId: initialObraId, obras = [],
            throw new Error(`La cantidad para "${actividad.nombreActividad}" (${cantidadHoy}) excede la disponible (${maxPermitidaHoy.toFixed(2)}).`);
         }
         
-        const baseCantidad = Number(actividad.cantidad);
-        if (!Number.isFinite(baseCantidad) || baseCantidad <= 0) {
-            omitidas.push(actividad.nombreActividad);
-            continue;
-        }
-
         let porcentaje = (cantidadHoy / baseCantidad) * 100;
         if (!Number.isFinite(porcentaje) || porcentaje < 0) {
             omitidas.push(actividad.nombreActividad);
             continue;
         }
-        
         porcentaje = Math.min(100, porcentaje);
 
         const urlsFotos: string[] = [];
@@ -188,7 +186,8 @@ export default function RegistrarAvanceForm({ obraId: initialObraId, obras = [],
           fotos: urlsFotos,
           visibleCliente: true
         };
-
+        
+        console.log("registrarAvanceRapido payload:", payload);
         await registrarAvanceFn(payload);
         guardadas++;
       }
@@ -198,10 +197,12 @@ export default function RegistrarAvanceForm({ obraId: initialObraId, obras = [],
           title: "Avance registrado con éxito",
           description: `Se guardaron ${guardadas} registros de avance.`,
         });
-        onAvanceRegistrado?.(avancesParaGuardar);
+        if (onAvanceRegistrado) {
+          onAvanceRegistrado(avancesParaGuardar);
+        }
         resetFormStates();
       }
-
+      
       if (omitidas.length > 0) {
         toast({
           variant: "destructive",
@@ -212,17 +213,19 @@ export default function RegistrarAvanceForm({ obraId: initialObraId, obras = [],
       }
       
     } catch (err: any) {
-        let errorMessage = "Ocurrió un error inesperado al registrar el avance.";
-        const firebaseError = err as FirebaseError;
-        if (firebaseError.code) {
-            errorMessage = firebaseError.message;
-            console.error("Error de Firebase Functions:", firebaseError.code, firebaseError.details);
-        } else {
-            console.error("Error al registrar avance:", err);
-            errorMessage = err.message || errorMessage;
-        }
-        setError(errorMessage);
-        toast({ variant: "destructive", title: "Error al registrar", description: errorMessage });
+        const code = err?.code;
+        const message = err?.message || "Ocurrió un error inesperado al registrar el avance.";
+        const details = err?.details;
+
+        console.error("registrarAvanceRapido error:", { code, message, details, err });
+
+        setError(message);
+        toast({
+            variant: "destructive",
+            title: code ? `Error (${code})` : "Error al registrar",
+            description: details ? `${message} — ${JSON.stringify(details)}` : message,
+            duration: 10000,
+        });
     } finally {
       setIsSaving(false);
     }
@@ -279,8 +282,10 @@ export default function RegistrarAvanceForm({ obraId: initialObraId, obras = [],
                           const avanceActual = avancesPorActividad[act.id] || { cantidadAcumulada: 0, porcentajeAcumulado: 0 };
                           const cantidadHoy = cantidadesHoy[act.id] || 0;
                           const nuevaCantidadAcumulada = avanceActual.cantidadAcumulada + cantidadHoy;
+                          
                           const base = Number(act.cantidad);
                           const nuevoPorcentaje = Number.isFinite(base) && base > 0 ? (nuevaCantidadAcumulada / base) * 100 : NaN;
+                          
                           const maxPermitidaHoy = Math.max(0, act.cantidad - avanceActual.cantidadAcumulada);
 
                           return (
