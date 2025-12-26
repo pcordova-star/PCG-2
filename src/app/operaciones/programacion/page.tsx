@@ -963,7 +963,7 @@ function ProgramacionPageInner() {
                                                 <div className="flex items-center gap-2">
                                                 <Badge variant="outline" className={avance.tipoRegistro === 'FOTOGRAFICO' ? 'bg-blue-100 text-blue-800' : ''}>
                                                     {avance.tipoRegistro === 'FOTOGRAFICO' ? <Camera className="h-3 w-3 mr-1"/> : null}
-                                                    {avance.tipoRegistro === 'FOTOGRAFICO' ? 'Solo Foto' : `Avance: ${avance.cantidadEjecutada} ${actividad?.unidad}`}
+                                                    {avance.tipoRegistro === 'FOTOGRAFICO' ? 'Solo Foto' : `Avance: ${avance.cantidadEjecutada} ${actividad?.unidad || ''}`}
                                                 </Badge>
                                                 <AlertDialog>
                                                     <AlertDialogTrigger asChild>
