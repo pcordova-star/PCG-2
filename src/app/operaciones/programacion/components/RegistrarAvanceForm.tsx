@@ -17,23 +17,8 @@ import { ActividadProgramada, Obra } from '../page';
 import { useActividadAvance } from '../hooks/useActividadAvance';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 
-// Tipos para la función callable
-type RegistrarAvanceRapidoInput = {
-  obraId: string;
-  actividadId: string;
-  porcentaje: number;
-  comentario: string;
-  fotos: string[];
-  visibleCliente: boolean;
-  cantidadEjecutada: number;
-  unidad: string;
-  cantidadTotalActividad: number;
-  fechaAvance: string;
-  actividadNombre: string;
-};
-
-type RegistrarAvanceRapidoOutput = { ok: boolean; id?: string };
-
+// La URL de la función debe ser explícita y apuntar a la región correcta.
+const FN_URL = "https://southamerica-west1-pcg-2-8bf1b.cloudfunctions.net/registrarAvanceRapido";
 
 type RegistrarAvanceFormProps = {
   obraId?: string;
@@ -178,10 +163,10 @@ export default function RegistrarAvanceForm({ obraId: initialObraId, obras = [],
           }
         }
 
-        const payload: RegistrarAvanceRapidoInput = {
+        const payload = {
           obraId: selectedObraId,
           actividadId: actividadId,
-          porcentaje: porcentaje,
+          porcentajeAvance: porcentaje, // Nombre correcto del campo
           comentario: comentarios[actividadId] || '',
           fotos: urlsFotos,
           visibleCliente: true,
@@ -191,8 +176,6 @@ export default function RegistrarAvanceForm({ obraId: initialObraId, obras = [],
           fechaAvance: fechaAvance,
           actividadNombre: actividad.nombreActividad,
         };
-        
-        const FN_URL = "https://southamerica-west1-pcg-2-8bf1b.cloudfunctions.net/registrarAvanceRapido";
         
         const token = await user.getIdToken(true);
 
@@ -205,7 +188,11 @@ export default function RegistrarAvanceForm({ obraId: initialObraId, obras = [],
             body: JSON.stringify(payload),
         });
         
+        console.log("[registrarAvanceRapido] status", res.status);
+        console.log("[registrarAvanceRapido] headers", Object.fromEntries(res.headers.entries()));
         const raw = await res.text();
+        console.log("[registrarAvanceRapido] raw body", raw);
+
         let json: any = null;
         try { json = JSON.parse(raw); } catch {}
         
