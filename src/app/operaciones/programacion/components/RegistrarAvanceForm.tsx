@@ -163,7 +163,6 @@ export default function RegistrarAvanceForm({ obraId: initialObraId, obras = [],
           }
         }
         
-        // Payload para la Cloud Function (solo campos aceptados)
         const payload = {
           obraId: selectedObraId,
           actividadId: actividadId,
