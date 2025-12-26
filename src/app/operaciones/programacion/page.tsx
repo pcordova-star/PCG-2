@@ -65,8 +65,7 @@ import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
 import Link from "next/link";
 import { FilePlus2, FileText, Trash2, Edit, PlusCircle, Camera, Download, X, DollarSign, FileDown, ArrowLeft, RefreshCw, Loader2 } from 'lucide-react';
-import { Switch } from "@/components/ui/switch";
-import { Textarea } from "@/components/ui/textarea";
+import { Switch } from '@/components/ui/switch';
 import RegistrarAvanceForm from "./components/RegistrarAvanceForm";
 import RegistroFotograficoForm from "./components/RegistroFotograficoForm";
 import { useActividadAvance } from "./hooks/useActividadAvance";
@@ -86,6 +85,7 @@ import ImageFromStorage from '@/components/client/ImageFromStorage';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
+import { Textarea } from "@/components/ui/textarea";
 
 
 type PresupuestoItem = {
@@ -257,7 +257,7 @@ function CurvaSChart({ actividades, avances, montoTotalContrato }: { actividades
             <Tooltip formatter={(value: number) => [`${value.toFixed(1)}%`, '']} />
             <Legend />
             <Line type="monotone" dataKey="programado" name="Programado" stroke="#8884d8" strokeWidth={2} dot={false} />
-            <Line type="monotone" dataKey="real" name="Real" stroke="#82ca9d" strokeWidth={2} dot={false} connectNulls />
+            <Line type="monotone" dataKey="real" name="Real" stroke="#82ca9d" strokeWidth={2} dot={false} connectNulls={false} />
           </LineChart>
         </ResponsiveContainer>
       </CardContent>
@@ -1208,5 +1208,3 @@ export default function ProgramacionPage() {
     </Suspense>
   );
 }
-
-```
