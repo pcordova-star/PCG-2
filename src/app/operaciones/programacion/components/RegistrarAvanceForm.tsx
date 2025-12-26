@@ -185,7 +185,6 @@ export default function RegistrarAvanceForm({ obraId: initialObraId, obras = [],
           comentario: comentarios[actividadId] || '',
           fotos: urlsFotos,
           visibleCliente: true,
-          // Nuevos campos para registro completo
           cantidadEjecutada: cantidadHoy,
           unidad: actividad.unidad || 'N/A',
           cantidadTotalActividad: baseCantidad,
