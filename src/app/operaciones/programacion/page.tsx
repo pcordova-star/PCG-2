@@ -65,7 +65,7 @@ import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
 import Link from "next/link";
 import { FilePlus2, FileText, Trash2, Edit, PlusCircle, Camera, Download, X, DollarSign, FileDown, ArrowLeft, RefreshCw, Loader2 } from 'lucide-react';
-import { Switch } from '@/components/ui/switch';
+import { Switch } from "@/components/ui/switch";
 import RegistrarAvanceForm from "./components/RegistrarAvanceForm";
 import RegistroFotograficoForm from "./components/RegistroFotograficoForm";
 import { useActividadAvance } from "./hooks/useActividadAvance";
@@ -152,7 +152,7 @@ type CurvaSDataPoint = {
 // --- Componente Curva S ---
 function CurvaSChart({ actividades, avances, montoTotalContrato }: { actividades: ActividadProgramada[], avances: AvanceDiario[], montoTotalContrato: number }) {
   const data = useMemo(() => {
-    if (!actividades.length || montoTotalContrato === 0) return [];
+    if (!actividades.length) return [];
 
     const fechasInicio = actividades.map(a => new Date(a.fechaInicio + 'T00:00:00')).filter(d => !isNaN(d.getTime()));
     const fechasFin = actividades.map(a => new Date(a.fechaFin + 'T00:00:00')).filter(d => !isNaN(d.getTime()));
@@ -214,15 +214,13 @@ function CurvaSChart({ actividades, avances, montoTotalContrato }: { actividades
         
         acumuladoProgramado += (costosProgramadosDiarios[fechaStr] || 0);
         
-        // La curva real solo avanza hasta el día de hoy.
-        if (dia <= hoy) {
-            acumuladoReal += (costosRealesDiarios[fechaStr] || 0);
-        }
+        acumuladoReal += (costosRealesDiarios[fechaStr] || 0);
 
-        const porcentajeProgramado = Math.min(100, (acumuladoProgramado / montoTotalContrato) * 100);
+        const porcentajeProgramado = montoTotalContrato > 0 ? Math.min(100, (acumuladoProgramado / montoTotalContrato) * 100) : 0;
         
-        // Si la fecha es futura, el avance real es nulo para que la línea se corte.
-        const porcentajeReal = dia > hoy ? null : Math.min(100, (acumuladoReal / montoTotalContrato) * 100);
+        const porcentajeReal = montoTotalContrato > 0
+            ? dia > hoy ? null : Math.min(100, (acumuladoReal / montoTotalContrato) * 100)
+            : 0;
 
         dataCurva.push({
             fecha: format(dia, 'dd-MM-yy'),
@@ -1208,3 +1206,4 @@ export default function ProgramacionPage() {
     </Suspense>
   );
 }
+
