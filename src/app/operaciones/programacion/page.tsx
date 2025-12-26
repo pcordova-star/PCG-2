@@ -18,7 +18,8 @@ import {
   deleteDoc,
   Timestamp,
   serverTimestamp,
-  writeBatch
+  writeBatch,
+  runTransaction
 } from "firebase/firestore";
 import { firebaseDb, firebaseStorage } from "../../../lib/firebaseClient";
 import { ref, deleteObject } from "firebase/storage";
@@ -283,6 +284,15 @@ function ProgramacionPageInner() {
   const [presupuestoSeleccionadoId, setPresupuestoSeleccionadoId] = useState<string>('');
   const [importando, setImportando] = useState(false);
 
+  // Estados para el modal de edición de avance
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [editingAvance, setEditingAvance] = useState<AvanceDiario | null>(null);
+  const [newCantidad, setNewCantidad] = useState(0);
+  const [newComentario, setNewComentario] = useState('');
+  const [newVisibleCliente, setNewVisibleCliente] = useState(true);
+  const [isUpdatingAvance, setIsUpdatingAvance] = useState(false);
+
+
 
   const montoTotalContrato = useMemo(() => {
     return actividades.reduce((sum, act) => sum + ((act.cantidad || 0) * (act.precioContrato || 0)), 0);
@@ -522,7 +532,6 @@ function ProgramacionPageInner() {
     if (!avance || !avance.id) return;
 
     try {
-        // 1. Borrar fotos de Storage si existen
         if (avance.fotos && avance.fotos.length > 0) {
             const deletePromises = avance.fotos.map(url => {
                 try {
@@ -530,25 +539,117 @@ function ProgramacionPageInner() {
                     return deleteObject(photoRef);
                 } catch(e) {
                     console.warn(`URL inválida para Storage ref, no se pudo borrar: ${url}`, e);
-                    return Promise.resolve(); // No romper si una URL es inválida
+                    return Promise.resolve();
                 }
             });
             await Promise.allSettled(deletePromises);
         }
+        
+        // Re-cálculo del avance acumulado de la obra
+        const db = firebaseDb;
+        const obraRef = doc(db, "obras", avance.obraId);
+        const avanceRef = doc(obraRef, "avancesDiarios", avance.id);
+        const actividad = actividades.find(a => a.id === avance.actividadId);
+        
+        await runTransaction(db, async (tx) => {
+            const obraDoc = await tx.get(obraRef);
+            if (!obraDoc.exists()) throw new Error("La obra no existe.");
 
-        // 2. Borrar documento de Firestore
-        const avanceRef = doc(firebaseDb, 'obras', avance.obraId, 'avancesDiarios', avance.id);
-        await deleteDoc(avanceRef);
-        
+            tx.delete(avanceRef); // Borra el avance
+
+            if (actividad && avance.cantidadEjecutada && avance.cantidadEjecutada > 0) {
+                const obraData = obraDoc.data();
+                const totalActividades = actividades.length;
+                if(totalActividades > 0 && actividad.cantidad > 0) {
+                    const pesoActividad = 1 / totalActividades;
+                    const avanceParcialActividad = (avance.cantidadEjecutada / actividad.cantidad);
+                    const avancePonderadoDelDia = avanceParcialActividad * pesoActividad * 100;
+                    
+                    if (!isNaN(avancePonderadoDelDia) && avancePonderadoDelDia > 0) {
+                        const nuevoAvanceAcumulado = Math.max(0, (obraData.avanceAcumulado || 0) - avancePonderadoDelDia);
+                        tx.update(obraRef, { avanceAcumulado: nuevoAvanceAcumulado });
+                    }
+                }
+            }
+        });
+
         toast({ title: "Avance eliminado", description: "El registro de avance y sus fotos asociadas han sido eliminados." });
-        
-        // La UI se refrescará automáticamente gracias a onSnapshot en el hook useActividadAvance
         
     } catch (err) {
         console.error("Error eliminando avance:", err);
         toast({ variant: "destructive", title: "Error al eliminar", description: "No se pudo eliminar el registro de avance." });
     }
   };
+
+  const handleOpenEditModal = (avance: AvanceDiario) => {
+    setEditingAvance(avance);
+    setNewCantidad(avance.cantidadEjecutada || 0);
+    setNewComentario(avance.comentario || '');
+    setNewVisibleCliente(avance.visibleCliente);
+    setIsEditModalOpen(true);
+  };
+  
+  const handleUpdateAvance = async () => {
+    if (!editingAvance || !obraSeleccionadaId) return;
+
+    if (newCantidad < 0 || !Number.isFinite(newCantidad)) {
+        toast({variant: 'destructive', title: 'Cantidad inválida'});
+        return;
+    }
+
+    setIsUpdatingAvance(true);
+    const db = firebaseDb;
+    const obraRef = doc(db, "obras", obraSeleccionadaId);
+    const avanceRef = doc(obraRef, "avancesDiarios", editingAvance.id);
+    const actividad = actividades.find(a => a.id === editingAvance.actividadId);
+
+    try {
+        await runTransaction(db, async (tx) => {
+            const avanceSnap = await tx.get(avanceRef);
+            if (!avanceSnap.exists()) throw new Error("El registro de avance ya no existe.");
+
+            const avanceAnterior = avanceSnap.data() as AvanceDiario;
+            const cantidadAnterior = avanceAnterior.cantidadEjecutada || 0;
+            const deltaCantidad = newCantidad - cantidadAnterior;
+
+            // 1. Actualizar el documento de avance
+            tx.update(avanceRef, {
+                cantidadEjecutada: newCantidad,
+                comentario: newComentario,
+                visibleCliente: newVisibleCliente,
+                updatedAt: serverTimestamp()
+            });
+
+            // 2. Actualizar el acumulado de la obra
+            if (deltaCantidad !== 0 && actividad) {
+                const obraSnap = await tx.get(obraRef);
+                if (!obraSnap.exists()) throw new Error("La obra no existe.");
+
+                const obraData = obraSnap.data();
+                const totalActividades = actividades.length;
+                if (totalActividades > 0 && actividad.cantidad > 0) {
+                     const pesoActividad = 1 / totalActividades;
+                    const avanceParcialDelta = (deltaCantidad / actividad.cantidad);
+                    const avancePonderadoDelta = avanceParcialDelta * pesoActividad * 100;
+
+                    if(!isNaN(avancePonderadoDelta)) {
+                        const nuevoAvanceAcumulado = Math.max(0, Math.min(100, (obraData.avanceAcumulado || 0) + avancePonderadoDelta));
+                        tx.update(obraRef, { avanceAcumulado: nuevoAvanceAcumulado });
+                    }
+                }
+            }
+        });
+        toast({title: "Avance actualizado"});
+        setIsEditModalOpen(false);
+
+    } catch (err: any) {
+        console.error("Error actualizando avance:", err);
+        toast({variant: 'destructive', title: 'Error', description: err.message});
+    } finally {
+        setIsUpdatingAvance(false);
+    }
+  };
+
 
   const formatCurrency = (value: number) => {
     return value.toLocaleString('es-CL', { style: 'currency', currency: 'CLP', maximumFractionDigits: 0 });
@@ -965,6 +1066,9 @@ function ProgramacionPageInner() {
                                                     {avance.tipoRegistro === 'FOTOGRAFICO' ? <Camera className="h-3 w-3 mr-1"/> : null}
                                                     {avance.tipoRegistro === 'FOTOGRAFICO' ? 'Solo Foto' : `Avance: ${avance.cantidadEjecutada} ${actividad?.unidad || ''}`}
                                                 </Badge>
+                                                <Button variant="ghost" size="icon" className="h-6 w-6 text-muted-foreground" onClick={() => handleOpenEditModal(avance)}>
+                                                    <Edit className="h-4 w-4" />
+                                                </Button>
                                                 <AlertDialog>
                                                     <AlertDialogTrigger asChild>
                                                     <Button variant="ghost" size="icon" className="h-6 w-6 text-muted-foreground hover:text-destructive">
@@ -1033,6 +1137,44 @@ function ProgramacionPageInner() {
           </div>
            <DialogFooter>
              <Button variant="outline" onClick={() => setSelectedImage(null)}>Cerrar</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+      
+       {/* Modal para editar avance */}
+      <Dialog open={isEditModalOpen} onOpenChange={setIsEditModalOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Editar Registro de Avance</DialogTitle>
+            <DialogDescription>
+              Ajuste la cantidad, comentario o visibilidad del registro.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="py-4 space-y-4">
+             <div className="space-y-2">
+                <Label>Actividad</Label>
+                <Input value={actividades.find(a => a.id === editingAvance?.actividadId)?.nombreActividad || 'N/A'} disabled />
+             </div>
+             <div className="space-y-2">
+                <Label htmlFor="edit-cantidad">Cantidad Ejecutada</Label>
+                <Input id="edit-cantidad" type="number" value={newCantidad} onChange={e => setNewCantidad(Number(e.target.value))} />
+                <p className="text-xs text-muted-foreground">Unidad: {actividades.find(a => a.id === editingAvance?.actividadId)?.unidad}</p>
+             </div>
+             <div className="space-y-2">
+                <Label htmlFor="edit-comentario">Comentario</Label>
+                <Textarea id="edit-comentario" value={newComentario} onChange={e => setNewComentario(e.target.value)} />
+             </div>
+             <div className="flex items-center space-x-2">
+                <Switch id="edit-visible" checked={newVisibleCliente} onCheckedChange={setNewVisibleCliente} />
+                <Label htmlFor="edit-visible">Visible para el cliente</Label>
+             </div>
+          </div>
+          <DialogFooter>
+            <Button variant="ghost" onClick={() => setIsEditModalOpen(false)} disabled={isUpdatingAvance}>Cancelar</Button>
+            <Button onClick={handleUpdateAvance} disabled={isUpdatingAvance}>
+                {isUpdatingAvance && <Loader2 className="mr-2 h-4 w-4 animate-spin"/>}
+                {isUpdatingAvance ? 'Guardando...' : 'Guardar Cambios'}
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
