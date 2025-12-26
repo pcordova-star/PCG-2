@@ -3,7 +3,7 @@
 
 import React, { useState, useEffect, useMemo } from 'react';
 import { useAuth } from '@/context/AuthContext';
-import { firebaseStorage } from '@/lib/firebaseClient';
+import { firebaseDb, firebaseStorage } from '@/lib/firebaseClient';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { getAuth } from "firebase/auth";
 import { Button } from '@/components/ui/button';
@@ -16,6 +16,7 @@ import { useToast } from '@/hooks/use-toast';
 import { ActividadProgramada, Obra } from '../page';
 import { useActividadAvance } from '../hooks/useActividadAvance';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { doc, updateDoc } from 'firebase/firestore';
 
 const FN_URL = "https://southamerica-west1-pcg-2-8bf1b.cloudfunctions.net/registrarAvanceRapido";
 
@@ -161,7 +162,8 @@ export default function RegistrarAvanceForm({ obraId: initialObraId, obras = [],
             urlsFotos.push(url);
           }
         }
-
+        
+        // Payload para la Cloud Function (solo campos aceptados)
         const payload = {
           obraId: selectedObraId,
           actividadId: actividadId,
@@ -169,11 +171,6 @@ export default function RegistrarAvanceForm({ obraId: initialObraId, obras = [],
           comentario: comentarios[actividadId] || '',
           fotos: urlsFotos,
           visibleCliente: true,
-          cantidadEjecutada: cantidadHoy,
-          unidad: actividad.unidad || 'N/A',
-          cantidadTotalActividad: baseCantidad,
-          fechaAvance: fechaAvance,
-          actividadNombre: actividad.nombreActividad,
         };
         
         const token = await user.getIdToken(true);
@@ -190,7 +187,16 @@ export default function RegistrarAvanceForm({ obraId: initialObraId, obras = [],
         const json = await res.json().catch(() => ({}));
 
         if (!res.ok) {
-          throw new Error(json?.details || json?.error || `HTTP ${res.status}`);
+          throw new Error(json?.details || json?.error || `Error del servidor: HTTP ${res.status}`);
+        }
+
+        // Si la función fue exitosa y retornó un ID, actualizamos el doc con los datos extra
+        if (json.ok && json.id) {
+          const avanceDocRef = doc(firebaseDb, "obras", selectedObraId, "avancesDiarios", json.id);
+          await updateDoc(avanceDocRef, {
+            cantidadEjecutada: cantidadHoy,
+            unidad: actividad.unidad || 'N/A',
+          });
         }
 
         guardadas++;
