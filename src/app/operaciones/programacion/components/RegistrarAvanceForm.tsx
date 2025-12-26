@@ -25,6 +25,11 @@ type RegistrarAvanceRapidoInput = {
   comentario: string;
   fotos: string[];
   visibleCliente: boolean;
+  cantidadEjecutada: number;
+  unidad: string;
+  cantidadTotalActividad: number;
+  fechaAvance: string;
+  actividadNombre: string;
 };
 
 type RegistrarAvanceRapidoOutput = { ok: boolean; id?: string };
@@ -179,31 +184,18 @@ export default function RegistrarAvanceForm({ obraId: initialObraId, obras = [],
           porcentaje: porcentaje,
           comentario: comentarios[actividadId] || '',
           fotos: urlsFotos,
-          visibleCliente: true
+          visibleCliente: true,
+          // Nuevos campos para registro completo
+          cantidadEjecutada: cantidadHoy,
+          unidad: actividad.unidad || 'N/A',
+          cantidadTotalActividad: baseCantidad,
+          fechaAvance: fechaAvance,
+          actividadNombre: actividad.nombreActividad,
         };
         
         const FN_URL = "https://southamerica-west1-pcg-2-8bf1b.cloudfunctions.net/registrarAvanceRapido";
         
         const token = await user.getIdToken(true);
-
-        console.log("AUTH PROJECT:", user?.auth?.app?.options?.projectId);
-        console.log("AUTH DOMAIN:", user?.auth?.app?.options?.authDomain);
-        console.log("TOKEN length:", token?.length);
-
-        try {
-            const payloadPart = token.split(".")[1] || "";
-            const decoded = JSON.parse(
-                atob(payloadPart.replace(/-/g, "+").replace(/_/g, "/"))
-            );
-
-            console.log("JWT aud:", decoded?.aud);
-            console.log("JWT iss:", decoded?.iss);
-            console.log("JWT sub:", decoded?.sub);
-            console.log("JWT email:", decoded?.email);
-        } catch {
-            console.log("JWT decode failed");
-        }
-        
 
         const res = await fetch(FN_URL, {
             method: "POST",
@@ -214,11 +206,7 @@ export default function RegistrarAvanceForm({ obraId: initialObraId, obras = [],
             body: JSON.stringify(payload),
         });
         
-        console.log("[registrarAvanceRapido] status", res.status);
-        console.log("[registrarAvanceRapido] headers", Object.fromEntries(res.headers.entries()));
         const raw = await res.text();
-        console.log("[registrarAvanceRapido] raw body", raw);
-
         let json: any = null;
         try { json = JSON.parse(raw); } catch {}
         

@@ -91,6 +91,8 @@ export interface Obra {
   fechaTermino?: string;
   dotacionProyectada?: number;
   adminContratoNombre?: string;
+  avanceAcumulado?: number;
+  ultimaActualizacion?: Timestamp;
 }
 
 export interface ActividadProgramada {
@@ -385,6 +387,25 @@ export interface ChecklistSection {
     items: ChecklistItem[];
 }
 
+// Plantillas de Checklists
+export interface ChecklistTemplate {
+    id: string;
+    titulo: string;
+    descripcion: string;
+    categoria: "general" | "operaciones" | "prevencion";
+    secciones: {
+        id: string;
+        titulo: string;
+        items: {
+            id: string;
+            texto: string;
+            tipo: "ok_nok_na" | "texto" | "numero" | "fecha";
+        }[];
+    }[];
+    createdAt: Timestamp;
+    createdBy: string;
+}
+
 // Plantillas de Checklists OPERACIONALES
 export interface OperationalChecklistTemplate {
     id: string;
@@ -596,3 +617,4 @@ export interface Rdi {
   tieneAdicional?: boolean;             // true si esta RDI ya generó un adicional
   adicionalId?: string | null;         // id del itemizado/adicional en su colección
   adicionalEstado?: 'borrador' | 'enviado' | 'ap
+};
