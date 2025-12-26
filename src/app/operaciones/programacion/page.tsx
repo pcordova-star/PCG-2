@@ -63,7 +63,7 @@ import {
 import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
 import Link from "next/link";
-import { FilePlus2, FileText, Trash2, Edit, PlusCircle, Camera, Download, X, DollarSign, FileDown, ArrowLeft, RefreshCw } from 'lucide-react';
+import { FilePlus2, FileText, Trash2, Edit, PlusCircle, Camera, Download, X, DollarSign, FileDown, ArrowLeft, RefreshCw, Switch, Loader2 } from 'lucide-react';
 import RegistrarAvanceForm from "./components/RegistrarAvanceForm";
 import RegistroFotograficoForm from "./components/RegistroFotograficoForm";
 import { useActividadAvance } from "./hooks/useActividadAvance";
@@ -83,6 +83,7 @@ import ImageFromStorage from '@/components/client/ImageFromStorage';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
+import { Textarea } from "@/components/ui/textarea";
 
 
 type PresupuestoItem = {
@@ -700,7 +701,7 @@ function ProgramacionPageInner() {
                             nombreActividad: item.descripcion,
                             unidad: item.unidad,
                             cantidad: item.cantidad,
-                            precioContrato: item.precioUnitario,
+                            precioContrato: item.precioContrato,
                             fechaInicio: new Date().toISOString().slice(0, 10), // Fecha por defecto
                             fechaFin: new Date().toISOString().slice(0, 10), // Fecha por defecto
                         };
