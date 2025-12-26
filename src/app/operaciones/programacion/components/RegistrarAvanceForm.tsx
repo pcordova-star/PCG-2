@@ -15,7 +15,7 @@ import { useToast } from '@/hooks/use-toast';
 import { ActividadProgramada, Obra } from '../page';
 import { useActividadAvance } from '../hooks/useActividadAvance';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { doc, runTransaction, collection, serverTimestamp, addDoc, getDoc } from 'firebase/firestore';
+import { doc, runTransaction, collection, serverTimestamp, addDoc, getDoc, getDocs } from 'firebase/firestore';
 
 type RegistrarAvanceFormProps = {
   obraId?: string;
@@ -176,7 +176,8 @@ export default function RegistrarAvanceForm({ obraId: initialObraId, obras = [],
           const actividadesTotales = (await getDocs(collection(db, "obras", selectedObraId, "actividades"))).size;
           if (actividadesTotales > 0) {
             const pesoActividad = (actividad.cantidad * actividad.precioContrato) / (obraData.montoTotalContrato || 1);
-            const avancePonderadoDelDia = pesoActividad * ((cantidadHoy / actividad.cantidad) * 100);
+            const avanceParcialActividad = (cantidadHoy / actividad.cantidad) * 100;
+            const avancePonderadoDelDia = pesoActividad * avanceParcialActividad;
             
             if (!isNaN(avancePonderadoDelDia) && avancePonderadoDelDia > 0) {
               const nuevoAvanceAcumulado = Math.min(100, (obraData.avanceAcumulado || 0) + avancePonderadoDelDia);
