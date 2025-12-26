@@ -1,3 +1,4 @@
+
 // src/app/operaciones/programacion/page.tsx
 
 "use client";
@@ -79,7 +80,7 @@ import {
   Legend,
   ResponsiveContainer,
 } from 'recharts';
-import { differenceInDays, eachDayOfInterval, format, isAfter } from 'date-fns';
+import { differenceInDays, eachDayOfInterval, format, isAfter, max, min } from 'date-fns';
 import { es } from 'date-fns/locale';
 import ImageFromStorage from '@/components/client/ImageFromStorage';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -157,13 +158,17 @@ function CurvaSChart({ actividades, avances, montoTotalContrato }: { actividades
     const fechasFin = actividades.map(a => new Date(a.fechaFin + 'T00:00:00')).filter(d => !isNaN(d.getTime()));
 
     if (fechasInicio.length === 0 || fechasFin.length === 0) return [];
+    
+    const hoy = new Date();
+    hoy.setHours(0, 0, 0, 0);
 
-    const fechaInicioObra = new Date(Math.min(...fechasInicio.map(d => d.getTime())));
-    const fechaFinObra = new Date(Math.max(...fechasFin.map(d => d.getTime())));
+    const fechaInicioObra = min(fechasInicio);
+    const fechaFinProgramada = max(fechasFin);
+    const fechaFinGrafico = max([fechaFinProgramada, hoy]);
+    
+    if (fechaInicioObra > fechaFinGrafico) return [];
 
-    if (fechaInicioObra > fechaFinObra) return [];
-
-    const rangoFechas = eachDayOfInterval({ start: fechaInicioObra, end: fechaFinObra });
+    const rangoFechas = eachDayOfInterval({ start: fechaInicioObra, end: fechaFinGrafico });
     const dataCurva: CurvaSDataPoint[] = [];
 
     // --- Cálculo Curva Programada ---
@@ -208,20 +213,22 @@ function CurvaSChart({ actividades, avances, montoTotalContrato }: { actividades
         const fechaStr = format(dia, 'yyyy-MM-dd');
         
         acumuladoProgramado += (costosProgramadosDiarios[fechaStr] || 0);
-        acumuladoReal += (costosRealesDiarios[fechaStr] || 0);
         
+        // La curva real solo avanza hasta el día de hoy.
+        if (dia <= hoy) {
+            acumuladoReal += (costosRealesDiarios[fechaStr] || 0);
+        }
+
         const porcentajeProgramado = Math.min(100, (acumuladoProgramado / montoTotalContrato) * 100);
-        const porcentajeReal = isAfter(dia, new Date()) ? null : Math.min(100, (acumuladoReal / montoTotalContrato) * 100);
+        
+        // Si la fecha es futura, el avance real es nulo para que la línea se corte.
+        const porcentajeReal = dia > hoy ? null : Math.min(100, (acumuladoReal / montoTotalContrato) * 100);
 
         dataCurva.push({
-            fecha: format(dia, 'dd-MM'),
+            fecha: format(dia, 'dd-MM-yy'),
             programado: porcentajeProgramado,
             real: porcentajeReal
         });
-
-        if (porcentajeProgramado >= 100 || (porcentajeReal !== null && porcentajeReal >= 100)) {
-            break;
-        }
     }
 
     return dataCurva;
@@ -563,11 +570,11 @@ function ProgramacionPageInner() {
                 const obraData = obraDoc.data();
                 const totalActividades = actividades.length;
                 if(totalActividades > 0 && actividad.cantidad > 0) {
-                    const pesoActividad = 1 / totalActividades;
+                     const pesoActividad = 1 / totalActividades;
                     const avanceParcialActividad = (avance.cantidadEjecutada / actividad.cantidad);
                     const avancePonderadoDelDia = avanceParcialActividad * pesoActividad * 100;
                     
-                    if (!isNaN(avancePonderadoDelDia) && avancePonderadoDelDia > 0) {
+                    if(!isNaN(avancePonderadoDelDia)) {
                         const nuevoAvanceAcumulado = Math.max(0, (obraData.avanceAcumulado || 0) - avancePonderadoDelDia);
                         tx.update(obraRef, { avanceAcumulado: nuevoAvanceAcumulado });
                     }
@@ -702,7 +709,7 @@ function ProgramacionPageInner() {
                             nombreActividad: item.descripcion,
                             unidad: item.unidad,
                             cantidad: item.cantidad,
-                            precioContrato: item.precioContrato,
+                            precioContrato: item.precioUnitario,
                             fechaInicio: new Date().toISOString().slice(0, 10), // Fecha por defecto
                             fechaFin: new Date().toISOString().slice(0, 10), // Fecha por defecto
                         };
@@ -1201,3 +1208,5 @@ export default function ProgramacionPage() {
     </Suspense>
   );
 }
+
+```
