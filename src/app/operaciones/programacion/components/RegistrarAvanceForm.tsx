@@ -17,7 +17,6 @@ import { ActividadProgramada, Obra } from '../page';
 import { useActividadAvance } from '../hooks/useActividadAvance';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 
-// La URL de la función debe ser explícita y apuntar a la región correcta.
 const FN_URL = "https://southamerica-west1-pcg-2-8bf1b.cloudfunctions.net/registrarAvanceRapido";
 
 type RegistrarAvanceFormProps = {
@@ -166,7 +165,7 @@ export default function RegistrarAvanceForm({ obraId: initialObraId, obras = [],
         const payload = {
           obraId: selectedObraId,
           actividadId: actividadId,
-          porcentajeAvance: porcentaje, // Nombre correcto del campo
+          porcentajeAvance: porcentaje,
           comentario: comentarios[actividadId] || '',
           fotos: urlsFotos,
           visibleCliente: true,
@@ -188,14 +187,8 @@ export default function RegistrarAvanceForm({ obraId: initialObraId, obras = [],
             body: JSON.stringify(payload),
         });
         
-        console.log("[registrarAvanceRapido] status", res.status);
-        console.log("[registrarAvanceRapido] headers", Object.fromEntries(res.headers.entries()));
-        const raw = await res.text();
-        console.log("[registrarAvanceRapido] raw body", raw);
+        const json = await res.json().catch(() => ({}));
 
-        let json: any = null;
-        try { json = JSON.parse(raw); } catch {}
-        
         if (!res.ok) {
           throw new Error(json?.details || json?.error || `HTTP ${res.status}`);
         }
@@ -224,37 +217,13 @@ export default function RegistrarAvanceForm({ obraId: initialObraId, obras = [],
       }
       
     } catch (err: any) {
-        const rawString = String(err);
-        const name = err?.name;
-        const code = err?.code;
-        const message =
-          err?.message ||
-          (typeof err === "string" ? err : "") ||
-          rawString ||
-          "Ocurrió un error inesperado al registrar el avance.";
-
-        const details = err?.details;
-
-        let ownProps: any = {};
-        try {
-            const keys = Object.getOwnPropertyNames(err || {});
-            for (const k of keys) ownProps[k] = err[k];
-        } catch {}
-
-        console.error("registrarAvanceRapido error (raw):", err);
-        console.error("registrarAvanceRapido error (string):", rawString);
-        console.error("registrarAvanceRapido error (props):", ownProps);
-        
-        setError(message);
-        toast({
-            variant: "destructive",
-            title: code ? `Error (${code})` : "Error al registrar",
-            description:
-            details
-                ? `${message} — ${JSON.stringify(details)}`
-                : message,
-            duration: 10000,
-        });
+      setError(err.message);
+      toast({
+        variant: "destructive",
+        title: "Error al registrar",
+        description: err.message,
+        duration: 10000,
+      });
     } finally {
       setIsSaving(false);
     }

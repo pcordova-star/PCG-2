@@ -10,11 +10,10 @@ import cors from "cors";
 const corsHandler = cors({ origin: true });
 
 // El schema en el backend debe coincidir con lo que envía el frontend.
-// Se espera 'porcentajeAvance'
 const AvanceSchema = z.object({
     obraId: z.string().min(1),
     actividadId: z.string().min(1),
-    porcentajeAvance: z.coerce.number().min(0).max(100.01), // Permitir un pequeño margen
+    porcentajeAvance: z.coerce.number().min(0).max(100.01),
     comentario: z.string().optional().default(""),
     fotos: z.array(z.string().url()).max(5).optional().default([]),
     visibleCliente: z.coerce.boolean().optional().default(true),
@@ -65,11 +64,12 @@ export const registrarAvanceRapido = functions.region("southamerica-west1").http
             const { 
                 obraId, 
                 actividadId, 
-                porcentajeAvance, // Usamos el nombre correcto
+                porcentajeAvance,
                 comentario, 
                 fotos, 
                 visibleCliente, 
                 cantidadEjecutada, 
+                cantidadTotalActividad,
                 unidad 
             } = parsed.data;
 
@@ -88,23 +88,45 @@ export const registrarAvanceRapido = functions.region("southamerica-west1").http
                 const avanceData = {
                     obraId,
                     actividadId,
-                    porcentajeAvance: porcentajeAvance, // Se guarda con el nombre correcto
+                    porcentajeAvance,
                     comentario: escapeHtml(comentario),
                     fotos,
                     visibleCliente,
-                    fecha: FieldValue.serverTimestamp(), // Se usa la fecha del servidor para consistencia
+                    fecha: FieldValue.serverTimestamp(),
                     creadoPor: { uid, displayName: escapeHtml(displayName) },
                     cantidadEjecutada: cantidadEjecutada,
                     unidad: unidad,
-                    tipoRegistro: "CANTIDAD", // Se agrega el tipo de registro
+                    tipoRegistro: "CANTIDAD",
                 };
                 
                 tx.set(nuevoAvanceRef, avanceData);
 
-                // La lógica de actualización del avance acumulado se ha movido al cliente
-                // o a un trigger para simplificar esta función.
-                // Solo actualizamos la fecha de última modificación.
-                tx.update(obraRef, { ultimaActualizacion: FieldValue.serverTimestamp() });
+                // Lógica de actualización del avance acumulado
+                if (cantidadEjecutada > 0) {
+                    const currentData = obraSnap.data() || {};
+                    const avancePrevio = Number(currentData.avanceAcumulado || 0);
+                    const totalActividades = Number(currentData.totalActividades || 1); // Fallback para evitar división por cero
+
+                    if (totalActividades > 0 && cantidadTotalActividad > 0) {
+                        const pesoActividad = 1 / totalActividades;
+                        const avanceParcialActividad = (cantidadEjecutada / cantidadTotalActividad);
+                        const avancePonderadoDelDia = avanceParcialActividad * pesoActividad * 100;
+                        
+                        if (!isNaN(avancePonderadoDelDia) && avancePonderadoDelDia > 0) {
+                            const nuevoAvanceAcumulado = Math.min(100, avancePrevio + avancePonderadoDelDia);
+                            tx.update(obraRef, {
+                                ultimaActualizacion: FieldValue.serverTimestamp(),
+                                avanceAcumulado: nuevoAvanceAcumulado,
+                            });
+                        } else {
+                             tx.update(obraRef, { ultimaActualizacion: FieldValue.serverTimestamp() });
+                        }
+                    } else {
+                        tx.update(obraRef, { ultimaActualizacion: FieldValue.serverTimestamp() });
+                    }
+                } else {
+                    tx.update(obraRef, { ultimaActualizacion: FieldValue.serverTimestamp() });
+                }
 
                 return nuevoAvanceRef.id;
             });
@@ -115,10 +137,7 @@ export const registrarAvanceRapido = functions.region("southamerica-west1").http
             logger.error("Error en registrarAvanceRapido:", { message: error.message, code: error.code, details: error.details });
             if (error.code === 'auth/id-token-expired' || error.code === 'auth/argument-error') {
                 res.status(401).json({ ok: false, error: "UNAUTHENTICATED", details: "Token inválido o expirado." });
-            } else if (error.httpErrorCode) { // Para errores HttpsError lanzados manualmente (aunque ya no se usa)
-                res.status(error.httpErrorCode.status).json({ ok: false, error: error.code, details: error.message });
-            }
-            else {
+            } else {
                 res.status(500).json({ ok: false, error: "INTERNAL_SERVER_ERROR", details: error.message });
             }
         }
