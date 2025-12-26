@@ -135,6 +135,8 @@ export default function RegistrarAvanceForm({ obraId: initialObraId, obras = [],
       const omitidas: string[] = [];
       let guardadas = 0;
 
+      const token = await user.getIdToken(true); // Forzar refresco
+
       for (const [actividadId, cantidadHoy] of avancesParaGuardar) {
         const actividad = actividadesAMostrar.find(a => a.id === actividadId);
         if (!actividad) continue;
@@ -171,8 +173,6 @@ export default function RegistrarAvanceForm({ obraId: initialObraId, obras = [],
           fotos: urlsFotos,
           visibleCliente: true,
         };
-        
-        const token = await user.getIdToken(true);
 
         const res = await fetch(FN_URL, {
             method: "POST",
@@ -186,7 +186,7 @@ export default function RegistrarAvanceForm({ obraId: initialObraId, obras = [],
         const json = await res.json().catch(() => ({}));
 
         if (!res.ok) {
-          throw new Error(json?.details || json?.error || `Error del servidor: HTTP ${res.status}`);
+          throw new Error(json?.details || json?.error || `HTTP ${res.status}`);
         }
 
         // Si la función fue exitosa y retornó un ID, actualizamos el doc con los datos extra
