@@ -15,7 +15,7 @@ import { useToast } from '@/hooks/use-toast';
 import { ActividadProgramada, Obra } from '../page';
 import { useActividadAvance } from '../hooks/useActividadAvance';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { doc, runTransaction, collection, serverTimestamp, addDoc, getDoc, getDocs } from 'firebase/firestore';
+import { doc, runTransaction, collection, serverTimestamp, getDocs } from 'firebase/firestore';
 
 type RegistrarAvanceFormProps = {
   obraId?: string;
@@ -144,20 +144,21 @@ export default function RegistrarAvanceForm({ obraId: initialObraId, obras = [],
         }
         
         const obraRef = doc(db, "obras", selectedObraId);
-        const nuevoAvanceRef = doc(collection(obraRef, "avancesDiarios"));
+        const avancesRef = collection(obraRef, "avancesDiarios");
+        const nuevoAvanceRef = doc(avancesRef);
 
         await runTransaction(db, async (transaction) => {
           const obraDoc = await transaction.get(obraRef);
           if (!obraDoc.exists()) {
             throw new Error("La obra no existe.");
           }
-
+          
           const avanceData = {
             obraId: selectedObraId,
             actividadId: actividadId,
             fecha: new Date(fechaAvance + 'T12:00:00Z'),
             cantidadEjecutada: cantidadHoy,
-            unidad: actividad.unidad,
+            unidad: actividad.unidad || '',
             porcentajeAvance: (cantidadHoy / (actividad.cantidad || 1)) * 100,
             comentario: comentarios[actividadId] || '',
             fotos: urlsFotos,
@@ -174,10 +175,12 @@ export default function RegistrarAvanceForm({ obraId: initialObraId, obras = [],
           
           const obraData = obraDoc.data();
           const actividadesTotales = (await getDocs(collection(db, "obras", selectedObraId, "actividades"))).size;
-          if (actividadesTotales > 0) {
-            const pesoActividad = (actividad.cantidad * actividad.precioContrato) / (obraData.montoTotalContrato || 1);
-            const avanceParcialActividad = (cantidadHoy / actividad.cantidad) * 100;
-            const avancePonderadoDelDia = pesoActividad * avanceParcialActividad;
+          if (actividadesTotales > 0 && actividad.cantidad > 0) {
+            const montoTotalContrato = actividadesAMostrar.reduce((sum, act) => sum + ((act.cantidad || 0) * (act.precioContrato || 0)), 0);
+            const pesoActividad = montoTotalContrato > 0 ? ((actividad.cantidad * actividad.precioContrato) / montoTotalContrato) : (1 / actividadesTotales);
+            
+            const avanceParcialActividad = (cantidadHoy / actividad.cantidad);
+            const avancePonderadoDelDia = avanceParcialActividad * pesoActividad * 100;
             
             if (!isNaN(avancePonderadoDelDia) && avancePonderadoDelDia > 0) {
               const nuevoAvanceAcumulado = Math.min(100, (obraData.avanceAcumulado || 0) + avancePonderadoDelDia);
