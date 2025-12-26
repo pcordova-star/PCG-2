@@ -5,7 +5,6 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { firebaseDb, firebaseStorage } from '@/lib/firebaseClient';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
-import { getAuth } from "firebase/auth";
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -16,9 +15,7 @@ import { useToast } from '@/hooks/use-toast';
 import { ActividadProgramada, Obra } from '../page';
 import { useActividadAvance } from '../hooks/useActividadAvance';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { doc, updateDoc } from 'firebase/firestore';
-
-const FN_URL = "https://southamerica-west1-pcg-2-8bf1b.cloudfunctions.net/registrarAvanceRapido";
+import { doc, runTransaction, collection, serverTimestamp, addDoc, getDoc } from 'firebase/firestore';
 
 type RegistrarAvanceFormProps = {
   obraId?: string;
@@ -113,10 +110,6 @@ export default function RegistrarAvanceForm({ obraId: initialObraId, obras = [],
 
   const handleAvanceSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
-    const auth = getAuth();
-    const user = auth.currentUser;
-
     if (!selectedObraId || !user) {
       setError('Debes seleccionar una obra y estar autenticado.');
       return;
@@ -132,28 +125,13 @@ export default function RegistrarAvanceForm({ obraId: initialObraId, obras = [],
     setError(null);
     
     try {
-      const omitidas: string[] = [];
+      const db = firebaseDb;
       let guardadas = 0;
-
-      const token = await user.getIdToken(true); // Forzar refresco
 
       for (const [actividadId, cantidadHoy] of avancesParaGuardar) {
         const actividad = actividadesAMostrar.find(a => a.id === actividadId);
         if (!actividad) continue;
 
-        const baseCantidad = Number(actividad.cantidad);
-        if (!Number.isFinite(baseCantidad) || baseCantidad <= 0) {
-          omitidas.push(actividad.nombreActividad);
-          continue;
-        }
-
-        let porcentaje = (cantidadHoy / baseCantidad) * 100;
-        if (!Number.isFinite(porcentaje) || porcentaje < 0) {
-          omitidas.push(actividad.nombreActividad);
-          continue;
-        }
-        porcentaje = Math.min(100, porcentaje);
-        
         const urlsFotos: string[] = [];
         if (fotos[actividadId] && fotos[actividadId].length > 0) {
           for (const file of fotos[actividadId]) {
@@ -165,39 +143,51 @@ export default function RegistrarAvanceForm({ obraId: initialObraId, obras = [],
           }
         }
         
-        const payload = {
-          obraId: selectedObraId,
-          actividadId: actividadId,
-          porcentajeAvance: porcentaje,
-          comentario: comentarios[actividadId] || '',
-          fotos: urlsFotos,
-          visibleCliente: true,
-        };
+        const obraRef = doc(db, "obras", selectedObraId);
+        const nuevoAvanceRef = doc(collection(obraRef, "avancesDiarios"));
 
-        const res = await fetch(FN_URL, {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-              "Authorization": `Bearer ${token}`,
+        await runTransaction(db, async (transaction) => {
+          const obraDoc = await transaction.get(obraRef);
+          if (!obraDoc.exists()) {
+            throw new Error("La obra no existe.");
+          }
+
+          const avanceData = {
+            obraId: selectedObraId,
+            actividadId: actividadId,
+            fecha: new Date(fechaAvance + 'T12:00:00Z'),
+            cantidadEjecutada: cantidadHoy,
+            unidad: actividad.unidad,
+            porcentajeAvance: (cantidadHoy / (actividad.cantidad || 1)) * 100,
+            comentario: comentarios[actividadId] || '',
+            fotos: urlsFotos,
+            visibleCliente: true,
+            tipoRegistro: 'CANTIDAD',
+            creadoPor: {
+              uid: user.uid,
+              displayName: user.displayName || user.email,
             },
-            body: JSON.stringify(payload),
+            createdAt: serverTimestamp(),
+          };
+
+          transaction.set(nuevoAvanceRef, avanceData);
+          
+          const obraData = obraDoc.data();
+          const actividadesTotales = (await getDocs(collection(db, "obras", selectedObraId, "actividades"))).size;
+          if (actividadesTotales > 0) {
+            const pesoActividad = (actividad.cantidad * actividad.precioContrato) / (obraData.montoTotalContrato || 1);
+            const avancePonderadoDelDia = pesoActividad * ((cantidadHoy / actividad.cantidad) * 100);
+            
+            if (!isNaN(avancePonderadoDelDia) && avancePonderadoDelDia > 0) {
+              const nuevoAvanceAcumulado = Math.min(100, (obraData.avanceAcumulado || 0) + avancePonderadoDelDia);
+              transaction.update(obraRef, {
+                avanceAcumulado: nuevoAvanceAcumulado,
+                ultimaActualizacion: serverTimestamp(),
+              });
+            }
+          }
         });
         
-        const json = await res.json().catch(() => ({}));
-
-        if (!res.ok) {
-          throw new Error(json?.details || json?.error || `HTTP ${res.status}`);
-        }
-
-        // Si la función fue exitosa y retornó un ID, actualizamos el doc con los datos extra
-        if (json.ok && json.id) {
-          const avanceDocRef = doc(firebaseDb, "obras", selectedObraId, "avancesDiarios", json.id);
-          await updateDoc(avanceDocRef, {
-            cantidadEjecutada: cantidadHoy,
-            unidad: actividad.unidad || 'N/A',
-          });
-        }
-
         guardadas++;
       }
       
@@ -210,15 +200,6 @@ export default function RegistrarAvanceForm({ obraId: initialObraId, obras = [],
           onAvanceRegistrado(avancesParaGuardar);
         }
         resetFormStates();
-      }
-      
-      if (omitidas.length > 0) {
-        toast({
-          variant: "destructive",
-          title: "Algunas actividades no se registraron",
-          description: `Sin cantidad base válida (> 0): ${omitidas.slice(0, 3).join(", ")}${omitidas.length > 3 ? "..." : ""}`,
-          duration: 8000,
-        });
       }
       
     } catch (err: any) {
