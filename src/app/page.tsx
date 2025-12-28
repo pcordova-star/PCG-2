@@ -283,7 +283,7 @@ export default function WelcomePage() {
 
       <main>
         {/* Hero Section */}
-        <section className="relative h-[70vh] md:h-[90vh] w-full flex items-center justify-center text-center text-white overflow-hidden">
+        <section className="relative min-h-[70vh] md:min-h-[90vh] w-full flex items-center justify-center text-center text-white overflow-hidden">
             <video
                 autoPlay
                 loop
