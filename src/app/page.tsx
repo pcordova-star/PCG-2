@@ -1,4 +1,3 @@
-
 // src/app/page.tsx
 "use client";
 
@@ -6,7 +5,7 @@ import React, { useState, useEffect, FormEvent } from 'react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
-import { ArrowRight, CheckCircle, DollarSign, GanttChartSquare, HardHat, ShieldCheck, Users, Layers, Loader2, BrainCircuit, BarChart, Settings, SlidersHorizontal } from 'lucide-react';
+import { ArrowRight, CheckCircle, DollarSign, GanttChartSquare, HardHat, ShieldCheck, Users, Layers, Loader2, BrainCircuit, BarChart, Settings, SlidersHorizontal, ArrowDown, ArrowUp } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { motion, AnimatePresence, useInView, animate } from 'framer-motion';
 import { Input } from '@/components/ui/input';
@@ -321,33 +320,23 @@ function InteligenciaOperativaSection() {
 
                     <div className="grid grid-cols-2 gap-4">
                         <motion.div variants={{ hidden: { opacity: 0, y: 20 }, visible: { opacity: 1, y: 0 } }} className="rounded-lg bg-slate-900/70 p-4">
-                            <CardTitle className="text-sm font-semibold text-blue-300 flex items-center gap-2"><BarChart/>Operaciones Optimizadas</CardTitle>
-                            <p className="text-3xl font-bold mt-2">+<AnimatedNumber value={8500} /></p>
+                            <CardTitle className="text-sm font-semibold text-blue-300 flex items-center gap-2"><ArrowUp/>Operaciones optimizadas (proyección)</CardTitle>
+                            <p className="text-3xl font-bold mt-2">+10-<AnimatedNumber value={30} />%</p>
                         </motion.div>
                          <motion.div variants={{ hidden: { opacity: 0, y: 20 }, visible: { opacity: 1, y: 0 } }} className="rounded-lg bg-slate-900/70 p-4">
-                            <CardTitle className="text-sm font-semibold text-blue-300 flex items-center gap-2"><DollarSign />Costos Reducidos</CardTitle>
-                            <p className="text-3xl font-bold mt-2"><AnimatedNumber value={12} />%</p>
+                            <CardTitle className="text-sm font-semibold text-blue-300 flex items-center gap-2"><ArrowDown/>Tiempo administrativo (proyección)</CardTitle>
+                            <p className="text-3xl font-bold mt-2">−20-<AnimatedNumber value={40} />%</p>
                         </motion.div>
-                         <motion.div variants={{ hidden: { opacity: 0, y: 20 }, visible: { opacity: 1, y: 0 } }} className="col-span-2 rounded-lg bg-slate-900/70 p-4">
-                            <CardTitle className="text-sm font-semibold text-blue-300 flex items-center gap-2"><SlidersHorizontal />Procesos Automatizados</CardTitle>
-                            <p className="text-3xl font-bold mt-2"><AnimatedNumber value={300} />+</p>
+                         <motion.div variants={{ hidden: { opacity: 0, y: 20 }, visible: { opacity: 1, y: 0 } }} className="rounded-lg bg-slate-900/70 p-4">
+                            <CardTitle className="text-sm font-semibold text-blue-300 flex items-center gap-2"><ArrowDown/>Reprocesos evitados (proyección)</CardTitle>
+                            <p className="text-3xl font-bold mt-2">−10-<AnimatedNumber value={25} />%</p>
+                        </motion.div>
+                         <motion.div variants={{ hidden: { opacity: 0, y: 20 }, visible: { opacity: 1, y: 0 } }} className="rounded-lg bg-slate-900/70 p-4">
+                            <CardTitle className="text-sm font-semibold text-blue-300 flex items-center gap-2"><ArrowUp/>Desviaciones detectadas a tiempo (proyección)</CardTitle>
+                            <p className="text-3xl font-bold mt-2">+15-<AnimatedNumber value={35} />%</p>
                         </motion.div>
                     </div>
-
-                    <div className="my-4 h-px w-full bg-blue-500/20" />
-                    
-                    <motion.div
-                         variants={{ hidden: { opacity: 0 }, visible: { opacity: 1 } }}
-                        className="flex items-center justify-between text-sm font-medium text-slate-300"
-                    >
-                        <span>Planificación</span>
-                        <span className="text-blue-400">→</span>
-                        <span>Ejecución</span>
-                        <span className="text-blue-400">→</span>
-                        <span>Control</span>
-                         <span className="text-blue-400">→</span>
-                        <span>Optimización</span>
-                    </motion.div>
+                    <p className="text-xs text-slate-400 mt-4 text-center">Proyecciones referenciales: dependen del nivel de adopción y disciplina de registro.</p>
                 </motion.div>
             </div>
         </section>
