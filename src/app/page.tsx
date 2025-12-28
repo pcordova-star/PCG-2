@@ -283,41 +283,46 @@ export default function WelcomePage() {
 
       <main>
         {/* Hero Section */}
-        <section className="relative h-[60vh] md:h-[80vh] w-full flex items-center justify-center text-center text-white overflow-hidden">
-          <motion.div
-            initial={{ scale: 1.1 }}
-            animate={{ scale: 1 }}
-            transition={{ duration: 2, ease: "easeOut" }}
-            className="absolute inset-0 z-0"
-          >
-            <img
-              src="https://picsum.photos/seed/herobg/1920/1080"
-              alt="Obra en construcción"
-              data-ai-hint="construction planning"
-              className="object-cover w-full h-full"
-            />
-            <div className="absolute inset-0 bg-gradient-to-t from-slate-900/80 via-slate-900/50 to-transparent"></div>
-          </motion.div>
-
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.8, delay: 0.3 }}
-            className="relative z-10 max-w-4xl mx-auto px-4"
-          >
-            <div className="mb-8 flex justify-center">
-              <PcgLogo size={120} />
-            </div>
-            <p className="font-semibold text-primary-foreground/80 tracking-wider">SOFTWARE PARA CONSTRUCTORAS</p>
-            <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold tracking-tighter text-shadow-lg mt-2">
-              Una obra bien gestionada, una cadena completa alineada.
-            </h1>
-            <div className="mt-8 flex justify-center gap-4">
-              <Button size="lg" asChild>
-                <a href="mailto:paulo@ipsconstruccion.cl?subject=Solicitud%20de%20Demo%20de%20PCG">Agendar Demo</a>
-              </Button>
-            </div>
-          </motion.div>
+        <section className="relative h-[70vh] md:h-[90vh] w-full flex items-center justify-center text-center text-white overflow-hidden">
+            <video
+                autoPlay
+                loop
+                muted
+                playsInline
+                className="absolute z-0 w-full h-full object-cover"
+            >
+                <source src="/hero.mp4" type="video/mp4" />
+                Tu navegador no soporta el video de fondo.
+            </video>
+            <div className="absolute inset-0 bg-gradient-to-t from-slate-900/90 via-slate-900/60 to-transparent z-10"></div>
+            <div className="absolute inset-0 bg-black/40 z-10"></div>
+            
+            <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.8, delay: 0.3 }}
+                className="relative z-20 max-w-4xl mx-auto px-4"
+            >
+                <motion.div 
+                    className="mb-8 flex justify-center"
+                    initial={{ scale: 0.8, opacity: 0 }}
+                    animate={{ scale: 1, opacity: 1 }}
+                    transition={{ duration: 0.5, delay: 0.5, type: 'spring', stiffness: 120 }}
+                >
+                    <div className="bg-black/20 backdrop-blur-sm p-4 rounded-xl border border-white/10 shadow-lg">
+                        <PcgLogo size={120} />
+                    </div>
+                </motion.div>
+                <p className="font-semibold text-primary-foreground/80 tracking-wider">SOFTWARE PARA CONSTRUCTORAS</p>
+                <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold tracking-tighter text-shadow-lg mt-2">
+                Una obra bien gestionada, una cadena completa alineada.
+                </h1>
+                <div className="mt-8 flex justify-center gap-4">
+                <Button size="lg" asChild>
+                    <a href="mailto:paulo@ipsconstruccion.cl?subject=Solicitud%20de%20Demo%20de%20PCG">Agendar Demo</a>
+                </Button>
+                </div>
+            </motion.div>
         </section>
         
         {/* Social Proof */}
