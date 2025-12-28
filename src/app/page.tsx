@@ -314,9 +314,9 @@ export default function WelcomePage() {
                         <PcgLogo size={120} />
                     </div>
                 </motion.div>
-                <p className="font-semibold text-primary-foreground/80 tracking-wider">SOFTWARE PARA CONSTRUCTORAS</p>
+                <p className="font-semibold text-primary-foreground/80 tracking-wider">PLATAFORMA DE CONTROL Y GESTIÓN</p>
                 <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold tracking-tighter text-shadow-lg mt-2">
-                Una obra bien gestionada, una cadena completa alineada.
+                Datos reales para decisiones operativas.
                 </h1>
                 <div className="mt-8 flex justify-center gap-4">
                 <Button size="lg" asChild>
