@@ -334,7 +334,7 @@ function InteligenciaOperativaSection() {
                         </motion.div>
                     </div>
 
-                    <Separator className="my-4 bg-blue-500/20" />
+                    <div className="my-4 h-px w-full bg-blue-500/20" />
                     
                     <motion.div
                          variants={{ hidden: { opacity: 0 }, visible: { opacity: 1 } }}
