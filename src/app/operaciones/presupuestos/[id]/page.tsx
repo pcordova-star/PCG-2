@@ -9,7 +9,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { ArrowLeft, Trash2, Loader2, Save, PlusCircle, FolderPlus, FilePlus, Type } from 'lucide-react';
+import { ArrowLeft, Trash2, Loader2, Save, PlusCircle, FolderPlus, FilePlus, Type, AlertTriangle } from 'lucide-react';
 import { collection, doc, getDoc, setDoc, addDoc, serverTimestamp, query, orderBy, getDocs, Timestamp, where, writeBatch, updateDoc } from 'firebase/firestore';
 import { firebaseDb } from '@/lib/firebaseClient';
 import { useToast } from "@/hooks/use-toast";
@@ -19,6 +19,7 @@ import Link from 'next/link';
 import { generarPresupuestoPdf, HierarchicalItem as PdfHierarchicalItem, DatosEmpresa, DatosObra, DatosPresupuesto } from '@/lib/pdf/generarPresupuestoPdf';
 import { useAuth } from '@/context/AuthContext';
 import { Company, Rdi } from '@/types/pcg';
+import { motion } from 'framer-motion';
 
 // --- Tipos ---
 type Obra = { id: string; nombreFaena: string; direccion?: string; };
@@ -53,6 +54,7 @@ type Presupuesto = {
     gastosGeneralesPorcentaje?: number;
     items: Omit<PresupuestoItem, 'id'>[];
     rdiId?: string | null; // Campo para vincular a una RDI
+    source?: 'IA_PDF' | 'manual'; // Flag para identificar origen
 };
 
 function formatoMoneda(value: number) {
@@ -99,6 +101,8 @@ export default function PresupuestoEditPage() {
 
     const [loading, setLoading] = useState(true);
     const [isSaving, setIsSaving] = useState(false);
+
+    const isAiGenerated = presupuesto.source === 'IA_PDF';
 
     useEffect(() => {
         if (!companyId && role !== 'superadmin') return;
@@ -449,6 +453,26 @@ export default function PresupuestoEditPage() {
                 </div>
             </header>
 
+            {isAiGenerated && (
+                <motion.div
+                    initial={{ opacity: 0, y: -10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.5, ease: "easeOut" }}
+                >
+                    <Card className="bg-amber-50 border-amber-300 animate-shine">
+                        <CardHeader className="flex flex-row items-center gap-4">
+                            <AlertTriangle className="h-8 w-8 text-amber-500" />
+                            <div>
+                                <CardTitle className="text-amber-800">Revisión Requerida: Itemizado Generado por IA</CardTitle>
+                                <CardDescription className="text-amber-700">
+                                    Por favor, verifique cuidadosamente todas las partidas, unidades, cantidades y precios antes de guardar. La IA puede cometer errores.
+                                </CardDescription>
+                            </div>
+                        </CardHeader>
+                    </Card>
+                </motion.div>
+            )}
+
             <Card>
                 <CardHeader><CardTitle>Datos Generales del Itemizado</CardTitle></CardHeader>
                 <CardContent className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -549,7 +573,11 @@ export default function PresupuestoEditPage() {
                 <Button variant="outline" onClick={handleDownloadPdf}>
                     Descargar PDF
                 </Button>
-                <Button onClick={handleSave} disabled={isSaving}>
+                <Button 
+                    onClick={handleSave} 
+                    disabled={isSaving}
+                    className="h-12 text-base font-bold animate-shine-slow bg-[linear-gradient(110deg,#3e4fde,45%,#6d7bff,55%,#3e4fde)] bg-[length:250%_100%] hover:scale-105 transition-transform"
+                >
                     {isSaving ? <Loader2 className="animate-spin mr-2"/> : <Save className="mr-2"/>}
                     {isSaving ? "Guardando..." : "Guardar Itemizado"}
                 </Button>
