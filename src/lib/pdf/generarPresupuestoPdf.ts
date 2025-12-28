@@ -75,26 +75,35 @@ function agregarPieDePagina(doc: jsPDF) {
 export function generarPresupuestoPdf(
   empresa: DatosEmpresa,
   obra: DatosObra,
-  presupuesto: DatosPresupuesto
+  presupuesto: DatosPresupuesto,
+  isItemizado: boolean = false // Nuevo flag para diferenciar
 ) {
   const doc = new jsPDF("p", "mm", "a4");
   const marginX = 15;
   let cursorY = 20;
 
-  // -------- ENCABEZADO PCG + EMPRESA --------
+  const docTitle = isItemizado ? "Itemizado" : "Presupuesto";
+  const docSubtitle = isItemizado
+    ? `Itemizado generado desde IA - ${presupuesto.fecha}`
+    : `Presupuesto: ${presupuesto.nombre}`;
+
+  // -------- ENCABEZADO --------
   doc.setFont("helvetica", "bold");
   doc.setFontSize(16);
   doc.text("PCG · Plataforma de Control y Gestión", marginX, cursorY);
   cursorY += 8;
 
   doc.setFontSize(12);
-  doc.text(`Presupuesto: ${presupuesto.nombre}`, marginX, cursorY);
+  doc.text(docSubtitle, marginX, cursorY);
   cursorY += 6;
-  doc.setFont("helvetica", "normal");
-  doc.text(`Fecha: ${presupuesto.fecha}`, marginX, cursorY);
-  cursorY += 10;
+  if (!isItemizado) {
+    doc.setFont("helvetica", "normal");
+    doc.text(`Fecha: ${presupuesto.fecha}`, marginX, cursorY);
+    cursorY += 10;
+  } else {
+    cursorY += 4;
+  }
 
-  // Empresa que genera
   doc.setFont("helvetica", "bold");
   doc.text("Empresa que genera:", marginX, cursorY);
   cursorY += 6;
@@ -110,7 +119,6 @@ export function generarPresupuestoPdf(
 
   cursorY += 5;
 
-  // Obra
   doc.setFont("helvetica", "bold");
   doc.text("Obra / Faena:", marginX, cursorY);
   cursorY += 6;
@@ -139,9 +147,9 @@ export function generarPresupuestoPdf(
     startY: cursorY,
     head: [['Ítem', 'Descripción', 'Un.', 'Cant.', 'P. Unitario', 'P. Total']],
     body: body,
-    theme: 'grid', // 'striped' o 'grid' o 'plain'
+    theme: 'grid',
     headStyles: {
-      fillColor: [41, 128, 185], // Azul oscuro
+      fillColor: [41, 128, 185],
       textColor: 255,
       fontStyle: 'bold',
     },
@@ -150,14 +158,14 @@ export function generarPresupuestoPdf(
         if (!item) return;
 
         if (item.type === 'chapter') {
-            data.cell.styles.fillColor = '#cae8ff'; // Azul claro
+            data.cell.styles.fillColor = '#cae8ff';
             data.cell.styles.fontStyle = 'bold';
         }
         if (item.type === 'subchapter') {
-            data.cell.styles.fillColor = '#f0f0f0'; // Gris claro
+            data.cell.styles.fillColor = '#f0f0f0';
             data.cell.styles.fontStyle = 'bold';
         }
-        if (item.level > 0 && data.column.index === 1) { // Columna "Descripción"
+        if (item.level > 0 && data.column.index === 1) {
             data.cell.styles.cellPadding = { ...(data.cell.styles.cellPadding as any), left: 5 + item.level * 5 };
         }
     }
@@ -165,8 +173,7 @@ export function generarPresupuestoPdf(
 
   cursorY = (doc as any).lastAutoTable.finalY + 10;
   
-  // -------- RESUMEN --------
-  const colTotalX = 195; // Alineado al margen derecho de la tabla
+  const colTotalX = 195;
   const colLabelX = colTotalX - 55;
 
   doc.setFont("helvetica", "normal");
@@ -195,9 +202,10 @@ export function generarPresupuestoPdf(
   doc.text("Total General:", colLabelX, cursorY, { align: "right" });
   doc.text(formatoMoneda(presupuesto.total), colTotalX, cursorY, { align: "right" });
 
-  // -------- PIE DE PÁGINA --------
   agregarPieDePagina(doc);
 
-  // Disparar la descarga
-  doc.save(`presupuesto-${presupuesto.codigo}.pdf`);
+  const fileName = isItemizado
+    ? `Itemizado_IA_${obra.nombreFaena.replace(/ /g, '_')}.pdf`
+    : `presupuesto-${presupuesto.codigo}.pdf`;
+  doc.save(fileName);
 }

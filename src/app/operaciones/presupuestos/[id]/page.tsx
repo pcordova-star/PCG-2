@@ -427,7 +427,7 @@ export default function PresupuestoEditPage() {
             total: total
         };
 
-        generarPresupuestoPdf(datosEmpresa, datosObra, datosPresupuesto);
+        generarPresupuestoPdf(datosEmpresa, datosObra, datosPresupuesto, isAiGenerated);
     };
 
 
