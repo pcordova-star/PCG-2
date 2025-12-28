@@ -94,6 +94,12 @@ export default {
         md: 'calc(var(--radius) - 2px)',
         sm: 'calc(var(--radius) - 4px)',
       },
+      backgroundImage: {
+        'grid-slate-700': 'linear-gradient(90deg, hsl(222.2 47.4% 11.2% / 0.05) 1px, transparent 1px), linear-gradient(hsl(222.2 47.4% 11.2% / 0.05) 1px, transparent 1px)',
+      },
+      backgroundSize: {
+          'grid-slate-700': '30px 30px',
+      },
       keyframes: {
         'accordion-down': {
           from: {
@@ -115,12 +121,32 @@ export default {
           'from': { backgroundPosition: '200% 0' },
           'to': { backgroundPosition: '-200% 0' },
         },
+        'border-y': {
+          '0%, 100%': { transform: 'scaleY(0)' },
+          '50%': { transform: 'scaleY(1)' },
+        },
+        'border-x': {
+          '0%, 100%': { transform: 'scaleX(0)' },
+          '50%': { transform: 'scaleX(1)' },
+        },
+        'grid-pan': {
+          '0%': { backgroundPosition: '0% 0%' },
+          '100%': { backgroundPosition: '30px 30px' },
+        },
+        'scanline': {
+          '0%': { transform: 'translateY(-10%)' },
+          '100%': { transform: 'translateY(110%)' },
+        }
       },
       animation: {
         'accordion-down': 'accordion-down 0.2s ease-out',
         'accordion-up': 'accordion-up 0.2s ease-out',
         'shine': 'shine 2s linear infinite',
         'shine-slow': 'shine 4s linear infinite',
+        'border-y': 'border-y 3s linear infinite',
+        'border-x': 'border-x 3s 1.5s linear infinite',
+        'grid-pan': 'grid-pan 3s linear infinite',
+        'scanline': 'scanline 5s linear infinite',
       },
     },
   },

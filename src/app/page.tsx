@@ -6,9 +6,9 @@ import React, { useState, useEffect, FormEvent } from 'react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
-import { ArrowRight, CheckCircle, DollarSign, GanttChartSquare, HardHat, ShieldCheck, Users, Layers, Loader2, BrainCircuit } from 'lucide-react';
+import { ArrowRight, CheckCircle, DollarSign, GanttChartSquare, HardHat, ShieldCheck, Users, Layers, Loader2, BrainCircuit, BarChart, Settings, SlidersHorizontal } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion, AnimatePresence, useInView } from 'framer-motion';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
@@ -252,6 +252,107 @@ const ContactForm = () => {
     )
 }
 
+function AnimatedNumber({ value }: { value: number }) {
+  const [displayValue, setDisplayValue] = useState(0);
+  const ref = React.useRef<HTMLSpanElement>(null);
+  const inView = useInView(ref, { once: true, margin: "-50px" });
+
+  useEffect(() => {
+    if (inView) {
+      const controls = motion.animate(0, value, {
+        duration: 2,
+        onUpdate(latest) {
+          setDisplayValue(Math.round(latest));
+        }
+      });
+      return () => controls.stop();
+    }
+  }, [inView, value]);
+
+  return <span ref={ref}>{displayValue.toLocaleString('es-CL')}</span>;
+}
+
+function InteligenciaOperativaSection() {
+    const ref = React.useRef(null);
+    const inView = useInView(ref, { once: true, amount: 0.3 });
+
+    return (
+        <section ref={ref} className="py-20 md:py-28 bg-slate-900 text-white overflow-hidden relative">
+            <div className="absolute inset-0 bg-grid-slate-700/[0.05] bg-[bottom_1px_center] animate-grid-pan"></div>
+             <div className="absolute inset-0 bg-gradient-to-b from-slate-900 via-slate-900/80 to-slate-900"></div>
+            
+            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 grid grid-cols-1 md:grid-cols-2 gap-12 items-center relative z-10">
+                <motion.div
+                    initial={{ opacity: 0, x: -50 }}
+                    animate={inView ? { opacity: 1, x: 0 } : {}}
+                    transition={{ duration: 0.8, ease: "easeOut" }}
+                >
+                    <h2 className="text-3xl lg:text-4xl font-bold tracking-tight">
+                        PCG está construido sobre la{" "}
+                        <span className="relative inline-block">
+                            <span className="bg-clip-text text-transparent bg-gradient-to-r from-blue-400 to-indigo-500">IO</span>
+                            <motion.span 
+                                initial={{ width: 0 }}
+                                animate={inView ? { width: '100%' } : {}}
+                                transition={{ duration: 0.8, delay: 0.5 }}
+                                className="absolute bottom-0 left-0 h-0.5 bg-gradient-to-r from-blue-400 to-indigo-500"
+                            />
+                        </span>
+                        : Inteligencia Operativa.
+                    </h2>
+                    <p className="mt-6 text-lg text-slate-300">
+                        Más de 20 años en terreno nos permitieron diseñar procesos que realmente resuelven los problemas de la operación. 
+                        La IA es una herramienta dentro del sistema, pero la IO es el motor que optimiza, ordena y reduce costos en cada operación.
+                    </p>
+                </motion.div>
+
+                <motion.div
+                     initial="hidden"
+                     animate={inView ? "visible" : "hidden"}
+                     variants={{
+                        visible: { transition: { staggerChildren: 0.1 } }
+                     }}
+                    className="relative rounded-xl border border-blue-500/20 bg-slate-800/50 backdrop-blur-md p-6 shadow-2xl shadow-blue-500/10 before:absolute before:inset-0 before:rounded-xl before:border-t before:border-b before:border-white/10 before:animate-border-y after:absolute after:inset-0 after:rounded-xl after:border-l after:border-r after:border-white/10 after:animate-border-x"
+                >
+                    <div className="absolute -top-px left-20 right-11 h-px bg-gradient-to-r from-blue-500/0 via-blue-500/40 to-blue-500/0"></div>
+                    <div className="absolute -bottom-px left-11 right-20 h-px bg-gradient-to-r from-indigo-500/0 via-indigo-500/40 to-indigo-500/0"></div>
+                     <div className="absolute inset-0 w-full h-full bg-scanline-pattern opacity-5 animate-scanline"></div>
+
+
+                    <div className="grid grid-cols-2 gap-4">
+                        <motion.div variants={{ hidden: { opacity: 0, y: 20 }, visible: { opacity: 1, y: 0 } }} className="rounded-lg bg-slate-900/70 p-4">
+                            <CardTitle className="text-sm font-semibold text-blue-300 flex items-center gap-2"><BarChart/>Operaciones Optimizadas</CardTitle>
+                            <p className="text-3xl font-bold mt-2">+<AnimatedNumber value={8500} /></p>
+                        </motion.div>
+                         <motion.div variants={{ hidden: { opacity: 0, y: 20 }, visible: { opacity: 1, y: 0 } }} className="rounded-lg bg-slate-900/70 p-4">
+                            <CardTitle className="text-sm font-semibold text-blue-300 flex items-center gap-2"><DollarSign />Costos Reducidos</CardTitle>
+                            <p className="text-3xl font-bold mt-2"><AnimatedNumber value={12} />%</p>
+                        </motion.div>
+                         <motion.div variants={{ hidden: { opacity: 0, y: 20 }, visible: { opacity: 1, y: 0 } }} className="col-span-2 rounded-lg bg-slate-900/70 p-4">
+                            <CardTitle className="text-sm font-semibold text-blue-300 flex items-center gap-2"><SlidersHorizontal />Procesos Automatizados</CardTitle>
+                            <p className="text-3xl font-bold mt-2"><AnimatedNumber value={300} />+</p>
+                        </motion.div>
+                    </div>
+
+                    <Separator className="my-4 bg-blue-500/20" />
+                    
+                    <motion.div
+                         variants={{ hidden: { opacity: 0 }, visible: { opacity: 1 } }}
+                        className="flex items-center justify-between text-sm font-medium text-slate-300"
+                    >
+                        <span>Planificación</span>
+                        <span className="text-blue-400">→</span>
+                        <span>Ejecución</span>
+                        <span className="text-blue-400">→</span>
+                        <span>Control</span>
+                         <span className="text-blue-400">→</span>
+                        <span>Optimización</span>
+                    </motion.div>
+                </motion.div>
+            </div>
+        </section>
+    );
+}
 
 export default function WelcomePage() {
   return (
@@ -326,21 +427,7 @@ export default function WelcomePage() {
             </motion.div>
         </section>
         
-        {/* Social Proof */}
-        <section className="py-16">
-            <div className="max-w-6xl mx-auto px-4 md:px-6 lg:px-8 text-center">
-                <p className="text-sm font-semibold text-muted-foreground tracking-wider uppercase">
-                    Confían en nosotros para gestionar sus proyectos
-                </p>
-                <div className="mt-6 grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-8 items-center">
-                    <div className="h-8 w-full bg-gray-300 rounded-md animate-pulse"></div>
-                    <div className="h-8 w-full bg-gray-300 rounded-md animate-pulse"></div>
-                    <div className="h-8 w-full bg-gray-300 rounded-md animate-pulse"></div>
-                    <div className="h-8 w-full bg-gray-300 rounded-md animate-pulse"></div>
-                    <div className="h-8 w-full bg-gray-300 rounded-md animate-pulse hidden lg:block"></div>
-                </div>
-            </div>
-        </section>
+        <InteligenciaOperativaSection />
 
 
         {/* Why ERP is not enough */}
@@ -392,36 +479,8 @@ export default function WelcomePage() {
           </div>
         </section>
 
-        {/* Who is it for */}
-        <section className="py-20">
-          <div className="max-w-6xl mx-auto px-4 md:px-6 lg:px-8">
-            <div className="text-center max-w-2xl mx-auto">
-              <h2 className="text-3xl font-bold tracking-tight">Para cada rol en la obra</h2>
-              <p className="mt-4 text-muted-foreground">PCG entrega la información que cada profesional necesita, en el formato que le sirve.</p>
-            </div>
-            <div className="mt-12 grid grid-cols-1 md:grid-cols-2 gap-8">
-              <Card>
-                <CardHeader><CardTitle>Gerencia / Directorio</CardTitle></CardHeader>
-                <CardContent><p className="text-muted-foreground">Visibilidad completa del margen, avance y riesgos de todos los proyectos en un solo dashboard.</p></CardContent>
-              </Card>
-               <Card>
-                <CardHeader><CardTitle>Jefes de Obra / Administradores</CardTitle></CardHeader>
-                <CardContent><p className="text-muted-foreground">Control diario del avance físico vs. el programado y el presupuestado, con reportes automáticos.</p></CardContent>
-              </Card>
-               <Card>
-                <CardHeader><CardTitle>Prevencionistas de Riesgos</CardTitle></CardHeader>
-                <CardContent><p className="text-muted-foreground">Gestión digital de formularios, cumplimiento del DS44 y seguimiento de planes de acción desde el celular.</p></CardContent>
-              </Card>
-               <Card>
-                <CardHeader><CardTitle>Mandantes / Clientes</CardTitle></CardHeader>
-                <CardContent><p className="text-muted-foreground">Acceso a un portal exclusivo para ver el progreso real de su inversión con fotos y reportes claros.</p></CardContent>
-              </Card>
-            </div>
-          </div>
-        </section>
-        
         {/* Testimonial */}
-        <section className="py-20 bg-white">
+        <section className="py-20">
             <div className="max-w-3xl mx-auto px-4 md:px-6 lg:px-8 text-center">
                 <Avatar className="w-20 h-20 mx-auto mb-4">
                     <AvatarImage src="https://picsum.photos/seed/101/100/100" />
