@@ -1,3 +1,4 @@
+
 // src/app/page.tsx
 "use client";
 
@@ -282,61 +283,41 @@ export default function WelcomePage() {
 
       <main>
         {/* Hero Section */}
-        <section className="py-20 md:py-32">
-          <div className="max-w-6xl mx-auto px-4 md:px-6 lg:px-8 text-center">
-            <motion.div 
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.8 }}
-              className="max-w-3xl mx-auto"
-            >
-                <div className="mb-8 flex justify-center">
-                    <PcgLogo size={312} />
-                </div>
-                <p className="font-semibold text-primary">SOFTWARE PARA CONSTRUCTORAS</p>
-                <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold tracking-tighter">
-                   Una obra bien gestionada, una cadena completa alineada.
-                </h1>
+        <section className="relative h-[60vh] md:h-[80vh] w-full flex items-center justify-center text-center text-white overflow-hidden">
+          <motion.div
+            initial={{ scale: 1.1 }}
+            animate={{ scale: 1 }}
+            transition={{ duration: 2, ease: "easeOut" }}
+            className="absolute inset-0 z-0"
+          >
+            <img
+              src="https://picsum.photos/seed/herobg/1920/1080"
+              alt="Obra en construcción"
+              data-ai-hint="construction planning"
+              className="object-cover w-full h-full"
+            />
+            <div className="absolute inset-0 bg-gradient-to-t from-slate-900/80 via-slate-900/50 to-transparent"></div>
+          </motion.div>
 
-                <Card className="mt-8 text-left bg-gradient-to-br from-primary/10 to-accent/10 border-primary/20 shadow-lg relative overflow-hidden">
-                    <div className="absolute -top-1 -right-1 bg-primary text-primary-foreground text-xs font-bold px-2 py-1 rounded-bl-lg rounded-tr-md">NUEVO</div>
-                    <CardHeader>
-                        <div className="flex items-center gap-4">
-                            <motion.div 
-                                initial={{ scale: 0.5, opacity: 0 }}
-                                animate={{ scale: 1, opacity: 1 }}
-                                transition={{ delay: 0.5, type: 'spring', stiffness: 100 }}
-                            >
-                                <BrainCircuit className="h-10 w-10 text-primary" />
-                            </motion.div>
-                            <CardTitle className="text-2xl text-primary font-bold">
-                                PCG está construido sobre la IO: Inteligencia Operativa.
-                            </CardTitle>
-                        </div>
-                    </CardHeader>
-                    <CardContent>
-                        <motion.p 
-                          initial={{ opacity: 0 }}
-                          animate={{ opacity: 1 }}
-                          transition={{ delay: 0.8, duration: 0.8 }}
-                          className="text-md text-foreground"
-                        >
-                            Más de 20 años en obras nos permitieron diseñar procesos que realmente resuelven los problemas del terreno. La IA es una herramienta dentro del sistema, pero la <strong className="text-primary">IO es el motor</strong> que optimiza, ordena y reduce costos en cada obra.
-                        </motion.p>
-                    </CardContent>
-                </Card>
-
-            </motion.div>
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.8, delay: 0.3 }}
+            className="relative z-10 max-w-4xl mx-auto px-4"
+          >
+            <div className="mb-8 flex justify-center">
+              <PcgLogo size={120} />
+            </div>
+            <p className="font-semibold text-primary-foreground/80 tracking-wider">SOFTWARE PARA CONSTRUCTORAS</p>
+            <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold tracking-tighter text-shadow-lg mt-2">
+              Una obra bien gestionada, una cadena completa alineada.
+            </h1>
             <div className="mt-8 flex justify-center gap-4">
               <Button size="lg" asChild>
                 <a href="mailto:paulo@ipsconstruccion.cl?subject=Solicitud%20de%20Demo%20de%20PCG">Agendar Demo</a>
               </Button>
-              <Button size="lg" variant="outline">Hablar con un experto</Button>
             </div>
-            <div className="mt-12 md:mt-16 flex justify-center">
-              <AnimatedPlatformMockup />
-            </div>
-          </div>
+          </motion.div>
         </section>
         
         {/* Social Proof */}
@@ -383,7 +364,7 @@ export default function WelcomePage() {
             <div className="mt-12 max-w-md mx-auto">
               <StepCard step="1" title="Crear obra" description="Define los datos maestros del proyecto: mandante, plazos, responsables y dirección." />
               <StepCard step="2" title="Cargar tu presupuesto" description="Importa tus APU o créalos en PCG. El sistema los conecta automáticamente a la programación." />
-              <StepCard step="3" title="Programa las actividades" description="Define la ruta crítica y las duraciones. El sistema genera la Curva S y el flujo de caja proyectado." />
+              <StepCard step="3" title="Programar las actividades" description="Define la ruta crítica y las duraciones. El sistema genera la Curva S y el flujo de caja proyectado." />
               <StepCard step="4" title="Calidad y Prevención" description="Registra avances, controla la calidad con protocolos y gestiona la prevención de riesgos desde un solo lugar." />
             </div>
           </div>
