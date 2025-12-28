@@ -232,20 +232,11 @@ export default function ImportStatusPage() {
                 </p>
             )}
 
-            <Alert variant="destructive" className="text-left">
-                <AlertCircle className="h-4 w-4" />
-                <AlertTitle>Revisión Manual Requerida</AlertTitle>
-                <AlertDescription>
-                    La extracción de datos por IA es una interpretación y puede contener errores. Verifique cuidadosamente las partidas, cantidades y precios antes de guardar.
-                </AlertDescription>
-            </Alert>
-
              <div className="mt-6 flex justify-center gap-4">
                 <Button onClick={handleSaveItemizado} disabled={isSaving || isSaved}>
                     {isSaving ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <Save className="mr-2 h-4 w-4"/>}
-                    {isSaved ? "Guardado" : (isSaving ? "Guardando..." : "Guardar como Presupuesto")}
+                    {isSaved ? "Guardado" : (isSaving ? "Guardando..." : "REVISAR ITEMIZADO IA")}
                 </Button>
-                <Button variant="outline">Descargar JSON</Button>
             </div>
           </div>
         );
