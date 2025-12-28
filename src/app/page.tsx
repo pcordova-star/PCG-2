@@ -8,7 +8,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { ArrowRight, CheckCircle, DollarSign, GanttChartSquare, HardHat, ShieldCheck, Users, Layers, Loader2, BrainCircuit, BarChart, Settings, SlidersHorizontal } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { motion, AnimatePresence, useInView } from 'framer-motion';
+import { motion, AnimatePresence, useInView, animate } from 'framer-motion';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
@@ -259,7 +259,7 @@ function AnimatedNumber({ value }: { value: number }) {
 
   useEffect(() => {
     if (inView) {
-      const controls = motion.animate(0, value, {
+      const controls = animate(0, value, {
         duration: 2,
         onUpdate(latest) {
           setDisplayValue(Math.round(latest));
