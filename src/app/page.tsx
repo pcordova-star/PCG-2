@@ -284,11 +284,12 @@ export default function WelcomePage() {
       <main>
         {/* Hero Section */}
         <section className="relative min-h-[70vh] md:min-h-[90vh] w-full flex items-center justify-center text-center text-white overflow-hidden">
-            <video
+             <video
                 autoPlay
                 loop
                 muted
                 playsInline
+                preload="auto"
                 className="absolute z-0 inset-0 w-full h-full object-cover"
             >
                 <source src="/hero.mp4" type="video/mp4" />
