@@ -289,7 +289,7 @@ export default function WelcomePage() {
                 loop
                 muted
                 playsInline
-                className="absolute z-0 w-full h-full object-cover"
+                className="absolute z-0 inset-0 w-full h-full object-cover"
             >
                 <source src="/hero.mp4" type="video/mp4" />
                 Tu navegador no soporta el video de fondo.
