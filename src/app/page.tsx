@@ -304,15 +304,15 @@ export default function WelcomePage() {
                 transition={{ duration: 0.8, delay: 0.3 }}
                 className="relative z-20 max-w-4xl mx-auto px-4"
             >
-                <motion.div 
-                    className="mb-8 flex justify-center"
-                    initial={{ scale: 0.8, opacity: 0 }}
-                    animate={{ scale: 1, opacity: 1 }}
-                    transition={{ duration: 0.5, delay: 0.5, type: 'spring', stiffness: 120 }}
+                <motion.div
+                  className="mb-8 flex justify-center"
+                  initial={{ scale: 0.8, opacity: 0 }}
+                  animate={{ scale: 1, opacity: 1 }}
+                  transition={{ duration: 0.5, delay: 0.5, type: 'spring', stiffness: 120 }}
                 >
-                    <div className="bg-black/20 backdrop-blur-sm p-4 rounded-xl border border-white/10 shadow-lg">
-                        <PcgLogo size={120} />
-                    </div>
+                  <div className="bg-black/50 backdrop-blur-md border border-white/10 rounded-xl p-6 z-30">
+                    <PcgLogo size={120} />
+                  </div>
                 </motion.div>
                 <p className="font-semibold text-primary-foreground/80 tracking-wider">PLATAFORMA DE CONTROL Y GESTIÓN</p>
                 <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold tracking-tighter text-shadow-lg mt-2">
