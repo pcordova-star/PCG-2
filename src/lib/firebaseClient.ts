@@ -3,13 +3,13 @@ import { initializeApp, getApps, getApp } from "firebase/app";
 import { getAuth } from "firebase/auth";
 import { getFirestore } from "firebase/firestore";
 import { getStorage } from "firebase/storage";
-import { getFunctions } from "firebase/functions";
+import { getFunctions, httpsCallable } from "firebase/functions";
 
 const firebaseConfig = {
   apiKey: "AIzaSyAeOtU4TyB8NHf-E49kQRE1Msy3YAplw1U",
   authDomain: "pcg-2-8bf1b.firebaseapp.com",
   projectId: "pcg-2-8bf1b",
-  storageBucket: "pcg-2-8bf1b.firebasestorage.app",
+  storageBucket: "pcg-2-8bf1b.appspot.com",
   messagingSenderId: "133669944318",
   appId: "1:133669944318:web:0f6189b924324b6f3e1eaf",
 };

@@ -2,7 +2,7 @@
 
 "use client";
 
-import React, { useState, useEffect, FormEvent, useMemo } from 'react';
+import React, { useState, useEffect, FormEvent } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardFooter, CardDescription } from '@/components/ui/card';
@@ -16,7 +16,8 @@ import { Badge } from '@/components/ui/badge';
 import { PlusCircle, ArrowLeft, Loader2, Trash2, Edit } from 'lucide-react';
 import Link from 'next/link';
 import { collection, doc, getDoc, query, orderBy, where, onSnapshot, updateDoc, writeBatch, addDoc, serverTimestamp } from 'firebase/firestore';
-import { firebaseDb } from '@/lib/firebaseClient';
+import { firebaseDb, firebaseFunctions } from '@/lib/firebaseClient';
+import { httpsCallable } from 'firebase/functions';
 import { Company, AppUser, RolInvitado, UserInvitation } from '@/types/pcg';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/context/AuthContext';
@@ -49,6 +50,7 @@ export default function AdminEmpresaUsuariosPage() {
     const [newUser, setNewUser] = useState({
       nombre: '',
       email: '',
+      password: '',
       role: 'jefe_obra' as RolInvitado,
     });
     const [isSaving, setIsSaving] = useState(false);
@@ -130,35 +132,37 @@ export default function AdminEmpresaUsuariosPage() {
             setError("No tienes permisos o la empresa no es válida.");
             return;
         }
-        if (!newUser.email || !newUser.nombre || !newUser.role) {
-            setError("Email, nombre y rol son obligatorios.");
+        if (!newUser.email || !newUser.nombre || !newUser.role || !newUser.password) {
+            setError("Email, nombre, contraseña y rol son obligatorios.");
             return;
+        }
+        if (newUser.password.length < 6) {
+             setError("La contraseña debe tener al menos 6 caracteres.");
+             return;
         }
 
         setIsSaving(true);
         setError(null);
         
         try {
-            await addDoc(collection(firebaseDb, "invitacionesUsuarios"), {
+            const createCompanyUserFn = httpsCallable(firebaseFunctions, 'createCompanyUser');
+            await createCompanyUserFn({
+                companyId: company.id,
                 email: newUser.email.toLowerCase().trim(),
                 nombre: newUser.nombre,
-                empresaId: company.id,
-                empresaNombre: company.nombreFantasia || company.razonSocial || '',
-                roleDeseado: newUser.role,
-                estado: 'pendiente',
-                createdAt: serverTimestamp(),
-                creadoPorUid: user.uid,
+                password: newUser.password,
+                role: newUser.role,
             });
             
-            toast({ title: "Invitación Creada", description: `${newUser.email} ha sido invitado a ${company.nombreFantasia}.` });
+            toast({ title: "Usuario Creado", description: `${newUser.email} ha sido creado en ${company.nombreFantasia}.` });
             setDialogOpen(false);
-            setNewUser({ nombre: '', email: '', role: 'jefe_obra' });
+            setNewUser({ nombre: '', email: '', password: '', role: 'jefe_obra' });
             
         } catch (err: any) {
-            console.error("Error al crear la invitación:", err);
-            const errorMessage = err.message || "Ocurrió un problema al crear la invitación.";
+            console.error("Error al crear el usuario:", err);
+            const errorMessage = err.message || "Ocurrió un problema al crear el usuario.";
             setError(errorMessage);
-            toast({ variant: "destructive", title: "Error al invitar", description: errorMessage });
+            toast({ variant: "destructive", title: "Error al crear", description: errorMessage });
         } finally {
             setIsSaving(false);
         }
@@ -191,7 +195,7 @@ export default function AdminEmpresaUsuariosPage() {
                 </div>
                 <Button onClick={() => setDialogOpen(true)} disabled={!company}>
                     <PlusCircle className="mr-2 h-4 w-4" />
-                    Invitar Usuario
+                    Crear Usuario
                 </Button>
             </header>
             
@@ -225,6 +229,7 @@ export default function AdminEmpresaUsuariosPage() {
             <Card>
                 <CardHeader>
                     <CardTitle>Usuarios Pendientes de Activación</CardTitle>
+                     <CardDescription>Esta sección es para el flujo antiguo de invitaciones y puede ser eliminada.</CardDescription>
                 </CardHeader>
                 <CardContent>
                      <Table>
@@ -235,7 +240,7 @@ export default function AdminEmpresaUsuariosPage() {
                            {loadingInvites ? (
                                 <TableRow><TableCell colSpan={4} className="text-center h-24"><Loader2 className="animate-spin mx-auto" /></TableCell></TableRow>
                             ) : pendingInvitations.length === 0 ? (
-                                <TableRow><TableCell colSpan={4} className="text-center h-24">No hay usuarios pendientes de activación.</TableCell></TableRow>
+                                <TableRow><TableCell colSpan={4} className="text-center h-24">No hay usuarios pendientes.</TableCell></TableRow>
                             ) : pendingInvitations.map((inv) => (
                                 <TableRow key={inv.id}>
                                     <TableCell>{inv.email}</TableCell>
@@ -253,9 +258,9 @@ export default function AdminEmpresaUsuariosPage() {
                 <DialogContent>
                     <form onSubmit={handleFormSubmit}>
                         <DialogHeader>
-                            <DialogTitle>Invitar Nuevo Usuario</DialogTitle>
+                            <DialogTitle>Crear Nuevo Usuario</DialogTitle>
                              <DialogDescription>
-                                Completa los datos para invitar un nuevo usuario a {company?.nombreFantasia}. El usuario deberá ser creado manualmente en Firebase Auth.
+                                Completa los datos para crear un nuevo usuario en {company?.nombreFantasia}. El acceso será inmediato.
                             </DialogDescription>
                         </DialogHeader>
                         <div className="py-4 grid gap-4">
@@ -266,6 +271,10 @@ export default function AdminEmpresaUsuariosPage() {
                              <div className="space-y-2">
                                 <Label htmlFor="email">Email del usuario*</Label>
                                 <Input id="email" type="email" value={newUser.email} onChange={e => setNewUser(prev => ({...prev, email: e.target.value}))} />
+                            </div>
+                             <div className="space-y-2">
+                                <Label htmlFor="password">Contraseña*</Label>
+                                <Input id="password" type="password" value={newUser.password} onChange={e => setNewUser(prev => ({...prev, password: e.target.value}))} placeholder="Mínimo 6 caracteres" />
                             </div>
                             <div className="space-y-2">
                                 <Label htmlFor="role">Rol en la Empresa</Label>
@@ -284,7 +293,7 @@ export default function AdminEmpresaUsuariosPage() {
                             <Button type="button" variant="ghost" onClick={() => setDialogOpen(false)}>Cancelar</Button>
                             <Button type="submit" disabled={isSaving}>
                                 {isSaving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                                {isSaving ? "Creando invitación..." : "Crear Invitación"}
+                                {isSaving ? "Creando usuario..." : "Crear Usuario"}
                             </Button>
                         </DialogFooter>
                     </form>
