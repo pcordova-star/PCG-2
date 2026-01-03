@@ -1,7 +1,7 @@
 "use strict";
 // src/functions/src/index.ts
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.notifyDocumentDistribution = exports.convertHeicToJpg = exports.registrarAvanceRapido = exports.createCompanyUser = void 0;
+exports.processItemizadoJob = exports.notifyDocumentDistribution = exports.convertHeicToJpg = exports.registrarAvanceRapido = exports.createCompanyUser = void 0;
 /**
  * Este archivo es el punto de entrada para todas las Cloud Functions.
  * Cada función se importa desde su propio archivo y se exporta para que Firebase la despliegue.
@@ -23,8 +23,9 @@ var convertHeic_1 = require("./convertHeic");
 Object.defineProperty(exports, "convertHeicToJpg", { enumerable: true, get: function () { return convertHeic_1.convertHeicToJpg; } });
 var notifyDocumentDistribution_1 = require("./notifyDocumentDistribution");
 Object.defineProperty(exports, "notifyDocumentDistribution", { enumerable: true, get: function () { return notifyDocumentDistribution_1.notifyDocumentDistribution; } });
+var processItemizadoJob_1 = require("./processItemizadoJob");
+Object.defineProperty(exports, "processItemizadoJob", { enumerable: true, get: function () { return processItemizadoJob_1.processItemizadoJob; } });
 // Se comentan temporalmente las funciones que dependen de la API de IA para evitar errores de deploy.
-// export { processItemizadoJob } from "./processItemizadoJob";
 // export { checkUserExistsByEmail } from "./checkUserExistsByEmail";
 // export { testGoogleAi } from "./test-google-ai";
 // La función setSuperAdminClaim se omite intencionalmente de la exportación
