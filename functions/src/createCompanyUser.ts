@@ -1,5 +1,5 @@
 // functions/src/createCompanyUser.ts
-import { onCall, HttpsError } from "firebase-functions/v2/https";
+import * as functions from 'firebase-functions';
 import * as admin from "firebase-admin";
 import * as logger from "firebase-functions/logger";
 
@@ -7,121 +7,120 @@ if (!admin.apps.length) {
   admin.initializeApp();
 }
 
-export const createCompanyUser = onCall(
-  {
-    region: "southamerica-west1",
-    cpu: 1,
-    memory: "256MiB",
-    timeoutSeconds: 60,
-    cors: true
-  },
-  async (request) => {
+const APP_BASE_URL = "https://www.pcgoperacion.com";
+
+export const createCompanyUser = functions
+  .region("southamerica-west1")
+  .https.onCall(async (data, context) => {
+
+    if (!context.auth) {
+      throw new functions.https.HttpsError("unauthenticated", "No autenticado.");
+    }
     const auth = admin.auth();
     const db = admin.firestore();
-    const ctx = request.auth;
 
-    if (!ctx) {
-      throw new HttpsError("unauthenticated", "No autenticado.");
-    }
-
-    const requesterClaims = await auth.getUser(ctx.uid);
+    const requesterClaims = await auth.getUser(context.auth.uid);
     if (requesterClaims.customClaims?.role !== "superadmin") {
-      throw new HttpsError(
-        "permission-denied",
-        "Solo SUPER_ADMIN puede crear usuarios."
-      );
+      throw new functions.https.HttpsError("permission-denied", "Solo SUPER_ADMIN puede crear usuarios.");
     }
-
-    const data = request.data as {
+    
+    const { companyId, email, nombre, role } = data as {
       companyId: string;
       email: string;
-      password?: string;
       nombre: string;
       role: "admin_empresa" | "jefe_obra" | "prevencionista" | "cliente";
     };
 
-    if (!data.companyId || !data.email || !data.nombre || !data.role) {
-      throw new HttpsError(
-        "invalid-argument",
-        "Faltan campos obligatorios: companyId, email, nombre, role."
-      );
-    }
-    
-    if (!data.password || data.password.length < 6) {
-        throw new HttpsError(
-            "invalid-argument",
-            "La contraseña es obligatoria y debe tener al menos 6 caracteres."
-        );
+    if (!companyId || !email || !nombre || !role) {
+      throw new functions.https.HttpsError("invalid-argument", "Faltan campos obligatorios: companyId, email, nombre, role.");
     }
 
-    const companyRef = db.collection("companies").doc(data.companyId);
+    const companyRef = db.collection("companies").doc(companyId);
     const companySnap = await companyRef.get();
     if (!companySnap.exists) {
-      throw new HttpsError("not-found", "La empresa no existe.");
+      throw new functions.https.HttpsError("not-found", "La empresa no existe.");
     }
     const companyData = companySnap.data()!;
 
     let userRecord;
     try {
-      userRecord = await auth.createUser({
-        email: data.email,
-        password: data.password,
-        displayName: data.nombre,
-        emailVerified: true, // Lo creamos verificado para que no pida confirmación
-        disabled: false,
-      });
-      logger.info(`Usuario creado directamente para ${data.email} con UID: ${userRecord.uid}`);
+      userRecord = await auth.getUserByEmail(email);
+      logger.info(`Usuario existente encontrado para ${email}. Reutilizando UID: ${userRecord.uid}`);
     } catch (error: any) {
-      if (error.code === 'auth/email-already-exists') {
-        throw new HttpsError("already-exists", "Ya existe un usuario con este correo electrónico.");
+      if (error.code === 'auth/user-not-found') {
+        logger.info(`No existe usuario para ${email}. Creando uno nuevo.`);
+        userRecord = await auth.createUser({
+          email: email,
+          displayName: nombre,
+          emailVerified: false,
+          disabled: false,
+        });
+      } else {
+        logger.error("Error en Auth al buscar usuario:", error);
+        throw new functions.https.HttpsError("internal", "Error verificando el usuario en Auth.", error.message);
       }
-      logger.error("Error creando usuario en Firebase Auth:", error);
-      throw new HttpsError("internal", "Error interno al crear el usuario en Auth.", error);
     }
 
     const uid = userRecord.uid;
 
     await auth.setCustomUserClaims(uid, {
-      role: data.role,
-      companyId: data.companyId,
+      role: role,
+      companyId: companyId,
     });
 
     const now = admin.firestore.FieldValue.serverTimestamp();
     
     const userProfileRef = db.collection("users").doc(uid);
     await userProfileRef.set({
-      nombre: data.nombre,
-      email: data.email,
-      role: data.role,
-      empresaId: data.companyId,
+      nombre: nombre,
+      email: email,
+      role: role,
+      empresaId: companyId,
       activo: true,
       createdAt: now,
       updatedAt: now,
     }, { merge: true });
     
-    // Opcional: aún se podría crear un registro de invitación con estado 'activado' para trazabilidad
     const invitationRef = db.collection("invitacionesUsuarios").doc();
+    const invitationId = invitationRef.id;
     await invitationRef.set({
-        email: data.email,
-        empresaId: data.companyId,
+        email: email,
+        empresaId: companyId,
         empresaNombre: companyData?.nombreFantasia || companyData?.razonSocial || '',
-        roleDeseado: data.role,
-        estado: 'activado', // El usuario se crea activo directamente
-        uid: uid,
+        roleDeseado: role,
+        estado: 'pendiente_auth', 
         createdAt: now,
-        activatedAt: now,
-        creadoPorUid: ctx.uid,
+        creadoPorUid: context.auth.uid,
     });
+    
+    const actionCodeSettings = {
+        url: `${APP_BASE_URL}/accept-invite?invId=${encodeURIComponent(invitationId)}&email=${encodeURIComponent(email)}`,
+        handleCodeInApp: false,
+    };
 
-    // Se elimina el envío de correo de bienvenida/reseteo de contraseña.
+    const passwordResetLink = await auth.generatePasswordResetLink(email, actionCodeSettings);
+
+    await db.collection("mail").add({
+      to: [email],
+      message: {
+        subject: `Bienvenido a PCG - Acceso para ${companyData?.nombreFantasia || companyData?.razonSocial}`,
+        html: `
+            <p>Hola ${nombre},</p>
+            <p>Has sido registrado en la plataforma PCG para la empresa <strong>${companyData?.nombreFantasia || companyData?.razonSocial}</strong>.</p>
+            <p>Tu rol asignado es: <strong>${role}</strong>.</p>
+            <p>Para completar tu registro y activar tu cuenta, por favor establece tu contraseña haciendo clic en el siguiente enlace:</p>
+            <p><a href="${passwordResetLink}">Activar mi cuenta y definir contraseña</a></p>
+            <p>Si el botón no funciona, copia y pega esta URL en tu navegador:</p>
+            <p><a href="${passwordResetLink}">${passwordResetLink}</a></p>
+            <p>Gracias,<br>El equipo de PCG</p>`,
+      },
+    });
 
     return {
       uid,
-      email: data.email,
-      nombre: data.nombre,
-      role: data.role,
-      companyId: data.companyId,
-      message: 'Usuario creado directamente y con éxito.'
+      email: email,
+      nombre: nombre,
+      role: role,
+      companyId: companyId,
     };
-  }
-);
+});
