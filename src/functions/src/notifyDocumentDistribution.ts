@@ -22,12 +22,14 @@ const NotifyDocumentSchema = z.object({
   email: z.string().email(),
 });
 
-// Se convierte a GCFv1 para compatibilidad con setGlobalOptions, y para evitar el problema de herencia de SA en v2 onCall
-export const notifyDocumentDistribution = functions.region("southamerica-west1").https.onCall(async (data, context) => {
+export const notifyDocumentDistribution = functions.region("southamerica-west1").https.onCall(
+  async (data, context) => {
     // 1. Autenticación y autorización (básica)
     if (!context.auth) {
       throw new functions.https.HttpsError("unauthenticated", "El usuario no está autenticado.");
     }
+    // Podrías agregar una validación de rol si es necesario
+    // const uid = context.auth.uid;
 
     // 2. Validación de datos de entrada
     const parsed = NotifyDocumentSchema.safeParse(data);
