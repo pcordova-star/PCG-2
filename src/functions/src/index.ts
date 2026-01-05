@@ -15,20 +15,23 @@ if (!admin.apps.length) {
 // Establece la región global para todas las funciones v1
 const region = "southamerica-west1";
 
-// Exporta las funciones callable y onRequest para que estén disponibles en el backend.
+// Exporta las funciones v1 y v2
+const v1Exports = {
+  createCompanyUser: functions.region(region).https.onCall(async (data, context) => {
+    const { createCompanyUser: createCompanyUserV2 } = await import('./createCompanyUser');
+    return createCompanyUserV2(data, context);
+  }),
+  setSuperAdminClaim: functions.region(region).https.onCall(async (data, context) => {
+    const { setSuperAdminClaim: setSuperAdminClaimV2 } = await import('./setSuperAdmin');
+    return setSuperAdminClaimV2(data, context);
+  }),
+};
 
-// Funciones v2 (onCall)
-export { createCompanyUser } from "./createCompanyUser";
-export { notifyDocumentDistribution } from "./notifyDocumentDistribution";
+const { registrarAvanceRapido } = require('./registrarAvanceRapido');
+const v2Exports = require('./index.v2');
 
-// Funciones v1 (convertidas para estabilidad)
-import { registrarAvanceRapido as registrarAvanceRapidoV1 } from './registrarAvanceRapido';
-export const registrarAvanceRapido = registrarAvanceRapidoV1;
-
-
-// Funciones v2 (Storage & Firestore Triggers)
-export { convertHeicToJpg } from "./convertHeic";
-export { processItemizadoJob } from "./processItemizadoJob";
-export { testGoogleAi } from "./test-google-ai";
-export { setSuperAdminClaim } from "./setSuperAdmin";
-export { checkUserExistsByEmail } from './checkUserExistsByEmail';
+module.exports = {
+  ...v1Exports,
+  ...v2Exports,
+  registrarAvanceRapido,
+};
