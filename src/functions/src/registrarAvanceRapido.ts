@@ -6,32 +6,21 @@ import { z } from "zod";
 import { getAuth } from "firebase-admin/auth";
 import cors from "cors";
 
-// Definición para v1 onRequest
 const corsHandler = cors({ origin: true });
 
-// El schema en el backend debe coincidir con lo que envía el frontend.
 const AvanceSchema = z.object({
     obraId: z.string().min(1),
-    actividadId: z.string().min(1),
-    porcentajeAvance: z.coerce.number().min(0).max(100.01),
+    actividadId: z.string().nullable().optional(),
+    porcentaje: z.coerce.number().min(0).max(100),
     comentario: z.string().optional().default(""),
-    fotos: z.array(z.string().url()).max(5).optional().default([]),
+    fotos: z.array(z.string()).max(5).optional().default([]),
     visibleCliente: z.coerce.boolean().optional().default(true),
-    // Nuevos campos para registro completo
-    cantidadEjecutada: z.coerce.number(),
-    unidad: z.string(),
-    cantidadTotalActividad: z.coerce.number(),
-    fechaAvance: z.string(), // YYYY-MM-DD
-    actividadNombre: z.string(),
 });
 
-
 function escapeHtml(s: string): string {
-  if (!s) return "";
   return s.replace(/[&<>"']/g, (m: string) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[m]!));
 }
 
-// Se mantiene como Cloud Function v1 para asegurar que sea pública por defecto.
 export const registrarAvanceRapido = functions.region("southamerica-west1").https.onRequest((req, res) => {
     corsHandler(req, res, async () => {
         if (req.method === 'OPTIONS') {
@@ -46,8 +35,7 @@ export const registrarAvanceRapido = functions.region("southamerica-west1").http
         try {
             const authHeader = req.headers.authorization;
             if (!authHeader || !authHeader.startsWith('Bearer ')) {
-                res.status(401).json({ ok: false, error: "UNAUTHENTICATED", details: "Bearer token faltante o malformado." });
-                return;
+                throw new functions.https.HttpsError('unauthenticated', 'El usuario no está autenticado.');
             }
             const token = authHeader.split(' ')[1];
             const decodedToken = await getAuth().verifyIdToken(token);
@@ -56,22 +44,10 @@ export const registrarAvanceRapido = functions.region("southamerica-west1").http
 
             const parsed = AvanceSchema.safeParse(req.body);
             if (!parsed.success) {
-                logger.error("Error de validación de Zod:", parsed.error.flatten());
-                res.status(400).json({ ok: false, error: "INVALID_ARGUMENT", details: parsed.error.flatten() });
-                return;
+                throw new functions.https.HttpsError("invalid-argument", "Los datos proporcionados son inválidos.", parsed.error.flatten());
             }
 
-            const { 
-                obraId, 
-                actividadId, 
-                porcentajeAvance,
-                comentario, 
-                fotos, 
-                visibleCliente, 
-                cantidadEjecutada, 
-                cantidadTotalActividad,
-                unidad 
-            } = parsed.data;
+            const { obraId, actividadId, porcentaje, comentario, fotos, visibleCliente } = parsed.data;
 
             const db = getFirestore();
             const obraRef = db.collection("obras").doc(obraId);
@@ -79,39 +55,31 @@ export const registrarAvanceRapido = functions.region("southamerica-west1").http
             const avanceId = await db.runTransaction(async (tx) => {
                 const obraSnap = await tx.get(obraRef);
                 if (!obraSnap.exists) {
-                    throw new Error(`La obra con ID ${obraId} no fue encontrada.`);
+                    throw new functions.https.HttpsError("not-found", `La obra con ID ${obraId} no fue encontrada.`);
                 }
-                
+
                 const avancesRef = obraRef.collection("avancesDiarios");
                 const nuevoAvanceRef = avancesRef.doc();
 
                 const avanceData = {
                     obraId,
-                    actividadId,
-                    porcentajeAvance,
+                    actividadId: actividadId || null,
+                    porcentajeAvance: porcentaje,
                     comentario: escapeHtml(comentario),
                     fotos,
                     visibleCliente,
                     fecha: FieldValue.serverTimestamp(),
                     creadoPor: { uid, displayName: escapeHtml(displayName) },
-                    cantidadEjecutada: cantidadEjecutada,
-                    unidad: unidad,
-                    tipoRegistro: "CANTIDAD",
                 };
-                
                 tx.set(nuevoAvanceRef, avanceData);
 
-                // Lógica de actualización del avance acumulado
-                if (cantidadEjecutada > 0) {
+                if (porcentaje > 0) {
                     const currentData = obraSnap.data() || {};
                     const avancePrevio = Number(currentData.avanceAcumulado || 0);
-                    const totalActividades = Number(currentData.totalActividades || 1); // Fallback para evitar división por cero
-
-                    if (totalActividades > 0 && cantidadTotalActividad > 0) {
-                        const pesoActividad = 1 / totalActividades;
-                        const avanceParcialActividad = (cantidadEjecutada / cantidadTotalActividad);
-                        const avancePonderadoDelDia = avanceParcialActividad * pesoActividad * 100;
-                        
+                    const totalActividades = Number(currentData.totalActividades || 1); 
+                    
+                    if (totalActividades > 0) {
+                        const avancePonderadoDelDia = porcentaje / totalActividades;
                         if (!isNaN(avancePonderadoDelDia) && avancePonderadoDelDia > 0) {
                             const nuevoAvanceAcumulado = Math.min(100, avancePrevio + avancePonderadoDelDia);
                             tx.update(obraRef, {
@@ -124,6 +92,7 @@ export const registrarAvanceRapido = functions.region("southamerica-west1").http
                     } else {
                         tx.update(obraRef, { ultimaActualizacion: FieldValue.serverTimestamp() });
                     }
+
                 } else {
                     tx.update(obraRef, { ultimaActualizacion: FieldValue.serverTimestamp() });
                 }
@@ -134,9 +103,9 @@ export const registrarAvanceRapido = functions.region("southamerica-west1").http
             res.status(200).json({ ok: true, id: avanceId });
 
         } catch (error: any) {
-            logger.error("Error en registrarAvanceRapido:", { message: error.message, code: error.code, details: error.details });
-            if (error.code === 'auth/id-token-expired' || error.code === 'auth/argument-error') {
-                res.status(401).json({ ok: false, error: "UNAUTHENTICATED", details: "Token inválido o expirado." });
+            logger.error("Error en registrarAvanceRapido:", error);
+            if (error.httpErrorCode) {
+                res.status(error.httpErrorCode.status).json({ ok: false, error: error.code, details: error.message });
             } else {
                 res.status(500).json({ ok: false, error: "INTERNAL_SERVER_ERROR", details: error.message });
             }

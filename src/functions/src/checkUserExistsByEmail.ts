@@ -1,5 +1,5 @@
 // src/functions/src/checkUserExistsByEmail.ts
-import { onCall, HttpsError } from "firebase-functions/v2/https";
+import * as functions from "firebase-functions";
 import * as admin from "firebase-admin";
 import * as logger from "firebase-functions/logger";
 
@@ -11,16 +11,13 @@ if (!admin.apps.length) {
  * Verifica de forma segura si un usuario existe en Firebase Authentication por su email,
  * pero solo si la solicitud incluye un ID de invitación válido y coincidente.
  */
-export const checkUserExistsByEmail = onCall(
-  {
-    cors: true,
-  },
-  async (request) => {
-    const { email, invId } = request.data;
+export const checkUserExistsByEmail = functions.region("southamerica-west1").https.onCall(
+  async (data, context) => {
+    const { email, invId } = data;
     const db = admin.firestore();
 
     if (!email || typeof email !== "string" || !invId || typeof invId !== "string") {
-      throw new HttpsError("invalid-argument", "Se requiere un 'email' y un 'invId' válidos en la solicitud.");
+      throw new functions.https.HttpsError("invalid-argument", "Se requiere un 'email' y un 'invId' válidos en la solicitud.");
     }
     
     try {
@@ -29,12 +26,12 @@ export const checkUserExistsByEmail = onCall(
       const invSnap = await invRef.get();
 
       if (!invSnap.exists()) {
-        throw new HttpsError("permission-denied", "La invitación proporcionada no es válida o ha expirado.");
+        throw new functions.https.HttpsError("permission-denied", "La invitación proporcionada no es válida o ha expirado.");
       }
 
       const invData = invSnap.data();
       if (invData?.email.toLowerCase().trim() !== email.toLowerCase().trim()) {
-        throw new HttpsError("permission-denied", "La invitación no corresponde al correo electrónico especificado.");
+        throw new functions.https.HttpsError("permission-denied", "La invitación no corresponde al correo electrónico especificado.");
       }
       
       logger.info(`[checkUserExists] Validación de invitación ${invId} para ${email} exitosa. Procediendo a verificar Auth.`);
@@ -52,13 +49,13 @@ export const checkUserExistsByEmail = onCall(
       }
       
       // Si el error ya es un HttpsError (de nuestra validación), lo relanzamos.
-      if (error instanceof HttpsError) {
+      if (error.code && error.httpErrorCode) {
           throw error;
       }
 
       // Para cualquier otro error (problema de red, configuración, etc.), lanzamos un error interno.
       logger.error(`[checkUserExists] Error inesperado al verificar email ${email}:`, error);
-      throw new HttpsError("internal", "Ocurrió un error inesperado al verificar la cuenta.");
+      throw new functions.https.HttpsError("internal", "Ocurrió un error inesperado al verificar la cuenta.");
     }
   }
 );
