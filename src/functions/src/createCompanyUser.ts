@@ -3,45 +3,46 @@ import * as functions from 'firebase-functions';
 import * as admin from "firebase-admin";
 import * as logger from "firebase-functions/logger";
 
+// La inicialización se maneja de forma central.
 if (!admin.apps.length) {
   admin.initializeApp();
 }
 
-// Se define la URL base de la aplicación. Para producción, esto debería ser una variable de entorno.
-const APP_BASE_URL = process.env.APP_BASE_URL || "https://www.pcgoperacion.com";
+const APP_BASE_URL = "https://www.pcgoperacion.com";
 
-// Se convierte a GCFv1 para compatibilidad y para evitar el problema de herencia de SA en v2 onCall
-export const createCompanyUser = functions.region("southamerica-west1").https.onCall(async (data, context) => {
+// Convertido a GCFv1 para asegurar compatibilidad y estabilidad.
+export const createCompanyUser = functions
+  .region("southamerica-west1")
+  .https.onCall(async (data, context) => {
 
-    // 1. Validar que el usuario está autenticado
     if (!context.auth) {
       throw new functions.https.HttpsError("unauthenticated", "No autenticado.");
     }
     const auth = admin.auth();
     const db = admin.firestore();
 
-    // 2. Validar que el usuario es SUPER_ADMIN vía customClaims
     const requesterClaims = await auth.getUser(context.auth.uid);
     if (requesterClaims.customClaims?.role !== "superadmin") {
-      throw new functions.https.HttpsError(
-        "permission-denied",
-        "Solo SUPER_ADMIN puede crear usuarios."
-      );
+      throw new functions.https.HttpsError("permission-denied", "Solo SUPER_ADMIN puede crear usuarios.");
     }
     
-    // 3. Validar payload de entrada
-    const { companyId, email, nombre, role } = data as {
+    const { companyId, email, nombre, role, password } = data as {
       companyId: string;
       email: string;
       nombre: string;
       role: "admin_empresa" | "jefe_obra" | "prevencionista" | "cliente";
+      password?: string;
     };
 
     if (!companyId || !email || !nombre || !role) {
-      throw new functions.https.HttpsError(
-        "invalid-argument",
-        "Faltan campos obligatorios: companyId, email, nombre, role."
-      );
+      throw new functions.https.HttpsError("invalid-argument", "Faltan campos obligatorios: companyId, email, nombre, role.");
+    }
+    
+    if (!password || password.length < 6) {
+        throw new functions.https.HttpsError(
+            "invalid-argument",
+            "La contraseña es obligatoria y debe tener al menos 6 caracteres."
+        );
     }
 
     const companyRef = db.collection("companies").doc(companyId);
@@ -53,20 +54,21 @@ export const createCompanyUser = functions.region("southamerica-west1").https.on
 
     let userRecord;
     try {
-      userRecord = await auth.getUserByEmail(email);
-      logger.info(`Usuario existente encontrado para ${email}. Reutilizando UID: ${userRecord.uid}`);
+      // Crear el usuario directamente con contraseña.
+      userRecord = await auth.createUser({
+        email: email,
+        password: password,
+        displayName: nombre,
+        emailVerified: true, // Lo creamos verificado para simplificar
+        disabled: false,
+      });
+      logger.info(`Usuario creado directamente para ${email} con UID: ${userRecord.uid}`);
     } catch (error: any) {
-      if (error.code === 'auth/user-not-found') {
-        logger.info(`No existe usuario para ${email}. Creando uno nuevo.`);
-        userRecord = await auth.createUser({
-          email: email,
-          displayName: nombre,
-          emailVerified: false,
-          disabled: false,
-        });
-      } else {
-        throw new functions.https.HttpsError("internal", "Error verificando el usuario en Auth.", error);
+      if (error.code === 'auth/email-already-exists') {
+        throw new functions.https.HttpsError("already-exists", "Ya existe un usuario con este correo electrónico.");
       }
+      logger.error("Error creando usuario en Firebase Auth:", error);
+      throw new functions.https.HttpsError("internal", "Error interno al crear el usuario en Auth.", error);
     }
 
     const uid = userRecord.uid;
@@ -89,40 +91,7 @@ export const createCompanyUser = functions.region("southamerica-west1").https.on
       updatedAt: now,
     }, { merge: true });
     
-    const invitationRef = db.collection("invitacionesUsuarios").doc();
-    const invitationId = invitationRef.id;
-    await invitationRef.set({
-        email: email,
-        empresaId: companyId,
-        empresaNombre: companyData?.nombreFantasia || companyData?.razonSocial || '',
-        roleDeseado: role,
-        estado: 'pendiente_auth', 
-        createdAt: now,
-        creadoPorUid: context.auth.uid,
-    });
-    
-    const actionCodeSettings = {
-        url: `${APP_BASE_URL}/accept-invite?invId=${encodeURIComponent(invitationId)}&email=${encodeURIComponent(email)}`,
-        handleCodeInApp: false,
-    };
-
-    const passwordResetLink = await auth.generatePasswordResetLink(email, actionCodeSettings);
-
-    await db.collection("mail").add({
-      to: [email],
-      message: {
-        subject: `Bienvenido a PCG - Acceso para ${companyData?.nombreFantasia || companyData?.razonSocial}`,
-        html: `
-            <p>Hola ${nombre},</p>
-            <p>Has sido registrado en la plataforma PCG para la empresa <strong>${companyData?.nombreFantasia || companyData?.razonSocial}</strong>.</p>
-            <p>Tu rol asignado es: <strong>${role}</strong>.</p>
-            <p>Para completar tu registro y activar tu cuenta, por favor establece tu contraseña haciendo clic en el siguiente enlace:</p>
-            <p><a href="${passwordResetLink}">Activar mi cuenta y definir contraseña</a></p>
-            <p>Si el botón no funciona, copia y pega esta URL en tu navegador:</p>
-            <p><a href="${passwordResetLink}">${passwordResetLink}</a></p>
-            <p>Gracias,<br>El equipo de PCG</p>`,
-      },
-    });
+    // Se elimina el envío de correo de bienvenida, la creación es directa.
 
     return {
       uid,
@@ -130,5 +99,6 @@ export const createCompanyUser = functions.region("southamerica-west1").https.on
       nombre: nombre,
       role: role,
       companyId: companyId,
+      message: 'Usuario creado directamente y con éxito.'
     };
 });
