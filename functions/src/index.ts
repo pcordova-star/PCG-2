@@ -1,33 +1,21 @@
 // src/functions/src/index.ts
+import * as functions from 'firebase-functions';
+import * as admin from 'firebase-admin';
 
-/**
- * Este archivo es el punto de entrada para todas las Cloud Functions.
- * Cada función se importa desde su propio archivo y se exporta para que Firebase la despliegue.
- */
+// Inicializa Firebase Admin SDK solo si no se ha hecho antes.
+if (!admin.apps.length) {
+  admin.initializeApp();
+}
 
-import { setGlobalOptions } from "firebase-functions/v2";
+// Establece la región global para todas las funciones v1
+const region = "southamerica-west1";
 
-// Establece opciones globales para todas las funciones v2, asegurando la región
-// y la cuenta de servicio con permisos para acceder a secretos.
-// NO es necesario llamar a initializeApp() aquí en Gen2.
-setGlobalOptions({
-  region: "southamerica-west1",
-  serviceAccount: "pcg-functions-sa@pcg-2-8bf1b.iam.gserviceaccount.com"
-});
-
-
-// Exporta todas las funciones necesarias para la operación de la plataforma.
+// Exporta las funciones v1
 export { createCompanyUser } from "./createCompanyUser";
+export { setSuperAdminClaim } from "./setSuperAdmin";
 export { registrarAvanceRapido } from "./registrarAvanceRapido";
-export { convertHeicToJpg } from "./convertHeic";
 export { notifyDocumentDistribution } from "./notifyDocumentDistribution";
-export { processItemizadoJob } from "./processItemizadoJob";
 
-// Se comentan temporalmente las funciones que dependen de la API de IA para evitar errores de deploy.
-// export { checkUserExistsByEmail } from "./checkUserExistsByEmail";
-// export { testGoogleAi } from "./test-google-ai";
-
-
-// La función setSuperAdminClaim se omite intencionalmente de la exportación
-// para deshabilitarla en producción, ya que solo era necesaria para el bootstrap inicial.
-// El archivo se conserva por si se necesita en el futuro, pero no estará desplegada.
+// Exporta las funciones v2 (storage y firestore triggers) por separado
+export { convertHeicToJpg } from './convertHeic';
+export { processItemizadoJob } from './processItemizadoJob';
