@@ -2,9 +2,8 @@
 import { getAdminDb } from "@/lib/firebaseAdmin";
 import { ensureMclpEnabled } from "../ensureMclpEnabled";
 
-export async function listActiveSubcontractors(companyId: string) {
+export async function listSubcontractors(companyId: string) {
   await ensureMclpEnabled(companyId);
-
   const db = getAdminDb();
   const snap = await db
     .collection("subcontractors")
