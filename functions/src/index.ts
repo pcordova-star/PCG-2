@@ -16,6 +16,7 @@ export { createCompanyUser } from "./createCompanyUser";
 export { registrarAvanceRapido } from "./registrarAvanceRapido";
 export { convertHeicToJpg } from "./convertHeic";
 export { processItemizadoJob } from "./processItemizadoJob";
+export { deactivateCompanyUser } from "./deactivateCompanyUser"; // Nueva función
 
 // Se mantienen las funciones v1 que no han sido migradas
 export { setSuperAdminClaim } from "./setSuperAdmin";

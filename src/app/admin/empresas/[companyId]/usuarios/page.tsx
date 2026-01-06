@@ -13,9 +13,9 @@ import { Label } from '@/components/ui/label';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
-import { PlusCircle, ArrowLeft, Loader2, Trash2, Edit } from 'lucide-react';
+import { PlusCircle, ArrowLeft, Loader2, Trash2, Edit, UserX } from 'lucide-react';
 import Link from 'next/link';
-import { collection, doc, getDoc, query, orderBy, where, onSnapshot, updateDoc, writeBatch, addDoc, serverTimestamp } from 'firebase/firestore';
+import { collection, doc, getDoc, query, orderBy, where, onSnapshot } from 'firebase/firestore';
 import { firebaseDb, firebaseFunctions } from '@/lib/firebaseClient';
 import { httpsCallable } from 'firebase/functions';
 import { Company, AppUser, RolInvitado, UserInvitation } from '@/types/pcg';
@@ -31,7 +31,7 @@ const rolesDisponibles: { value: RolInvitado, label: string }[] = [
 ];
 
 export default function AdminEmpresaUsuariosPage() {
-    const { user, role } = useAuth();
+    const { user, role, getIdToken } = useAuth();
     const router = useRouter();
     const params = useParams();
     const companyId = params.companyId as string;
@@ -122,14 +122,20 @@ export default function AdminEmpresaUsuariosPage() {
         setError(null);
         
         try {
-            const createCompanyUserFn = httpsCallable(firebaseFunctions, 'createCompanyUser');
-            await createCompanyUserFn({
-                companyId: company.id,
-                email: newUser.email.toLowerCase().trim(),
-                nombre: newUser.nombre,
-                password: newUser.password,
-                role: newUser.role,
+            const idToken = await getIdToken();
+            const response = await fetch(`https://southamerica-west1-${process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID}.cloudfunctions.net/createCompanyUser`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${idToken}`,
+                },
+                body: JSON.stringify({ ...newUser, companyId: company.id }),
             });
+
+            const result = await response.json();
+            if (!response.ok) {
+                throw new Error(result.error || `Error ${response.status}`);
+            }
             
             toast({ title: "Usuario Creado", description: `${newUser.email} ha sido creado en ${company.nombreFantasia}.` });
             setDialogOpen(false);
@@ -144,6 +150,35 @@ export default function AdminEmpresaUsuariosPage() {
             setIsSaving(false);
         }
     };
+    
+    const handleDeactivateUser = async (userId: string) => {
+        if (!user || !isSuperAdmin) {
+            toast({ variant: "destructive", title: "Error de permisos" });
+            return;
+        }
+        
+        try {
+            const idToken = await getIdToken();
+            const response = await fetch(`https://southamerica-west1-${process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID}.cloudfunctions.net/deactivateCompanyUser`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${idToken}`,
+                },
+                body: JSON.stringify({ userId }),
+            });
+
+            const result = await response.json();
+            if (!response.ok) throw new Error(result.error || 'Error en el servidor');
+
+            toast({ title: "Usuario Desactivado", description: "El usuario ya no podrá acceder a la plataforma." });
+
+        } catch (err: any) {
+            console.error("Error al desactivar usuario:", err);
+            toast({ variant: "destructive", title: "Error", description: err.message });
+        }
+    };
+
 
     if (loadingCompany) {
         return <div className="p-8 text-center"><Loader2 className="animate-spin mx-auto h-8 w-8" /> <p className="mt-2">Cargando datos...</p></div>;
@@ -178,24 +213,61 @@ export default function AdminEmpresaUsuariosPage() {
             
             <Card>
                 <CardHeader>
-                    <CardTitle>Usuarios Activos</CardTitle>
+                    <CardTitle>Usuarios Registrados</CardTitle>
+                    <CardDescription>Usuarios activos e inactivos de la empresa.</CardDescription>
                 </CardHeader>
                 <CardContent>
                     <Table>
                         <TableHeader>
-                            <TableRow><TableHead>Nombre</TableHead><TableHead>Email</TableHead><TableHead>Rol</TableHead><TableHead>Estado</TableHead></TableRow>
+                            <TableRow>
+                                <TableHead>Nombre</TableHead>
+                                <TableHead>Email</TableHead>
+                                <TableHead>Rol</TableHead>
+                                <TableHead>Estado</TableHead>
+                                {isSuperAdmin && <TableHead className="text-right">Acciones</TableHead>}
+                            </TableRow>
                         </TableHeader>
                         <TableBody>
                             {loadingUsers ? (
-                                <TableRow><TableCell colSpan={4} className="text-center h-24"><Loader2 className="animate-spin mx-auto" /></TableCell></TableRow>
+                                <TableRow><TableCell colSpan={isSuperAdmin ? 5 : 4} className="text-center h-24"><Loader2 className="animate-spin mx-auto" /></TableCell></TableRow>
                             ) : activeUsers.length === 0 ? (
-                                <TableRow><TableCell colSpan={4} className="text-center h-24">No hay usuarios activos para esta empresa.</TableCell></TableRow>
+                                <TableRow><TableCell colSpan={isSuperAdmin ? 5 : 4} className="text-center h-24">No hay usuarios para esta empresa.</TableCell></TableRow>
                             ) : activeUsers.map((u) => (
-                                <TableRow key={u.id}>
+                                <TableRow key={u.id} className={!u.activo ? 'bg-muted/50 text-muted-foreground' : ''}>
                                     <TableCell className="font-medium">{u.nombre}</TableCell>
                                     <TableCell>{u.email}</TableCell>
                                     <TableCell><Badge variant="secondary">{u.role}</Badge></TableCell>
-                                    <TableCell><Badge variant={u.activo ? 'default' : 'destructive'}>{u.activo ? 'Activo' : 'Inactivo'}</Badge></TableCell>
+                                    <TableCell>
+                                        <Badge variant={u.activo ? 'default' : 'outline'}>
+                                            {u.activo ? 'Activo' : 'Inactivo'}
+                                        </Badge>
+                                    </TableCell>
+                                    {isSuperAdmin && (
+                                        <TableCell className="text-right">
+                                            {u.activo && (
+                                                <AlertDialog>
+                                                    <AlertDialogTrigger asChild>
+                                                        <Button variant="ghost" size="sm">
+                                                            <UserX className="mr-2 h-4 w-4" />
+                                                            Dar de baja
+                                                        </Button>
+                                                    </AlertDialogTrigger>
+                                                    <AlertDialogContent>
+                                                        <AlertDialogHeader>
+                                                            <AlertDialogTitle>¿Dar de baja a {u.nombre}?</AlertDialogTitle>
+                                                            <AlertDialogDescription>
+                                                                Esta acción deshabilitará el acceso del usuario a la plataforma, pero mantendrá su registro por motivos de auditoría. El usuario no podrá volver a iniciar sesión.
+                                                            </AlertDialogDescription>
+                                                        </AlertDialogHeader>
+                                                        <AlertDialogFooter>
+                                                            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                                                            <AlertDialogAction onClick={() => handleDeactivateUser(u.id!)}>Confirmar baja</AlertDialogAction>
+                                                        </AlertDialogFooter>
+                                                    </AlertDialogContent>
+                                                </AlertDialog>
+                                            )}
+                                        </TableCell>
+                                    )}
                                 </TableRow>
                             ))}
                         </TableBody>
