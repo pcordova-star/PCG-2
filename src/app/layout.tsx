@@ -45,6 +45,7 @@ const navItemsBase = [
   { href: '/cubicacion/analisis-planos', label: 'Análisis de Planos (IA)', icon: BrainCircuit, roles: ['superadmin', 'admin_empresa', 'jefe_obra']},
   { href: '/operaciones/estados-de-pago', label: 'Estados de Pago', icon: FileText, roles: ['superadmin', 'admin_empresa', 'jefe_obra'] },
   { href: '/prevencion', label: 'Prevención', icon: ShieldCheck, roles: ['superadmin', 'admin_empresa', 'jefe_obra', 'prevencionista'] },
+  { href: '/cumplimiento', label: 'Cumplimiento', icon: ShieldCheck, roles: ['superadmin', 'admin_empresa'], featureFlag: 'feature_compliance_module_enabled' },
   { href: '/admin/documentos/proyecto', label: 'Documentos', icon: BookCopy, roles: ['superadmin', 'admin_empresa', 'prevencionista'] },
   { href: '/rdi', label: 'RDI', icon: MessageSquare, roles: ['superadmin', 'admin_empresa', 'jefe_obra'] },
 ];
@@ -64,12 +65,17 @@ const publicPaths = ['/login/usuario', '/login/cliente', '/public/induccion', '/
 function LayoutLogic({ children }: { children: React.ReactNode }) {
     const searchParams = useSearchParams();
     const isPreview = searchParams.get('preview') === 'true';
-    const { user, role, loading: authLoading, logout } = useAuth();
+    const { user, role, company, loading: authLoading, logout } = useAuth();
     const pathname = usePathname();
 
-    const navItems = navItemsBase.filter(item => item.roles.includes(role));
+    const navItems = navItemsBase.filter(item => {
+        if (!item.roles.includes(role)) return false;
+        if (item.featureFlag && !company?.[item.featureFlag]) return false;
+        return true;
+    });
 
     const isAdminOnlyPage = pathname.startsWith('/admin') && !pathname.startsWith('/admin/documentos');
+    const isCompliancePage = pathname.startsWith('/cumplimiento');
     const canSeeAdminItems = role === 'superadmin';
     const [isCollapsed, setIsCollapsed] = useState(false);
     const timerRef = useRef<NodeJS.Timeout | null>(null);
@@ -124,6 +130,7 @@ function LayoutLogic({ children }: { children: React.ReactNode }) {
         if (href === '/operaciones') return pathname === '/operaciones' && !pathname.startsWith('/operaciones/estados-de-pago');
         if (href === '/rdi' && pathname.startsWith('/rdi')) return true;
         if (href === '/obras') return pathname.startsWith('/obras');
+        if (href === '/cumplimiento') return pathname.startsWith('/cumplimiento');
         return pathname.startsWith(href);
     };
     
@@ -162,7 +169,7 @@ function LayoutLogic({ children }: { children: React.ReactNode }) {
         }
     }
   
-  const showSidebar = role !== 'cliente' || isPreview;
+  const showSidebar = role !== 'cliente' && role !== 'contratista' || isPreview;
 
   return (
     <div className={cn("grid min-h-screen w-full", showSidebar && "md:grid-cols-[auto_1fr]")}>
@@ -361,7 +368,7 @@ function LayoutLogic({ children }: { children: React.ReactNode }) {
             </Sheet>
           ) : (
             <Link
-                href="/cliente"
+                href={role === 'cliente' ? "/cliente" : "/cumplimiento/contratista"}
                 className="flex items-center gap-2 font-semibold text-primary"
               >
               <PcgLogo size={36} />
