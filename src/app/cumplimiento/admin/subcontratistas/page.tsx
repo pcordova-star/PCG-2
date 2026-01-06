@@ -1,7 +1,7 @@
 // src/app/cumplimiento/admin/subcontratistas/page.tsx
 "use client";
 
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, FormEvent } from 'react';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
@@ -37,7 +37,9 @@ export default function GestionSubcontratistasPage() {
             setLoading(true);
             const result = await listSubcontractorsAction(companyId);
             if (result.success && result.data) {
-                setSubcontractors(result.data as Subcontractor[]);
+                // Asegurarse de que los datos son un array antes de asignarlos
+                const dataArray = Array.isArray(result.data) ? result.data : [];
+                setSubcontractors(dataArray as Subcontractor[]);
             } else {
                 toast({ variant: 'destructive', title: 'Error', description: result.error });
             }
@@ -152,10 +154,10 @@ export default function GestionSubcontratistasPage() {
                                                     Esta acción es reversible. El subcontratista no podrá acceder al sistema hasta que sea reactivado.
                                                 </AlertDialogDescription>
                                             </AlertDialogHeader>
-                                            <AlertDialogFooter>
+                                            <div className="flex justify-end gap-2 pt-4">
                                                 <AlertDialogCancel>Cancelar</AlertDialogCancel>
                                                 <AlertDialogAction onClick={() => handleDeactivate(sub.id)}>Desactivar</AlertDialogAction>
-                                            </AlertDialogFooter>
+                                            </div>
                                         </AlertDialogContent>
                                     </AlertDialog>
                                 </div>
