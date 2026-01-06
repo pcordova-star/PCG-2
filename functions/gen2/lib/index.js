@@ -12,4 +12,3 @@ Object.defineProperty(exports, "deactivateCompanyUser", { enumerable: true, get:
 var convertHeic_1 = require("./convertHeic");
 Object.defineProperty(exports, "convertHeicToJpg", { enumerable: true, get: function () { return convertHeic_1.convertHeicToJpg; } });
 // export { processItemizadoJob } from './processItemizadoJob';
-//# sourceMappingURL=index.js.map

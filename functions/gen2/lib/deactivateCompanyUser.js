@@ -112,4 +112,3 @@ exports.deactivateCompanyUser = (0, https_1.onRequest)({
         res.status(500).json({ success: false, error: "Internal Server Error", details: error.message });
     }
 });
-//# sourceMappingURL=deactivateCompanyUser.js.map
