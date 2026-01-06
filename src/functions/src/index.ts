@@ -7,9 +7,6 @@ if (!admin.apps.length) {
   admin.initializeApp();
 }
 
-// Establece la región global para todas las funciones v1
-const region = "southamerica-west1";
-
 // Exporta las funciones v1
 export { createCompanyUser } from "./createCompanyUser";
 export { setSuperAdminClaim } from "./setSuperAdmin";
