@@ -26,14 +26,7 @@ export async function listSubcontractorsAction(companyId: string) {
 }
 
 export async function createSubcontractorAction(params: { companyId: string, razonSocial: string, rut: string, contactoNombre: string, contactoEmail: string }) {
-    return handleAction(() => create(params.companyId, {
-        razonSocial: params.razonSocial,
-        rut: params.rut,
-        contactoPrincipal: {
-            nombre: params.contactoNombre,
-            email: params.contactoEmail
-        }
-    }), params);
+    return handleAction(() => create(params), params);
 }
 
 export async function deactivateSubcontractorAction(companyId: string, id: string) {

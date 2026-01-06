@@ -11,8 +11,11 @@ export async function createSubcontractor(params: {
   contactoEmail: string;
 }) {
   await ensureMclpEnabled(params.companyId);
+
   const db = getAdminDb();
-  await db.collection("subcontractors").add({
+  const ref = db.collection("subcontractors").doc();
+
+  await ref.set({
     companyId: params.companyId,
     razonSocial: params.razonSocial,
     rut: params.rut,
@@ -23,5 +26,8 @@ export async function createSubcontractor(params: {
     activo: true,
     userIds: [],
     createdAt: Timestamp.now(),
+    updatedAt: Timestamp.now(),
   });
+
+  return ref.id;
 }
