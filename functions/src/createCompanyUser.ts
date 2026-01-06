@@ -1,5 +1,6 @@
+
 // functions/src/createCompanyUser.ts
-import * as functions from 'firebase-functions';
+import { onCall, HttpsError } from "firebase-functions/v2/https";
 import * as admin from "firebase-admin";
 import * as logger from "firebase-functions/logger";
 
@@ -7,100 +8,132 @@ if (!admin.apps.length) {
   admin.initializeApp();
 }
 
-/**
- * Crea un usuario de forma atómica en Firebase Auth y Firestore.
- * Recibe email, password, nombre, rol y companyId.
- * Si la creación del perfil en Firestore falla, revierte la creación en Auth.
- */
-export const createCompanyUser = functions
-  .region("southamerica-west1")
-  .https.onCall(async (data, context) => {
+export const createCompanyUser = onCall(
+  {
+    region: "southamerica-west1",
+    cpu: 1,
+    memory: "256MiB",
+    timeoutSeconds: 60,
+    cors: true
+  },
+  async (request) => {
     
-    // 1. Validar autenticación y permisos del solicitante
-    if (!context.auth) {
-      throw new functions.https.HttpsError("unauthenticated", "No autenticado.");
-    }
-    
-    const auth = admin.auth();
-    const db = admin.firestore();
-
-    const requesterClaims = await auth.getUser(context.auth.uid);
-    if (requesterClaims.customClaims?.role !== "superadmin") {
-      throw new functions.https.HttpsError("permission-denied", "Solo SUPER_ADMIN puede crear usuarios.");
-    }
-    
-    // 2. Validar datos de entrada
-    const { companyId, email, nombre, role, password } = data as {
-      companyId: string;
-      email: string;
-      nombre: string;
-      role: "admin_empresa" | "jefe_obra" | "prevencionista" | "cliente";
-      password?: string;
-    };
-
-    if (!companyId || !email || !nombre || !role || !password || password.length < 6) {
-      throw new functions.https.HttpsError("invalid-argument", "Faltan campos obligatorios o la contraseña es muy corta (mínimo 6 caracteres).");
-    }
-    
-    const companyRef = db.collection("companies").doc(companyId);
-    const companySnap = await companyRef.get();
-    if (!companySnap.exists) {
-      throw new functions.https.HttpsError("not-found", "La empresa especificada no existe.");
-    }
-
-    // 3. Crear usuario en Firebase Auth
-    let userRecord;
-    try {
-      userRecord = await auth.createUser({
-        email,
-        password,
-        displayName: nombre,
-        emailVerified: true, // Se asume que el admin verifica el email
-        disabled: false,
-      });
-      logger.info(`Usuario creado en Auth para ${email} con UID: ${userRecord.uid}`);
-    } catch (error: any) {
-      if (error.code === 'auth/email-already-exists') {
-        throw new functions.https.HttpsError("already-exists", "Ya existe un usuario con este correo electrónico.");
+    // --- Log Defensivo Inicial ---
+    logger.info("[createCompanyUser] Invoked", {
+      auth: {
+        uid: request.auth?.uid,
+        token: request.auth?.token.email,
+      },
+      data: {
+        companyId: request.data.companyId,
+        email: request.data.email,
+        nombre: request.data.nombre,
+        role: request.data.role,
+        hasPassword: !!request.data.password,
       }
-      logger.error("Error creando usuario en Firebase Auth:", error);
-      throw new functions.https.HttpsError("internal", `Error interno al crear el usuario en Auth: ${error.message}`);
-    }
-
-    const uid = userRecord.uid;
+    });
 
     try {
-        // 4. Asignar Custom Claims (rol y empresa)
-        await auth.setCustomUserClaims(uid, { role, companyId });
+      const auth = admin.auth();
+      const db = admin.firestore();
+      const ctx = request.auth;
 
-        // 5. Crear el documento del usuario en Firestore
+      if (!ctx || !ctx.uid) {
+        logger.error("[createCompanyUser] Error: La función fue llamada sin un contexto de autenticación válido.");
+        throw new HttpsError("unauthenticated", "No autenticado o UID no disponible.");
+      }
+
+      const requesterClaims = await auth.getUser(ctx.uid);
+      if (requesterClaims.customClaims?.role !== "superadmin") {
+        logger.warn(`[createCompanyUser] Permission denied for user ${ctx.uid}. Role is not 'superadmin'.`);
+        throw new HttpsError("permission-denied", "Solo SUPER_ADMIN puede crear usuarios.");
+      }
+
+      const data = request.data;
+      if (!data.companyId || !data.email || !data.nombre || !data.role) {
+        logger.error("[createCompanyUser] Error: Faltan campos obligatorios.", { data });
+        throw new HttpsError("invalid-argument", "Faltan campos obligatorios: companyId, email, nombre, role.");
+      }
+      
+      if (!data.password || typeof data.password !== 'string' || data.password.length < 6) {
+        logger.error("[createCompanyUser] Error: Contraseña inválida o ausente.");
+        throw new HttpsError("invalid-argument", "La contraseña es obligatoria y debe ser un string de al menos 6 caracteres.");
+      }
+
+      const companyRef = db.collection("companies").doc(data.companyId);
+      const companySnap = await companyRef.get();
+      if (!companySnap.exists) {
+        logger.error(`[createCompanyUser] Error: Empresa con ID ${data.companyId} no encontrada.`);
+        throw new HttpsError("not-found", "La empresa no existe.");
+      }
+      const companyData = companySnap.data();
+
+      let userRecord;
+      try {
+        logger.info(`[createCompanyUser] Intentando crear usuario en Auth para ${data.email}`);
+        userRecord = await auth.createUser({
+          email: data.email,
+          password: data.password,
+          displayName: data.nombre,
+          emailVerified: true,
+          disabled: false,
+        });
+        logger.info(`[createCompanyUser] Usuario creado en Auth con UID: ${userRecord.uid}`);
+      } catch (error: any) {
+        logger.error("[createCompanyUser] Error al crear usuario en Firebase Auth:", error);
+        if (error.code === 'auth/email-already-exists') {
+          throw new HttpsError("already-exists", "Ya existe un usuario con este correo electrónico.");
+        }
+        throw new HttpsError("internal", `Error interno al crear el usuario en Auth: ${error.message}`);
+      }
+
+      const uid = userRecord.uid;
+
+      try {
+        logger.info(`[createCompanyUser] Asignando claims y guardando perfil en Firestore para UID ${uid}`);
+        
+        await auth.setCustomUserClaims(uid, { role: data.role, companyId: data.companyId });
+        
         const userProfileRef = db.collection("users").doc(uid);
         await userProfileRef.set({
-            nombre,
-            email,
-            role,
-            empresaId: companyId,
-            activo: true,
-            createdAt: admin.firestore.FieldValue.serverTimestamp(),
-            updatedAt: admin.firestore.FieldValue.serverTimestamp(),
-        });
+          nombre: data.nombre,
+          email: data.email,
+          role: data.role,
+          empresaId: data.companyId,
+          activo: true,
+          createdAt: admin.firestore.FieldValue.serverTimestamp(),
+          updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+        }, { merge: true });
         
-        logger.info(`Perfil de usuario creado en Firestore para UID: ${uid}`);
+        logger.info(`[createCompanyUser] Perfil de usuario creado en Firestore para UID: ${uid}`);
 
-        // 6. Retornar éxito
-        return {
-            uid,
-            email,
-            message: 'Usuario creado y registrado en la base de datos con éxito.'
-        };
-
-    } catch (dbError: any) {
-        // --- ROLLBACK MANUAL ---
-        // Si falla la creación en Firestore o los claims, eliminamos el usuario de Auth.
-        logger.error(`Error al guardar perfil/claims para UID ${uid}. Revirtiendo creación en Auth...`, dbError);
+      } catch (dbError: any) {
+        logger.error(`[createCompanyUser] Error al guardar perfil/claims para UID ${uid}. Revirtiendo creación en Auth...`, dbError);
         await auth.deleteUser(uid);
-        logger.info(`Usuario con UID ${uid} eliminado de Auth debido a error en Firestore.`);
-        
-        throw new functions.https.HttpsError("internal", `No se pudo crear el perfil del usuario en la base de datos. Se ha revertido la creación. Error: ${dbError.message}`);
+        logger.info(`[createCompanyUser] Usuario con UID ${uid} eliminado de Auth debido a error en Firestore.`);
+        throw new HttpsError("internal", `No se pudo crear el perfil del usuario en la base de datos. Se ha revertido la creación. Error: ${dbError.message}`);
+      }
+
+      logger.info(`[createCompanyUser] Proceso completado con éxito para ${data.email}.`);
+      return {
+        uid,
+        email: data.email,
+        message: 'Usuario creado y registrado en la base de datos con éxito.'
+      };
+
+    } catch (error: any) {
+      // --- Captura final para cualquier error no esperado ---
+      logger.error("[createCompanyUser] Error catastrófico en la función:", {
+          code: error.code,
+          message: error.message,
+          details: error.details,
+      });
+
+      if (error instanceof HttpsError) {
+        throw error;
+      }
+      
+      throw new HttpsError("internal", "Ocurrió un error inesperado.", error.message);
     }
-});
+  }
+);
