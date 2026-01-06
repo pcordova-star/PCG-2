@@ -1,97 +1,113 @@
+
 // functions/src/createCompanyUser.ts
-import { onRequest } from "firebase-functions/v2/https";
+import * as functions from 'firebase-functions';
 import * as admin from "firebase-admin";
 import * as logger from "firebase-functions/logger";
-import { getAuth } from "firebase-admin/auth";
-import cors from "cors";
 
-// Iniciamos CORS para permitir peticiones desde el frontend
-const corsHandler = cors({ origin: true });
+if (!admin.apps.length) {
+  admin.initializeApp();
+}
 
-export const createCompanyUser = onRequest(
-  {
-    region: "southamerica-west1",
-    cpu: 1,
-    memory: "256MiB",
-    timeoutSeconds: 60,
-    cors: true, // Habilitar CORS en la configuración de la función
-  },
-  (req, res) => {
-    corsHandler(req, res, async () => {
-      // Solo permitir método POST
-      if (req.method !== "POST") {
-        res.status(405).json({ success: false, error: "Method Not Allowed" });
-        return;
+export const createCompanyUser = functions
+  .region("southamerica-west1")
+  .https.onCall(async (data, context) => {
+    
+    if (!context.auth) {
+      throw new functions.https.HttpsError("unauthenticated", "No autenticado.");
+    }
+    
+    const auth = admin.auth();
+    const db = admin.firestore();
+
+    const requesterClaims = await auth.getUser(context.auth.uid);
+    if (requesterClaims.customClaims?.role !== "superadmin") {
+      throw new functions.https.HttpsError("permission-denied", "Solo SUPER_ADMIN puede crear usuarios.");
+    }
+    
+    const { companyId, email, nombre, role, password } = data as {
+      companyId: string;
+      email: string;
+      nombre: string;
+      role: "admin_empresa" | "jefe_obra" | "prevencionista" | "cliente";
+      password?: string;
+    };
+
+    if (!companyId || !email || !nombre || !role) {
+      throw new functions.https.HttpsError("invalid-argument", "Faltan campos obligatorios: companyId, email, nombre, role.");
+    }
+    
+    if (!password || password.length < 6) {
+        throw new functions.https.HttpsError(
+            "invalid-argument",
+            "La contraseña es obligatoria y debe tener al menos 6 caracteres."
+        );
+    }
+
+    const companyRef = db.collection("companies").doc(companyId);
+    const companySnap = await companyRef.get();
+    if (!companySnap.exists) {
+      throw new functions.https.HttpsError("not-found", "La empresa no existe.");
+    }
+    const companyData = companySnap.data()!;
+
+
+    let userRecord;
+    try {
+      userRecord = await auth.createUser({
+        email: data.email,
+        password: data.password,
+        displayName: data.nombre,
+        emailVerified: true, // Se crea verificado para que el usuario no tenga que hacer nada
+        disabled: false,
+      });
+      logger.info(`Usuario creado con éxito para ${data.email} con UID: ${userRecord.uid}`);
+    } catch (error: any) {
+      if (error.code === 'auth/email-already-exists') {
+        throw new functions.https.HttpsError("already-exists", "Ya existe un usuario con este correo electrónico.");
       }
+      logger.error("Error creando usuario en Firebase Auth:", error);
+      throw new functions.https.HttpsError("internal", "Error interno al crear el usuario en Auth.", error);
+    }
 
-      try {
-        // 1. Autenticación Manual del Token
-        const authHeader = req.headers.authorization;
-        if (!authHeader || !authHeader.startsWith("Bearer ")) {
-          res.status(401).json({ success: false, error: "Unauthorized: No token provided." });
-          return;
-        }
-        const token = authHeader.split(" ")[1];
-        const decodedToken = await getAuth().verifyIdToken(token);
-        
-        // 2. Validación de Permisos (Superadmin)
-        if (decodedToken.role !== "superadmin") {
-          res.status(403).json({ success: false, error: "Permission Denied: Caller is not a superadmin." });
-          return;
-        }
+    const uid = userRecord.uid;
 
-        // 3. Validación de Datos de Entrada (desde req.body)
-        const { companyId, email, nombre, role, password } = req.body;
-        if (!companyId || !email || !nombre || !role || !password || password.length < 6) {
-          res.status(400).json({ success: false, error: "Invalid argument: Faltan campos obligatorios o la contraseña es muy corta." });
-          return;
-        }
-        
-        const db = admin.firestore();
-        const auth = admin.auth();
-
-        const companyRef = db.collection("companies").doc(companyId);
-        const companySnap = await companyRef.get();
-        if (!companySnap.exists) {
-          res.status(404).json({ success: false, error: "Not Found: La empresa no existe." });
-          return;
-        }
-
-        // 4. Lógica de Negocio (Creación de Usuario)
-        let userRecord;
-        try {
-          userRecord = await auth.createUser({ email, password, displayName: nombre, emailVerified: true, disabled: false });
-          logger.info(`Usuario creado con UID: ${userRecord.uid}`);
-        } catch (error: any) {
-          if (error.code === 'auth/email-already-exists') {
-            res.status(409).json({ success: false, error: "Conflict: Ya existe un usuario con este correo." });
-            return;
-          }
-          throw error; // Lanzar otros errores de Auth para ser capturados por el catch principal
-        }
-        
-        const uid = userRecord.uid;
-
-        // 5. Asignar Claims y Guardar en Firestore
-        await auth.setCustomUserClaims(uid, { role, companyId });
-        
-        const userProfileRef = db.collection("users").doc(uid);
-        await userProfileRef.set({
-          nombre, email, role, empresaId: companyId, activo: true,
-          createdAt: admin.firestore.FieldValue.serverTimestamp(),
-          updatedAt: admin.firestore.FieldValue.serverTimestamp(),
-        }, { merge: true });
-
-        // 6. Respuesta Exitosa
-        res.status(200).json({
-          success: true,
-          data: { uid, email, nombre, role, companyId, message: "Usuario creado con éxito." }
-        });
-
-      } catch (error: any) {
-        logger.error("Error en createCompanyUser:", error);
-        res.status(500).json({ success: false, error: "Internal Server Error", details: error.message });
-      }
+    await auth.setCustomUserClaims(uid, {
+      role: data.role,
+      companyId: data.companyId,
     });
-  }
-);
+
+    const now = admin.firestore.FieldValue.serverTimestamp();
+    
+    const userProfileRef = db.collection("users").doc(uid);
+    await userProfileRef.set({
+      nombre: data.nombre,
+      email: data.email,
+      role: data.role,
+      empresaId: data.companyId,
+      activo: true,
+      createdAt: now,
+      updatedAt: now,
+    }, { merge: true });
+    
+    const invitationRef = db.collection("invitacionesUsuarios").doc();
+    await invitationRef.set({
+        email: data.email,
+        empresaId: data.companyId,
+        empresaNombre: companyData.nombreFantasia || companyData.razonSocial || '',
+        roleDeseado: data.role,
+        estado: 'activado', // El usuario se crea activo directamente
+        uid: uid,
+        createdAt: now,
+        activatedAt: now,
+        creadoPorUid: context.auth.uid,
+    });
+
+    return {
+      uid,
+      email: data.email,
+      nombre: data.nombre,
+      role: data.role,
+      companyId: data.companyId,
+      message: 'Usuario creado directamente y con éxito.'
+    };
+});

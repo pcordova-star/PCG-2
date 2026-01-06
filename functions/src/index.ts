@@ -1,4 +1,10 @@
+
 // src/functions/src/index.ts
+
+/**
+ * Este archivo es el punto de entrada para todas las Cloud Functions.
+ * Cada función se importa desde su propio archivo y se exporta para que Firebase la despliegue.
+ */
 
 import { initializeApp, getApps } from "firebase-admin/app";
 import { setGlobalOptions } from "firebase-functions/v2";
@@ -15,9 +21,9 @@ setGlobalOptions({
   serviceAccount: "pcg-functions-sa@pcg-2-8bf1b.iam.gserviceaccount.com"
 });
 
+// --- Exportación de funciones ---
 
-// Exporta las funciones callable y HTTP para que estén disponibles en el backend.
-// El nombre de la propiedad del objeto exportado será el nombre de la función en Firebase.
+// Funciones v1 (callable y http)
 export { createCompanyUser } from "./createCompanyUser";
 export { registrarAvanceRapido } from "./registrarAvanceRapido";
 export { notifyDocumentDistribution } from "./notifyDocumentDistribution";
@@ -26,6 +32,6 @@ export { setSuperAdminClaim } from "./setSuperAdmin";
 export { checkUserExistsByEmail } from "./checkUserExistsByEmail";
 export { testGoogleAi } from "./test-google-ai";
 
-// Exporta los triggers (Storage, Firestore) por separado.
+// Funciones v2 (triggers de evento)
 export { convertHeicToJpg } from './convertHeic';
 export { processItemizadoJob } from './processItemizadoJob';
