@@ -1,7 +1,7 @@
+// src/app/layout.tsx
 "use client";
 
 import './globals.css';
-import { BODY_CLASSES } from '@/lib/layoutTheme';
 import { AuthProvider, useAuth } from '@/context/AuthContext';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
@@ -37,7 +37,8 @@ import React, { useState, useEffect, useRef, Suspense } from 'react';
 import { cn } from '@/lib/utils';
 import { PcgLogo } from '@/components/branding/PcgLogo';
 import { useSearchParams } from 'next/navigation';
-
+import { Toaster } from "@/components/ui/toaster"; // Import Toaster
+import { inter } from '@/lib/layoutTheme'; // Import pre-configured font
 
 const navItemsBase = [
   { href: '/dashboard', label: 'Dashboard', icon: Home, roles: ['superadmin', 'admin_empresa', 'jefe_obra', 'prevencionista'] },
@@ -69,30 +70,31 @@ function LayoutLogic({ children }: { children: React.ReactNode }) {
     const pathname = usePathname();
 
     const navItems = navItemsBase.filter(item => {
+        if (role === 'none') return false; // Default to no items if role is not determined
         if (!item.roles.includes(role)) return false;
         if (item.featureFlag && !company?.[item.featureFlag]) return false;
         return true;
     });
 
     const isAdminOnlyPage = pathname.startsWith('/admin') && !pathname.startsWith('/admin/documentos');
-    const isCompliancePage = pathname.startsWith('/cumplimiento');
     const canSeeAdminItems = role === 'superadmin';
     const [isCollapsed, setIsCollapsed] = useState(false);
     const timerRef = useRef<NodeJS.Timeout | null>(null);
 
     const isPublicPage = pathname === '/' || publicPaths.some(path => pathname.startsWith(path));
+    const showAppShell = user && !isPublicPage;
 
     useEffect(() => {
-        if (isPublicPage) return;
+        if (!showAppShell) return;
         
         startTimer();
 
         return () => {
-        if (timerRef.current) {
-            clearTimeout(timerRef.current);
-        }
+          if (timerRef.current) {
+              clearTimeout(timerRef.current);
+          }
         };
-    }, [pathname, isPublicPage]);
+    }, [pathname, showAppShell]);
 
     const startTimer = () => {
         if (timerRef.current) {
@@ -105,7 +107,7 @@ function LayoutLogic({ children }: { children: React.ReactNode }) {
 
     const handleMouseEnter = () => {
         if (timerRef.current) {
-        clearTimeout(timerRef.current);
+          clearTimeout(timerRef.current);
         }
         setIsCollapsed(false);
     };
@@ -117,13 +119,9 @@ function LayoutLogic({ children }: { children: React.ReactNode }) {
     const toggleCollapse = () => {
         setIsCollapsed(prev => !prev);
         if (timerRef.current) {
-        clearTimeout(timerRef.current);
+          clearTimeout(timerRef.current);
         }
     };
-
-    if (isPublicPage) {
-        return <>{children}</>;
-    }
 
     const isActive = (href: string) => {
         if (href === '/dashboard' || href === '/admin/dashboard') return pathname === href;
@@ -136,7 +134,7 @@ function LayoutLogic({ children }: { children: React.ReactNode }) {
     
     const sidebarWidth = isCollapsed ? "w-20" : "w-64";
 
-    if (authLoading) {
+    if (authLoading && !isPublicPage) {
         return (
         <div className="flex items-center justify-center h-screen col-span-full">
             <h1 className="text-2xl font-bold">Verificando permisos...</h1>
@@ -144,22 +142,11 @@ function LayoutLogic({ children }: { children: React.ReactNode }) {
         );
     }
     
-    if (!user) {
-        return (
-        <div className="flex flex-col items-center justify-center min-h-screen col-span-full">
-            <h1 className="text-2xl font-bold">No has iniciado sesión</h1>
-            <p className="text-muted-foreground">Serás redirigido al login.</p>
-            <Button asChild variant="link" className="mt-4"><Link href="/">Ir al login ahora</Link></Button>
-        </div>
-        );
-    }
-    
-    const canAccessDocs = role === 'admin_empresa' || role === 'prevencionista';
-    if (isAdminOnlyPage && !canSeeAdminItems) {
-        if (pathname.startsWith('/admin/documentos') && canAccessDocs) {
-            // Permite el acceso
-        } else {
-             return (
+    // Proteger rutas de admin
+    if (isAdminOnlyPage && !canSeeAdminItems && !authLoading) {
+        const canAccessDocs = role === 'admin_empresa' || role === 'prevencionista';
+        if (!pathname.startsWith('/admin/documentos') || !canAccessDocs) {
+            return (
                 <div className="flex flex-col items-center justify-center min-h-screen col-span-full">
                     <h1 className="text-2xl font-bold">Acceso Denegado</h1>
                     <p className="text-muted-foreground">No tienes permisos para acceder a esta sección.</p>
@@ -169,7 +156,7 @@ function LayoutLogic({ children }: { children: React.ReactNode }) {
         }
     }
   
-  const showSidebar = role !== 'cliente' && role !== 'contratista' || isPreview;
+  const showSidebar = showAppShell && role !== 'cliente' && role !== 'contratista' || isPreview;
 
   return (
     <div className={cn("grid min-h-screen w-full", showSidebar && "md:grid-cols-[auto_1fr]")}>
@@ -282,10 +269,11 @@ function LayoutLogic({ children }: { children: React.ReactNode }) {
       <div className={cn(
         "flex flex-col", 
         showSidebar && (isCollapsed ? "md:ml-20" : "md:ml-64"),
+        !showSidebar && "min-h-screen", // Asegura que las páginas públicas ocupen toda la altura
         "transition-all duration-300 ease-in-out"
       )}>
          {/* Mobile Header & Sidebar */}
-        <header className="flex h-14 items-center gap-4 border-b bg-white px-4 lg:h-[60px] lg:px-6 sticky top-0 z-30 md:hidden">
+        {showAppShell && <header className="flex h-14 items-center gap-4 border-b bg-white px-4 lg:h-[60px] lg:px-6 sticky top-0 z-30 md:hidden">
           {showSidebar ? (
             <Sheet>
               <SheetTrigger asChild>
@@ -403,9 +391,12 @@ function LayoutLogic({ children }: { children: React.ReactNode }) {
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
-        </header>
+        </header>}
 
-        <main className="flex flex-1 flex-col gap-4 p-4 lg:gap-6 lg:p-6 bg-muted/40">
+        <main className={cn(
+          "flex flex-1 flex-col gap-4 lg:gap-6",
+          showAppShell ? "p-4 lg:p-6 bg-muted/40" : ""
+        )}>
           {children}
         </main>
       </div>
@@ -420,12 +411,16 @@ export default function RootLayout({
 }>) {
    return (
     <html lang="es">
-      <body className={BODY_CLASSES}>
+      <body className={cn(
+        "font-body antialiased",
+        inter.variable
+      )}>
         <AuthProvider>
           <Suspense fallback={<div className="flex items-center justify-center h-screen">Cargando...</div>}>
             <LayoutLogic>{children}</LayoutLogic>
           </Suspense>
         </AuthProvider>
+        <Toaster />
       </body>
     </html>
   );
