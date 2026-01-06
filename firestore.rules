@@ -8,27 +8,31 @@ service cloud.firestore {
       return request.auth != null;
     }
 
-    function getUserRole(uid) {
-      return get(/databases/$(database)/documents/users/$(uid)).data.role;
+    function userDoc() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid));
     }
 
-    function isSuperadmin() {
-      // El rol de superadmin se valida leyendo el perfil del usuario que hace la petición.
-      return isSignedIn() && getUserRole(request.auth.uid) == "superadmin";
+    function role() {
+      return userDoc().data.role;
+    }
+
+    function companyId() {
+      return userDoc().data.companyId;
     }
     
-    function isAdminEmpresa() {
-      return isSignedIn() && getUserRole(request.auth.uid) == "admin_empresa";
+    function subcontractorId() {
+      return userDoc().data.subcontractorId;
     }
 
-    function getAuthCompanyId() {
-      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data.empresaId;
+    function mclpEnabled() {
+      return get(/databases/$(database)/documents/companies/$(companyId()))
+        .data.feature_compliance_module_enabled == true;
     }
     
     // --------- Regla para companies (SUPERADMIN) ---------
     match /companies/{companyId} {
       // Superadmin puede leer y escribir para gestionar empresas.
-      allow read, write: if isSuperadmin();
+      allow read, write: if isSignedIn() && role() == 'superadmin';
     }
     
     // --------- Regla para users/{uid} ---------
@@ -43,7 +47,7 @@ service cloud.firestore {
     // --------- Regla para invitacionesUsuarios ---------
     match /invitacionesUsuarios/{inviteId} {
       // Superadmin puede crear invitaciones.
-      allow create: if isSuperadmin();
+      allow create: if isSignedIn() && role() == 'superadmin';
 
       // El usuario puede leer su propia invitación durante el proceso de activación.
       allow read: if isSignedIn() && request.auth.token.email == resource.data.email;
@@ -55,19 +59,127 @@ service cloud.firestore {
     // Documentos corporativos (empresa)
     match /companyDocuments/{docId} {
       allow read: if isSignedIn() && getAuthCompanyId() == resource.data.companyId;
-      allow write: if isAdminEmpresa() || isSuperadmin();
+      allow write: if role() == 'admin_empresa' || role() == 'superadmin';
     }
 
     // Documentos de proyecto
     match /projectDocuments/{docId} {
       allow read: if isSignedIn() && getAuthCompanyId() == resource.data.companyId;
-      allow write: if isAdminEmpresa() || isSuperadmin();
+      allow write: if role() == 'admin_empresa' || role() == 'superadmin';
     }
 
     // Distribución (ISO)
     match /documentDistribution/{docId} {
       allow read: if isSignedIn() && getAuthCompanyId() == resource.data.companyId;
-      allow write: if isSuperadmin() || isAdminEmpresa(); // solo backend normally
+      allow write: if role() == 'superadmin' || role() == 'admin_empresa'; // solo backend normally
+    }
+
+    // --------- Reglas MCLP ---------
+
+    // compliancePrograms (configuración)
+    match /compliancePrograms/{company} {
+      allow read: if isSignedIn()
+        && mclpEnabled()
+        && company == companyId();
+
+      allow create, update: if isSignedIn()
+        && role() == 'admin_empresa'
+        && company == companyId();
+
+      allow delete: if false;
+
+      // Subcolección requirements
+      match /requirements/{reqId} {
+        allow read: if isSignedIn()
+          && mclpEnabled()
+          && company == companyId();
+
+        allow create, update: if isSignedIn()
+          && role() == 'admin_empresa'
+          && company == companyId();
+
+        allow delete: if false;
+      }
+    }
+
+    // subcontractors
+    match /subcontractors/{subId} {
+      allow read: if isSignedIn()
+        && mclpEnabled()
+        && resource.data.companyId == companyId()
+        && (
+          role() == 'admin_empresa'
+          || subcontractorId() == subId
+        );
+
+      allow create, update: if isSignedIn()
+        && role() == 'admin_empresa'
+        && request.resource.data.companyId == companyId();
+
+      allow delete: if false;
+    }
+
+    // compliancePeriods
+    match /compliancePeriods/{periodId} {
+      allow read: if isSignedIn()
+        && mclpEnabled()
+        && resource.data.companyId == companyId();
+
+      allow create, update: if isSignedIn()
+        && role() == 'admin_empresa'
+        && request.resource.data.companyId == companyId();
+
+      allow delete: if false;
+
+      // Subcolección submissions
+      match /submissions/{subId} {
+        allow read: if isSignedIn()
+          && mclpEnabled()
+          && (
+            resource.data.subcontractorId == subcontractorId()
+            || role() == 'admin_empresa'
+          );
+
+        allow create: if isSignedIn()
+          && role() == 'contratista'
+          && mclpEnabled()
+          && request.resource.data.subcontractorId == subcontractorId();
+
+        allow update: if isSignedIn()
+          && role() == 'admin_empresa';
+
+        allow delete: if false;
+
+        // Subcolección history (inmutable)
+        match /history/{hId} {
+          allow read: if isSignedIn()
+            && mclpEnabled()
+            && (
+              role() == 'admin_empresa'
+              || subcontractorId() == resource.data.subcontractorId
+            );
+
+          allow create: if isSignedIn()
+            && role() == 'admin_empresa';
+
+          allow update, delete: if false;
+        }
+      }
+      
+      // Subcolección status (estado de cumplimiento)
+      match /status/{subcontractor} {
+        allow read: if isSignedIn()
+          && mclpEnabled()
+          && (
+            role() == 'admin_empresa'
+            || subcontractorId() == subcontractor
+          );
+
+        allow create, update: if isSignedIn()
+          && role() == 'admin_empresa';
+
+        allow delete: if false;
+      }
     }
 
     // --------- Reglas ultra abiertas para el resto (desarrollo) ---------

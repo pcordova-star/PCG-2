@@ -3,10 +3,47 @@ rules_version = '2';
 service firebase.storage {
   match /b/{bucket}/o {
     
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function userDoc() {
+      // Usamos firestore.get para leer el documento del usuario desde las reglas de Storage
+      return firestore.get(
+        /databases/(default)/documents/users/$(request.auth.uid)
+      );
+    }
+
+    function role() {
+      return userDoc().data.role;
+    }
+
+    function companyId() {
+      return userDoc().data.companyId;
+    }
+    
+    function subcontractorId() {
+      return userDoc().data.subcontractorId;
+    }
+    
     match /projectDocuments/{projectId}/{fileId} {
       allow read: if request.auth != null;
       allow write: if request.auth != null &&
                    request.resource.contentType == "application/pdf";
+    }
+
+    match /mclp/{company}/{period}/{sub}/{file} {
+      allow read: if isSignedIn()
+        && company == companyId()
+        && (
+          role() == 'admin_empresa'
+          || sub == subcontractorId()
+        );
+
+      allow write: if isSignedIn()
+        && role() == 'contratista'
+        && company == companyId()
+        && sub == subcontractorId();
     }
   }
 }
