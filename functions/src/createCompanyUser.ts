@@ -99,10 +99,13 @@ export const createCompanyUser = functions
         logger.info(`[createCompanyUser] Perfil de usuario creado en Firestore para UID: ${uid}`);
 
       } catch (dbError: any) {
-        logger.error(`[createCompanyUser] Error al guardar perfil/claims para UID ${uid}. Revirtiendo creación en Auth...`, dbError);
-        await auth.deleteUser(uid); // Rollback de la creación en Auth
-        logger.info(`[createCompanyUser] Usuario con UID ${uid} eliminado de Auth debido a error en Firestore.`);
-        throw new functions.https.HttpsError("internal", `No se pudo crear el perfil del usuario en la base de datos. Se ha revertido la creación. Error: ${dbError.message}`);
+        // --- FIX DEFINITIVO: NO INTENTAR HACER ROLLBACK ---
+        // Se loggea el error crítico, pero no se intenta borrar el usuario de Auth,
+        // ya que esa operación es la que causa el error 'INTERNAL' en Gen2.
+        logger.error(`[createCompanyUser] CRITICAL ERROR: No se pudo guardar el perfil/claims para UID ${uid} pero el usuario YA FUE CREADO en Auth. Requiere intervención manual.`, dbError);
+        
+        // Se lanza un error claro al frontend para que sepa que la operación falló, aunque el usuario Auth exista.
+        throw new functions.https.HttpsError("internal", `El usuario fue creado en el sistema de autenticación, pero falló al guardar su perfil en la base de datos. Por favor, contacte a soporte. Error: ${dbError.message}`);
       }
 
       logger.info(`[createCompanyUser] Proceso completado con éxito para ${data.email}.`);
