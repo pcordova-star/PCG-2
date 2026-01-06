@@ -13,6 +13,8 @@ export { createCompanyUser } from "./createCompanyUser";
 export { setSuperAdminClaim } from "./setSuperAdmin";
 export { registrarAvanceRapido } from "./registrarAvanceRapido";
 export { notifyDocumentDistribution } from "./notifyDocumentDistribution";
+export { checkUserExistsByEmail } from "./checkUserExistsByEmail";
+export { testGoogleAi } from "./test-google-ai";
 
 // Exporta las funciones v2 (storage y firestore triggers) por separado
 export { convertHeicToJpg } from './convertHeic';
