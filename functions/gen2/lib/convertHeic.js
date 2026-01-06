@@ -116,4 +116,3 @@ exports.convertHeicToJpg = (0, storage_1.onObjectFinalized)({
         return null;
     }
 });
-//# sourceMappingURL=convertHeic.js.map
