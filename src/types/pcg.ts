@@ -52,6 +52,7 @@ export interface AppUser {
   phone?: string;
   role: RolInvitado | 'superadmin' | 'none' | 'contratista'; // Se añade el nuevo rol
   empresaId: string | null;
+  subcontractorId?: string; // ID de la empresa subcontratista a la que pertenece
   createdAt: Date | Timestamp;
   activo?: boolean;
   eliminado?: boolean;
@@ -517,4 +518,66 @@ export interface EstadoCumplimientoPeriodo {
     estado: 'cumple' | 'no_cumple' | 'en_revision' | 'pendiente';
     fechaAsignacion: Timestamp;
     asignadoPorUid: string;
+}
+
+// RDI Types
+export interface Rdi {
+  id: string;
+  companyId: string;
+  obraId: string;
+  correlativo: string;
+  titulo: string;
+  descripcion: string;
+  tipo: "a_mandante" | "a_contratista" | "interna";
+  especialidad: "arquitectura" | "estructuras" | "electrica" | "sanitaria" | "climatizacion" | "otra";
+  prioridad: RdiPrioridad;
+  estado: RdiEstado;
+  solicitante: {
+    userId: string;
+    nombre: string;
+    email: string;
+    cargo?: string;
+  };
+  destinatario: {
+    nombre: string;
+    email: string;
+    empresa?: string;
+    cargo?: string;
+  };
+  planoId?: string | null;
+  afectaPlazo: boolean;
+  diasAumentoSolicitados?: number | null;
+  diasAumentoAprobados?: number | null;
+  fechaLimiteRespuesta?: Timestamp | null;
+  plazoRespuestaDias?: number | null;
+  paraCliente: boolean;
+  respuestaTexto?: string | null;
+  clienteRespondio: boolean;
+  fechaRespuestaCliente?: Timestamp | null;
+  adjuntos: RdiAdjunto[];
+  tieneAdjuntos: boolean;
+  emailClienteNotificado: boolean;
+  fechaNotificacionEmail?: Timestamp | null;
+  closedAt?: Timestamp | null;
+  deleted: boolean;
+  createdAt: Timestamp;
+  updatedAt: Timestamp;
+  // Campos para Adicionales
+  tieneAdicional?: boolean;
+  adicionalId?: string;
+  adicionalEstado?: 'borrador' | 'enviado' | 'aprobado' | 'rechazado';
+  adicionalMontoTotal?: number;
+}
+
+
+export type RdiAdjuntoTipo = "imagen" | "pdf" | "otro";
+
+export interface RdiAdjunto {
+    id: string;
+    nombreArchivo: string;
+    tipo: RdiAdjuntoTipo;
+    storagePath: string;
+    downloadUrl: string;
+    subidoPorUserId: string;
+    fechaSubida: Timestamp;
 }
