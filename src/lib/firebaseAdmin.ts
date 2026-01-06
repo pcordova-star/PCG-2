@@ -50,3 +50,7 @@ export function getAdminDb() {
 export function getAdminAuth() {
   return getAdminApp().auth();
 }
+
+export function getAdminStorage() {
+  return getAdminApp().storage();
+}
