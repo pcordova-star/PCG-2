@@ -45,7 +45,7 @@ import { motion } from 'framer-motion';
 
 // Definición de tipos para los nuevos items del mural
 type ActivityItem = {
-  type: 'rdi' | 'avance' | 'edp';
+  type: 'rdi' | 'avance' | 'edp' | 'hallazgo';
   id: string;
   obraId: string;
   obraNombre: string;
@@ -71,6 +71,10 @@ const ActivityCard = ({ item }: { item: ActivityItem }) => {
     edp: {
       icon: DollarSign,
       color: "purple",
+    },
+    hallazgo: {
+      icon: Siren,
+      color: "orange"
     }
   };
 
@@ -261,7 +265,6 @@ export default function DashboardPage() {
         const isSuperAdmin = role === 'superadmin';
 
         try {
-            // 1. Fetch Company Data
             if (!isSuperAdmin) {
                 const companyRef = doc(firebaseDb, "companies", companyId);
                 const companySnap = await getDoc(companyRef);
@@ -270,7 +273,6 @@ export default function DashboardPage() {
                 }
             }
             
-            // 2. Fetch Obras
             const obrasRef = collection(firebaseDb, 'obras');
             const qObrasConstraints = isSuperAdmin ? [] : [where('empresaId', '==', companyId)];
             const obrasQuery = query(obrasRef, ...qObrasConstraints);
@@ -287,58 +289,75 @@ export default function DashboardPage() {
                 return;
             }
             
-            // 3. Fetch Mural Data (RDIs, Avances, EDPs)
-            // Firestore 'in' query has a limit of 30 elements.
             const canUseInQuery = obrasIds.length > 0 && obrasIds.length <= 30;
 
-            const rdiQuery = canUseInQuery
-              ? query(collectionGroup(firebaseDb, 'rdi'), where('obraId', 'in', obrasIds), orderBy('createdAt', 'desc'), limit(3))
-              : query(collectionGroup(firebaseDb, 'rdi'), orderBy('createdAt', 'desc'), limit(10)); // Fallback for many obras
+            if (isPrevencionista) {
+                const hallazgosQuery = canUseInQuery
+                  ? query(collectionGroup(firebaseDb, 'hallazgos'), where('obraId', 'in', obrasIds), orderBy('createdAt', 'desc'), limit(5))
+                  : query(collectionGroup(firebaseDb, 'hallazgos'), orderBy('createdAt', 'desc'), limit(10));
+                
+                const hallazgosSnap = await getDocs(hallazgosQuery);
+                const hallazgosItems: ActivityItem[] = hallazgosSnap.docs
+                    .map(d => ({ id: d.id, ...d.data() } as Hallazgo))
+                    .filter(h => obrasIds.includes(h.obraId))
+                    .map(h => ({
+                        type: 'hallazgo', id: h.id!, obraId: h.obraId, obraNombre: obrasMap.get(h.obraId) || 'Obra desconocida',
+                        fecha: h.createdAt.toDate(), titulo: `Hallazgo: ${h.tipoRiesgo}`, descripcion: h.descripcion,
+                        estado: h.estado, href: `/prevencion/hallazgos/detalle/${h.id}`
+                    }));
 
-            const avancesQuery = canUseInQuery
-              ? query(collectionGroup(firebaseDb, 'avancesDiarios'), where('obraId', 'in', obrasIds), orderBy('fecha', 'desc'), limit(3))
-              : query(collectionGroup(firebaseDb, 'avancesDiarios'), orderBy('fecha', 'desc'), limit(10));
+                setMuralItems(hallazgosItems);
 
-            const edpQuery = canUseInQuery
-              ? query(collectionGroup(firebaseDb, 'estadosDePago'), where('obraId', 'in', obrasIds), orderBy('creadoEn', 'desc'), limit(2))
-              : query(collectionGroup(firebaseDb, 'estadosDePago'), orderBy('creadoEn', 'desc'), limit(5));
+            } else {
+                const rdiQuery = canUseInQuery
+                  ? query(collectionGroup(firebaseDb, 'rdi'), where('obraId', 'in', obrasIds), orderBy('createdAt', 'desc'), limit(3))
+                  : query(collectionGroup(firebaseDb, 'rdi'), orderBy('createdAt', 'desc'), limit(10));
 
-            const [rdiSnap, avancesSnap, edpSnap] = await Promise.all([
-                getDocs(rdiQuery),
-                getDocs(avancesQuery),
-                getDocs(edpQuery)
-            ]);
+                const avancesQuery = canUseInQuery
+                  ? query(collectionGroup(firebaseDb, 'avancesDiarios'), where('obraId', 'in', obrasIds), orderBy('fecha', 'desc'), limit(3))
+                  : query(collectionGroup(firebaseDb, 'avancesDiarios'), orderBy('fecha', 'desc'), limit(10));
 
-            let rdiItems: ActivityItem[] = rdiSnap.docs
-              .map(d => ({ id: d.id, ...d.data() } as Rdi))
-              .filter(rdi => obrasIds.includes(rdi.obraId)) // Client-side filter if needed
-              .map(rdi => ({
-                    type: 'rdi', id: rdi.id, obraId: rdi.obraId, obraNombre: obrasMap.get(rdi.obraId) || 'Obra desconocida',
-                    fecha: rdi.createdAt.toDate(), titulo: `RDI: ${rdi.correlativo}`, descripcion: rdi.titulo,
-                    estado: rdi.estado, href: `/rdi/${rdi.obraId}/${rdi.id}`
-                }));
+                const edpQuery = canUseInQuery
+                  ? query(collectionGroup(firebaseDb, 'estadosDePago'), where('obraId', 'in', obrasIds), orderBy('creadoEn', 'desc'), limit(2))
+                  : query(collectionGroup(firebaseDb, 'estadosDePago'), orderBy('creadoEn', 'desc'), limit(5));
 
-            let avanceItems: ActivityItem[] = avancesSnap.docs
-              .map(d => ({ id: d.id, ...d.data() } as AvanceDiario))
-              .filter(avance => obrasIds.includes(avance.obraId))
-              .map(avance => ({
-                    type: 'avance', id: avance.id, obraId: avance.obraId, obraNombre: obrasMap.get(avance.obraId) || 'Obra desconocida',
-                    fecha: avance.fecha.toDate(), titulo: `Avance Diario`, descripcion: avance.comentario || 'Registro de avance.',
-                    valor: `${avance.porcentajeAvance?.toFixed(1) || 0}%`, href: `/operaciones/programacion?obraId=${avance.obraId}`
-                }));
-            
-            let edpItems: ActivityItem[] = edpSnap.docs
-              .map(d => ({ id: d.id, ...d.data() } as any))
-              .filter(edp => obrasIds.includes(edp.obraId))
-              .map(edp => ({
-                    type: 'edp', id: edp.id, obraId: edp.obraId, obraNombre: obrasMap.get(edp.obraId) || 'Obra desconocida',
-                    fecha: edp.creadoEn.toDate(), titulo: `Estado de Pago`, descripcion: `Correlativo EDP-${String(edp.correlativo).padStart(3, '0')}`,
-                    valor: edp.total.toLocaleString('es-CL', {style: 'currency', currency: 'CLP'}), href: `/operaciones/estados-de-pago?obraId=${edp.obraId}`
-                }));
+                const [rdiSnap, avancesSnap, edpSnap] = await Promise.all([
+                    getDocs(rdiQuery),
+                    getDocs(avancesQuery),
+                    getDocs(edpQuery)
+                ]);
 
-            const allItems = [...rdiItems, ...avanceItems, ...edpItems];
-            allItems.sort((a, b) => b.fecha.getTime() - a.fecha.getTime());
-            setMuralItems(allItems.slice(0, 5));
+                let rdiItems: ActivityItem[] = rdiSnap.docs
+                  .map(d => ({ id: d.id, ...d.data() } as Rdi))
+                  .filter(rdi => obrasIds.includes(rdi.obraId))
+                  .map(rdi => ({
+                        type: 'rdi', id: rdi.id, obraId: rdi.obraId, obraNombre: obrasMap.get(rdi.obraId) || 'Obra desconocida',
+                        fecha: rdi.createdAt.toDate(), titulo: `RDI: ${rdi.correlativo}`, descripcion: rdi.titulo,
+                        estado: rdi.estado, href: `/rdi/${rdi.obraId}/${rdi.id}`
+                    }));
+
+                let avanceItems: ActivityItem[] = avancesSnap.docs
+                  .map(d => ({ id: d.id, ...d.data() } as AvanceDiario))
+                  .filter(avance => obrasIds.includes(avance.obraId))
+                  .map(avance => ({
+                        type: 'avance', id: avance.id, obraId: avance.obraId, obraNombre: obrasMap.get(avance.obraId) || 'Obra desconocida',
+                        fecha: avance.fecha.toDate(), titulo: `Avance Diario`, descripcion: avance.comentario || 'Registro de avance.',
+                        valor: `${avance.porcentajeAvance?.toFixed(1) || 0}%`, href: `/operaciones/programacion?obraId=${avance.obraId}`
+                    }));
+                
+                let edpItems: ActivityItem[] = edpSnap.docs
+                  .map(d => ({ id: d.id, ...d.data() } as any))
+                  .filter(edp => obrasIds.includes(edp.obraId))
+                  .map(edp => ({
+                        type: 'edp', id: edp.id, obraId: edp.obraId, obraNombre: obrasMap.get(edp.obraId) || 'Obra desconocida',
+                        fecha: edp.creadoEn.toDate(), titulo: `Estado de Pago`, descripcion: `Correlativo EDP-${String(edp.correlativo).padStart(3, '0')}`,
+                        valor: edp.total.toLocaleString('es-CL', {style: 'currency', currency: 'CLP'}), href: `/operaciones/estados-de-pago?obraId=${edp.obraId}`
+                    }));
+
+                const allItems = [...rdiItems, ...avanceItems, ...edpItems];
+                allItems.sort((a, b) => b.fecha.getTime() - a.fecha.getTime());
+                setMuralItems(allItems.slice(0, 5));
+            }
 
         } catch (error) {
             console.error("Error fetching dashboard data:", error);
@@ -351,7 +370,7 @@ export default function DashboardPage() {
     if (!authLoading && user) {
         fetchDashboardData();
     }
-  }, [user, role, companyId, authLoading]);
+  }, [user, role, companyId, authLoading, isPrevencionista]);
   
   const handleQuickAccessClick = (target: string) => {
     if (target === '/rdi' || target === '/cubicacion/analisis-planos') {
