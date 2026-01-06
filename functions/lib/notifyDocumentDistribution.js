@@ -40,7 +40,7 @@ const admin = __importStar(require("firebase-admin"));
 const zod_1 = require("zod");
 const logger = __importStar(require("firebase-functions/logger"));
 const firestore_1 = require("firebase-admin/firestore");
-if (!admin.apps.length) {
+if (admin.apps.length === 0) {
     admin.initializeApp();
 }
 const db = (0, firestore_1.getFirestore)();
