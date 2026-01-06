@@ -100,7 +100,7 @@ export const createCompanyUser = functions
 
       } catch (dbError: any) {
         logger.error(`[createCompanyUser] Error al guardar perfil/claims para UID ${uid}. Revirtiendo creación en Auth...`, dbError);
-        await auth.deleteUser(uid);
+        await auth.deleteUser(uid); // Rollback de la creación en Auth
         logger.info(`[createCompanyUser] Usuario con UID ${uid} eliminado de Auth debido a error en Firestore.`);
         throw new functions.https.HttpsError("internal", `No se pudo crear el perfil del usuario en la base de datos. Se ha revertido la creación. Error: ${dbError.message}`);
       }
