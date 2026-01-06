@@ -126,3 +126,11 @@ export default function ContratistaDashboardPage() {
                                         {doc.estado === 'Observado' && <Button size="sm" variant="destructive">Corregir y Volver a Subir</Button>}
                                     </div>
                                 </CardContent>
+                            </Card>
+                        ))}
+                    </div>
+                </CardContent>
+            </Card>
+        </div>
+    );
+}

@@ -6,7 +6,7 @@ import { useRouter } from 'next/navigation';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { Loader2 } from "lucide-react";
 
 export default function AdminCumplimientoPage() {
@@ -31,7 +31,7 @@ export default function AdminCumplimientoPage() {
         return <div className="flex justify-center items-center h-full"><Loader2 className="h-8 w-8 animate-spin" /></div>;
     }
     
-    if (!isComplianceEnabled) {
+    if (!isComplianceEnabled && role === 'superadmin') {
          return (
             <div className="space-y-6">
                 <header>
