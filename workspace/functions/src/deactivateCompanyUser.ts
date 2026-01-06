@@ -1,12 +1,11 @@
+
 // functions/src/deactivateCompanyUser.ts
 import { onRequest } from "firebase-functions/v2/https";
 import * as admin from "firebase-admin";
 import * as logger from "firebase-functions/logger";
 import { getAuth } from "firebase-admin/auth";
 
-if (!admin.apps.length) {
-  admin.initializeApp();
-}
+// NO inicializar admin aquí en el scope global.
 
 export const deactivateCompanyUser = onRequest(
   {
@@ -15,8 +14,14 @@ export const deactivateCompanyUser = onRequest(
     memory: "256MiB",
     timeoutSeconds: 30,
     cors: false, // Se deshabilita el CORS automático de Firebase para manejarlo manualmente
+    serviceAccount: "pcg-functions-sa@pcg-2-8bf1b.iam.gserviceaccount.com",
   },
   async (req, res) => {
+    // La inicialización se mueve DENTRO del handler.
+    if (!admin.apps.length) {
+      admin.initializeApp();
+    }
+
     // --- MANEJO MANUAL DE CORS ---
     res.set("Access-Control-Allow-Origin", "*");
     res.set("Access-Control-Allow-Methods", "POST, OPTIONS");
@@ -44,7 +49,8 @@ export const deactivateCompanyUser = onRequest(
       const token = authHeader.split(" ")[1];
       const decodedToken = await getAuth().verifyIdToken(token);
       
-      if (decodedToken.role !== "superadmin") {
+      const userClaims = (decodedToken as any).role; // Acceder a custom claims
+      if (userClaims !== "superadmin") {
         res.status(403).json({ success: false, error: "Permission Denied: Caller is not a superadmin." });
         return;
       }

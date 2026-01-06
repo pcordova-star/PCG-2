@@ -29,7 +29,7 @@ export { registrarAvanceRapido } from "./registrarAvanceRapido";
 export { notifyDocumentDistribution } from "./notifyDocumentDistribution";
 export { deactivateCompanyUser } from "./deactivateCompanyUser";
 export { setSuperAdminClaim } from "./setSuperAdmin";
-export { checkUserExistsByEmail } from "./checkUserExistsByEmail";
+// export { checkUserExistsByEmail } from "./checkUserExistsByEmail";
 export { testGoogleAi } from "./test-google-ai";
 
 // Funciones v2 (triggers de evento)
