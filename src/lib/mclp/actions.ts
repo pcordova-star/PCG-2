@@ -76,7 +76,13 @@ export async function listRequirementsAction(companyId: string) {
       .collection("requirements")
       .where("activo", "==", true)
       .get();
-    return snap.docs.map(d => ({ id: d.id, ...d.data() } as RequisitoDocumento));
+      
+    return snap.docs.map(d => {
+        const data = d.data();
+        const createdAt = data.createdAt instanceof Timestamp ? data.createdAt.toDate().toISOString() : new Date().toISOString();
+        const updatedAt = data.updatedAt instanceof Timestamp ? data.updatedAt.toDate().toISOString() : createdAt;
+        return { id: d.id, ...data, createdAt, updatedAt } as RequisitoDocumento;
+    });
   });
 }
 
