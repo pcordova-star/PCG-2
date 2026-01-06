@@ -345,7 +345,7 @@ function InteligenciaOperativaSection() {
 
 export default function WelcomePage() {
   return (
-    <div className="bg-slate-50 text-foreground">
+    <>
       {/* Navbar */}
       <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -544,6 +544,6 @@ export default function WelcomePage() {
            </div>
         </div>
       </footer>
-    </div>
+    </>
   );
 }
