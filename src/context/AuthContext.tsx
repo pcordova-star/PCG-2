@@ -162,7 +162,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [router]);
 
   async function login(email: string, password: string) {
-    await signInWithEmailAndPassword(firebaseAuth, email, password);
+    try {
+        await signInWithEmailAndPassword(firebaseAuth, email, password);
+    } catch (err: any) {
+        if (err.code === 'auth/invalid-credential' || err.code === 'auth/wrong-password' || err.code === 'auth/user-not-found') {
+            throw new Error("Credenciales inválidas. Por favor, revisa tu correo y contraseña.");
+        } else if (err.code === 'auth/too-many-requests') {
+            throw new Error("Demasiados intentos fallidos. Por seguridad, el acceso desde este dispositivo ha sido bloqueado temporalmente.");
+        } else {
+            console.error("Error de login no manejado:", err);
+            throw new Error("Ocurrió un error inesperado al iniciar sesión.");
+        }
+    }
   }
 
   async function logout() {
