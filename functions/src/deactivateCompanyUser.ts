@@ -1,3 +1,4 @@
+
 // functions/src/deactivateCompanyUser.ts
 import { onRequest } from "firebase-functions/v2/https";
 import * as admin from "firebase-admin";
@@ -13,6 +14,7 @@ export const deactivateCompanyUser = onRequest(
     memory: "256MiB",
     timeoutSeconds: 30,
     cors: false, // Se deshabilita el CORS automático de Firebase para manejarlo manualmente
+    serviceAccount: "pcg-functions-sa@pcg-2-8bf1b.iam.gserviceaccount.com",
   },
   async (req, res) => {
     // La inicialización se mueve DENTRO del handler.

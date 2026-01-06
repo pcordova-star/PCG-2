@@ -16,10 +16,10 @@ if (getApps().length === 0) {
 
 // Establece opciones globales para todas las funciones v2, asegurando la región
 // y la cuenta de servicio con permisos para acceder a secretos.
-setGlobalOptions({
-  region: "southamerica-west1",
-  serviceAccount: "pcg-functions-sa@pcg-2-8bf1b.iam.gserviceaccount.com"
-});
+// setGlobalOptions({
+//   region: "southamerica-west1",
+//   serviceAccount: "pcg-functions-sa@pcg-2-8bf1b.iam.gserviceaccount.com"
+// });
 
 // --- Exportación de funciones ---
 
@@ -27,11 +27,11 @@ setGlobalOptions({
 export { createCompanyUser } from "./createCompanyUser";
 export { registrarAvanceRapido } from "./registrarAvanceRapido";
 export { notifyDocumentDistribution } from "./notifyDocumentDistribution";
-export { deactivateCompanyUser } from "./deactivateCompanyUser";
 export { setSuperAdminClaim } from "./setSuperAdmin";
 // export { checkUserExistsByEmail } from "./checkUserExistsByEmail";
 export { testGoogleAi } from "./test-google-ai";
 
-// Funciones v2 (triggers de evento)
+// Funciones v2
+export { deactivateCompanyUser } from "./deactivateCompanyUser";
 export { convertHeicToJpg } from './convertHeic';
 export { processItemizadoJob } from './processItemizadoJob';
