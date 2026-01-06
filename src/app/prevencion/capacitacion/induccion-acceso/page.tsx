@@ -1,3 +1,4 @@
+// src/app/prevencion/capacitacion/induccion-acceso/page.tsx
 "use client";
 
 import { useState, useRef, useEffect } from "react";
@@ -10,10 +11,11 @@ import { firebaseDb } from "@/lib/firebaseClient";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
-import { QrCode } from "lucide-react";
+import { ArrowLeft, QrCode } from "lucide-react";
 import { InduccionAccesoFaena } from "@/lib/prevencionEventos";
 import { useAuth } from "@/context/AuthContext";
 import { Label } from "@/components/ui/label";
+import { useRouter } from 'next/navigation';
 
 
 // --- Tipos y Datos ---
@@ -25,6 +27,7 @@ type ObraCapacitacion = {
 
 // --- Componente Principal ---
 export default function InduccionAccesoPage() {
+  const router = useRouter();
   const { companyId, role } = useAuth();
   const [obras, setObras] = useState<ObraCapacitacion[]>([]);
   const [obraId, setObraId] = useState("");
@@ -100,6 +103,10 @@ export default function InduccionAccesoPage() {
   return (
     <section className="space-y-6 max-w-4xl mx-auto">
       <header className="space-y-2">
+        <Button variant="outline" size="sm" onClick={() => router.push('/prevencion/capacitacion')}>
+          <ArrowLeft className="mr-2 h-4 w-4" />
+          Volver a Capacitación
+        </Button>
         <h1 className="text-3xl font-bold font-headline tracking-tight">
           Inducción de acceso a faena – Visitas
         </h1>
