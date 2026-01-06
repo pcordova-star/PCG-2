@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import Link from "next/link";
 import { ArrowLeft, Loader2, PlusCircle, Trash2, UserPlus } from "lucide-react";
 import { useAuth } from '@/context/AuthContext';
-import { listSubcontractors as listSubcontractorsAction, createSubcontractorAction, deactivateSubcontractorAction, inviteContractorAction } from '@/lib/mclp/subcontractors/actions';
+import { listSubcontractorsAction, createSubcontractorAction, deactivateSubcontractorAction, inviteContractorAction } from '@/lib/mclp/subcontractors/actions';
 
 import { Subcontractor } from '@/types/pcg';
 import { useToast } from '@/hooks/use-toast';
