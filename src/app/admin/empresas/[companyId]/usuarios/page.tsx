@@ -135,7 +135,7 @@ export default function AdminEmpresaUsuariosPage() {
             
         } catch (err: any) {
             console.error("Error al crear el usuario:", err);
-            const errorMessage = err.message || "Ocurrió un problema al crear el usuario.";
+            const errorMessage = err.details?.message || err.message || "Ocurrió un problema al crear el usuario.";
             setError(errorMessage);
             toast({ variant: "destructive", title: "Error al crear", description: errorMessage });
         } finally {
