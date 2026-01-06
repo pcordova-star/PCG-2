@@ -8,4 +8,4 @@ export { deactivateCompanyUser } from "./deactivateCompanyUser";
 
 // --- Triggers de eventos (Gen2) ---
 export { convertHeicToJpg } from './convertHeic';
-export { processItemizadoJob } from './processItemizadoJob';
+// export { processItemizadoJob } from './processItemizadoJob';
