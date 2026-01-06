@@ -4,7 +4,7 @@ import * as admin from 'firebase-admin';
 import * as path from 'path';
 import * as os from 'os';
 import * as fs from 'fs';
-import heicConvert from 'heic-convert';
+const heicConvert = require('heic-convert');
 import sharp from 'sharp';
 import * as logger from "firebase-functions/logger";
 
