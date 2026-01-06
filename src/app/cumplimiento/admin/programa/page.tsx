@@ -10,7 +10,7 @@ import { ArrowLeft } from "lucide-react";
 export default function ProgramaCumplimientoPage() {
   return (
     <div className="space-y-6">
-      <header className="flex items-center gap-4">
+       <header className="flex items-center gap-4">
         <Button variant="outline" size="icon" asChild>
             <Link href="/cumplimiento/admin">
                 <ArrowLeft />
