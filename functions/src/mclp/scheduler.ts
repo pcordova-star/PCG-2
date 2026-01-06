@@ -52,38 +52,88 @@ async function closeAndFinalizePeriod(
     );
 }
 
+// Lógica de creación de período si no existe, leyendo desde el calendario
+async function ensurePeriodExists(
+  db: FirebaseFirestore.Firestore,
+  companyId: string,
+  periodKey: string
+) {
+  const periodId = `${companyId}_${periodKey}`;
+  const periodRef = db.collection("compliancePeriods").doc(periodId);
+  const periodSnap = await periodRef.get();
+
+  if (periodSnap.exists) {
+    return periodRef; // Retorna la referencia si ya existe
+  }
+
+  // Si no existe, lo crea a partir del calendario
+  logger.info(`[${companyId}] Period ${periodKey} does not exist. Creating from calendar.`);
+  const year = periodKey.split('-')[0];
+  const calendarId = `${companyId}_${year}`;
+  const monthRef = db.collection("complianceCalendars").doc(calendarId).collection("months").doc(periodKey);
+  const monthSnap = await monthRef.get();
+
+  if (!monthSnap.exists) {
+    logger.warn(`[${companyId}] Calendar month ${periodKey} not found. Cannot create period.`);
+    return null;
+  }
+
+  const monthData = monthSnap.data()!;
+  
+  await periodRef.set({
+    companyId,
+    periodo: periodKey,
+    // Copia las fechas desde el calendario (snapshot inmutable)
+    corteCarga: monthData.corteCarga,
+    limiteRevision: monthData.limiteRevision,
+    fechaPago: monthData.fechaPago,
+    estado: "Abierto para Carga",
+    createdAt: admin.firestore.Timestamp.now(),
+    updatedAt: admin.firestore.Timestamp.now(),
+  });
+
+  // Marcar el mes del calendario como no editable
+  await monthRef.update({ editable: false, updatedAt: admin.firestore.Timestamp.now() });
+  
+  logger.info(`[${companyId}] Period ${periodKey} created successfully.`);
+  return periodRef;
+}
+
+
 async function processCompanyMclp(
   db: FirebaseFirestore.Firestore,
   companyId: string,
   now: Date
 ) {
-  const programRef = db.collection("compliancePrograms").doc(companyId);
-  const programSnap = await programRef.get();
-  if (!programSnap.exists) return;
-
-  const { diaCorteCarga, diaLimiteRevision, diaPago } = programSnap.data()!;
-  if (!diaCorteCarga || !diaLimiteRevision || !diaPago) return;
-
   const periodKey = getPeriodKeyUTC(now);
-  const periodId = `${companyId}_${periodKey}`;
-  const periodRef = db.collection("compliancePeriods").doc(periodId);
+
+  // Asegura que el período del mes actual exista, creándolo si es necesario
+  const periodRef = await ensurePeriodExists(db, companyId, periodKey);
+  if (!periodRef) return; // No se pudo crear el período, se omite el resto
+
   const periodSnap = await periodRef.get();
-  if (!periodSnap.exists) return;
+  if (!periodSnap.exists) return; // Doble chequeo, no debería ocurrir
 
-  const day = now.getUTCDate();
-  const estado = periodSnap.get("estado");
-
+  const { corteCarga, limiteRevision, fechaPago, estado } = periodSnap.data()!;
+  
+  // Convertir timestamps de Firestore a Date de JS
+  const corteCargaDate = (corteCarga as admin.firestore.Timestamp).toDate();
+  const limiteRevisionDate = (limiteRevision as admin.firestore.Timestamp).toDate();
+  const fechaPagoDate = (fechaPago as admin.firestore.Timestamp).toDate();
+  
   // 1) Marcar En Revisión (después del corte)
-  if (day > diaCorteCarga && estado === "Abierto para Carga") {
-    await periodRef.set(
-      { estado: "En Revisión", updatedAt: admin.firestore.Timestamp.now() },
-      { merge: true }
-    );
+  if (now > corteCargaDate && estado === "Abierto para Carga") {
+    await periodRef.update({
+      estado: "En Revisión",
+      updatedAt: admin.firestore.Timestamp.now(),
+    });
+    logger.info(`[${companyId}] Period ${periodKey} marked as 'En Revisión'.`);
   }
 
-  // 2) Cerrar período (día de pago)
-  if (day >= diaPago && estado !== "Cerrado") {
-    await closeAndFinalizePeriod(db, companyId, periodId);
+  // 2) Cerrar período (en o después del día de pago)
+  if (now >= fechaPagoDate && estado !== "Cerrado") {
+    await closeAndFinalizePeriod(db, companyId, periodRef.id);
+    logger.info(`[${companyId}] Period ${periodKey} finalized and closed.`);
   }
 }
 

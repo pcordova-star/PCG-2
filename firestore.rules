@@ -58,19 +58,19 @@ service cloud.firestore {
     
     // Documentos corporativos (empresa)
     match /companyDocuments/{docId} {
-      allow read: if isSignedIn() && getAuthCompanyId() == resource.data.companyId;
+      allow read: if isSignedIn() && companyId() == resource.data.companyId;
       allow write: if role() == 'admin_empresa' || role() == 'superadmin';
     }
 
     // Documentos de proyecto
     match /projectDocuments/{docId} {
-      allow read: if isSignedIn() && getAuthCompanyId() == resource.data.companyId;
+      allow read: if isSignedIn() && companyId() == resource.data.companyId;
       allow write: if role() == 'admin_empresa' || role() == 'superadmin';
     }
 
     // Distribución (ISO)
     match /documentDistribution/{docId} {
-      allow read: if isSignedIn() && getAuthCompanyId() == resource.data.companyId;
+      allow read: if isSignedIn() && companyId() == resource.data.companyId;
       allow write: if role() == 'superadmin' || role() == 'admin_empresa'; // solo backend normally
     }
 
@@ -99,6 +99,20 @@ service cloud.firestore {
           && company == companyId();
 
         allow delete: if false;
+      }
+    }
+    
+    // Calendarios de Cumplimiento (NUEVO)
+    match /complianceCalendars/{calendarId} {
+      allow read: if isSignedIn() && mclpEnabled() && companyId() == resource.data.companyId;
+      allow write: if isSignedIn() && role() == 'admin_empresa' && companyId() == request.resource.data.companyId;
+      
+      match /months/{monthId} {
+          allow read: if isSignedIn() && mclpEnabled() && companyId() == get(/databases/$(database)/documents/complianceCalendars/$(calendarId)).data.companyId;
+          allow create: if isSignedIn() && role() == 'admin_empresa';
+          // Solo se puede editar un mes si su flag 'editable' es true.
+          allow update: if isSignedIn() && role() == 'admin_empresa' && resource.data.editable == true;
+          allow delete: if false;
       }
     }
 
