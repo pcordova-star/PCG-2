@@ -1,5 +1,4 @@
 // functions/src/convertHeic.ts
-
 import { onObjectFinalized } from "firebase-functions/v2/storage";
 import * as admin from 'firebase-admin';
 import * as path from 'path';
@@ -9,8 +8,6 @@ import heicConvert from 'heic-convert';
 import sharp from 'sharp';
 import * as logger from "firebase-functions/logger";
 
-
-// Asegurarse de que Firebase Admin esté inicializado
 if (!admin.apps.length) {
   admin.initializeApp();
 }

@@ -11,21 +11,10 @@
     "rootDir": "src",
     "esModuleInterop": true,
     "skipLibCheck": true,
-    "noImplicitAny": false,
-    "types": [
-      "node"
-    ],
-    "typeRoots": [
-      "./node_modules/@types"
-    ]
+    "noImplicitAny": false
   },
   "compileOnSave": true,
   "include": [
     "src/**/*.ts"
-  ],
-  "exclude": [
-    "node_modules",
-    "**/*.spec.ts",
-    "**/*.test.ts"
   ]
 }
