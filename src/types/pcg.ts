@@ -526,6 +526,27 @@ export interface EstadoCumplimientoPeriodo {
     asignadoPorUid: string;
 }
 
+// NUEVAS INTERFACES PARA CALENDARIO
+export interface ComplianceCalendar {
+  id: string; // companyId_year
+  companyId: string;
+  year: number;
+  locked: boolean;
+  createdAt: Timestamp;
+  updatedAt: Timestamp;
+}
+
+export interface ComplianceCalendarMonth {
+  id: string; // YYYY-MM
+  month: string; // "2026-03"
+  corteCarga: Timestamp;
+  limiteRevision: Timestamp;
+  fechaPago: Timestamp;
+  editable: boolean;
+  createdAt: Timestamp;
+  updatedAt: Timestamp;
+}
+
 // RDI Types
 export interface Rdi {
   id: string;
