@@ -16,29 +16,44 @@ export default function QrInduccionPage() {
   const router = useRouter();
 
   const allowedRoles = ['superadmin', 'admin_empresa', 'prevencionista'];
-  const canGenerate = !authLoading && user && allowedRoles.includes(role);
-
+  
   useEffect(() => {
-    if (!canGenerate || !obraId) {
+    if (authLoading) {
+      return; // Esperar a que la autenticación termine
+    }
+    if (!user || !allowedRoles.includes(role)) {
+      // Si después de cargar no hay usuario o el rol no es válido, no hacer nada.
+      // El renderizado se encargará de mostrar el error.
       return;
     }
 
-    // Lógica robusta para determinar la URL base del frontend público
+    if (!obraId) {
+      return;
+    }
+
     const publicBaseUrl = 
       process.env.NEXT_PUBLIC_PUBLIC_BASE_URL || 
-      'https://pcg-2.vercel.app'; // Fallback a la URL de producción
+      'https://pcg-2.vercel.app';
       
     const generadorId = user.uid;
-    // CORRECCIÓN: La URL debe apuntar a la ruta PÚBLICA, no a la interna.
     const finalUrl = `${publicBaseUrl}/public/induccion/${obraId}?g=${encodeURIComponent(generadorId)}`;
     setUrl(finalUrl);
 
-  }, [obraId, user, authLoading, canGenerate, role]);
+  }, [obraId, user, authLoading, role, router]);
 
+  // Manejo explícito del estado de carga
   if (authLoading) {
-    return <div className="p-8 text-center"><Loader2 className="animate-spin" /> Cargando datos de usuario...</div>;
+    return (
+        <div className="flex flex-col items-center justify-center min-h-screen text-center p-4">
+            <Loader2 className="h-12 w-12 animate-spin text-primary mb-4" />
+            <p className="text-muted-foreground">Verificando permisos...</p>
+        </div>
+    );
   }
   
+  // Una vez que no está cargando, verificamos los permisos
+  const canGenerate = user && allowedRoles.includes(role);
+
   if (!canGenerate) {
     return (
         <div className="flex flex-col items-center justify-center min-h-screen text-center p-4">
