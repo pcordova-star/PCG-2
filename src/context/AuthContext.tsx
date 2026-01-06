@@ -15,10 +15,10 @@ import {
   ReactNode,
 } from "react";
 import { firebaseAuth, firebaseDb } from "@/lib/firebaseClient";
-import { useRouter } from "next/navigation";
+import { useRouter, usePathname } from "next/navigation";
 import { doc, getDoc, setDoc, serverTimestamp, collection, query, where, limit, writeBatch, getDocs } from "firebase/firestore";
 import { UserRole } from "@/lib/roles";
-import { AppUser, UserInvitation } from "@/types/pcg";
+import { AppUser, UserInvitation, Company } from "@/types/pcg";
 
 
 async function activateUserFromInvitation(firebaseUser: User): Promise<{role: UserRole, companyId: string | null}> {
@@ -102,6 +102,7 @@ type AuthContextValue = {
   user: User | null;
   role: UserRole;
   companyId: string | null;
+  company: Company | null;
   loading: boolean;
   login: (email: string, password: string) => Promise<void>;
   logout: () => Promise<void>;
@@ -113,8 +114,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [role, setRole] = useState<UserRole>("none");
   const [companyId, setCompanyId] = useState<string | null>(null);
+  const [company, setCompany] = useState<Company | null>(null);
   const [loading, setLoading] = useState(true);
   const router = useRouter();
+  const pathname = usePathname();
 
   useEffect(() => {
     const unsub = onAuthStateChanged(firebaseAuth, async (firebaseUser) => {
@@ -144,22 +147,42 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         
         if (userRole === 'none') {
             router.replace('/sin-acceso');
-        } else {
-             if (window.location.pathname.startsWith('/login')) {
-                router.replace('/dashboard');
-            }
+        } else if (pathname.startsWith('/login') || pathname === '/') {
+           const targetPath = userRole === 'cliente' ? '/cliente' : userRole === 'contratista' ? '/cumplimiento/contratista' : '/dashboard';
+           router.replace(targetPath);
         }
         
       } else {
         setUser(null);
         setRole("none");
         setCompanyId(null);
+        setCompany(null);
       }
       setLoading(false);
     });
 
     return () => unsub();
-  }, [router]);
+  }, [router, pathname]);
+
+  useEffect(() => {
+    if (companyId) {
+        const companyRef = doc(firebaseDb, "companies", companyId);
+        const unsub = onAuthStateChanged(firebaseAuth, user => {
+            if(user) {
+                getDoc(companyRef).then(docSnap => {
+                    if (docSnap.exists()) {
+                        setCompany({ id: docSnap.id, ...docSnap.data() } as Company);
+                    } else {
+                        setCompany(null);
+                    }
+                });
+            }
+        });
+        return () => unsub();
+    } else {
+        setCompany(null);
+    }
+}, [companyId]);
 
   async function login(email: string, password: string) {
     try {
@@ -182,6 +205,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setUser(null);
       setRole("none");
       setCompanyId(null);
+      setCompany(null);
       router.push('/');
     } catch (error) {
       console.error("Error al cerrar sesión", error);
@@ -192,6 +216,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     user,
     role,
     companyId,
+    company,
     loading,
     login,
     logout,

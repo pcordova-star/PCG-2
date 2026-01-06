@@ -23,6 +23,7 @@ export interface Company {
   feature_compliance_module_enabled?: boolean; // Feature flag para el nuevo módulo
   createdAt: Date | Timestamp;
   updatedAt?: Date | Timestamp;
+  [key: string]: any; // Para permitir acceso dinámico a feature flags
 }
 
 
@@ -66,6 +67,7 @@ export type RolInvitado = "admin_empresa" | "jefe_obra" | "prevencionista" | "cl
 export interface UserInvitation {
     id?: string;
     email: string;
+    nombre?: string;
     empresaId: string;
     empresaNombre: string;
     roleDeseado: RolInvitado;
