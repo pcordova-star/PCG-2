@@ -1,6 +1,5 @@
-
 // functions/src/createCompanyUser.ts
-import { onCall, HttpsError } from "firebase-functions/v2/https";
+import * as functions from 'firebase-functions';
 import * as admin from "firebase-admin";
 import * as logger from "firebase-functions/logger";
 
@@ -8,63 +7,55 @@ if (!admin.apps.length) {
   admin.initializeApp();
 }
 
-export const createCompanyUser = onCall(
-  {
-    region: "southamerica-west1",
-    cpu: 1,
-    memory: "256MiB",
-    timeoutSeconds: 60,
-    cors: true
-  },
-  async (request) => {
+export const createCompanyUser = functions
+  .region("southamerica-west1")
+  .https.onCall(async (data, context) => {
     
-    // --- Log Defensivo Inicial ---
     logger.info("[createCompanyUser] Invoked", {
       auth: {
-        uid: request.auth?.uid,
-        token: request.auth?.token.email,
+        uid: context.auth?.uid,
+        token: context.auth?.token.email,
       },
       data: {
-        companyId: request.data.companyId,
-        email: request.data.email,
-        nombre: request.data.nombre,
-        role: request.data.role,
-        hasPassword: !!request.data.password,
+        companyId: data.companyId,
+        email: data.email,
+        nombre: data.nombre,
+        role: data.role,
+        hasPassword: !!data.password,
       }
     });
 
     try {
       const auth = admin.auth();
       const db = admin.firestore();
-      const ctx = request.auth;
+      const ctx = context.auth;
 
       if (!ctx || !ctx.uid) {
         logger.error("[createCompanyUser] Error: La función fue llamada sin un contexto de autenticación válido.");
-        throw new HttpsError("unauthenticated", "No autenticado o UID no disponible.");
+        throw new functions.https.HttpsError("unauthenticated", "No autenticado o UID no disponible.");
       }
 
       const requesterClaims = await auth.getUser(ctx.uid);
       if (requesterClaims.customClaims?.role !== "superadmin") {
         logger.warn(`[createCompanyUser] Permission denied for user ${ctx.uid}. Role is not 'superadmin'.`);
-        throw new HttpsError("permission-denied", "Solo SUPER_ADMIN puede crear usuarios.");
+        throw new functions.https.HttpsError("permission-denied", "Solo SUPER_ADMIN puede crear usuarios.");
       }
 
-      const data = request.data;
       if (!data.companyId || !data.email || !data.nombre || !data.role) {
         logger.error("[createCompanyUser] Error: Faltan campos obligatorios.", { data });
-        throw new HttpsError("invalid-argument", "Faltan campos obligatorios: companyId, email, nombre, role.");
+        throw new functions.https.HttpsError("invalid-argument", "Faltan campos obligatorios: companyId, email, nombre, role.");
       }
       
       if (!data.password || typeof data.password !== 'string' || data.password.length < 6) {
         logger.error("[createCompanyUser] Error: Contraseña inválida o ausente.");
-        throw new HttpsError("invalid-argument", "La contraseña es obligatoria y debe ser un string de al menos 6 caracteres.");
+        throw new functions.https.HttpsError("invalid-argument", "La contraseña es obligatoria y debe ser un string de al menos 6 caracteres.");
       }
 
       const companyRef = db.collection("companies").doc(data.companyId);
       const companySnap = await companyRef.get();
       if (!companySnap.exists) {
         logger.error(`[createCompanyUser] Error: Empresa con ID ${data.companyId} no encontrada.`);
-        throw new HttpsError("not-found", "La empresa no existe.");
+        throw new functions.https.HttpsError("not-found", "La empresa no existe.");
       }
       const companyData = companySnap.data();
 
@@ -82,9 +73,9 @@ export const createCompanyUser = onCall(
       } catch (error: any) {
         logger.error("[createCompanyUser] Error al crear usuario en Firebase Auth:", error);
         if (error.code === 'auth/email-already-exists') {
-          throw new HttpsError("already-exists", "Ya existe un usuario con este correo electrónico.");
+          throw new functions.https.HttpsError("already-exists", "Ya existe un usuario con este correo electrónico.");
         }
-        throw new HttpsError("internal", `Error interno al crear el usuario en Auth: ${error.message}`);
+        throw new functions.https.HttpsError("internal", `Error interno al crear el usuario en Auth: ${error.message}`);
       }
 
       const uid = userRecord.uid;
@@ -111,7 +102,7 @@ export const createCompanyUser = onCall(
         logger.error(`[createCompanyUser] Error al guardar perfil/claims para UID ${uid}. Revirtiendo creación en Auth...`, dbError);
         await auth.deleteUser(uid);
         logger.info(`[createCompanyUser] Usuario con UID ${uid} eliminado de Auth debido a error en Firestore.`);
-        throw new HttpsError("internal", `No se pudo crear el perfil del usuario en la base de datos. Se ha revertido la creación. Error: ${dbError.message}`);
+        throw new functions.https.HttpsError("internal", `No se pudo crear el perfil del usuario en la base de datos. Se ha revertido la creación. Error: ${dbError.message}`);
       }
 
       logger.info(`[createCompanyUser] Proceso completado con éxito para ${data.email}.`);
@@ -129,11 +120,11 @@ export const createCompanyUser = onCall(
           details: error.details,
       });
 
-      if (error instanceof HttpsError) {
+      if (error instanceof functions.https.HttpsError) {
         throw error;
       }
       
-      throw new HttpsError("internal", "Ocurrió un error inesperado.", error.message);
+      throw new functions.https.HttpsError("internal", "Ocurrió un error inesperado.", error.message);
     }
   }
 );
