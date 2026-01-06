@@ -1,3 +1,4 @@
+
 // functions/src/createCompanyUser.ts
 import * as functions from 'firebase-functions';
 import * as admin from "firebase-admin";
@@ -7,15 +8,14 @@ if (!admin.apps.length) {
   admin.initializeApp();
 }
 
-const APP_BASE_URL = "https://www.pcgoperacion.com";
-
 export const createCompanyUser = functions
   .region("southamerica-west1")
   .https.onCall(async (data, context) => {
-
+    
     if (!context.auth) {
       throw new functions.https.HttpsError("unauthenticated", "No autenticado.");
     }
+    
     const auth = admin.auth();
     const db = admin.firestore();
 
@@ -35,40 +35,36 @@ export const createCompanyUser = functions
     if (!companyId || !email || !nombre || !role) {
       throw new functions.https.HttpsError("invalid-argument", "Faltan campos obligatorios: companyId, email, nombre, role.");
     }
+    
+    if (!password || password.length < 6) {
+        throw new functions.https.HttpsError(
+            "invalid-argument",
+            "La contraseña es obligatoria y debe tener al menos 6 caracteres."
+        );
+    }
 
     const companyRef = db.collection("companies").doc(companyId);
     const companySnap = await companyRef.get();
     if (!companySnap.exists) {
       throw new functions.https.HttpsError("not-found", "La empresa no existe.");
     }
-    const companyData = companySnap.data()!;
 
     let userRecord;
     try {
-      userRecord = await auth.getUserByEmail(email);
-      logger.info(`Usuario existente encontrado para ${email}. Reutilizando UID: ${userRecord.uid}`);
+      userRecord = await auth.createUser({
+        email: email,
+        password: password,
+        displayName: nombre,
+        emailVerified: true, // Lo creamos verificado para que el usuario no tenga que hacer nada
+        disabled: false,
+      });
+      logger.info(`Usuario creado con éxito para ${email} con UID: ${userRecord.uid}`);
     } catch (error: any) {
-      if (error.code === 'auth/user-not-found') {
-        logger.info(`No existe usuario para ${email}. Creando uno nuevo.`);
-        
-        if (!password || password.length < 6) {
-          throw new functions.https.HttpsError(
-              "invalid-argument",
-              "La contraseña es obligatoria para usuarios nuevos y debe tener al menos 6 caracteres."
-          );
-        }
-
-        userRecord = await auth.createUser({
-          email: email,
-          password: password,
-          displayName: nombre,
-          emailVerified: false,
-          disabled: false,
-        });
-      } else {
-        logger.error("Error en Auth al buscar usuario:", error);
-        throw new functions.https.HttpsError("internal", "Error verificando el usuario en Auth.", error.message);
+      if (error.code === 'auth/email-already-exists') {
+        throw new functions.https.HttpsError("already-exists", "Ya existe un usuario con este correo electrónico.");
       }
+      logger.error("Error creando usuario en Firebase Auth:", error);
+      throw new functions.https.HttpsError("internal", "Error interno al crear el usuario en Auth.", error);
     }
 
     const uid = userRecord.uid;
@@ -89,43 +85,9 @@ export const createCompanyUser = functions
       activo: true,
       createdAt: now,
       updatedAt: now,
-      mustChangePassword: !!password, // Forzar cambio si se creó con pass temporal
     }, { merge: true });
     
-    const invitationRef = db.collection("invitacionesUsuarios").doc();
-    const invitationId = invitationRef.id;
-    await invitationRef.set({
-        email: email,
-        empresaId: companyId,
-        empresaNombre: companyData?.nombreFantasia || companyData?.razonSocial || '',
-        roleDeseado: role,
-        estado: 'pendiente_auth', 
-        createdAt: now,
-        creadoPorUid: context.auth.uid,
-    });
-    
-    const actionCodeSettings = {
-        url: `${APP_BASE_URL}/accept-invite?invId=${encodeURIComponent(invitationId)}&email=${encodeURIComponent(email)}`,
-        handleCodeInApp: false,
-    };
-
-    const passwordResetLink = await auth.generatePasswordResetLink(email, actionCodeSettings);
-
-    await db.collection("mail").add({
-      to: [email],
-      message: {
-        subject: `Bienvenido a PCG - Acceso para ${companyData?.nombreFantasia || companyData?.razonSocial}`,
-        html: `
-            <p>Hola ${nombre},</p>
-            <p>Has sido registrado en la plataforma PCG para la empresa <strong>${companyData?.nombreFantasia || companyData?.razonSocial}</strong>.</p>
-            <p>Tu rol asignado es: <strong>${role}</strong>.</p>
-            <p>Para completar tu registro y activar tu cuenta, por favor establece tu contraseña haciendo clic en el siguiente enlace:</p>
-            <p><a href="${passwordResetLink}">Activar mi cuenta y definir contraseña</a></p>
-            <p>Si el botón no funciona, copia y pega esta URL en tu navegador:</p>
-            <p><a href="${passwordResetLink}">${passwordResetLink}</a></p>
-            <p>Gracias,<br>El equipo de PCG</p>`,
-      },
-    });
+    // Ya no se envía correo, la creación es directa.
 
     return {
       uid,
@@ -133,5 +95,6 @@ export const createCompanyUser = functions
       nombre: nombre,
       role: role,
       companyId: companyId,
+      message: 'Usuario creado directamente y con éxito.'
     };
 });

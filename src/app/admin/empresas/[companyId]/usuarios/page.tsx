@@ -226,34 +226,6 @@ export default function AdminEmpresaUsuariosPage() {
                 </CardContent>
             </Card>
 
-            <Card>
-                <CardHeader>
-                    <CardTitle>Usuarios Pendientes de Activación</CardTitle>
-                     <CardDescription>Esta sección es para el flujo antiguo de invitaciones y puede ser eliminada.</CardDescription>
-                </CardHeader>
-                <CardContent>
-                     <Table>
-                        <TableHeader>
-                            <TableRow><TableHead>Email</TableHead><TableHead>Nombre</TableHead><TableHead>Rol Asignado</TableHead><TableHead>Fecha Invitación</TableHead></TableRow>
-                        </TableHeader>
-                        <TableBody>
-                           {loadingInvites ? (
-                                <TableRow><TableCell colSpan={4} className="text-center h-24"><Loader2 className="animate-spin mx-auto" /></TableCell></TableRow>
-                            ) : pendingInvitations.length === 0 ? (
-                                <TableRow><TableCell colSpan={4} className="text-center h-24">No hay usuarios pendientes.</TableCell></TableRow>
-                            ) : pendingInvitations.map((inv) => (
-                                <TableRow key={inv.id}>
-                                    <TableCell>{inv.email}</TableCell>
-                                    <TableCell>{inv.nombre}</TableCell>
-                                    <TableCell><Badge variant="outline">{inv.roleDeseado}</Badge></TableCell>
-                                    <TableCell>{inv.createdAt?.toDate().toLocaleDateString() || 'N/A'}</TableCell>
-                                </TableRow>
-                            ))}
-                        </TableBody>
-                    </Table>
-                </CardContent>
-            </Card>
-
             <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
                 <DialogContent>
                     <form onSubmit={handleFormSubmit}>
