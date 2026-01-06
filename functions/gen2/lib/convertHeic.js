@@ -43,7 +43,7 @@ const admin = __importStar(require("firebase-admin"));
 const path = __importStar(require("path"));
 const os = __importStar(require("os"));
 const fs = __importStar(require("fs"));
-const heic_convert_1 = __importDefault(require("heic-convert"));
+const heicConvert = require('heic-convert');
 const sharp_1 = __importDefault(require("sharp"));
 const logger = __importStar(require("firebase-functions/logger"));
 if (!admin.apps.length) {
@@ -84,7 +84,7 @@ exports.convertHeicToJpg = (0, storage_1.onObjectFinalized)({
         await storageBucket.file(filePath).download({ destination: tempFilePath });
         logger.log(`Downloaded HEIC file to: ${tempFilePath}`);
         const inputBuffer = fs.readFileSync(tempFilePath);
-        const outputBuffer = await (0, heic_convert_1.default)({
+        const outputBuffer = await heicConvert({
             buffer: inputBuffer,
             format: 'JPEG',
             quality: 1,

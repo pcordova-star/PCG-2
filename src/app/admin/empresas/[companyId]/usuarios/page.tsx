@@ -133,6 +133,8 @@ export default function AdminEmpresaUsuariosPage() {
             });
 
             const result = await response.json();
+            console.log("createCompanyUser response:", result);
+
             if (!response.ok) {
                 throw new Error(result.error || `Error ${response.status}`);
             }
