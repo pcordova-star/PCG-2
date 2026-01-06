@@ -25,7 +25,7 @@ export const createCompanyUser = onRequest(
       }
 
       try {
-        // 1. Autenticación Manual
+        // 1. Autenticación Manual del Token
         const authHeader = req.headers.authorization;
         if (!authHeader || !authHeader.startsWith("Bearer ")) {
           res.status(401).json({ success: false, error: "Unauthorized: No token provided." });
