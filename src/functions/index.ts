@@ -1,3 +1,4 @@
+
 // src/functions/src/index.ts
 
 /**
@@ -20,14 +21,17 @@ setGlobalOptions({
   serviceAccount: "pcg-functions-sa@pcg-2-8bf1b.iam.gserviceaccount.com"
 });
 
+// --- Exportación de funciones ---
 
-// Exporta las funciones callable para que estén disponibles en el backend.
-// El nombre de la propiedad del objeto exportado será el nombre de la función en Firebase.
+// Funciones v1 (callable y http)
 export { createCompanyUser } from "./createCompanyUser";
-export { setSuperAdminClaim } from "./setSuperAdmin";
 export { registrarAvanceRapido } from "./registrarAvanceRapido";
-export { convertHeicToJpg } from "./convertHeic";
 export { notifyDocumentDistribution } from "./notifyDocumentDistribution";
-export { processItemizadoJob } from "./processItemizadoJob";
-// La siguiente línea está comentada porque el archivo de origen fue eliminado.
-// export { getSecureDownloadUrl } from "./secureDownload";
+export { deactivateCompanyUser } from "./deactivateCompanyUser";
+export { setSuperAdminClaim } from "./setSuperAdmin";
+export { checkUserExistsByEmail } from "./checkUserExistsByEmail";
+export { testGoogleAi } from "./test-google-ai";
+
+// Funciones v2 (triggers de evento)
+export { convertHeicToJpg } from './convertHeic';
+export { processItemizadoJob } from './processItemizadoJob';
