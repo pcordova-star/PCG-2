@@ -1,3 +1,4 @@
+
 // src/app/cumplimiento/page.tsx
 "use client";
 
@@ -15,7 +16,7 @@ export default function CumplimientoPage() {
       if (role === 'admin_empresa' || role === 'superadmin') {
         router.replace('/cumplimiento/admin');
       } else if (role === 'contratista') {
-        router.replace('/cumplimiento/contratista');
+        router.replace('/cumplimiento/contratista/dashboard');
       } else {
         // Si otro rol llega aquí, lo mandamos a su dashboard
         router.replace('/dashboard');

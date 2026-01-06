@@ -1,5 +1,5 @@
 
-// src/app/cumplimiento/contratista/page.tsx
+// src/app/cumplimiento/contratista/dashboard/page.tsx
 "use client";
 
 import { useAuth } from "@/context/AuthContext";
@@ -10,7 +10,6 @@ import { useEffect, useState } from "react";
 import { Loader2, CheckCircle, AlertTriangle, Clock } from "lucide-react";
 import { cn } from "@/lib/utils";
 
-// --- Tipos de Datos (Simulados por ahora) ---
 type EstadoCumplimiento = "CUMPLIENDO" | "EN_REVISION" | "ACCION_REQUERIDA" | "PENDIENTE_DE_CARGA";
 type EstadoDocumento = "Aprobado" | "En Revisión" | "Observado" | "Pendiente de Carga";
 
