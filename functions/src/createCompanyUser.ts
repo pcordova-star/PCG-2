@@ -7,15 +7,20 @@ if (!admin.apps.length) {
   admin.initializeApp();
 }
 
-const APP_BASE_URL = "https://www.pcgoperacion.com";
-
+/**
+ * Crea un usuario de forma atómica en Firebase Auth y Firestore.
+ * Recibe email, password, nombre, rol y companyId.
+ * Si la creación del perfil en Firestore falla, revierte la creación en Auth.
+ */
 export const createCompanyUser = functions
   .region("southamerica-west1")
   .https.onCall(async (data, context) => {
-
+    
+    // 1. Validar autenticación y permisos del solicitante
     if (!context.auth) {
       throw new functions.https.HttpsError("unauthenticated", "No autenticado.");
     }
+    
     const auth = admin.auth();
     const db = admin.firestore();
 
@@ -24,103 +29,78 @@ export const createCompanyUser = functions
       throw new functions.https.HttpsError("permission-denied", "Solo SUPER_ADMIN puede crear usuarios.");
     }
     
-    const { companyId, email, nombre, role } = data as {
+    // 2. Validar datos de entrada
+    const { companyId, email, nombre, role, password } = data as {
       companyId: string;
       email: string;
       nombre: string;
       role: "admin_empresa" | "jefe_obra" | "prevencionista" | "cliente";
+      password?: string;
     };
 
-    if (!companyId || !email || !nombre || !role) {
-      throw new functions.https.HttpsError("invalid-argument", "Faltan campos obligatorios: companyId, email, nombre, role.");
+    if (!companyId || !email || !nombre || !role || !password || password.length < 6) {
+      throw new functions.https.HttpsError("invalid-argument", "Faltan campos obligatorios o la contraseña es muy corta (mínimo 6 caracteres).");
     }
-
+    
     const companyRef = db.collection("companies").doc(companyId);
     const companySnap = await companyRef.get();
     if (!companySnap.exists) {
-      throw new functions.https.HttpsError("not-found", "La empresa no existe.");
+      throw new functions.https.HttpsError("not-found", "La empresa especificada no existe.");
     }
-    const companyData = companySnap.data()!;
 
+    // 3. Crear usuario en Firebase Auth
     let userRecord;
     try {
-      userRecord = await auth.getUserByEmail(email);
-      logger.info(`Usuario existente encontrado para ${email}. Reutilizando UID: ${userRecord.uid}`);
+      userRecord = await auth.createUser({
+        email,
+        password,
+        displayName: nombre,
+        emailVerified: true, // Se asume que el admin verifica el email
+        disabled: false,
+      });
+      logger.info(`Usuario creado en Auth para ${email} con UID: ${userRecord.uid}`);
     } catch (error: any) {
-      if (error.code === 'auth/user-not-found') {
-        logger.info(`No existe usuario para ${email}. Creando uno nuevo.`);
-        userRecord = await auth.createUser({
-          email: email,
-          displayName: nombre,
-          emailVerified: false,
-          disabled: false,
-        });
-      } else {
-        logger.error("Error en Auth al buscar usuario:", error);
-        throw new functions.https.HttpsError("internal", "Error verificando el usuario en Auth.", error.message);
+      if (error.code === 'auth/email-already-exists') {
+        throw new functions.https.HttpsError("already-exists", "Ya existe un usuario con este correo electrónico.");
       }
+      logger.error("Error creando usuario en Firebase Auth:", error);
+      throw new functions.https.HttpsError("internal", `Error interno al crear el usuario en Auth: ${error.message}`);
     }
 
     const uid = userRecord.uid;
 
-    await auth.setCustomUserClaims(uid, {
-      role: role,
-      companyId: companyId,
-    });
+    try {
+        // 4. Asignar Custom Claims (rol y empresa)
+        await auth.setCustomUserClaims(uid, { role, companyId });
 
-    const now = admin.firestore.FieldValue.serverTimestamp();
-    
-    const userProfileRef = db.collection("users").doc(uid);
-    await userProfileRef.set({
-      nombre: nombre,
-      email: email,
-      role: role,
-      empresaId: companyId,
-      activo: true,
-      createdAt: now,
-      updatedAt: now,
-    }, { merge: true });
-    
-    const invitationRef = db.collection("invitacionesUsuarios").doc();
-    const invitationId = invitationRef.id;
-    await invitationRef.set({
-        email: email,
-        empresaId: companyId,
-        empresaNombre: companyData?.nombreFantasia || companyData?.razonSocial || '',
-        roleDeseado: role,
-        estado: 'pendiente_auth', 
-        createdAt: now,
-        creadoPorUid: context.auth.uid,
-    });
-    
-    const actionCodeSettings = {
-        url: `${APP_BASE_URL}/accept-invite?invId=${encodeURIComponent(invitationId)}&email=${encodeURIComponent(email)}`,
-        handleCodeInApp: false,
-    };
+        // 5. Crear el documento del usuario en Firestore
+        const userProfileRef = db.collection("users").doc(uid);
+        await userProfileRef.set({
+            nombre,
+            email,
+            role,
+            empresaId: companyId,
+            activo: true,
+            createdAt: admin.firestore.FieldValue.serverTimestamp(),
+            updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+        });
+        
+        logger.info(`Perfil de usuario creado en Firestore para UID: ${uid}`);
 
-    const passwordResetLink = await auth.generatePasswordResetLink(email, actionCodeSettings);
+        // 6. Retornar éxito
+        return {
+            uid,
+            email,
+            message: 'Usuario creado y registrado en la base de datos con éxito.'
+        };
 
-    await db.collection("mail").add({
-      to: [email],
-      message: {
-        subject: `Bienvenido a PCG - Acceso para ${companyData?.nombreFantasia || companyData?.razonSocial}`,
-        html: `
-            <p>Hola ${nombre},</p>
-            <p>Has sido registrado en la plataforma PCG para la empresa <strong>${companyData?.nombreFantasia || companyData?.razonSocial}</strong>.</p>
-            <p>Tu rol asignado es: <strong>${role}</strong>.</p>
-            <p>Para completar tu registro y activar tu cuenta, por favor establece tu contraseña haciendo clic en el siguiente enlace:</p>
-            <p><a href="${passwordResetLink}">Activar mi cuenta y definir contraseña</a></p>
-            <p>Si el botón no funciona, copia y pega esta URL en tu navegador:</p>
-            <p><a href="${passwordResetLink}">${passwordResetLink}</a></p>
-            <p>Gracias,<br>El equipo de PCG</p>`,
-      },
-    });
-
-    return {
-      uid,
-      email: email,
-      nombre: nombre,
-      role: role,
-      companyId: companyId,
-    };
+    } catch (dbError: any) {
+        // --- ROLLBACK MANUAL ---
+        // Si falla la creación en Firestore o los claims, eliminamos el usuario de Auth.
+        logger.error(`Error al guardar perfil/claims para UID ${uid}. Revirtiendo creación en Auth...`, dbError);
+        await auth.deleteUser(uid);
+        logger.info(`Usuario con UID ${uid} eliminado de Auth debido a error en Firestore.`);
+        
+        throw new functions.https.HttpsError("internal", `No se pudo crear el perfil del usuario en la base de datos. Se ha revertido la creación. Error: ${dbError.message}`);
+    }
 });

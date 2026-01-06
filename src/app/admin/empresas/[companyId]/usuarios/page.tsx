@@ -39,11 +39,9 @@ export default function AdminEmpresaUsuariosPage() {
 
     const [company, setCompany] = useState<Company | null>(null);
     const [activeUsers, setActiveUsers] = useState<AppUser[]>([]);
-    const [pendingInvitations, setPendingInvitations] = useState<UserInvitation[]>([]);
-
+    
     const [loadingCompany, setLoadingCompany] = useState(true);
     const [loadingUsers, setLoadingUsers] = useState(true);
-    const [loadingInvites, setLoadingInvites] = useState(true);
     const [error, setError] = useState<string | null>(null);
 
     const [dialogOpen, setDialogOpen] = useState(false);
@@ -96,31 +94,10 @@ export default function AdminEmpresaUsuariosPage() {
             setLoadingUsers(false);
         });
 
-        const invitesQuery = query(
-            collection(firebaseDb, "invitacionesUsuarios"),
-            where("empresaId", "==", companyId),
-            where("estado", "==", "pendiente"),
-            orderBy("createdAt", "desc")
-        );
-
-        const unsubInvites = onSnapshot(invitesQuery, (snapshot) => {
-            const invitesData = snapshot.docs.map(doc => ({
-                id: doc.id,
-                ...doc.data(),
-            } as UserInvitation));
-            setPendingInvitations(invitesData);
-            setLoadingInvites(false);
-        }, (err) => {
-            console.error("Error fetching pending invites:", err);
-            setError("No se pudieron cargar las invitaciones pendientes. Es posible que falte un índice en Firestore.");
-            setLoadingInvites(false);
-        });
-
 
         return () => {
             unsubCompany();
             unsubUsers();
-            unsubInvites();
         };
     }, [isSuperAdmin, companyId, router, loadingCompany]);
 
