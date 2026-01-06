@@ -41,7 +41,16 @@ export async function getComplianceProgramAction(companyId: string) {
     }
     
     const data = snap.data();
-    return { id: snap.id, ...data } as ProgramaCumplimiento;
+    if (!data) return null;
+
+    // Convertir Timestamps a strings ISO para serialización
+    const serializedData = {
+        ...data,
+        createdAt: data.createdAt instanceof Timestamp ? data.createdAt.toDate().toISOString() : new Date().toISOString(),
+        updatedAt: data.updatedAt instanceof Timestamp ? data.updatedAt.toDate().toISOString() : new Date().toISOString(),
+    };
+
+    return { id: snap.id, ...serializedData } as ProgramaCumplimiento;
   });
 }
 
