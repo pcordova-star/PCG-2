@@ -1,7 +1,7 @@
 "use client";
 // Convertido a client component para evitar errores de prerender en /admin/invitaciones con next export.
 
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, FormEvent } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
@@ -61,16 +61,18 @@ export default function AdminUsuariosPage() {
             }
         };
         
-        // Se quita el orderBy('createdAt') para evitar el error de índice compuesto en Firestore.
-        // El ordenamiento se hará en el cliente.
         const unsubInvitations = onSnapshot(
             query(collection(firebaseDb, "invitacionesUsuarios")),
             (snapshot) => {
-                const invitationsData = snapshot.docs.map(doc => ({
+                const invitationsData = snapshot.docs.map(doc => {
+                  const data = doc.data();
+                  return {
                     id: doc.id,
-                    ...doc.data(),
-                    createdAt: doc.data().createdAt?.toDate(),
-                } as UserInvitation));
+                    ...data,
+                    // Asegurar que createdAt es un objeto Date
+                    createdAt: data.createdAt?.toDate ? data.createdAt.toDate() : new Date(),
+                  } as UserInvitation;
+                });
                 
                 // Ordenar en el cliente
                 invitationsData.sort((a, b) => {
@@ -103,12 +105,6 @@ export default function AdminUsuariosPage() {
             return matchCompany && matchStatus;
         });
     }, [invitations, filtroEmpresa, filtroEstado]);
-
-    /**
-     * Flow global deshabilitado: fuente única createCompanyUser
-    const handleCreateInvitation = async (e: FormEvent) => { ... };
-    const handleResendInvitation = async (inv: UserInvitation) => { ... };
-    */
 
     const handleRevokeInvitation = async (invitationId: string) => {
         try {
@@ -209,7 +205,7 @@ export default function AdminUsuariosPage() {
                             <SelectContent>
                                 <SelectItem value="all">Todos los estados</SelectItem>
                                 <SelectItem value="pendiente">Pendiente</SelectItem>
-                                <SelectItem value="aceptada">Aceptada</SelectItem>
+                                <SelectItem value="activado">Activado</SelectItem>
                                 <SelectItem value="revocada">Revocada</SelectItem>
                             </SelectContent>
                         </Select>
@@ -291,7 +287,7 @@ export default function AdminUsuariosPage() {
                                                     </AlertDialogContent>
                                                 </AlertDialog>
                                             )}
-                                             {inv.estado === 'revocada' && (
+                                             {(inv.estado === 'revocada' || inv.estado === 'activado') && (
                                                 <AlertDialog>
                                                     <AlertDialogTrigger asChild>
                                                         <Button variant="ghost" size="icon" className="text-destructive" title="Eliminar invitación">
