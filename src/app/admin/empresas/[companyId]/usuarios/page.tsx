@@ -1,4 +1,5 @@
 
+
 "use client";
 
 import React, { useState, useEffect, FormEvent } from 'react';
@@ -123,7 +124,10 @@ export default function AdminEmpresaUsuariosPage() {
         try {
             const idToken = await user.getIdToken();
             const payload = { ...newUser, companyId: company.id };
-            console.log("Payload createCompanyUser:", payload);
+            console.log(
+              "Payload createCompanyUser (stringified):",
+              JSON.stringify(payload, null, 2)
+            );
             const response = await fetch(`https://southamerica-west1-pcg-2-8bf1b.cloudfunctions.net/createCompanyUser`, {
                 method: 'POST',
                 headers: {
@@ -132,7 +136,6 @@ export default function AdminEmpresaUsuariosPage() {
                 },
                 body: JSON.stringify(payload),
             });
-
             const result = await response.json();
             
             if (!response.ok) {
@@ -331,5 +334,3 @@ export default function AdminEmpresaUsuariosPage() {
         </div>
     );
 }
-
-    
