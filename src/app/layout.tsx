@@ -159,7 +159,7 @@ function LayoutLogic({ children }: { children: React.ReactNode }) {
   const showSidebar = showAppShell && role !== 'cliente' && role !== 'contratista' || isPreview;
 
   return (
-    <div className={cn("grid min-h-screen w-full", showSidebar && "md:grid-cols-[auto_1fr]")}>
+    <div className={cn("flex min-h-screen w-full")}>
       {showSidebar && (
         <aside
           onMouseEnter={handleMouseEnter}
@@ -267,13 +267,11 @@ function LayoutLogic({ children }: { children: React.ReactNode }) {
       )}
 
       <div className={cn(
-        "flex flex-col", 
-        showSidebar && (isCollapsed ? "md:ml-20" : "md:ml-64"),
-        !showSidebar && "min-h-screen", // Asegura que las páginas públicas ocupen toda la altura
+        "flex-1 flex flex-col",
         "transition-all duration-300 ease-in-out"
       )}>
          {/* Mobile Header & Sidebar */}
-        {showAppShell && <header className="flex h-14 items-center gap-4 border-b bg-white px-4 lg:h-[60px] lg:px-6 sticky top-0 z-30 md:hidden">
+        {showSidebar && <header className="flex h-14 items-center gap-4 border-b bg-white px-4 lg:h-[60px] lg:px-6 sticky top-0 z-30 md:hidden">
           {showSidebar ? (
             <Sheet>
               <SheetTrigger asChild>
