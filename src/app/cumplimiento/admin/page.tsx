@@ -10,17 +10,44 @@ import { useEffect } from "react";
 import { Loader2 } from "lucide-react";
 
 export default function AdminCumplimientoPage() {
-    const { role, loading } = useAuth();
+    const { role, loading, company } = useAuth();
     const router = useRouter();
 
+    const isComplianceEnabled = company?.feature_compliance_module_enabled ?? false;
+
     useEffect(() => {
-        if (!loading && role !== 'admin_empresa' && role !== 'superadmin') {
-            router.replace('/dashboard');
+        if (!loading) {
+            if (role !== 'admin_empresa' && role !== 'superadmin') {
+                router.replace('/dashboard');
+            }
+            if (!isComplianceEnabled && role !== 'superadmin') {
+                // Si el módulo no está habilitado, solo el superadmin puede verlo (para no confundir a otros roles)
+                router.replace('/dashboard');
+            }
         }
-    }, [role, loading, router]);
+    }, [role, loading, isComplianceEnabled, router]);
 
     if (loading) {
         return <div className="flex justify-center items-center h-full"><Loader2 className="h-8 w-8 animate-spin" /></div>;
+    }
+    
+    if (!isComplianceEnabled) {
+         return (
+            <div className="space-y-6">
+                <header>
+                    <h1 className="text-3xl font-bold">Módulo de Cumplimiento Legal</h1>
+                    <p className="text-muted-foreground">Gestión de programas y revisión de documentación de subcontratistas.</p>
+                </header>
+                <Card className="bg-yellow-50 border-yellow-300">
+                    <CardHeader>
+                        <CardTitle>Módulo Deshabilitado</CardTitle>
+                        <CardDescription>
+                            Este módulo no está activado para tu empresa. El superadministrador puede habilitarlo desde el panel de gestión de empresas.
+                        </CardDescription>
+                    </CardHeader>
+                </Card>
+            </div>
+        );
     }
 
     if (role !== 'admin_empresa' && role !== 'superadmin') {
