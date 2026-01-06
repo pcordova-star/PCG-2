@@ -37,7 +37,7 @@ exports.setSuperAdminClaim = void 0;
 // functions/src/setSuperAdmin.ts
 const https_1 = require("firebase-functions/v2/https");
 const admin = __importStar(require("firebase-admin"));
-if (!admin.apps.length) {
+if (admin.apps.length === 0) {
     admin.initializeApp();
 }
 /**

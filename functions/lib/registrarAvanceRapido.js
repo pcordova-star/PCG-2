@@ -44,6 +44,7 @@ const firestore_1 = require("firebase-admin/firestore");
 const zod_1 = require("zod");
 const cors_1 = __importDefault(require("cors"));
 const auth_1 = require("firebase-admin/auth");
+const admin = __importStar(require("firebase-admin"));
 const corsHandler = (0, cors_1.default)({
     origin: true,
     methods: ["POST", "OPTIONS"],
@@ -67,6 +68,10 @@ exports.registrarAvanceRapido = (0, https_1.onRequest)({
     timeoutSeconds: 60,
     cors: true
 }, (req, res) => {
+    // Inicialización de Admin SDK dentro del handler
+    if (admin.apps.length === 0) {
+        admin.initializeApp();
+    }
     corsHandler(req, res, async () => {
         if (req.method === "OPTIONS") {
             res.status(204).send("");
