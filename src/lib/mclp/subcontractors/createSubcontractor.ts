@@ -3,28 +3,25 @@ import { getAdminDb } from "@/lib/firebaseAdmin";
 import { Timestamp } from "firebase-admin/firestore";
 import { ensureMclpEnabled } from "../ensureMclpEnabled";
 
-export async function createSubcontractor(companyId: string, input: {
+export async function createSubcontractor(params: {
+  companyId: string;
   razonSocial: string;
   rut: string;
-  representanteLegal?: string;
-  contactoPrincipal: { nombre: string; email: string };
+  contactoNombre: string;
+  contactoEmail: string;
 }) {
-  await ensureMclpEnabled(companyId);
-
+  await ensureMclpEnabled(params.companyId);
   const db = getAdminDb();
-  const ref = db.collection("subcontractors").doc();
-
-  await ref.set({
-    companyId,
-    razonSocial: input.razonSocial,
-    rut: input.rut,
-    representanteLegal: input.representanteLegal ?? "",
-    contactoPrincipal: input.contactoPrincipal,
+  await db.collection("subcontractors").add({
+    companyId: params.companyId,
+    razonSocial: params.razonSocial,
+    rut: params.rut,
+    contactoPrincipal: {
+      nombre: params.contactoNombre,
+      email: params.contactoEmail,
+    },
     activo: true,
     userIds: [],
     createdAt: Timestamp.now(),
-    updatedAt: Timestamp.now(),
   });
-
-  return ref.id;
 }
