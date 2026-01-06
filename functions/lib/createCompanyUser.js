@@ -43,6 +43,7 @@ if (!admin.apps.length) {
 }
 exports.createCompanyUser = functions
     .region("southamerica-west1")
+    .runWith({}) // Agregado para sobreescribir cualquier config global heredada
     .https.onCall(async (data, context) => {
     if (!context.auth) {
         throw new functions.https.HttpsError("unauthenticated", "No autenticado.");
