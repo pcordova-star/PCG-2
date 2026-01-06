@@ -20,6 +20,7 @@ export interface Company {
   baseMensual: number;
   valorPorUsuario: number;
   activa: boolean;
+  feature_compliance_module_enabled?: boolean; // Feature flag para el nuevo módulo
   createdAt: Date | Timestamp;
   updatedAt?: Date | Timestamp;
 }
@@ -48,7 +49,7 @@ export interface AppUser {
   nombre: string;
   email: string;
   phone?: string;
-  role: RolInvitado | 'superadmin' | 'none';
+  role: RolInvitado | 'superadmin' | 'none' | 'contratista'; // Se añade el nuevo rol
   empresaId: string | null;
   createdAt: Date | Timestamp;
   activo?: boolean;
@@ -57,7 +58,7 @@ export interface AppUser {
 }
 
 
-export type RolInvitado = "admin_empresa" | "jefe_obra" | "prevencionista" | "cliente";
+export type RolInvitado = "admin_empresa" | "jefe_obra" | "prevencionista" | "cliente" | "contratista"; // Se añade el nuevo rol
 /**
  * Representa una invitación para unirse a una empresa.
  * Almacenada en la colección `invitacionesUsuarios`.

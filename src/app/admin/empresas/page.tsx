@@ -81,7 +81,7 @@ export default function AdminEmpresasPage() {
     }, [isSuperAdmin]);
 
     const handleOpenDialog = (company: Partial<Company> | null = null) => {
-        setCurrentCompany(company || { nombreFantasia: '', razonSocial: '', rut: '', activa: true, baseMensual: 100000, valorPorUsuario: 35000 });
+        setCurrentCompany(company || { nombreFantasia: '', razonSocial: '', rut: '', activa: true, baseMensual: 100000, valorPorUsuario: 35000, feature_compliance_module_enabled: false });
         setDialogOpen(true);
         setError(null);
     };
@@ -108,6 +108,7 @@ export default function AdminEmpresasPage() {
             ...currentCompany,
             baseMensual: currentCompany.baseMensual || 100000,
             valorPorUsuario: currentCompany.valorPorUsuario || 35000,
+            feature_compliance_module_enabled: currentCompany.feature_compliance_module_enabled || false,
         };
 
         try {
@@ -194,12 +195,13 @@ export default function AdminEmpresasPage() {
                                 <TableHead>Nombre Fantasía</TableHead>
                                 <TableHead>RUT</TableHead>
                                 <TableHead>Estado</TableHead>
+                                <TableHead>Módulo Cumplimiento</TableHead>
                                 <TableHead className="text-right">Acciones</TableHead>
                             </TableRow>
                         </TableHeader>
                         <TableBody>
                             {loading ? (
-                                <TableRow><TableCell colSpan={4} className="text-center h-24">Cargando empresas...</TableCell></TableRow>
+                                <TableRow><TableCell colSpan={5} className="text-center h-24">Cargando empresas...</TableCell></TableRow>
                             ) : empresas.map((emp) => (
                                 <TableRow key={emp.id}>
                                     <TableCell className="font-medium">{emp.nombreFantasia}</TableCell>
@@ -207,6 +209,11 @@ export default function AdminEmpresasPage() {
                                     <TableCell>
                                         <Badge variant={emp.activa ? 'default' : 'secondary'}>
                                             {emp.activa ? 'Activa' : 'Inactiva'}
+                                        </Badge>
+                                    </TableCell>
+                                    <TableCell>
+                                        <Badge variant={emp.feature_compliance_module_enabled ? 'default' : 'outline'}>
+                                            {emp.feature_compliance_module_enabled ? 'Habilitado' : 'Deshabilitado'}
                                         </Badge>
                                     </TableCell>
                                     <TableCell className="text-right">
@@ -270,10 +277,15 @@ export default function AdminEmpresasPage() {
                                 <div className="space-y-2"><Label>Monto Base Mensual</Label><Input name="baseMensual" type="number" value={currentCompany?.baseMensual || 100000} onChange={handleFormChange} /></div>
                                 <div className="space-y-2"><Label>Valor por Usuario</Label><Input name="valorPorUsuario" type="number" value={currentCompany?.valorPorUsuario || 35000} onChange={handleFormChange} /></div>
                             </div>
-
-                             <div className="flex items-center space-x-2 col-span-2">
-                                <Checkbox id="activa" name="activa" checked={currentCompany?.activa} onCheckedChange={(checked) => handleFormChange({ target: { name: 'activa', value: '', type: 'checkbox', checked: !!checked } } as any)} />
-                                <Label htmlFor="activa">Empresa activa</Label>
+                             <div className="col-span-2 pt-4 border-t space-y-2">
+                                <div className="flex items-center space-x-2">
+                                    <Checkbox id="activa" name="activa" checked={currentCompany?.activa} onCheckedChange={(checked) => handleFormChange({ target: { name: 'activa', value: '', type: 'checkbox', checked: !!checked } } as any)} />
+                                    <Label htmlFor="activa">Empresa activa</Label>
+                                </div>
+                                <div className="flex items-center space-x-2">
+                                    <Checkbox id="feature_compliance_module_enabled" name="feature_compliance_module_enabled" checked={currentCompany?.feature_compliance_module_enabled} onCheckedChange={(checked) => handleFormChange({ target: { name: 'feature_compliance_module_enabled', value: '', type: 'checkbox', checked: !!checked } } as any)} />
+                                    <Label htmlFor="feature_compliance_module_enabled">Habilitar Módulo de Cumplimiento Legal</Label>
+                                </div>
                             </div>
                             {error && <p className="text-sm font-medium text-destructive col-span-2">{error}</p>}
                         </div>
