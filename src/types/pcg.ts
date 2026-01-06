@@ -477,17 +477,17 @@ export interface ProgramaCumplimiento {
     id: string; // 'config'
     companyId: string;
     periodicidad: 'mensual';
-    diaCorteCarga: number;
-    diaLimiteRevision: number;
-    diaPago: number;
+    diaCorteCarga: number | null;
+    diaLimiteRevision: number | null;
+    diaPago: number | null;
 }
 
 export interface RequisitoDocumento {
     id: string;
     nombre: string;
-    descripcion: string;
+    descripcion?: string;
     esObligatorio: boolean;
-    periodicidad: 'mensual' | 'unico';
+    activo: boolean;
 }
 
 export interface EntregaDocumento {
@@ -499,8 +499,14 @@ export interface EntregaDocumento {
     storagePath: string;
     fechaCarga: Timestamp;
     cargadoPorUid: string;
-    estado: 'cargado' | 'aprobado' | 'observado';
-    revisionId?: string;
+    estado: 'Cargado' | 'Aprobado' | 'Observado';
+    revision?: {
+        id: string;
+        fecha: Timestamp;
+        revisadoPorUid: string;
+        decision: 'Aprobado' | 'Observado';
+        comentario?: string;
+    }
 }
 
 export interface RevisionDocumento {
@@ -515,7 +521,7 @@ export interface EstadoCumplimientoPeriodo {
     id: string; // "subcontratistaId_YYYY-MM"
     subcontratistaId: string;
     periodo: string; // "YYYY-MM"
-    estado: 'cumple' | 'no_cumple' | 'en_revision' | 'pendiente';
+    estado: 'Cumple' | 'No Cumple' | 'En Revisión' | 'Pendiente';
     fechaAsignacion: Timestamp;
     asignadoPorUid: string;
 }
