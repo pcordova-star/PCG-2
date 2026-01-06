@@ -123,7 +123,7 @@ export default function AdminEmpresaUsuariosPage() {
         
         try {
             const idToken = await user.getIdToken();
-            const response = await fetch(`https://southamerica-west1-${process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID}.cloudfunctions.net/createCompanyUser`, {
+            const response = await fetch(`https://southamerica-west1-pcg-2-8bf1b.cloudfunctions.net/createCompanyUser`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -159,7 +159,7 @@ export default function AdminEmpresaUsuariosPage() {
         
         try {
             const idToken = await user.getIdToken();
-            const FUNCTION_URL = `https://southamerica-west1-${process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID}.cloudfunctions.net/deactivateCompanyUser`;
+            const FUNCTION_URL = `https://southamerica-west1-pcg-2-8bf1b.cloudfunctions.net/deactivateCompanyUser`;
             const response = await fetch(FUNCTION_URL, {
                 method: 'POST',
                 headers: {
