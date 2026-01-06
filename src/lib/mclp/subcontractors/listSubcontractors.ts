@@ -14,7 +14,7 @@ export async function listSubcontractors(companyId: string) {
 
   return snap.docs.map(d => {
     const data = d.data();
-    // Convert Timestamp to a serializable format (ISO string)
+    // Convertir Timestamp a string ISO para serialización segura
     const createdAt = data.createdAt instanceof Timestamp 
         ? data.createdAt.toDate().toISOString() 
         : new Date().toISOString();
