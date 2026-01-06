@@ -1,4 +1,5 @@
 // src/functions/src/index.ts
+
 import * as functions from 'firebase-functions';
 import * as admin from 'firebase-admin';
 
@@ -6,9 +7,6 @@ import * as admin from 'firebase-admin';
 if (!admin.apps.length) {
   admin.initializeApp();
 }
-
-// Establece la región global para todas las funciones v1
-const region = "southamerica-west1";
 
 // Exporta las funciones v1
 export { createCompanyUser } from "./createCompanyUser";
