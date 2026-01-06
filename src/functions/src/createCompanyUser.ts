@@ -55,7 +55,7 @@ export const createCompanyUser = functions
         email: email,
         password: password,
         displayName: nombre,
-        emailVerified: true, // Lo creamos verificado para que el usuario no tenga que hacer nada
+        emailVerified: false, 
         disabled: false,
       });
       logger.info(`Usuario creado con éxito para ${email} con UID: ${userRecord.uid}`);
@@ -85,10 +85,9 @@ export const createCompanyUser = functions
       activo: true,
       createdAt: now,
       updatedAt: now,
+      mustChangePassword: true, // Forzar cambio de contraseña
     }, { merge: true });
     
-    // Ya no se envía correo, la creación es directa.
-
     return {
       uid,
       email: email,
