@@ -9,6 +9,7 @@ if (!admin.apps.length) {
 
 export const createCompanyUser = functions
   .region("southamerica-west1")
+  .runWith({}) // Agregado para sobreescribir cualquier config global heredada
   .https.onCall(async (data, context) => {
     
     if (!context.auth) {
