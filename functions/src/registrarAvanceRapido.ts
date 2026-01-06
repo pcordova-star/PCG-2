@@ -1,10 +1,11 @@
 // functions/src/registrarAvanceRapido.ts
-import { onRequest, HttpsError } from "firebase-functions/v2/https";
+import { onRequest } from "firebase-functions/v2/https";
 import * as logger from "firebase-functions/logger";
 import { getFirestore, FieldValue } from "firebase-admin/firestore";
 import { z } from "zod";
 import cors from "cors";
 import { getAuth } from "firebase-admin/auth";
+import * as admin from 'firebase-admin';
 
 const corsHandler = cors({
     origin: true,
@@ -34,6 +35,11 @@ export const registrarAvanceRapido = onRequest(
         cors: true
     },
     (req, res) => {
+        // Inicialización de Admin SDK dentro del handler
+        if (admin.apps.length === 0) {
+            admin.initializeApp();
+        }
+
         corsHandler(req, res, async () => {
             if (req.method === "OPTIONS") {
                 res.status(204).send("");
