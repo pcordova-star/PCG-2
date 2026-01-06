@@ -1,7 +1,7 @@
 "use strict";
 // src/functions/src/index.ts
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.processItemizadoJob = exports.convertHeicToJpg = exports.testGoogleAi = exports.checkUserExistsByEmail = exports.setSuperAdminClaim = exports.deactivateCompanyUser = exports.notifyDocumentDistribution = exports.registrarAvanceRapido = exports.createCompanyUser = void 0;
+exports.processItemizadoJob = exports.convertHeicToJpg = exports.testGoogleAi = exports.setSuperAdminClaim = exports.deactivateCompanyUser = exports.notifyDocumentDistribution = exports.registrarAvanceRapido = exports.createCompanyUser = void 0;
 /**
  * Este archivo es el punto de entrada para todas las Cloud Functions.
  * Cada función se importa desde su propio archivo y se exporta para que Firebase la despliegue.
@@ -30,8 +30,7 @@ var deactivateCompanyUser_1 = require("./deactivateCompanyUser");
 Object.defineProperty(exports, "deactivateCompanyUser", { enumerable: true, get: function () { return deactivateCompanyUser_1.deactivateCompanyUser; } });
 var setSuperAdmin_1 = require("./setSuperAdmin");
 Object.defineProperty(exports, "setSuperAdminClaim", { enumerable: true, get: function () { return setSuperAdmin_1.setSuperAdminClaim; } });
-var checkUserExistsByEmail_1 = require("./checkUserExistsByEmail");
-Object.defineProperty(exports, "checkUserExistsByEmail", { enumerable: true, get: function () { return checkUserExistsByEmail_1.checkUserExistsByEmail; } });
+// export { checkUserExistsByEmail } from "./checkUserExistsByEmail";
 var test_google_ai_1 = require("./test-google-ai");
 Object.defineProperty(exports, "testGoogleAi", { enumerable: true, get: function () { return test_google_ai_1.testGoogleAi; } });
 // Funciones v2 (triggers de evento)
