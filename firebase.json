@@ -1,5 +1,12 @@
 {
-  "functions": {
-    "source": "functions"
-  }
+  "functions": [
+    {
+      "source": "functions/gen1",
+      "codebase": "default"
+    },
+    {
+      "source": "functions/gen2",
+      "codebase": "gen2"
+    }
+  ]
 }

@@ -1,11 +1,8 @@
-
 // functions/src/deactivateCompanyUser.ts
 import { onRequest } from "firebase-functions/v2/https";
 import * as admin from "firebase-admin";
 import * as logger from "firebase-functions/logger";
 import { getAuth } from "firebase-admin/auth";
-
-// NO inicializar admin aquí en el scope global.
 
 export const deactivateCompanyUser = onRequest(
   {

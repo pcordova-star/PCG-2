@@ -1,5 +1,4 @@
 // functions/src/registrarAvanceRapido.ts
-import { HttpsError } from "firebase-functions/v2/https";
 import * as functions from 'firebase-functions';
 import * as logger from "firebase-functions/logger";
 import { getFirestore, FieldValue } from "firebase-admin/firestore";
@@ -46,7 +45,7 @@ export const registrarAvanceRapido = functions.region("southamerica-west1")
         try {
             const authHeader = req.headers.authorization;
             if (!authHeader || !authHeader.startsWith('Bearer ')) {
-                throw new HttpsError('unauthenticated', 'El usuario no está autenticado.');
+                throw new functions.https.HttpsError('unauthenticated', 'El usuario no está autenticado.');
             }
             const token = authHeader.split(' ')[1];
             const decodedToken = await getAuth().verifyIdToken(token);
@@ -55,7 +54,7 @@ export const registrarAvanceRapido = functions.region("southamerica-west1")
 
             const parsed = AvanceSchema.safeParse(req.body);
             if (!parsed.success) {
-                throw new HttpsError("invalid-argument", "Los datos proporcionados son inválidos.", parsed.error.flatten());
+                throw new functions.https.HttpsError("invalid-argument", "Los datos proporcionados son inválidos.", parsed.error.flatten());
             }
 
             const { obraId, actividadId, porcentaje, comentario, fotos, visibleCliente } = parsed.data;
@@ -66,7 +65,7 @@ export const registrarAvanceRapido = functions.region("southamerica-west1")
             const avanceId = await db.runTransaction(async (tx) => {
                 const obraSnap = await tx.get(obraRef);
                 if (!obraSnap.exists) {
-                    throw new HttpsError("not-found", `La obra con ID ${obraId} no fue encontrada.`);
+                    throw new functions.https.HttpsError("not-found", `La obra con ID ${obraId} no fue encontrada.`);
                 }
 
                 const avancesRef = obraRef.collection("avancesDiarios");
