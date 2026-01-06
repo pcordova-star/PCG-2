@@ -2,15 +2,12 @@
 import { getAdminDb } from "@/lib/firebaseAdmin";
 import { Timestamp } from "firebase-admin/firestore";
 import { ensureMclpEnabled } from "../ensureMclpEnabled";
+import { RequisitoDocumento } from "@/types/pcg";
 
-export async function updateComplianceRequirement(
+export async function updateRequirement(
   companyId: string,
   requirementId: string,
-  data: {
-    nombreDocumento?: string;
-    descripcion?: string;
-    esObligatorio?: boolean;
-  }
+  data: Partial<Omit<RequisitoDocumento, 'id'>>
 ) {
   await ensureMclpEnabled(companyId);
 
