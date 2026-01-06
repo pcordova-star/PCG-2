@@ -431,5 +431,90 @@ export interface OperationalChecklistRecord {
     templateTitleSnapshot: string;
     filledByUid: string;
     filledByEmail: string;
-...
-```
+    filledAt: Timestamp;
+    header: {
+        fecha: string;
+        hora: string;
+        sector: string;
+        elemento: string;
+        actividad: string;
+        responsable: string;
+        observaciones: string;
+        evidenceUrls?: string[];
+    };
+    answers: Record<string, any>;
+    signature?: {
+        type: "typed" | "none";
+        name: string;
+        dataUrl?: string | null;
+    };
+    pdf?: {
+        generated: boolean;
+        url?: string;
+        generatedAt?: Timestamp;
+    };
+    status: "submitted" | "reviewed";
+}
+
+
+// --- CUMPLIMIENTO ---
+
+export interface Subcontratista {
+    id: string;
+    razonSocial: string;
+    rut: string;
+    representanteLegal: string;
+    contactoPrincipal: {
+        nombre: string;
+        email: string;
+        telefono: string;
+    };
+    userIds: string[]; // UIDs de los usuarios de este subcontratista
+}
+
+export interface ProgramaCumplimiento {
+    id: string; // 'config'
+    companyId: string;
+    periodicidad: 'mensual';
+    diaCorteCarga: number;
+    diaLimiteRevision: number;
+    diaPago: number;
+}
+
+export interface RequisitoDocumento {
+    id: string;
+    nombre: string;
+    descripcion: string;
+    esObligatorio: boolean;
+    periodicidad: 'mensual' | 'unico';
+}
+
+export interface EntregaDocumento {
+    id: string;
+    periodo: string; // "YYYY-MM"
+    requisitoId: string;
+    subcontratistaId: string;
+    fileUrl: string;
+    storagePath: string;
+    fechaCarga: Timestamp;
+    cargadoPorUid: string;
+    estado: 'cargado' | 'aprobado' | 'observado';
+    revisionId?: string;
+}
+
+export interface RevisionDocumento {
+    id: string;
+    fechaRevision: Timestamp;
+    revisadoPorUid: string;
+    decision: 'aprobado' | 'observado';
+    comentario?: string;
+}
+
+export interface EstadoCumplimientoPeriodo {
+    id: string; // "subcontratistaId_YYYY-MM"
+    subcontratistaId: string;
+    periodo: string; // "YYYY-MM"
+    estado: 'cumple' | 'no_cumple' | 'en_revision' | 'pendiente';
+    fechaAsignacion: Timestamp;
+    asignadoPorUid: string;
+}

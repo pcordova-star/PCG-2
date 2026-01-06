@@ -41,15 +41,65 @@ import { Toaster } from "@/components/ui/toaster"; // Import Toaster
 import { inter } from '@/lib/layoutTheme'; // Import pre-configured font
 
 const navItemsBase = [
-  { href: '/dashboard', label: 'Dashboard', icon: Home, roles: ['superadmin', 'admin_empresa', 'jefe_obra', 'prevencionista'] },
-  { href: '/obras', label: 'Obras', icon: HardHat, roles: ['superadmin', 'admin_empresa', 'jefe_obra', 'prevencionista'] },
-  { href: '/cubicacion/analisis-planos', label: 'Análisis de Planos (IA)', icon: BrainCircuit, roles: ['superadmin', 'admin_empresa', 'jefe_obra']},
-  { href: '/operaciones/estados-de-pago', label: 'Estados de Pago', icon: FileText, roles: ['superadmin', 'admin_empresa', 'jefe_obra'] },
-  { href: '/prevencion', label: 'Prevención', icon: ShieldCheck, roles: ['superadmin', 'admin_empresa', 'jefe_obra', 'prevencionista'] },
-  { href: '/cumplimiento', label: 'Cumplimiento', icon: ShieldCheck, roles: ['superadmin', 'admin_empresa'], featureFlag: 'feature_compliance_module_enabled' },
-  { href: '/admin/documentos/proyecto', label: 'Documentos', icon: BookCopy, roles: ['superadmin', 'admin_empresa', 'prevencionista'] },
-  { href: '/rdi', label: 'RDI', icon: MessageSquare, roles: ['superadmin', 'admin_empresa', 'jefe_obra'] },
+  {
+    id: 'dashboard',
+    href: '/dashboard',
+    label: 'Dashboard',
+    icon: Home,
+    roles: ['superadmin', 'admin_empresa', 'jefe_obra', 'prevencionista']
+  },
+  {
+    id: 'obras',
+    href: '/obras',
+    label: 'Obras',
+    icon: HardHat,
+    roles: ['superadmin', 'admin_empresa', 'jefe_obra', 'prevencionista']
+  },
+  {
+    id: 'analisis-planos',
+    href: '/cubicacion/analisis-planos',
+    label: 'Análisis de Planos (IA)',
+    icon: BrainCircuit,
+    roles: ['superadmin', 'admin_empresa', 'jefe_obra']
+  },
+  {
+    id: 'estados-pago',
+    href: '/operaciones/estados-de-pago',
+    label: 'Estados de Pago',
+    icon: FileText,
+    roles: ['superadmin', 'admin_empresa', 'jefe_obra']
+  },
+  {
+    id: 'prevencion',
+    href: '/prevencion',
+    label: 'Prevención',
+    icon: ShieldCheck,
+    roles: ['superadmin', 'admin_empresa', 'jefe_obra', 'prevencionista']
+  },
+  {
+    id: 'cumplimiento',
+    href: '/cumplimiento',
+    label: 'Cumplimiento',
+    icon: ShieldCheck,
+    roles: ['superadmin', 'admin_empresa', 'contratista'],
+    featureFlag: 'feature_compliance_module_enabled'
+  },
+  {
+    id: 'documentos',
+    href: '/admin/documentos/proyecto',
+    label: 'Documentos',
+    icon: BookCopy,
+    roles: ['superadmin', 'admin_empresa', 'prevencionista']
+  },
+  {
+    id: 'rdi',
+    href: '/rdi',
+    label: 'RDI',
+    icon: MessageSquare,
+    roles: ['superadmin', 'admin_empresa', 'jefe_obra']
+  }
 ];
+
 
 const adminNavItems = [
     { href: '/admin/dashboard', label: 'Dashboard', icon: Home },
@@ -221,7 +271,7 @@ function LayoutLogic({ children }: { children: React.ReactNode }) {
               )}
               {navItems.map((item) => (
                 <Link
-                  key={item.label}
+                  key={item.id}
                   href={item.href}
                   className={cn(
                     "flex items-center gap-3 rounded-lg px-3 py-3 text-muted-foreground transition-all hover:text-primary hover:bg-muted",
@@ -319,7 +369,7 @@ function LayoutLogic({ children }: { children: React.ReactNode }) {
                     )}
                     {navItems.map((item) => (
                       <Link
-                        key={item.label}
+                        key={item.id}
                         href={item.href}
                          className={cn(
                           "mx-[-0.65rem] flex items-center gap-4 rounded-xl px-3 py-2 text-muted-foreground hover:text-foreground",
