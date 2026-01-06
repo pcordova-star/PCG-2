@@ -1,17 +1,29 @@
+// src/app/prevencion/capacitacion/page.tsx
+"use client";
+
 import Link from "next/link";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { ArrowLeft } from "lucide-react";
+import { useRouter } from "next/navigation";
 
 export default function CapacitacionPrevencionPage() {
+  const router = useRouter();
+
   return (
     <section className="space-y-6">
-      <header className="space-y-2">
-        <h1 className="text-3xl font-bold font-headline tracking-tight">
-          Módulo de Capacitación – Prevención de Riesgos
-        </h1>
-        <p className="text-lg text-muted-foreground">
-          Gestión de inducciones de acceso a faena y capacitaciones del sistema de gestión de seguridad y salud. En este MVP partimos por la inducción de acceso para visitas mediante código QR.
-        </p>
+       <header className="flex items-center gap-4">
+        <Button variant="outline" size="icon" onClick={() => router.push('/prevencion')}>
+            <ArrowLeft />
+        </Button>
+        <div className="space-y-2">
+          <h1 className="text-3xl font-bold font-headline tracking-tight">
+            Módulo de Capacitación – Prevención de Riesgos
+          </h1>
+          <p className="text-lg text-muted-foreground">
+            Gestión de inducciones de acceso a faena y capacitaciones del sistema de gestión de seguridad y salud. En este MVP partimos por la inducción de acceso para visitas mediante código QR.
+          </p>
+        </div>
       </header>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
