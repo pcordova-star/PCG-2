@@ -189,6 +189,17 @@ const allMainModules = [
     linkText: 'Ir a RDI',
     tooltip: 'Acceso directo a los RDI de tu obra más reciente.',
     roles: ['superadmin', 'admin_empresa', 'jefe_obra']
+  },
+  {
+    id: 'cumplimiento',
+    title: 'Cumplimiento Legal (MCLP)',
+    description: 'Gestiona programas, requisitos y estados de cumplimiento para el pago a subcontratistas.',
+    href: '/cumplimiento',
+    icon: ShieldCheck,
+    linkText: 'Ir a Cumplimiento',
+    tooltip: 'Módulo para la gestión de cumplimiento de subcontratos.',
+    roles: ['superadmin', 'admin_empresa', 'contratista'],
+    featureFlag: 'feature_compliance_module_enabled'
   }
 ];
 
@@ -237,10 +248,9 @@ function getRoleName(role: string) {
 
 
 export default function DashboardPage() {
-  const { user, role, companyId, loading: authLoading } = useAuth();
+  const { user, role, companyId, company, loading: authLoading } = useAuth();
   const router = useRouter();
 
-  const [company, setCompany] = useState<Company | null>(null);
   const [loading, setLoading] = useState(true);
   const [hasObras, setHasObras] = useState(false);
   const [obras, setObras] = useState<Obra[]>([]);
@@ -249,8 +259,13 @@ export default function DashboardPage() {
   const [quickAccessTarget, setQuickAccessTarget] = useState('');
 
   const isPrevencionista = role === 'prevencionista';
+  
+  const mainModules = allMainModules.filter(module => {
+    if (!module.roles.includes(role)) return false;
+    if (module.featureFlag && !company?.[module.featureFlag]) return false;
+    return true;
+  });
 
-  const mainModules = allMainModules.filter(module => module.roles.includes(role));
   const filteredQuickAccessModules = quickAccessModules.filter(module => module.roles.includes(role));
 
 
@@ -265,13 +280,6 @@ export default function DashboardPage() {
         const isSuperAdmin = role === 'superadmin';
 
         try {
-            if (!isSuperAdmin) {
-                const companyRef = doc(firebaseDb, "companies", companyId);
-                const companySnap = await getDoc(companyRef);
-                if (companySnap.exists()) {
-                    setCompany({ id: companySnap.id, ...companySnap.data() } as Company);
-                }
-            }
             
             const obrasRef = collection(firebaseDb, 'obras');
             const qObrasConstraints = isSuperAdmin ? [] : [where('empresaId', '==', companyId)];
