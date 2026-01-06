@@ -123,29 +123,11 @@ export default function AdminEmpresaUsuariosPage() {
         
         try {
             const idToken = await user.getIdToken();
-            const payload = { ...newUser, companyId: company.id };
-            console.log(
-              "Payload createCompanyUser (stringified):",
-              JSON.stringify(payload, null, 2)
-            );
-            const response = await fetch(`https://southamerica-west1-pcg-2-8bf1b.cloudfunctions.net/createCompanyUser`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${idToken}`,
-                },
-                body: JSON.stringify(payload),
+            const createCompanyUserFn = httpsCallable(firebaseFunctions, 'createCompanyUser');
+            await createCompanyUserFn({
+                ...newUser,
+                companyId: company.id
             });
-            const result = await response.json();
-            
-            if (!response.ok) {
-                const message =
-                    typeof result.error === "string"
-                    ? result.error
-                    : result.error?.message || JSON.stringify(result.error);
-
-                throw new Error(message || `Error ${response.status}`);
-            }
             
             toast({ title: "Usuario Creado", description: `${newUser.email} ha sido creado en ${company.nombreFantasia}.` });
             setDialogOpen(false);
@@ -169,7 +151,7 @@ export default function AdminEmpresaUsuariosPage() {
         
         try {
             const idToken = await user.getIdToken();
-            const FUNCTION_URL = `https://southamerica-west1-pcg-2-8bf1b.cloudfunctions.net/deactivateCompanyUser`;
+            const FUNCTION_URL = `https://deactivatecompanyuser-c23ohj7w2a-uc.a.run.app`;
             const response = await fetch(FUNCTION_URL, {
                 method: 'POST',
                 headers: {
