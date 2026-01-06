@@ -31,7 +31,7 @@ const rolesDisponibles: { value: RolInvitado, label: string }[] = [
 ];
 
 export default function AdminEmpresaUsuariosPage() {
-    const { user, role, getIdToken } = useAuth();
+    const { user, role } = useAuth();
     const router = useRouter();
     const params = useParams();
     const companyId = params.companyId as string;
@@ -122,7 +122,7 @@ export default function AdminEmpresaUsuariosPage() {
         setError(null);
         
         try {
-            const idToken = await getIdToken();
+            const idToken = await user.getIdToken();
             const response = await fetch(`https://southamerica-west1-${process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID}.cloudfunctions.net/createCompanyUser`, {
                 method: 'POST',
                 headers: {
@@ -158,7 +158,7 @@ export default function AdminEmpresaUsuariosPage() {
         }
         
         try {
-            const idToken = await getIdToken();
+            const idToken = await user.getIdToken();
             const response = await fetch(`https://southamerica-west1-${process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID}.cloudfunctions.net/deactivateCompanyUser`, {
                 method: 'POST',
                 headers: {
