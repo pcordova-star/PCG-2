@@ -133,10 +133,14 @@ export default function AdminEmpresaUsuariosPage() {
             });
 
             const result = await response.json();
-            console.log("createCompanyUser response:", result);
-
+            
             if (!response.ok) {
-                throw new Error(result.error || `Error ${response.status}`);
+                const message =
+                    typeof result.error === "string"
+                    ? result.error
+                    : result.error?.message || JSON.stringify(result.error);
+
+                throw new Error(message || `Error ${response.status}`);
             }
             
             toast({ title: "Usuario Creado", description: `${newUser.email} ha sido creado en ${company.nombreFantasia}.` });
