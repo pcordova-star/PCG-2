@@ -151,7 +151,7 @@ export default function AdminEmpresaUsuariosPage() {
         }
     };
     
-    const handleDeactivateUser = async (userId: string) => {
+    const handleDeactivateUser = async (userId: string, motivoBaja: string | null = null) => {
         if (!user || !isSuperAdmin) {
             toast({ variant: "destructive", title: "Error de permisos" });
             return;
@@ -159,13 +159,14 @@ export default function AdminEmpresaUsuariosPage() {
         
         try {
             const idToken = await user.getIdToken();
-            const response = await fetch(`https://southamerica-west1-${process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID}.cloudfunctions.net/deactivateCompanyUser`, {
+            const FUNCTION_URL = `https://southamerica-west1-${process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID}.cloudfunctions.net/deactivateCompanyUser`;
+            const response = await fetch(FUNCTION_URL, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
                     'Authorization': `Bearer ${idToken}`,
                 },
-                body: JSON.stringify({ userId }),
+                body: JSON.stringify({ userId: userId, motivo: motivoBaja }),
             });
 
             const result = await response.json();
