@@ -18,7 +18,11 @@ export async function listSubcontractors(companyId: string) {
     const createdAt = data.createdAt instanceof Timestamp 
         ? data.createdAt.toDate().toISOString() 
         : new Date().toISOString();
+    
+    const updatedAt = data.updatedAt instanceof Timestamp 
+        ? data.updatedAt.toDate().toISOString()
+        : createdAt; // Fallback a createdAt si no existe
         
-    return { id: d.id, ...data, createdAt };
+    return { id: d.id, ...data, createdAt, updatedAt };
   });
 }
