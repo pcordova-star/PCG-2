@@ -1,3 +1,4 @@
+
 // src/app/accept-invite/page.tsx
 "use client";
 
@@ -55,8 +56,8 @@ function AcceptInvitePageInner() {
         
         // Ya no se cambia el estado aquí, solo se muestra la información.
         // Se puede añadir lógica para mostrar mensajes diferentes si el estado no es 'pendiente'.
-        if (invData.estado !== 'pendiente') {
-            setError(`Esta invitación ya fue ${invData.estado}. Si tienes problemas para acceder, contacta al administrador o intenta iniciar sesión directamente.`);
+        if (invData.estado === 'activado') {
+            setError(`Esta invitación ya fue activada. Si tienes problemas para acceder, contacta al administrador o intenta iniciar sesión directamente.`);
             setStatus('error');
             return;
         }
@@ -95,7 +96,7 @@ function AcceptInvitePageInner() {
             </div>
             
             <p className="text-sm p-4 bg-blue-50 border border-blue-200 rounded-md text-blue-800">
-                Para activar tu cuenta, <strong>revisa tu correo electrónico</strong>. Sigue el enlace enviado para definir tu contraseña y luego podrás iniciar sesión.
+                Para activar tu cuenta, <strong>revisa el correo con tu contraseña temporal</strong>. Luego, inicia sesión. Por seguridad, el sistema te pedirá cambiar tu contraseña en tu primer acceso.
             </p>
             
              <Button asChild className="w-full">
