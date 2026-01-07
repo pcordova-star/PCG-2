@@ -7,7 +7,7 @@
  * - AnalisisPlanoOutput: Tipo de salida (JSON estructurado) para lafunción.
  */
 
-import { ai } from '@/ai/genkit';
+import { ai } from '@/server/genkit'; // CORRECTED IMPORT
 import {
     AnalisisPlanoInputSchema,
     AnalisisPlanoOutputSchema,

@@ -1,6 +1,6 @@
 // src/app/api/test-google-ai/route.ts
 import { NextResponse } from "next/server";
-import { ai } from "@/ai/genkit"; // Safe to import here
+import { ai } from "@/server/genkit"; // CORRECTED IMPORT
 
 export const runtime = "nodejs";
 export const maxDuration = 30;
@@ -23,7 +23,7 @@ export async function POST(req: Request) {
       prompt,
     });
     
-    const text = resp.text();
+    const text = resp.text;
     console.log("[api/test-google-ai] Model response:", text);
 
     return NextResponse.json({ ok: true, text });

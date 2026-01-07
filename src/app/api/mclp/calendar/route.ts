@@ -2,7 +2,14 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getAdminDb } from "@/server/firebaseAdmin";
 import { Timestamp, FieldValue } from "firebase-admin/firestore";
-import { ensureMclpEnabled } from "@/lib/mclp/ensureMclpEnabled";
+
+async function ensureMclpEnabled(db: FirebaseFirestore.Firestore, companyId: string) {
+  const companyRef = db.collection("companies").doc(companyId);
+  const snap = await companyRef.get();
+  if (!snap.exists() || !snap.data()?.feature_compliance_module_enabled) {
+    throw new Error("MCLP_DISABLED");
+  }
+}
 
 async function createDefaultMonths(calendarRef: FirebaseFirestore.DocumentReference, year: number) {
     const db = getAdminDb();
@@ -34,20 +41,20 @@ async function createDefaultMonths(calendarRef: FirebaseFirestore.DocumentRefere
     await batch.commit();
 }
 
-
 // GET /api/mclp/calendar?companyId=[ID]&year=[YEAR]
 export async function GET(req: NextRequest) {
     try {
         const companyId = req.nextUrl.searchParams.get("companyId");
         const yearStr = req.nextUrl.searchParams.get("year");
+        const db = getAdminDb();
 
         if (!companyId || !yearStr) {
             return NextResponse.json({ error: "companyId y year son requeridos" }, { status: 400 });
         }
         const year = parseInt(yearStr, 10);
-        await ensureMclpEnabled(companyId);
+        await ensureMclpEnabled(db, companyId);
 
-        const db = getAdminDb();
+        
         const calendarId = `${companyId}_${year}`;
         const ref = db.collection("complianceCalendars").doc(calendarId);
         let snap = await ref.get();
@@ -76,40 +83,6 @@ export async function GET(req: NextRequest) {
         });
 
         return NextResponse.json(months);
-
-    } catch (error: any) {
-        return NextResponse.json({ error: error.message }, { status: 500 });
-    }
-}
-
-
-// PUT /api/mclp/calendar (for updating a month)
-export async function PUT(req: NextRequest) {
-    try {
-        const { companyId, year, monthId, data } = await req.json();
-
-        if (!companyId || !year || !monthId || !data) {
-            return NextResponse.json({ error: "Faltan parámetros requeridos" }, { status: 400 });
-        }
-        await ensureMclpEnabled(companyId);
-
-        const db = getAdminDb();
-        const calendarId = `${companyId}_${year}`;
-        const ref = db.collection("complianceCalendars").doc(calendarId).collection("months").doc(monthId);
-
-        const snap = await ref.get();
-        if (!snap.exists() || snap.data()?.editable === false) {
-            throw new Error("Mes no encontrado o bloqueado para edición.");
-        }
-        
-        await ref.update({
-            corteCarga: Timestamp.fromDate(new Date(data.corteCarga)),
-            limiteRevision: Timestamp.fromDate(new Date(data.limiteRevision)),
-            fechaPago: Timestamp.fromDate(new Date(data.fechaPago)),
-            updatedAt: FieldValue.serverTimestamp(),
-        });
-
-        return NextResponse.json({ success: true, id: monthId });
 
     } catch (error: any) {
         return NextResponse.json({ error: error.message }, { status: 500 });
