@@ -11,7 +11,7 @@ if (!admin.apps.length) {
   admin.initializeApp({
     credential: serviceAccount 
         ? admin.credential.cert(serviceAccount)
-        : admin.credential.applicationDefault(),
+        : undefined, // No usar applicationDefault() si no hay serviceAccount
   });
 }
 
