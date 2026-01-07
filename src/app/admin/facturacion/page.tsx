@@ -13,26 +13,54 @@ import { Company } from '@/types/pcg';
 
 const IVA_RATE = 0.19;
 
-type PricingConfig = {
+interface PricingConfig {
   baseMensual: number;
   valorPorUsuario: number;
   currency: 'CLP' | 'UF';
   ufValue: number;
+  modulos: {
+    cumplimientoLegal: number;
+    analisisPlanosIA: number;
+    prevencionRiesgos: number;
+    checklists: number;
+    controlDocumental: number;
+  };
+}
+
+const defaultPricing: PricingConfig = {
+  baseMensual: 100000,
+  valorPorUsuario: 35000,
+  currency: 'CLP',
+  ufValue: 37000,
+  modulos: {
+    cumplimientoLegal: 50000,
+    analisisPlanosIA: 75000,
+    prevencionRiesgos: 60000,
+    checklists: 40000,
+    controlDocumental: 45000,
+  },
 };
+
+const moduleFlagMap: Record<keyof PricingConfig['modulos'], keyof Company> = {
+  cumplimientoLegal: 'feature_compliance_module_enabled',
+  analisisPlanosIA: 'feature_plan_analysis_enabled',
+  prevencionRiesgos: 'feature_risk_prevention_enabled',
+  checklists: 'feature_operational_checklists_enabled',
+  controlDocumental: 'feature_document_control_enabled',
+};
+
 
 type FacturacionData = {
   company: Company;
   userCount: number;
   obraCount: number;
-  totalSinIvaUF: number | null;
+  costoBaseYUsuarios: number;
+  costoModulos: number;
   totalSinIvaCLP: number;
   totalConIvaCLP: number;
 };
 
-function formatCurrency(value: number, currency: 'CLP' | 'UF' = 'CLP') {
-  if (currency === 'UF') {
-    return `UF ${new Intl.NumberFormat('es-CL', { maximumFractionDigits: 2, minimumFractionDigits: 2 }).format(value)}`;
-  }
+function formatCurrency(value: number) {
   return new Intl.NumberFormat('es-CL', { style: 'currency', currency: 'CLP' }).format(value);
 }
 
@@ -42,7 +70,7 @@ export default function AdminFacturacionPage() {
   const isSuperAdmin = role === 'superadmin';
 
   const [data, setData] = useState<FacturacionData[]>([]);
-  const [pricingConfig, setPricingConfig] = useState<PricingConfig | null>(null);
+  const [pricingConfig, setPricingConfig] = useState<PricingConfig>(defaultPricing);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -62,14 +90,11 @@ export default function AdminFacturacionPage() {
       try {
         const configRef = doc(firebaseDb, "config", "pricing");
         const configSnap = await getDoc(configRef);
-        const configData = configSnap.exists() ? configSnap.data() as PricingConfig : null;
+        const configData = configSnap.exists() 
+            ? { ...defaultPricing, ...configSnap.data() } as PricingConfig
+            : defaultPricing;
         setPricingConfig(configData);
         
-        const platBaseMensual = configData?.baseMensual ?? 100000;
-        const platValorPorUsuario = configData?.valorPorUsuario ?? 35000;
-        const currency = configData?.currency ?? 'CLP';
-        const ufValue = configData?.ufValue ?? 37000;
-
         const companiesSnap = await getDocs(collection(firebaseDb, 'companies'));
         const allCompanies = companiesSnap.docs.map(doc => ({ id: doc.id, ...doc.data() } as Company));
 
@@ -82,21 +107,19 @@ export default function AdminFacturacionPage() {
             const userCount = usersSnap.size;
             const obraCount = obrasSnap.size;
             
-            const totalSinIvaBase = platBaseMensual + (userCount * platValorPorUsuario);
+            const costoBaseYUsuarios = configData.baseMensual + (userCount * configData.valorPorUsuario);
             
-            let totalSinIvaUF: number | null = null;
-            let totalSinIvaCLP: number;
+            const costoModulos = Object.entries(moduleFlagMap).reduce((total, [moduloKey, flagKey]) => {
+                if (company[flagKey]) {
+                    return total + (configData.modulos[moduloKey as keyof PricingConfig['modulos']] || 0);
+                }
+                return total;
+            }, 0);
 
-            if (currency === 'UF') {
-                totalSinIvaUF = totalSinIvaBase;
-                totalSinIvaCLP = totalSinIvaUF * ufValue;
-            } else {
-                totalSinIvaCLP = totalSinIvaBase;
-            }
-
+            const totalSinIvaCLP = costoBaseYUsuarios + costoModulos;
             const totalConIvaCLP = totalSinIvaCLP * (1 + IVA_RATE);
 
-            return { company, userCount, obraCount, totalSinIvaUF, totalSinIvaCLP, totalConIvaCLP };
+            return { company, userCount, obraCount, costoBaseYUsuarios, costoModulos, totalSinIvaCLP, totalConIvaCLP };
         });
 
         const facturacionData = await Promise.all(facturacionPromises);
@@ -122,13 +145,11 @@ export default function AdminFacturacionPage() {
     );
   }
 
-  const currency = pricingConfig?.currency || 'CLP';
-
   return (
     <div className="space-y-6">
       <header>
         <h1 className="text-3xl font-bold">Facturación Estimada</h1>
-        <p className="text-muted-foreground">Cálculo de facturación mensual por empresa basado en los precios vigentes de la plataforma.</p>
+        <p className="text-muted-foreground">Cálculo de facturación mensual por empresa basado en los precios globales de la plataforma.</p>
       </header>
 
       {error && <p className="text-sm font-medium text-destructive">{error}</p>}
@@ -138,8 +159,6 @@ export default function AdminFacturacionPage() {
           <CardTitle>Detalle de Facturación Estimada por Empresa</CardTitle>
           <CardDescription>
             Los cálculos se basan en los precios definidos en el panel de Precios Globales.
-            Moneda actual: <span className="font-bold">{currency}</span>.
-            {currency === 'UF' && ` (Valor UF usado: ${formatCurrency(pricingConfig?.ufValue || 0, 'CLP')})`}
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -147,9 +166,9 @@ export default function AdminFacturacionPage() {
             <TableHeader>
               <TableRow>
                 <TableHead>Empresa</TableHead>
-                <TableHead className="text-center">Obras</TableHead>
                 <TableHead className="text-center">Usuarios</TableHead>
-                {currency === 'UF' && <TableHead className="text-right">Total Neto (UF)</TableHead>}
+                <TableHead className="text-right">Base + Usuarios (CLP)</TableHead>
+                <TableHead className="text-right">Módulos Premium (CLP)</TableHead>
                 <TableHead className="text-right">Total Neto (CLP)</TableHead>
                 <TableHead className="text-right">Total con IVA (CLP)</TableHead>
               </TableRow>
@@ -160,14 +179,14 @@ export default function AdminFacturacionPage() {
               ) : data.length === 0 ? (
                 <TableRow><TableCell colSpan={6} className="text-center h-24">No hay empresas para facturar.</TableCell></TableRow>
               ) : (
-                data.map(({ company, userCount, obraCount, totalSinIvaUF, totalSinIvaCLP, totalConIvaCLP }) => (
+                data.map(({ company, userCount, costoBaseYUsuarios, costoModulos, totalSinIvaCLP, totalConIvaCLP }) => (
                   <TableRow key={company.id}>
                     <TableCell className="font-medium">{company.nombreFantasia || company.razonSocial}</TableCell>
-                    <TableCell className="text-center">{obraCount}</TableCell>
                     <TableCell className="text-center">{userCount}</TableCell>
-                    {currency === 'UF' && <TableCell className="text-right font-semibold">{totalSinIvaUF !== null ? formatCurrency(totalSinIvaUF, 'UF') : 'N/A'}</TableCell>}
-                    <TableCell className="text-right font-semibold">{formatCurrency(totalSinIvaCLP, 'CLP')}</TableCell>
-                    <TableCell className="text-right font-bold text-primary">{formatCurrency(totalConIvaCLP, 'CLP')}</TableCell>
+                    <TableCell className="text-right">{formatCurrency(costoBaseYUsuarios)}</TableCell>
+                    <TableCell className="text-right">{formatCurrency(costoModulos)}</TableCell>
+                    <TableCell className="text-right font-semibold">{formatCurrency(totalSinIvaCLP)}</TableCell>
+                    <TableCell className="text-right font-bold text-primary">{formatCurrency(totalConIvaCLP)}</TableCell>
                   </TableRow>
                 ))
               )}
