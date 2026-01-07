@@ -31,7 +31,7 @@ import {
   Sparkles,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useMemo, Suspense } from 'react';
 import { collection, getDocs, query, where, doc, getDoc, collectionGroup, limit, orderBy } from 'firebase/firestore';
 import { firebaseDb } from '@/lib/firebaseClient';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -195,7 +195,7 @@ const allMainModules = [
     linkText: 'Ir a RDI',
     tooltip: 'Acceso directo a los RDI de tu obra más reciente.',
     roles: ['superadmin', 'admin_empresa', 'jefe_obra']
-  },
+  }
 ];
 
 const quickAccessModules = [
@@ -266,10 +266,15 @@ export default function DashboardPage() {
 
   const isPrevencionista = role === 'prevencionista';
   
+  useEffect(() => {
+    if (!authLoading && !user) {
+        router.replace('/login/usuario');
+    }
+  }, [user, authLoading, router]);
+
   const mainModules = allMainModules.filter(module => {
     if (role === 'none') return false;
     if (!module.roles.includes(role)) return false;
-    // No filtramos por feature flag aquí, lo manejamos en el renderizado
     return true;
   });
 
@@ -278,7 +283,6 @@ export default function DashboardPage() {
   }).filter(module => {
     if (role === 'none') return false;
     if (!module.roles.includes(role)) return false;
-    // No filtramos por feature flag aquí
     return true;
   });
 
@@ -538,7 +542,7 @@ export default function DashboardPage() {
                             title={mod.title}
                             description={mod.description}
                             icon={mod.icon}
-                            color={mod.color as any}
+                            color={mod.id === 'cumplimiento-legal' ? 'yellow' : mod.color as any}
                             onClick={() => handleQuickAccessClick(mod.href)}
                             isPremium={isPremium}
                         />
