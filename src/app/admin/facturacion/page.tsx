@@ -13,6 +13,11 @@ import { Company } from '@/types/pcg';
 
 const IVA_RATE = 0.19;
 
+// --- PRECIOS FIJOS DE PLATAFORMA PARA ESTIMACIÓN ---
+const PLATFORM_BASE_MENSUAL = 100000;
+const PLATFORM_VALOR_POR_USUARIO = 35000;
+
+
 type FacturacionData = {
   company: Company;
   userCount: number;
@@ -53,7 +58,7 @@ export default function AdminFacturacionPage() {
 
         const facturacionPromises = allCompanies.map(async (company) => {
             const usersQuery = query(collection(firebaseDb, 'users'), where('empresaId', '==', company.id));
-            const obrasQuery = query(collection(firebaseDb, 'obras'), where('companyId', '==', company.id));
+            const obrasQuery = query(collection(firebaseDb, 'obras'), where('empresaId', '==', company.id));
 
             const [usersSnap, obrasSnap] = await Promise.all([
                 getDocs(usersQuery),
@@ -62,11 +67,9 @@ export default function AdminFacturacionPage() {
 
             const userCount = usersSnap.size;
             const obraCount = obrasSnap.size;
-
-            const baseMensual = company.baseMensual || 100000;
-            const valorPorUsuario = company.valorPorUsuario || 35000;
-
-            const totalSinIVA = baseMensual + (userCount * valorPorUsuario);
+            
+            // --- CALCULO BASADO EN VALORES FIJOS DE PLATAFORMA ---
+            const totalSinIVA = PLATFORM_BASE_MENSUAL + (userCount * PLATFORM_VALOR_POR_USUARIO);
             const totalConIVA = totalSinIVA * (1 + IVA_RATE);
 
             return { company, userCount, obraCount, totalSinIVA, totalConIVA };
@@ -99,15 +102,15 @@ export default function AdminFacturacionPage() {
     <div className="space-y-6">
       <header>
         <h1 className="text-3xl font-bold">Facturación Estimada</h1>
-        <p className="text-muted-foreground">Cálculo de facturación mensual por empresa basado en usuarios y obras.</p>
+        <p className="text-muted-foreground">Cálculo de facturación mensual por empresa basado en los precios de la plataforma.</p>
       </header>
 
       {error && <p className="text-sm font-medium text-destructive">{error}</p>}
 
       <Card>
         <CardHeader>
-          <CardTitle>Detalle de Facturación por Empresa</CardTitle>
-          <CardDescription>Los cálculos se basan en 100.000 (base) + 35.000 por usuario + IVA (19%).</CardDescription>
+          <CardTitle>Detalle de Facturación Estimada por Empresa</CardTitle>
+          <CardDescription>Los cálculos se basan en {formatCurrency(PLATFORM_BASE_MENSUAL)} (base) + {formatCurrency(PLATFORM_VALOR_POR_USUARIO)} por usuario + IVA (19%).</CardDescription>
         </CardHeader>
         <CardContent>
           <Table>
@@ -116,25 +119,21 @@ export default function AdminFacturacionPage() {
                 <TableHead>Empresa</TableHead>
                 <TableHead className="text-center">Obras</TableHead>
                 <TableHead className="text-center">Usuarios</TableHead>
-                <TableHead className="text-right">Monto Base</TableHead>
-                <TableHead className="text-right">Monto Usuarios</TableHead>
                 <TableHead className="text-right">Total Neto</TableHead>
                 <TableHead className="text-right">Total con IVA</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {loading ? (
-                <TableRow><TableCell colSpan={7} className="text-center h-24"><Loader2 className="animate-spin mx-auto"/></TableCell></TableRow>
+                <TableRow><TableCell colSpan={5} className="text-center h-24"><Loader2 className="animate-spin mx-auto"/></TableCell></TableRow>
               ) : data.length === 0 ? (
-                <TableRow><TableCell colSpan={7} className="text-center h-24">No hay empresas para facturar.</TableCell></TableRow>
+                <TableRow><TableCell colSpan={5} className="text-center h-24">No hay empresas para facturar.</TableCell></TableRow>
               ) : (
                 data.map(({ company, userCount, obraCount, totalSinIVA, totalConIVA }) => (
                   <TableRow key={company.id}>
                     <TableCell className="font-medium">{company.nombreFantasia || company.razonSocial}</TableCell>
                     <TableCell className="text-center">{obraCount}</TableCell>
                     <TableCell className="text-center">{userCount}</TableCell>
-                    <TableCell className="text-right">{formatCurrency(company.baseMensual || 100000)}</TableCell>
-                    <TableCell className="text-right">{formatCurrency(userCount * (company.valorPorUsuario || 35000))}</TableCell>
                     <TableCell className="text-right font-semibold">{formatCurrency(totalSinIVA)}</TableCell>
                     <TableCell className="text-right font-bold text-primary">{formatCurrency(totalConIVA)}</TableCell>
                   </TableRow>
