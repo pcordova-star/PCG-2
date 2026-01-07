@@ -231,6 +231,16 @@ const quickAccessModules = [
         color: 'green' as const,
         roles: ['superadmin', 'admin_empresa', 'jefe_obra']
     },
+    {
+        id: 'cumplimiento-legal',
+        title: 'Cumplimiento Legal (MCLP)',
+        description: 'Gestiona la documentación mensual de subcontratistas para la aprobación de estados de pago.',
+        href: '/cumplimiento',
+        icon: ShieldCheck,
+        color: 'purple' as const,
+        roles: ['superadmin', 'admin_empresa', 'contratista'],
+        featureFlag: 'feature_compliance_module_enabled'
+    },
 ];
 
 
@@ -266,7 +276,11 @@ export default function DashboardPage() {
     return true;
   });
 
-  const filteredQuickAccessModules = quickAccessModules.filter(module => module.roles.includes(role));
+  const filteredQuickAccessModules = quickAccessModules.filter(module => {
+    if (!module.roles.includes(role)) return false;
+    if (module.featureFlag && !company?.[module.featureFlag]) return false;
+    return true;
+  });
 
 
   useEffect(() => {
@@ -381,9 +395,9 @@ export default function DashboardPage() {
   }, [user, role, companyId, authLoading, isPrevencionista]);
   
   const handleQuickAccessClick = (target: string) => {
-    if (target === '/rdi' || target === '/cubicacion/analisis-planos') {
-      router.push(target);
-      return;
+    if (['/rdi', '/cubicacion/analisis-planos', '/cumplimiento'].includes(target)) {
+        router.push(target);
+        return;
     }
     if (obras.length === 1) {
         const obraId = obras[0].id;
@@ -493,7 +507,7 @@ export default function DashboardPage() {
                   onClick={() => handleQuickAccessClick('/prevencion/hallazgos/crear')}
               />
          ) : (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 md:gap-6">
                 {filteredQuickAccessModules.map((mod) => (
                     <QuickAccessCard
                         key={mod.id}
