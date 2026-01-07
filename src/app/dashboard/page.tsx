@@ -27,6 +27,7 @@ import {
   DollarSign,
   BrainCircuit,
   FileSignature,
+  Sparkles,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useEffect, useState } from 'react';
@@ -192,17 +193,6 @@ const allMainModules = [
     tooltip: 'Acceso directo a los RDI de tu obra más reciente.',
     roles: ['superadmin', 'admin_empresa', 'jefe_obra']
   },
-  {
-    id: 'cumplimiento',
-    title: 'Cumplimiento Legal (MCLP)',
-    description: 'Gestiona programas, requisitos y estados de cumplimiento para el pago a subcontratistas.',
-    href: '/cumplimiento',
-    icon: ShieldCheck,
-    linkText: 'Ir a Cumplimiento',
-    tooltip: 'Módulo para la gestión de cumplimiento de subcontratos.',
-    roles: ['superadmin', 'admin_empresa', 'contratista'],
-    featureFlag: 'feature_compliance_module_enabled'
-  }
 ];
 
 const quickAccessModules = [
@@ -424,7 +414,8 @@ export default function DashboardPage() {
 
   const renderModuleCard = (mod: typeof allMainModules[0]) => {
     const isEnabled = !mod.featureFlag || !!company?.[mod.featureFlag];
-    
+    const isPremium = !!mod.featureFlag;
+
     if (!isEnabled) {
         return <DisabledModuleCard key={mod.id} title={mod.title} description={mod.description} icon={mod.icon} />;
     }
@@ -433,7 +424,13 @@ export default function DashboardPage() {
     const showTooltip = !isObraCard && !hasObras;
 
     const card = (
-         <Card className="rounded-xl border bg-white shadow-sm md:hover:shadow-md transition-shadow flex flex-col">
+         <Card className="rounded-xl border bg-white shadow-sm md:hover:shadow-md transition-shadow flex flex-col relative">
+            {isPremium && (
+                <div className="absolute top-2 right-2 flex items-center gap-1 bg-primary/10 text-primary text-xs font-bold px-2 py-1 rounded-full border border-primary/20">
+                  <Sparkles className="h-3 w-3" />
+                  <span>Premium</span>
+                </div>
+            )}
             <CardHeader>
                 <div className="flex items-center gap-4 mb-2">
                     <div className="p-3 bg-primary/10 rounded-full w-fit">
