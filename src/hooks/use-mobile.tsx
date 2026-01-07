@@ -6,14 +6,20 @@ export function useIsMobile() {
   const [isMobile, setIsMobile] = React.useState<boolean | undefined>(undefined)
 
   React.useEffect(() => {
-    const mql = window.matchMedia(`(max-width: ${MOBILE_BREAKPOINT - 1}px)`)
-    const onChange = () => {
+    // Esta función solo se ejecutará en el cliente, después del montaje inicial.
+    const checkIsMobile = () => {
       setIsMobile(window.innerWidth < MOBILE_BREAKPOINT)
-    }
-    mql.addEventListener("change", onChange)
-    setIsMobile(window.innerWidth < MOBILE_BREAKPOINT)
-    return () => mql.removeEventListener("change", onChange)
-  }, [])
+    };
+
+    // Establecer el valor inicial
+    checkIsMobile();
+
+    // Escuchar cambios
+    window.addEventListener("resize", checkIsMobile);
+    
+    // Limpieza al desmontar
+    return () => window.removeEventListener("resize", checkIsMobile);
+  }, []) // El array de dependencias vacío asegura que se ejecute solo una vez en el cliente
 
   return !!isMobile
 }
