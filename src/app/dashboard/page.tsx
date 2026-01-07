@@ -233,7 +233,7 @@ const quickAccessModules = [
     },
     {
         id: 'cumplimiento-legal',
-        title: 'Cumplimiento Legal (MCLP)',
+        title: 'Cumplimiento Legal para Estados de Pago',
         description: 'Gestiona la documentación mensual de subcontratistas para la aprobación de estados de pago.',
         href: '/cumplimiento',
         icon: ShieldCheck,
@@ -346,7 +346,7 @@ export default function DashboardPage() {
                 const [rdiSnap, avancesSnap, edpSnap] = await Promise.all([
                     getDocs(rdiQuery),
                     getDocs(avancesSnap),
-                    getDocs(edpQuery)
+                    getDocs(edpSnap)
                 ]);
 
                 let rdiItems: ActivityItem[] = rdiSnap.docs
