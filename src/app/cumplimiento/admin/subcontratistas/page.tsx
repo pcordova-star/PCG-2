@@ -7,8 +7,6 @@ import { Button } from "@/components/ui/button";
 import Link from "next/link";
 import { ArrowLeft, Loader2, PlusCircle, Trash2, UserPlus } from "lucide-react";
 import { useAuth } from '@/context/AuthContext';
-import { listSubcontractorsAction, createSubcontractorAction, deactivateSubcontractorAction, inviteContractorAction } from '@/lib/mclp/subcontractors/actions';
-
 import { Subcontractor } from '@/types/pcg';
 import { useToast } from '@/hooks/use-toast';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
@@ -17,6 +15,51 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import { Badge } from '@/components/ui/badge';
+
+// Server actions have been replaced with API calls
+async function listSubcontractors(companyId: string) {
+    const res = await fetch(`/api/mclp/subcontractors?companyId=${companyId}`);
+    if (!res.ok) throw new Error('Failed to fetch subcontractors');
+    return res.json();
+}
+
+async function createSubcontractor(data: any) {
+    const res = await fetch('/api/mclp/subcontractors', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data)
+    });
+    if (!res.ok) {
+        const errorData = await res.json();
+        throw new Error(errorData.error || 'Failed to create subcontractor');
+    }
+    return res.json();
+}
+
+async function deactivateSubcontractor(companyId: string, subcontractorId: string) {
+    const res = await fetch(`/api/mclp/subcontractors?companyId=${companyId}&subcontractorId=${subcontractorId}`, {
+        method: 'DELETE'
+    });
+    if (!res.ok) {
+        const errorData = await res.json();
+        throw new Error(errorData.error || 'Failed to deactivate subcontractor');
+    }
+    return res.json();
+}
+
+async function inviteContractor(data: any) {
+     const res = await fetch('/api/mclp/subcontractors/invite', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data)
+    });
+    if (!res.ok) {
+        const errorData = await res.json();
+        throw new Error(errorData.error || 'Failed to invite user');
+    }
+    return res.json();
+}
+
 
 export default function GestionSubcontratistasPage() {
     const { companyId } = useAuth();
@@ -31,64 +74,59 @@ export default function GestionSubcontratistasPage() {
     const [newSub, setNewSub] = useState({ razonSocial: '', rut: '', contactoNombre: '', contactoEmail: '' });
     const [newInvite, setNewInvite] = useState({ nombre: '', email: '' });
 
-    useEffect(() => {
+    const fetchSubcontractors = async () => {
         if (!companyId) return;
-        const fetchSubcontractors = async () => {
-            setLoading(true);
-            const result = await listSubcontractorsAction(companyId);
-            if (result.success && result.data) {
-                // Asegurarse de que los datos son un array antes de asignarlos
-                const dataArray = Array.isArray(result.data) ? result.data : [];
-                setSubcontractors(dataArray as Subcontractor[]);
-            } else {
-                toast({ variant: 'destructive', title: 'Error', description: result.error });
-            }
+        setLoading(true);
+        try {
+            const data = await listSubcontractors(companyId);
+            setSubcontractors(data || []);
+        } catch (error: any) {
+            toast({ variant: 'destructive', title: 'Error', description: error.message });
+        } finally {
             setLoading(false);
-        };
+        }
+    };
+    
+    useEffect(() => {
         fetchSubcontractors();
     }, [companyId, toast]);
 
     const handleCreateSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         if (!companyId) return;
-        const result = await createSubcontractorAction({ ...newSub, companyId });
-        if (result.success) {
+        try {
+            await createSubcontractor({ ...newSub, companyId });
             toast({ title: 'Éxito', description: 'Subcontratista creado correctamente.' });
             setIsCreateModalOpen(false);
             setNewSub({ razonSocial: '', rut: '', contactoNombre: '', contactoEmail: '' });
-            // Re-fetch list
-            const updatedList = await listSubcontractorsAction(companyId);
-            if (updatedList.success && updatedList.data) setSubcontractors(updatedList.data as Subcontractor[]);
-        } else {
-            toast({ variant: 'destructive', title: 'Error', description: result.error });
+            await fetchSubcontractors();
+        } catch (error: any) {
+            toast({ variant: 'destructive', title: 'Error', description: error.message });
         }
     };
     
     const handleInviteSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         if (!companyId || !selectedSubcontractor) return;
-        const result = await inviteContractorAction({ ...newInvite, companyId, subcontractorId: selectedSubcontractor.id });
-         if (result.success) {
+        try {
+            await inviteContractor({ ...newInvite, companyId, subcontractorId: selectedSubcontractor.id });
             toast({ title: 'Éxito', description: `Invitación enviada a ${newInvite.email}.` });
             setIsInviteModalOpen(false);
             setNewInvite({ nombre: '', email: '' });
-            // Re-fetch list
-            const updatedList = await listSubcontractorsAction(companyId);
-            if (updatedList.success && updatedList.data) setSubcontractors(updatedList.data as Subcontractor[]);
-        } else {
-            toast({ variant: 'destructive', title: 'Error', description: result.error });
+            await fetchSubcontractors();
+        } catch (error: any) {
+            toast({ variant: 'destructive', title: 'Error', description: error.message });
         }
     };
     
     const handleDeactivate = async (id: string) => {
         if (!companyId) return;
-        const result = await deactivateSubcontractorAction(companyId, id);
-        if (result.success) {
+        try {
+            await deactivateSubcontractor(companyId, id);
             toast({ title: 'Éxito', description: 'Subcontratista desactivado.' });
-             const updatedList = await listSubcontractorsAction(companyId);
-            if (updatedList.success && updatedList.data) setSubcontractors(updatedList.data as Subcontractor[]);
-        } else {
-            toast({ variant: 'destructive', title: 'Error', description: result.error });
+            await fetchSubcontractors();
+        } catch (error: any) {
+             toast({ variant: 'destructive', title: 'Error', description: error.message });
         }
     }
 
