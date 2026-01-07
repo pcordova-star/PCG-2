@@ -3,6 +3,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { getAdminDb } from "@/server/firebaseAdmin";
 import { Timestamp } from "firebase-admin/firestore";
 
+export const runtime = "nodejs";
+
 async function ensureMclpEnabled(db: FirebaseFirestore.Firestore, companyId: string) {
   const companyRef = db.collection("companies").doc(companyId);
   const snap = await companyRef.get();

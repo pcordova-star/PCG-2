@@ -4,6 +4,8 @@ import { getAdminAuth, getAdminDb } from "@/server/firebaseAdmin";
 import { ensureMclpEnabled } from "@/server/lib/mclp/ensureMclpEnabled";
 import { Timestamp } from "firebase-admin/firestore";
 
+export const runtime = "nodejs";
+
 // GET /api/mclp/subcontractors?companyId=[ID]
 export async function GET(req: NextRequest) {
   try {

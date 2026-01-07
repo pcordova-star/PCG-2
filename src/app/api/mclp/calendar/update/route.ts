@@ -3,10 +3,12 @@ import { NextRequest, NextResponse } from "next/server";
 import { getAdminDb } from "@/server/firebaseAdmin";
 import { Timestamp, FieldValue } from "firebase-admin/firestore";
 
+export const runtime = "nodejs";
+
 async function ensureMclpEnabled(db: FirebaseFirestore.Firestore, companyId: string) {
   const companyRef = db.collection("companies").doc(companyId);
   const snap = await companyRef.get();
-  if (!snap.exists() || !snap.data()?.feature_compliance_module_enabled) {
+  if (!snap.exists || !snap.data()?.feature_compliance_module_enabled) {
     throw new Error("MCLP_DISABLED");
   }
 }
@@ -27,7 +29,7 @@ export async function POST(req: NextRequest) {
         const ref = db.collection("complianceCalendars").doc(calendarId).collection("months").doc(monthId);
 
         const snap = await ref.get();
-        if (!snap.exists() || snap.data()?.editable === false) {
+        if (!snap.exists || snap.data()?.editable === false) {
             throw new Error("Mes no encontrado o bloqueado para edición.");
         }
         
