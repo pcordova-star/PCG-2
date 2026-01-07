@@ -7,7 +7,7 @@ import { collection, getDocs, query, collectionGroup, orderBy, limit } from 'fir
 import { firebaseDb } from '@/lib/firebaseClient';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Building, HardHat, Users, Loader2, DollarSign } from 'lucide-react';
+import { Building, HardHat, Users, Loader2, DollarSign, Settings } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
@@ -30,7 +30,8 @@ type SummaryData = {
 const adminCards = [
     { title: "Empresas", href: "/admin/empresas", icon: Building, description: "Crear, editar y gestionar empresas." },
     { title: "Usuarios", href: "/admin/usuarios", icon: Users, description: "Invitar y administrar usuarios por empresa." },
-    { title: "Facturación", href: "/admin/facturacion", icon: DollarSign, description: "Calcular facturación por empresa." }
+    { title: "Facturación", href: "/admin/facturacion", icon: DollarSign, description: "Calcular facturación estimada por empresa." },
+    { title: "Configurar Precios", href: "/admin/pricing", icon: Settings, description: "Definir los precios globales de la plataforma." },
 ]
 
 export default function AdminDashboardPage() {
@@ -114,7 +115,7 @@ export default function AdminDashboardPage() {
 
       {error && <p className="text-sm font-medium text-destructive">{error}</p>}
 
-      <div className="grid gap-4 md:grid-cols-3">
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
         {adminCards.map(card => (
              <Card key={card.title}>
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">

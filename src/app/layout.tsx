@@ -1,4 +1,3 @@
-
 // src/app/layout.tsx
 "use client";
 
@@ -119,6 +118,7 @@ const adminNavItems = [
     { href: '/admin/empresas', label: 'Empresas', icon: Building },
     { href: '/admin/usuarios', label: 'Usuarios', icon: UsersIcon },
     { href: '/admin/facturacion', label: 'Facturación', icon: DollarSign },
+    { href: '/admin/pricing', label: 'Precios Globales', icon: Settings },
 ];
 
 
