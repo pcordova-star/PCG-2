@@ -1,6 +1,6 @@
 // src/app/api/mclp/requirements/route.ts
 import { NextRequest, NextResponse } from "next/server";
-import { getAdminDb } from "@/server/firebaseAdmin";
+// import { getAdminDb } from "@/server/firebaseAdmin"; // Eliminado para importación dinámica
 import type { Firestore, Timestamp, FieldValue } from "firebase-admin/firestore";
 import { RequisitoDocumento } from "@/types/pcg";
 
@@ -17,6 +17,7 @@ async function ensureMclpEnabled(db: Firestore, companyId: string) {
 // GET /api/mclp/requirements?companyId=[ID]
 export async function GET(req: NextRequest) {
     try {
+        const { getAdminDb } = await import("@/server/firebaseAdmin");
         const companyId = req.nextUrl.searchParams.get("companyId");
         const db = getAdminDb();
 
@@ -51,6 +52,7 @@ export async function GET(req: NextRequest) {
 // POST /api/mclp/requirements
 export async function POST(req: NextRequest) {
     try {
+        const { getAdminDb } = await import("@/server/firebaseAdmin");
         const { companyId, requirement } = await req.json();
         const db = getAdminDb();
         const { Timestamp } = await import("firebase-admin/firestore");
@@ -79,6 +81,7 @@ export async function POST(req: NextRequest) {
 // PUT /api/mclp/requirements
 export async function PUT(req: NextRequest) {
     try {
+        const { getAdminDb } = await import("@/server/firebaseAdmin");
         const { companyId, requirement } = await req.json();
         const db = getAdminDb();
         const { Timestamp } = await import("firebase-admin/firestore");
