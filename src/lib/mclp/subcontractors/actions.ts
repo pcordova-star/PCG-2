@@ -24,8 +24,8 @@ export interface InviteContractorInput {
 // --- Listar Subcontratistas ---
 export async function listSubcontractorsAction(companyId: string) {
   try {
-    await ensureMclpEnabled(companyId);
     const db = getAdminDb();
+    await ensureMclpEnabled(companyId, db);
     const snap = await db
       .collection("subcontractors")
       .where("companyId", "==", companyId)
@@ -42,8 +42,8 @@ export async function listSubcontractorsAction(companyId: string) {
 // --- Crear Subcontratista ---
 export async function createSubcontractorAction(input: CreateSubcontractorInput) {
   try {
-    await ensureMclpEnabled(input.companyId);
     const db = getAdminDb();
+    await ensureMclpEnabled(input.companyId, db);
     const ref = db.collection("subcontractors").doc();
     await ref.set({
       companyId: input.companyId,
@@ -66,8 +66,8 @@ export async function createSubcontractorAction(input: CreateSubcontractorInput)
 // --- Desactivar Subcontratista ---
 export async function deactivateSubcontractorAction(companyId: string, subcontractorId: string) {
     try {
-        await ensureMclpEnabled(companyId);
         const db = getAdminDb();
+        await ensureMclpEnabled(companyId, db);
         await db.collection("subcontractors").doc(subcontractorId).update({
             activo: false,
             updatedAt: Timestamp.now(),
@@ -81,9 +81,9 @@ export async function deactivateSubcontractorAction(companyId: string, subcontra
 // --- Invitar Usuario a Subcontrato ---
 export async function inviteContractorAction(params: InviteContractorInput) {
   try {
-    await ensureMclpEnabled(params.companyId);
-    const auth = getAdminAuth();
     const db = getAdminDb();
+    const auth = getAdminAuth();
+    await ensureMclpEnabled(params.companyId, db);
 
     // 1) Crear o recuperar usuario Auth
     let user;

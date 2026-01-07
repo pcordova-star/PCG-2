@@ -1,10 +1,7 @@
 // src/lib/mclp/submissions/uploadSubmission.ts
-import { getAdminDb, getAdminStorage } from "@/server/firebaseAdmin";
-import { Timestamp } from "firebase-admin/firestore";
-import { ensureMclpEnabled } from "../ensureMclpEnabled";
 import { firebaseDb, firebaseStorage } from "@/lib/firebaseClient";
 import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
-import { doc, getDoc, addDoc, setDoc, collection, query, where, serverTimestamp } from "firebase/firestore";
+import { doc, getDoc, addDoc, setDoc, collection, query, where, serverTimestamp, getDocs } from "firebase/firestore";
 
 type UploadParams = {
   companyId: string;
@@ -18,7 +15,7 @@ type UploadParams = {
 };
 
 export async function uploadDocumentSubmission(params: UploadParams) {
-  // Nota: ensureMclpEnabled se llamará desde la API Route que invoca esto.
+  // La validación de que el módulo está activo se hará en el componente que llama a esta función.
   
   const periodRef = doc(firebaseDb, "compliancePeriods", params.periodId);
   const periodSnap = await getDoc(periodRef);
