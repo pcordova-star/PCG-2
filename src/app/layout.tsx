@@ -60,7 +60,8 @@ const navItemsBase = [
     href: '/cubicacion/analisis-planos',
     label: 'Análisis de Planos (IA)',
     icon: BrainCircuit,
-    roles: ['superadmin', 'admin_empresa', 'jefe_obra']
+    roles: ['superadmin', 'admin_empresa', 'jefe_obra'],
+    featureFlag: 'feature_plan_analysis_enabled'
   },
   {
     id: 'estados-pago',
@@ -74,7 +75,8 @@ const navItemsBase = [
     href: '/prevencion',
     label: 'Prevención',
     icon: ShieldCheck,
-    roles: ['superadmin', 'admin_empresa', 'jefe_obra', 'prevencionista']
+    roles: ['superadmin', 'admin_empresa', 'jefe_obra', 'prevencionista'],
+    featureFlag: 'feature_risk_prevention_enabled'
   },
   {
     id: 'cumplimiento',

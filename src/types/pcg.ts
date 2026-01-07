@@ -20,7 +20,9 @@ export interface Company {
   baseMensual: number;
   valorPorUsuario: number;
   activa: boolean;
-  feature_compliance_module_enabled?: boolean; // Feature flag para el nuevo módulo
+  feature_compliance_module_enabled?: boolean;
+  feature_plan_analysis_enabled?: boolean;
+  feature_risk_prevention_enabled?: boolean;
   createdAt: Date | Timestamp;
   updatedAt?: Date | Timestamp;
   [key: string]: any; // Para permitir acceso dinámico a feature flags
