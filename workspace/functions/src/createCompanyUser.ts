@@ -1,18 +1,18 @@
+// functions/src/createCompanyUser.ts
 import { onCall, HttpsError } from "firebase-functions/v2/https";
 import * as admin from "firebase-admin";
+import * as logger from "firebase-functions/logger";
 
 if (!admin.apps.length) {
   admin.initializeApp();
 }
 
 function buildAcceptInviteUrl(invId: string, email: string): string {
-  // SOLUCIÓN DEFINITIVA: Usar directamente la URL correcta para ignorar variables de entorno del servidor.
-  const rawBaseUrl = "https://pcg-2-8bf1b.web.app";
-
+  const rawBaseUrl = process.env.APP_BASE_URL || "http://localhost:3000";
+  
   if (!rawBaseUrl) {
-    // Este error ya no debería ocurrir.
     console.error("CRÍTICO: No se pudo determinar la URL base de la aplicación. No se puede crear un enlace de invitación válido.");
-    throw new HttpsError("internal", "El servidor no está configurado correctamente para enviar invitaciones. Falta la URL base de la aplicación.");
+    throw new HttpsError("internal", "El servidor no está configurado correctamente para enviar invitaciones.");
   }
   
   const appBaseUrl = rawBaseUrl.replace(/\/+$/, "");
