@@ -8,7 +8,6 @@ import { Label } from '@/components/ui/label';
 import { useAuth } from '@/context/AuthContext';
 import { useToast } from '@/hooks/use-toast';
 import { ComplianceCalendarMonth } from '@/types/pcg';
-import { getOrCreateCalendarAction, listCalendarMonthsAction, updateCalendarMonthAction } from '@/lib/mclp/calendarActions';
 import { ChevronLeft, ChevronRight, Loader2, Edit, CalendarIcon, Lock, ArrowLeft } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
@@ -25,6 +24,29 @@ interface EditMonthState {
   limiteRevision: Date;
   fechaPago: Date;
 }
+
+async function fetchCalendarData(companyId: string, year: number) {
+    const res = await fetch(`/api/mclp/calendar?companyId=${companyId}&year=${year}`);
+    if (!res.ok) {
+        const errorData = await res.json();
+        throw new Error(errorData.error || 'Failed to fetch calendar data');
+    }
+    return res.json();
+}
+
+async function updateCalendarMonth(companyId: string, year: number, monthId: string, data: any) {
+    const res = await fetch('/api/mclp/calendar', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ companyId, year, monthId, data }),
+    });
+     if (!res.ok) {
+        const errorData = await res.json();
+        throw new Error(errorData.error || 'Failed to update month');
+    }
+    return res.json();
+}
+
 
 function MonthCard({ month, onEdit }: { month: ComplianceCalendarMonth, onEdit: (month: ComplianceCalendarMonth) => void }) {
   const isEditable = month.editable;
@@ -121,46 +143,27 @@ export default function CalendarioMclpPage() {
     const [year, setYear] = useState(new Date().getFullYear());
     const [months, setMonths] = useState<ComplianceCalendarMonth[]>([]);
     const [loading, setLoading] = useState(true);
-    const [calendarExists, setCalendarExists] = useState(true);
     const [editingMonth, setEditingMonth] = useState<EditMonthState | null>(null);
 
-    useEffect(() => {
+    const loadCalendar = (targetYear: number) => {
         if (!companyId) return;
-
         setLoading(true);
         startTransition(async () => {
-            const calResult = await getOrCreateCalendarAction(companyId, year);
-            if (!calResult.success || !calResult.data) {
-                setCalendarExists(false);
-                setMonths([]);
+            try {
+                const data = await fetchCalendarData(companyId, targetYear);
+                setMonths(data);
+            } catch (error: any) {
+                toast({ variant: 'destructive', title: 'Error', description: error.message });
+                setMonths([]); // Limpiar en caso de error
+            } finally {
                 setLoading(false);
-                return;
             }
-            setCalendarExists(true);
-
-            const monthsResult = await listCalendarMonthsAction(companyId, year);
-            if (monthsResult.success && monthsResult.data) {
-                setMonths(monthsResult.data as ComplianceCalendarMonth[]);
-            } else {
-                toast({ variant: 'destructive', title: 'Error', description: monthsResult.error });
-            }
-            setLoading(false);
-        });
-    }, [companyId, year, toast]);
-
-    const handleCreateCalendar = () => {
-        if (!companyId) return;
-        setLoading(true);
-        startTransition(async () => {
-            await getOrCreateCalendarAction(companyId, year);
-            const monthsResult = await listCalendarMonthsAction(companyId, year);
-             if (monthsResult.success && monthsResult.data) {
-                setMonths(monthsResult.data as ComplianceCalendarMonth[]);
-                setCalendarExists(true);
-            }
-            setLoading(false);
         });
     }
+
+    useEffect(() => {
+        loadCalendar(year);
+    }, [companyId, year, toast]);
 
     const handleEditMonth = (month: ComplianceCalendarMonth) => {
         setEditingMonth({
@@ -180,21 +183,17 @@ export default function CalendarioMclpPage() {
         }
 
         startTransition(async () => {
-            const result = await updateCalendarMonthAction(companyId, year, data.id, {
-                corteCarga: data.corteCarga.toISOString(),
-                limiteRevision: data.limiteRevision.toISOString(),
-                fechaPago: data.fechaPago.toISOString()
-            });
-
-            if (result.success) {
+            try {
+                await updateCalendarMonth(companyId, year, data.id, {
+                    corteCarga: data.corteCarga.toISOString(),
+                    limiteRevision: data.limiteRevision.toISOString(),
+                    fechaPago: data.fechaPago.toISOString()
+                });
                 toast({ title: 'Éxito', description: 'Fechas del mes actualizadas.' });
-                const monthsResult = await listCalendarMonthsAction(companyId, year);
-                if (monthsResult.success && monthsResult.data) {
-                    setMonths(monthsResult.data as ComplianceCalendarMonth[]);
-                }
                 setEditingMonth(null);
-            } else {
-                 toast({ variant: 'destructive', title: 'Error', description: result.error });
+                loadCalendar(year); // Re-fetch
+            } catch (error: any) {
+                 toast({ variant: 'destructive', title: 'Error', description: error.message });
             }
         });
     }
@@ -224,16 +223,16 @@ export default function CalendarioMclpPage() {
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
                     {Array.from({length: 12}).map((_, i) => <Skeleton key={i} className="h-48"/>)}
                 </div>
-            ) : !calendarExists ? (
+            ) : months.length === 0 ? (
                  <Card className="text-center p-8">
                     <CardHeader>
-                        <CardTitle>Calendario no encontrado</CardTitle>
-                        <CardDescription>Aún no se ha generado el calendario para el año {year}.</CardDescription>
+                        <CardTitle>Calendario no generado</CardTitle>
+                        <CardDescription>Parece que el calendario para el año {year} aún no se ha creado.</CardDescription>
                     </CardHeader>
                     <CardContent>
-                        <Button onClick={handleCreateCalendar} disabled={isPending}>
+                        <Button onClick={() => loadCalendar(year)} disabled={isPending}>
                             {isPending && <Loader2 className="animate-spin mr-2"/>}
-                            Crear Calendario {year}
+                            {isPending ? 'Creando...' : `Crear Calendario ${year}`}
                         </Button>
                     </CardContent>
                 </Card>

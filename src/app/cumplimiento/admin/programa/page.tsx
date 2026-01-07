@@ -14,19 +14,38 @@ import { ArrowLeft, PlusCircle, Edit, Loader2, Info } from "lucide-react";
 import { useAuth } from '@/context/AuthContext';
 import { useToast } from '@/hooks/use-toast';
 import { RequisitoDocumento } from '@/types/pcg';
-import { 
-    listRequirementsAction,
-    createRequirementAction,
-    updateRequirementAction,
-} from '@/lib/mclp/actions';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 
-const initialRequirementState: Omit<RequisitoDocumento, 'id'> = {
+const initialRequirementState: Omit<RequisitoDocumento, 'id' | 'createdAt' | 'updatedAt'> = {
     nombre: '',
     descripcion: '',
     esObligatorio: true,
     activo: true,
 };
+
+async function fetchRequirements(companyId: string) {
+    const res = await fetch(`/api/mclp/requirements?companyId=${companyId}`);
+    if (!res.ok) {
+        const errorData = await res.json();
+        throw new Error(errorData.error || 'Failed to fetch requirements');
+    }
+    return res.json();
+}
+
+async function saveRequirement(companyId: string, req: Partial<RequisitoDocumento>) {
+    const method = req.id ? 'PUT' : 'POST';
+    const res = await fetch(`/api/mclp/requirements`, {
+        method,
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ companyId, requirement: req }),
+    });
+    if (!res.ok) {
+        const errorData = await res.json();
+        throw new Error(errorData.error || 'Failed to save requirement');
+    }
+    return res.json();
+}
+
 
 export default function RequerimientosCumplimientoPage() {
   const { companyId } = useAuth();
@@ -39,20 +58,22 @@ export default function RequerimientosCumplimientoPage() {
   const [isReqModalOpen, setIsReqModalOpen] = useState(false);
   const [currentReq, setCurrentReq] = useState<Partial<RequisitoDocumento>>(initialRequirementState);
   
-  useEffect(() => {
+  const loadRequirements = async () => {
     if (!companyId) return;
-
     setLoading(true);
-    startTransition(async () => {
-        const reqsResult = await listRequirementsAction(companyId);
-        if (reqsResult.success && reqsResult.data) {
-            setRequirements(reqsResult.data);
-        } else {
-             toast({ variant: 'destructive', title: 'Error', description: reqsResult.error });
-        }
-        setLoading(false);
-    });
-  }, [companyId, toast]);
+    try {
+      const data = await fetchRequirements(companyId);
+      setRequirements(data);
+    } catch (error: any) {
+      toast({ variant: 'destructive', title: 'Error', description: error.message });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    loadRequirements();
+  }, [companyId]);
 
   const handleReqSave = () => {
     if (!companyId || !currentReq.nombre) {
@@ -60,28 +81,13 @@ export default function RequerimientosCumplimientoPage() {
         return;
     }
     startTransition(async () => {
-        let result;
-        if (currentReq.id) {
-            result = await updateRequirementAction(companyId, currentReq.id, {
-                nombre: currentReq.nombre!,
-                descripcion: currentReq.descripcion,
-                esObligatorio: currentReq.esObligatorio,
-            });
-        } else {
-            result = await createRequirementAction(companyId, {
-                nombre: currentReq.nombre!,
-                descripcion: currentReq.descripcion,
-                esObligatorio: !!currentReq.esObligatorio,
-            });
-        }
-        
-        if (result.success) {
+        try {
+            await saveRequirement(companyId, currentReq);
             toast({ title: 'Éxito', description: `Requisito ${currentReq.id ? 'actualizado' : 'creado'}.` });
             setIsReqModalOpen(false);
-            const reqsResult = await listRequirementsAction(companyId);
-            if(reqsResult.data) setRequirements(reqsResult.data);
-        } else {
-            toast({ variant: 'destructive', title: 'Error', description: result.error });
+            await loadRequirements(); // Re-fetch data
+        } catch(error: any) {
+            toast({ variant: 'destructive', title: 'Error', description: error.message });
         }
     });
   };
