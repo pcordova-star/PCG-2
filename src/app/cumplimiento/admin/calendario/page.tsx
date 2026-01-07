@@ -16,6 +16,7 @@ import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
+import { Badge } from '@/components/ui/badge';
 
 interface EditMonthState {
   id: string;
@@ -38,7 +39,7 @@ function MonthCard({ month, onEdit }: { month: ComplianceCalendarMonth, onEdit: 
       <CardContent className="text-sm space-y-2">
         <div className="flex justify-between"><span>📥 Corte carga:</span><span className="font-semibold">{format(new Date(month.corteCarga), "dd 'de' MMM", { locale: es })}</span></div>
         <div className="flex justify-between"><span>🧐 Límite revisión:</span><span className="font-semibold">{format(new Date(month.limiteRevision), "dd 'de' MMM", { locale: es })}</span></div>
-        <div className="flex justify-between"><span>💰 Fecha pago:</span><span className="font-semibold">{format(new Date(month.fechaPago), "dd 'de' MMM", { locale es })}</span></div>
+        <div className="flex justify-between"><span>💰 Fecha pago:</span><span className="font-semibold">{format(new Date(month.fechaPago), "dd 'de' MMM", { locale: es })}</span></div>
       </CardContent>
       <CardFooter>
         <Button size="sm" variant="outline" className="w-full" disabled={!isEditable} onClick={() => onEdit(month)}>
@@ -130,6 +131,7 @@ export default function CalendarioMclpPage() {
             const calResult = await getOrCreateCalendarAction(companyId, year);
             if (!calResult.success || !calResult.data) {
                 setCalendarExists(false);
+                setMonths([]);
                 setLoading(false);
                 return;
             }
@@ -171,7 +173,6 @@ export default function CalendarioMclpPage() {
     const handleSaveMonth = async (data: EditMonthState) => {
         if (!companyId) return;
 
-        // Validaciones
         if (data.corteCarga >= data.limiteRevision || data.limiteRevision >= data.fechaPago) {
             toast({ variant: 'destructive', title: 'Fechas inválidas', description: 'El orden debe ser: Corte Carga < Límite Revisión < Fecha Pago.' });
             return;
@@ -186,7 +187,6 @@ export default function CalendarioMclpPage() {
 
             if (result.success) {
                 toast({ title: 'Éxito', description: 'Fechas del mes actualizadas.' });
-                // Refetch months data
                 const monthsResult = await listCalendarMonthsAction(companyId, year);
                 if (monthsResult.success && monthsResult.data) {
                     setMonths(monthsResult.data as ComplianceCalendarMonth[]);

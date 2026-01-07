@@ -6,7 +6,7 @@ import { useRouter } from 'next/navigation';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
 import { Loader2, Calendar, Users, ListChecks } from "lucide-react";
 
 export default function AdminCumplimientoPage() {
@@ -56,19 +56,19 @@ export default function AdminCumplimientoPage() {
     const adminActions = [
         {
             title: "Configurar Programa",
-            description: "Define las fechas clave y los documentos requeridos para el cumplimiento mensual.",
+            description: "Define los documentos requeridos para el cumplimiento mensual.",
             href: "/cumplimiento/admin/programa",
             icon: ListChecks
         },
         {
             title: "Calendario Anual",
-            description: "Visualiza y ajusta las fechas de corte, revisión y pago para cada mes del año.",
+            description: "Ajusta las fechas de corte, revisión y pago para cada mes del año.",
             href: "/cumplimiento/admin/calendario",
             icon: Calendar
         },
         {
             title: "Gestionar Subcontratistas",
-            description: "Añade, desactiva y gestiona el acceso de tus empresas subcontratistas al portal.",
+            description: "Añade, desactiva y gestiona el acceso de tus empresas subcontratistas.",
             href: "/cumplimiento/admin/subcontratistas",
             icon: Users
         }
