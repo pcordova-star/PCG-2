@@ -8,11 +8,11 @@ import { Button } from "@/components/ui/button";
 import { useEffect, useState } from "react";
 import { Loader2, AlertTriangle, Upload, Check, X, File, Paperclip } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
-import { listActiveRequirements } from "@/lib/mclp/requirements/listRequirements";
-import { listSubmissionsByPeriod } from "@/lib/mclp/submissions/listSubmissionsByPeriod";
-import { uploadDocumentSubmission } from "@/lib/mclp/submissions/uploadSubmission";
 import { RequisitoDocumento, EntregaDocumento } from "@/types/pcg";
 import { useToast } from "@/hooks/use-toast";
+import { Input } from "@/components/ui/input";
+import { uploadDocumentSubmission } from "@/lib/mclp/submissions/uploadSubmission";
+
 
 type MergedRequirement = RequisitoDocumento & {
   submission?: EntregaDocumento;
@@ -37,22 +37,32 @@ export default function PeriodoContratistaPage() {
     }, [role, loading, router]);
     
     useEffect(() => {
-        if (!companyId || !periodId || !subcontractorId) return;
+        if (!companyId || !periodId || !subcontractorId) {
+            setPageLoading(false);
+            return;
+        }
 
         const fetchData = async () => {
             setPageLoading(true);
             try {
-                const [reqs, subs] = await Promise.all([
-                    listActiveRequirements(companyId),
-                    listSubmissionsByPeriod(companyId, periodId, subcontractorId)
+                const [reqsRes, subsRes] = await Promise.all([
+                    fetch(`/api/mclp/requirements?companyId=${companyId}`),
+                    fetch(`/api/mclp/submissions?companyId=${companyId}&periodId=${periodId}&subcontractorId=${subcontractorId}`)
                 ]);
 
-                const merged = reqs.map(req => {
-                    const submission = (subs as EntregaDocumento[]).find(s => s.requirementId === req.id);
+                if (!reqsRes.ok || !subsRes.ok) {
+                    throw new Error('Failed to fetch compliance data');
+                }
+
+                const reqs = await reqsRes.json();
+                const subs = await subsRes.json();
+
+                const merged = reqs.map((req: RequisitoDocumento) => {
+                    const submission = subs.find((s: EntregaDocumento) => s.requirementId === req.id);
                     return { ...req, submission };
                 });
                 
-                setRequirements(merged as any);
+                setRequirements(merged);
 
             } catch (error) {
                 console.error(error);
@@ -71,32 +81,28 @@ export default function PeriodoContratistaPage() {
 
     const handleUpload = async (req: MergedRequirement) => {
         const file = files[req.id];
-        if (!file || !user) {
-            toast({ variant: 'destructive', title: 'Error', description: 'No se seleccionó un archivo o no estás autenticado.'});
+        if (!file || !user || !companyId || !subcontractorId) {
+            toast({ variant: 'destructive', title: 'Error', description: 'Faltan datos para la subida.'});
             return;
         }
 
         setUploading(prev => ({...prev, [req.id]: true }));
         try {
-            const buffer = await file.arrayBuffer();
             const period = periodId.split('_')[1];
 
-            // await uploadDocumentSubmission({
-            //     companyId: companyId!,
-            //     periodId: periodId,
-            //     period,
-            //     subcontractorId: subcontractorId!,
-            //     requirementId: req.id,
-            //     nombreDocumentoSnapshot: req.nombre,
-            //     fileBuffer: Buffer.from(buffer),
-            //     mimeType: file.type,
-            //     uid: user.uid
-            // });
+            await uploadDocumentSubmission({
+                companyId: companyId,
+                periodId: periodId,
+                period: period,
+                subcontractorId: subcontractorId,
+                requirementId: req.id,
+                nombreDocumentoSnapshot: req.nombre,
+                file: file,
+                uid: user.uid
+            });
 
              toast({ title: 'Éxito', description: `Documento "${req.nombre}" subido correctamente.` });
-             // Refetch data
-             // En una app real, la función de arriba sería una server action y se usaría revalidatePath
-             // Por ahora, recargamos la página
+             // Refetch data by reloading page
              window.location.reload();
 
         } catch (error: any) {
