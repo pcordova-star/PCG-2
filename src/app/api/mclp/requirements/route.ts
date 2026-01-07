@@ -9,7 +9,7 @@ export const runtime = "nodejs";
 async function ensureMclpEnabled(db: Firestore, companyId: string) {
   const companyRef = db.collection("companies").doc(companyId);
   const snap = await companyRef.get();
-  if (!snap.exists() || !snap.data()?.feature_compliance_module_enabled) {
+  if (!snap.exists || !snap.data()?.feature_compliance_module_enabled) {
     throw new Error("MCLP_DISABLED");
   }
 }
