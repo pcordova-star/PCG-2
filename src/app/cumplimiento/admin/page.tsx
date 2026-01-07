@@ -55,8 +55,8 @@ export default function AdminCumplimientoPage() {
 
     const adminActions = [
         {
-            title: "Configurar Programa",
-            description: "Define los documentos requeridos para el cumplimiento mensual.",
+            title: "Documentos Requeridos",
+            description: "Define la lista de documentos que se solicitarán mensualmente a los subcontratistas.",
             href: "/cumplimiento/admin/programa",
             icon: ListChecks
         },
@@ -94,7 +94,7 @@ export default function AdminCumplimientoPage() {
                         </CardHeader>
                         <CardFooter className="mt-auto">
                             <Button asChild className="w-full">
-                                <Link href={action.href}>Ir a {action.title}</Link>
+                                <Link href={action.href}>Gestionar</Link>
                             </Button>
                         </CardFooter>
                     </Card>
