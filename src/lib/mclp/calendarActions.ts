@@ -23,8 +23,10 @@ async function createDefaultMonths(calendarRef: FirebaseFirestore.DocumentRefere
     const db = getAdminDb();
     const batch = db.batch();
     
+    // Obtener la configuración de días por defecto del programa de la empresa
     const programRef = db.collection("compliancePrograms").doc(calendarRef.id.split('_')[0]);
     const programSnap = await programRef.get();
+    // Usa valores por defecto robustos si el programa no existe o no tiene los días configurados.
     const { diaCorteCarga = 25, diaLimiteRevision = 5, diaPago = 10 } = programSnap.data() || {};
   
     for (let m = 1; m <= 12; m++) {
@@ -33,7 +35,8 @@ async function createDefaultMonths(calendarRef: FirebaseFirestore.DocumentRefere
 
       // El corte es en el mes actual, la revisión y pago en el siguiente
       const fechaCorte = new Date(Date.UTC(year, m - 1, diaCorteCarga));
-      const fechaRevision = new Date(Date.UTC(year, m, diaLimiteRevision));
+      // El mes en new Date es 0-indexed, por lo que 'm' (que es 1-12) apunta al mes siguiente.
+      const fechaRevision = new Date(Date.UTC(year, m, diaLimiteRevision)); 
       const fechaDePago = new Date(Date.UTC(year, m, diaPago));
 
       batch.set(monthRef, {
@@ -70,7 +73,18 @@ export async function getOrCreateCalendarAction(companyId: string, year: number)
             await createDefaultMonths(ref, year);
             snap = await ref.get(); // Re-fetch
         }
-        return { id: snap.id, ...snap.data() };
+        
+        const data = snap.data();
+        if (!data) return null;
+        
+        // Serializar Timestamps a strings antes de devolverlos
+        const serializedData = {
+            ...data,
+            createdAt: (data.createdAt as Timestamp).toDate().toISOString(),
+            updatedAt: (data.updatedAt as Timestamp).toDate().toISOString(),
+        };
+
+        return { id: snap.id, ...serializedData };
     });
 }
 
