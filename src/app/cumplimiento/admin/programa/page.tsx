@@ -93,14 +93,14 @@ export default function RequerimientosCumplimientoPage() {
   return (
     <div className="space-y-6">
        <header className="flex items-center gap-4">
-        <Button variant="outline" size="icon" asChild>
+        <Button variant="outline" size="sm" asChild>
             <Link href="/cumplimiento/admin">
-                <ArrowLeft />
+                <ArrowLeft className="mr-2 h-4 w-4"/>Volver
             </Link>
         </Button>
         <div>
             <h1 className="text-2xl font-bold">Requerimientos de Cumplimiento</h1>
-            <p className="text-muted-foreground">Define la lista maestra de documentos que los subcontratistas deben presentar en cada período.</p>
+            <p className="text-muted-foreground">Define la lista maestra de documentos que los subcontratistas deben presentar.</p>
         </div>
       </header>
       
