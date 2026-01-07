@@ -1,3 +1,4 @@
+
 "use client";
 
 import Link from 'next/link';
@@ -270,7 +271,12 @@ export default function DashboardPage() {
     return true;
   });
 
-  const filteredQuickAccessModules = quickAccessModules.filter(module => {
+  const filteredQuickAccessModules = quickAccessModules.map(mod => {
+    if (mod.id === 'cumplimiento-legal') {
+      return { ...mod, color: 'yellow' as const };
+    }
+    return mod;
+  }).filter(module => {
     if (role === 'none') return false;
     if (!module.roles.includes(role)) return false;
     // No filtramos por feature flag aquí
