@@ -38,6 +38,7 @@ import { Company, Obra, Hallazgo, Rdi, AvanceDiario, Presupuesto } from '@/types
 import { PcgLogo } from '@/components/branding/PcgLogo';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { QuickAccessCard } from '@/components/dashboard/QuickAccessCard';
+import { DisabledModuleCard } from '@/components/dashboard/DisabledModuleCard'; // NUEVO
 import { ObraSelectionModal } from '@/components/dashboard/ObraSelectionModal';
 import { useRouter } from 'next/navigation';
 import { Badge } from '@/components/ui/badge';
@@ -211,7 +212,7 @@ const quickAccessModules = [
         description: 'Formulario rápido para dejar evidencia fotográfica de un hito o avance desde terreno.',
         href: '/operaciones/registro-fotografico',
         icon: Camera,
-        color: 'orange',
+        color: 'orange' as const,
         roles: ['superadmin', 'admin_empresa', 'jefe_obra', 'prevencionista']
     },
     {
@@ -220,7 +221,7 @@ const quickAccessModules = [
         description: 'Carga un plano, selecciona qué cubicar y deja que la IA te entregue una estimación de referencia.',
         href: '/cubicacion/analisis-planos',
         icon: BrainCircuit,
-        color: 'blue',
+        color: 'blue' as const,
         roles: ['superadmin', 'admin_empresa', 'jefe_obra'],
         featureFlag: 'feature_plan_analysis_enabled'
     },
@@ -230,19 +231,19 @@ const quickAccessModules = [
         description: 'Crea y gestiona consultas de información (RDI) con mandantes, proyectistas o subcontratos.',
         href: '/rdi',
         icon: MessageSquare,
-        color: 'green',
+        color: 'green' as const,
         roles: ['superadmin', 'admin_empresa', 'jefe_obra']
     },
-    {
+     {
         id: 'cumplimiento-legal',
-        title: 'Cumplimiento Legal para Estados de Pago',
+        title: 'Cumplimiento Legal',
         description: 'Gestiona la documentación mensual de subcontratistas para la aprobación de estados de pago.',
         href: '/cumplimiento',
         icon: ShieldCheck,
-        color: 'purple',
+        color: 'purple' as const,
         roles: ['superadmin', 'admin_empresa', 'contratista'],
         featureFlag: 'feature_compliance_module_enabled'
-    },
+    }
 ];
 
 
@@ -273,14 +274,16 @@ export default function DashboardPage() {
   const isPrevencionista = role === 'prevencionista';
   
   const mainModules = allMainModules.filter(module => {
+    if (role === 'none') return false;
     if (!module.roles.includes(role)) return false;
-    if (module.featureFlag && !company?.[module.featureFlag]) return false;
+    // No filtramos por feature flag aquí, lo manejamos en el renderizado
     return true;
   });
 
   const filteredQuickAccessModules = quickAccessModules.filter(module => {
+    if (role === 'none') return false;
     if (!module.roles.includes(role)) return false;
-    if (module.featureFlag && !company?.[module.featureFlag]) return false;
+    // No filtramos por feature flag aquí
     return true;
   });
 
@@ -348,7 +351,7 @@ export default function DashboardPage() {
                 const [rdiSnap, avancesSnap, edpSnap] = await Promise.all([
                     getDocs(rdiQuery),
                     getDocs(avancesQuery),
-                    getDocs(edpQuery)
+                    getDocs(edpSnap)
                 ]);
 
                 let rdiItems: ActivityItem[] = rdiSnap.docs
@@ -420,6 +423,12 @@ export default function DashboardPage() {
   }
 
   const renderModuleCard = (mod: typeof allMainModules[0]) => {
+    const isEnabled = !mod.featureFlag || !!company?.[mod.featureFlag];
+    
+    if (!isEnabled) {
+        return <DisabledModuleCard key={mod.id} title={mod.title} description={mod.description} icon={mod.icon} />;
+    }
+
     const isObraCard = mod.title === 'Obras';
     const showTooltip = !isObraCard && !hasObras;
 
@@ -510,16 +519,26 @@ export default function DashboardPage() {
               />
          ) : (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 md:gap-6">
-                {filteredQuickAccessModules.map((mod) => (
-                    <QuickAccessCard
-                        key={mod.id}
-                        title={mod.title}
-                        description={mod.description}
-                        icon={mod.icon}
-                        color={mod.color as 'orange' | 'blue' | 'green' | 'purple'}
-                        onClick={() => handleQuickAccessClick(mod.href)}
-                    />
-                ))}
+                {filteredQuickAccessModules.map((mod) => {
+                    const isEnabled = !mod.featureFlag || !!company?.[mod.featureFlag];
+                    return isEnabled ? (
+                        <QuickAccessCard
+                            key={mod.id}
+                            title={mod.title}
+                            description={mod.description}
+                            icon={mod.icon}
+                            color={mod.color}
+                            onClick={() => handleQuickAccessClick(mod.href)}
+                        />
+                    ) : (
+                        <DisabledModuleCard
+                            key={mod.id}
+                            title={mod.title}
+                            description={mod.description}
+                            icon={mod.icon}
+                        />
+                    );
+                })}
             </div>
         )}
 
