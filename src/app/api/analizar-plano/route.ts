@@ -3,12 +3,14 @@ import { NextResponse } from "next/server";
 import { analizarPlano } from "@/ai/flows/analisis-planos-flow";
 import { AnalisisPlanoInputSchema } from "@/types/analisis-planos";
 import type { AnalisisPlanoInput } from "@/types/analisis-planos";
+import { getAdminDb } from "@/server/firebaseAdmin";
+import { FieldValue } from "firebase-admin/firestore";
 
 export const runtime = "nodejs";
 export const maxDuration = 60;
 
 const corsHeaders = {
-  "Access-Control-Allow-Origin": process.env.NEXT_PUBLIC_BASE_URL || "https://pcg-2.vercel.app",
+  "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Methods": "POST,OPTIONS",
   "Access-Control-Allow-Headers": "Content-Type, Authorization",
 };
@@ -29,78 +31,16 @@ export async function POST(req: Request) {
         { status: 400, headers: corsHeaders }
       );
     }
-
-    const validatedInput: AnalisisPlanoInput = validationResult.data;
-    const { companyId, obraId, cache, planType, imageMeta } = validatedInput;
-
-    // 🔹 IMPORTS DINÁMICOS (CRÍTICO PARA VERCEL / TURBOPACK)
-    const { getAdminDb } = await import("@/lib/firebaseAdmin");
-    const { FieldValue } = await import("firebase-admin/firestore");
-    const db = getAdminDb();
-
-    // ===== CACHE LOOKUP =====
-    if (cache?.cacheKey && companyId && obraId) {
-      if (cache.cacheKey.length > 180) {
-        throw new Error("cacheKey inválida: demasiado larga.");
-      }
-
-      const cacheRef = db
-        .collection("companies").doc(companyId)
-        .collection("obras").doc(obraId)
-        .collection("cubicacion_cache").doc(cache.cacheKey);
-
-      const cachedSnap = await cacheRef.get();
-
-      if (cachedSnap.exists) {
-        await cacheRef.update({
-          hitCount: FieldValue.increment(1),
-          lastHitAt: FieldValue.serverTimestamp(),
-        });
-
-        return NextResponse.json({
-          cached: true,
-          cacheKey: cache.cacheKey,
-          result: cachedSnap.data()!.result,
-        }, { headers: corsHeaders });
-      }
-    }
-
-    // ===== EJECUTAR IA =====
-    const analisisOutput = await analizarPlano(validatedInput);
-
-    // ===== GUARDAR CACHE =====
-    if (cache?.cacheKey && companyId && obraId) {
-      const expireAt = new Date();
-      expireAt.setDate(expireAt.getDate() + 90);
-      
-      const { hash, cacheKey, modelId, promptVersion, presetVersion } = cache;
-
-      const cacheRef = db
-        .collection("companies").doc(companyId)
-        .collection("obras").doc(obraId)
-        .collection("cubicacion_cache").doc(cacheKey);
-
-      await cacheRef.set({
-        cacheKey,
-        hash,
-        modelId,
-        promptVersion,
-        presetVersion,
-        planType: planType ?? null,
-        imageMeta: imageMeta ?? null,
-        result: analisisOutput,
-        createdAt: FieldValue.serverTimestamp(),
-        lastHitAt: FieldValue.serverTimestamp(),
-        hitCount: 0,
-        expireAt,
-      });
-    }
+    
+    // El análisis con Genkit ahora se hace en el server-side flow.
+    const analisisOutput = await analizarPlano(validationResult.data);
 
     return NextResponse.json({
-      cached: false,
-      cacheKey: cache?.cacheKey ?? null,
+      cached: false, // La lógica de caché fue eliminada para simplificar.
+      cacheKey: null,
       result: analisisOutput,
     }, { headers: corsHeaders });
+
   } catch (error: any) {
     console.error("[API /analizar-plano] Error:", error);
     return NextResponse.json(

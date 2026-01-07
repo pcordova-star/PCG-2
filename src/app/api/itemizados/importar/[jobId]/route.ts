@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { getAdminDb } from "@/lib/firebaseAdmin";
+import { getAdminDb } from "@/server/firebaseAdmin";
 
 export const runtime = "nodejs";
 

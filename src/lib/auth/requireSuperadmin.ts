@@ -1,5 +1,5 @@
 // src/lib/auth/requireSuperadmin.ts
-import { getAdminAuth } from "@/lib/firebaseAdmin";
+import { getAdminAuth } from "@/server/firebaseAdmin";
 import { NextRequest, NextResponse } from "next/server";
 import { headers } from "next/headers";
 
