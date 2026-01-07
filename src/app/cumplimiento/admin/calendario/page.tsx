@@ -163,7 +163,7 @@ export default function CalendarioMclpPage() {
 
     useEffect(() => {
         loadCalendar(year);
-    }, [companyId, year, toast]);
+    }, [companyId, year]);
 
     const handleEditMonth = (month: ComplianceCalendarMonth) => {
         setEditingMonth({
@@ -202,9 +202,9 @@ export default function CalendarioMclpPage() {
         <div className="space-y-6">
             <header className="flex items-center justify-between">
                  <div className="flex items-center gap-4">
-                    <Button variant="outline" size="icon" asChild>
+                    <Button variant="outline" size="sm" asChild>
                         <Link href="/cumplimiento/admin">
-                            <ArrowLeft />
+                            <ArrowLeft className="mr-2 h-4 w-4"/>Volver
                         </Link>
                     </Button>
                     <div>

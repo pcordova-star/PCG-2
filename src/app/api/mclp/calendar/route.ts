@@ -1,15 +1,8 @@
 // src/app/api/mclp/calendar/route.ts
 import { NextRequest, NextResponse } from "next/server";
-import { getAdminDb } from "@/lib/firebaseAdmin";
+import { getAdminDb } from "@/server/firebaseAdmin";
 import { Timestamp, FieldValue } from "firebase-admin/firestore";
-
-async function ensureMclpEnabled(companyId: string) {
-    const db = getAdminDb();
-    const snap = await db.collection("companies").doc(companyId).get();
-    if (!snap.exists() || !snap.data()?.feature_compliance_module_enabled) {
-        throw new Error("El Módulo de Cumplimiento Legal no está habilitado para esta empresa.");
-    }
-}
+import { ensureMclpEnabled } from "@/lib/mclp/ensureMclpEnabled";
 
 async function createDefaultMonths(calendarRef: FirebaseFirestore.DocumentReference, year: number) {
     const db = getAdminDb();

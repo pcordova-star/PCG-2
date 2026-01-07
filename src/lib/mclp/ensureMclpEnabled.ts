@@ -1,17 +1,11 @@
 // src/lib/mclp/ensureMclpEnabled.ts
-import { getAdminDb } from "@/lib/firebaseAdmin";
+import { getAdminDb } from "@/server/firebaseAdmin";
 
 export async function ensureMclpEnabled(companyId: string) {
   const db = getAdminDb();
-  const snap = await db.collection("companies").doc(companyId).get();
-  if (!snap.exists) {
-    throw new Error("Company not found");
-  }
-  const enabled = snap.get("feature_compliance_module_enabled") === true;
-  if (!enabled) {
-    const err = new Error("El Módulo de Cumplimiento Legal no está habilitado para esta empresa.");
-    // @ts-ignore
-    err.code = "MCLP_DISABLED";
-    throw err;
+  const companyRef = db.collection("companies").doc(companyId);
+  const snap = await companyRef.get();
+  if (!snap.exists() || !snap.data()?.feature_compliance_module_enabled) {
+    throw new Error("MCLP_DISABLED");
   }
 }

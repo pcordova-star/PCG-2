@@ -1,6 +1,6 @@
 // src/app/api/superadmin/mclp/feature-flag/route.ts
 import { NextRequest, NextResponse } from "next/server";
-import { getAdminDb } from "@/lib/firebaseAdmin";
+import { getAdminDb } from "@/server/firebaseAdmin";
 import { withSuperadminAuth } from "@/lib/auth/requireSuperadmin";
 
 async function handler(req: NextRequest) {
