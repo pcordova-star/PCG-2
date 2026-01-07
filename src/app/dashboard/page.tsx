@@ -422,9 +422,15 @@ export default function DashboardPage() {
 
     const isObraCard = mod.title === 'Obras';
     const showTooltip = !isObraCard && !hasObras;
+    
+    // Aplicar el fondo gris suave solo a la tarjeta de Prevención de Riesgos si es premium
+    const cardBackgroundColor = (mod.id === 'prevencion' && isPremium) ? 'bg-slate-50' : 'bg-white';
 
     const card = (
-         <Card className="rounded-xl border bg-white shadow-sm md:hover:shadow-md transition-shadow flex flex-col relative">
+         <Card className={cn(
+             "rounded-xl border shadow-sm md:hover:shadow-md transition-shadow flex flex-col relative",
+             cardBackgroundColor
+         )}>
             {isPremium && (
                 <div className="absolute top-2 right-2 flex items-center gap-1 bg-primary/10 text-primary text-xs font-bold px-2 py-1 rounded-full border border-primary/20">
                   <Sparkles className="h-3 w-3" />
