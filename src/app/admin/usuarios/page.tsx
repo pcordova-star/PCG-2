@@ -1,3 +1,4 @@
+
 "use client";
 // Convertido a client component para evitar errores de prerender en /admin/invitaciones con next export.
 
