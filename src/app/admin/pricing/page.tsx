@@ -13,10 +13,13 @@ import { doc, getDoc, setDoc, serverTimestamp } from 'firebase/firestore';
 import { firebaseDb } from '@/lib/firebaseClient';
 import { Loader2, ArrowLeft, DollarSign } from 'lucide-react';
 import Link from 'next/link';
+import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/components/ui/select';
 
 interface PricingConfig {
   baseMensual: number;
   valorPorUsuario: number;
+  currency: 'CLP' | 'UF';
+  ufValue: number;
   modulos: {
     cumplimientoLegal: number;
     analisisPlanosIA: number;
@@ -29,6 +32,8 @@ interface PricingConfig {
 const defaultPricing: PricingConfig = {
   baseMensual: 100000,
   valorPorUsuario: 35000,
+  currency: 'CLP',
+  ufValue: 37000,
   modulos: {
     cumplimientoLegal: 50000,
     analisisPlanosIA: 75000,
@@ -59,7 +64,8 @@ export default function AdminPricingPage() {
       const configRef = doc(firebaseDb, "config", "pricing");
       const configSnap = await getDoc(configRef);
       if (configSnap.exists()) {
-        setConfig(configSnap.data() as PricingConfig);
+        const data = configSnap.data();
+        setConfig({ ...defaultPricing, ...data } as PricingConfig);
       } else {
         setConfig(defaultPricing);
       }
@@ -88,6 +94,10 @@ export default function AdminPricingPage() {
         }));
     }
   };
+  
+  const handleSelectChange = (name: 'currency', value: string) => {
+    setConfig(prev => ({...prev, [name]: value}));
+  }
 
   const handleSave = async (e: FormEvent) => {
     e.preventDefault();
@@ -118,21 +128,43 @@ export default function AdminPricingPage() {
             <Link href="/admin/dashboard"><ArrowLeft className="mr-2 h-4 w-4" />Volver al Dashboard</Link>
         </Button>
         <h1 className="text-3xl font-bold">Precios Globales de la Plataforma</h1>
-        <p className="text-muted-foreground">Define los precios base y por módulo que se usarán para los cálculos de facturación estimada.</p>
+        <p className="text-muted-foreground">Define los precios base, por módulo y la moneda de facturación que se usarán para los cálculos.</p>
       </header>
 
       <form onSubmit={handleSave}>
         <Card>
           <CardHeader>
-            <CardTitle>Precios Base</CardTitle>
+            <CardTitle>Configuración de Moneda</CardTitle>
+          </CardHeader>
+          <CardContent className="grid md:grid-cols-2 gap-6">
+              <div className="space-y-2">
+                <Label htmlFor="currency">Moneda de Facturación</Label>
+                <Select value={config.currency} onValueChange={(v) => handleSelectChange('currency', v)}>
+                  <SelectTrigger id="currency"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="CLP">Pesos Chilenos (CLP)</SelectItem>
+                    <SelectItem value="UF">Unidad de Fomento (UF)</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="ufValue">Valor UF del día (en CLP)</Label>
+                <Input id="ufValue" name="ufValue" type="number" value={config.ufValue} onChange={handleInputChange} disabled={config.currency !== 'UF'} />
+              </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>Precios Base ({config.currency})</CardTitle>
           </CardHeader>
           <CardContent className="grid md:grid-cols-2 gap-6">
             <div className="space-y-2">
-              <Label htmlFor="baseMensual">Monto Base Mensual (CLP)</Label>
+              <Label htmlFor="baseMensual">Monto Base Mensual</Label>
               <Input id="baseMensual" name="baseMensual" type="number" value={config.baseMensual} onChange={handleInputChange} />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="valorPorUsuario">Valor por Usuario Adicional (CLP)</Label>
+              <Label htmlFor="valorPorUsuario">Valor por Usuario Adicional</Label>
               <Input id="valorPorUsuario" name="valorPorUsuario" type="number" value={config.valorPorUsuario} onChange={handleInputChange} />
             </div>
           </CardContent>
@@ -140,7 +172,7 @@ export default function AdminPricingPage() {
 
         <Card>
           <CardHeader>
-            <CardTitle>Precios por Módulo Adicional (Mensual, CLP)</CardTitle>
+            <CardTitle>Precios por Módulo Adicional (Mensual, {config.currency})</CardTitle>
           </CardHeader>
           <CardContent className="grid md:grid-cols-2 gap-6">
             <div className="space-y-2">
@@ -166,7 +198,7 @@ export default function AdminPricingPage() {
           </CardContent>
         </Card>
         
-        <div className="flex justify-end">
+        <div className="flex justify-end mt-6">
             <Button type="submit" disabled={isSaving}>
                 {isSaving && <Loader2 className="mr-2 h-4 w-4 animate-spin"/>}
                 {isSaving ? "Guardando..." : "Guardar Configuración de Precios"}
