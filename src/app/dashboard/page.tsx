@@ -351,7 +351,7 @@ export default function DashboardPage() {
                 const [rdiSnap, avancesSnap, edpSnap] = await Promise.all([
                     getDocs(rdiQuery),
                     getDocs(avancesQuery),
-                    getDocs(edpSnap)
+                    getDocs(edpQuery)
                 ]);
 
                 let rdiItems: ActivityItem[] = rdiSnap.docs
@@ -521,14 +521,16 @@ export default function DashboardPage() {
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 md:gap-6">
                 {filteredQuickAccessModules.map((mod) => {
                     const isEnabled = !mod.featureFlag || !!company?.[mod.featureFlag];
+                    const isPremium = !!mod.featureFlag;
                     return isEnabled ? (
                         <QuickAccessCard
                             key={mod.id}
                             title={mod.title}
                             description={mod.description}
                             icon={mod.icon}
-                            color={mod.color}
+                            color={mod.color as any}
                             onClick={() => handleQuickAccessClick(mod.href)}
+                            isPremium={isPremium}
                         />
                     ) : (
                         <DisabledModuleCard

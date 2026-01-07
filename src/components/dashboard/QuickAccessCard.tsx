@@ -3,31 +3,40 @@
 import { Card, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
-import { LucideIcon } from "lucide-react";
+import { LucideIcon, Sparkles } from "lucide-react";
 
 interface QuickAccessCardProps {
   title: string;
   description: string;
   icon: LucideIcon;
-  color: 'orange' | 'blue' | 'green';
+  color: 'orange' | 'blue' | 'green' | 'purple';
   onClick: () => void;
+  isPremium?: boolean;
 }
 
-export function QuickAccessCard({ title, description, icon: Icon, color, onClick }: QuickAccessCardProps) {
+export function QuickAccessCard({ title, description, icon: Icon, color, onClick, isPremium = false }: QuickAccessCardProps) {
   const colorClasses = {
     orange: 'bg-orange-500 hover:bg-orange-600 text-white',
     blue: 'bg-blue-500 hover:bg-blue-600 text-white',
     green: 'bg-green-500 hover:bg-green-600 text-white',
+    purple: 'bg-purple-500 hover:bg-purple-600 text-white',
   };
 
   const iconColorClasses = {
       orange: 'text-orange-200',
       blue: 'text-blue-200',
-      green: 'text-green-200'
+      green: 'text-green-200',
+      purple: 'text-purple-200',
   }
 
   return (
-    <Card className="rounded-xl border bg-white shadow-lg hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1 overflow-hidden">
+    <Card className="rounded-xl border bg-white shadow-lg hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1 overflow-hidden relative">
+      {isPremium && (
+        <div className="absolute top-2 right-2 flex items-center gap-1 bg-white/20 backdrop-blur-sm text-white text-xs font-bold px-2 py-1 rounded-full border border-white/30">
+          <Sparkles className="h-3 w-3" />
+          <span>Premium</span>
+        </div>
+      )}
       <div className={cn("p-6 text-center text-white", colorClasses[color])}>
         <div className="relative w-fit mx-auto">
              <Icon className={cn("h-16 w-16 mx-auto animate-pulse", iconColorClasses[color])} strokeWidth={1.5}/>
