@@ -422,7 +422,7 @@ export default function DashboardPage() {
     const isPremium = !!mod.featureFlag;
 
     if (!isEnabled) {
-        return <DisabledModuleCard key={mod.id} title={mod.title} description={mod.description} icon={mod.icon} />;
+        return <DisabledModuleCard key={mod.id} moduleId={mod.featureFlag!} title={mod.title} description={mod.description} icon={mod.icon} />;
     }
 
     const isObraCard = mod.title === 'Obras';
@@ -439,7 +439,7 @@ export default function DashboardPage() {
              cardBackgroundColor
          )}>
             {isPremium && (
-                <div className="absolute top-2 right-2 flex items-center gap-1 bg-primary/10 text-primary text-xs font-bold px-2 py-1 rounded-full border border-primary/20">
+                <div className="absolute top-2 right-2 flex items-center gap-1 bg-primary/10 backdrop-blur-sm text-primary text-xs font-bold px-2 py-1 rounded-full border border-primary/20">
                   <Sparkles className="h-3 w-3" />
                   <span>Premium</span>
                 </div>
@@ -545,6 +545,7 @@ export default function DashboardPage() {
                     ) : (
                         <DisabledModuleCard
                             key={mod.id}
+                            moduleId={mod.featureFlag!}
                             title={mod.title}
                             description={mod.description}
                             icon={mod.icon}

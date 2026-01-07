@@ -29,6 +29,7 @@ export { registrarAvanceRapido } from "./registrarAvanceRapido";
 export { notifyDocumentDistribution } from "./notifyDocumentDistribution";
 export { deactivateCompanyUser } from "./deactivateCompanyUser";
 export { setSuperAdminClaim } from "./setSuperAdmin";
+export { requestModuleActivation } from "./requestModuleActivation"; // NUEVA FUNCIÓN
 // export { checkUserExistsByEmail } from "./checkUserExistsByEmail";
 export { testGoogleAi } from "./test-google-ai";
 
