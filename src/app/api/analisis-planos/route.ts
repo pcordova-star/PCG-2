@@ -1,143 +1,49 @@
 // src/app/api/analizar-plano/route.ts
 import { NextResponse } from "next/server";
-import { GoogleGenerativeAI } from "@google/generative-ai";
-import type {
-  AnalisisPlanoInput,
-  AnalisisPlanoOutput,
-} from "@/types/analisis-planos";
+import { analizarPlano } from "@/ai/flows/analisis-planos-flow";
+import { AnalisisPlanoInputSchema } from "@/types/analisis-planos";
+import type { AnalisisPlanoInput } from "@/types/analisis-planos";
 
-function parseDataUri(
-  dataUri: string
-): { mimeType: string; base64Data: string } {
-  const [meta, base64Data] = dataUri.split(",");
-  const mimeMatch = meta.match(/data:(.*);base64/);
-  const mimeType = mimeMatch?.[1] ?? "application/octet-stream";
-  return { mimeType, base64Data };
+export const runtime = "nodejs";
+export const maxDuration = 60;
+
+const corsHeaders = {
+  "Access-Control-Allow-Origin": "*", // Permitir cualquier origen
+  "Access-Control-Allow-Methods": "POST,OPTIONS",
+  "Access-Control-Allow-Headers": "Content-Type, Authorization",
+};
+
+export async function OPTIONS() {
+  return new Response(null, { status: 204, headers: corsHeaders });
 }
 
-const BASE_PROMPT = `
-Eres un asistente experto en análisis de planos de construcción para constructoras. Tu tarea es interpretar un plano arquitectónico o de especialidades y extraer cubicaciones según las opciones solicitadas por el usuario.
 
-Debes seguir estas reglas estrictamente:
-
-1. Analiza la imagen (plano) que se entrega como primer input del modelo.
-2. Considera las opciones del usuario (opcionesSeleccionadas).
-3. Usa las notas del usuario (notasUsuario) para mejorar la precisión.
-4. Tu respuesta DEBE ser SOLO un JSON válido, sin texto adicional ni backticks, que siga exactamente este esquema:
-
-{
-  "summary": "string",
-  "elements": [
-    {
-      "type": "string",
-      "name": "string",
-      "unit": "string",
-      "estimatedQuantity": number,
-      "confidence": number,
-      "notes": "string"
-    }
-  ]
-}
-
-- "type": valores como "recinto", "muro", "losa", "revestimiento", "instalaciones hidráulicas", "instalaciones eléctricas", etc.
-- "unit": usa "m²", "m³", "m", "unidad" según corresponda.
-- "confidence": valor entre 0 y 1.
-- "notes": explica supuestos (altura de muro, calidad del plano, descuentos de vanos, etc.).
-
-No expliques nada fuera de ese JSON.
-`;
-
-// Endpoint que corre en Vercel (Node). No usa Genkit ni flows.
 export async function POST(req: Request) {
   try {
-    const body = (await req.json()) as AnalisisPlanoInput;
+    const body = await req.json();
 
-    if (!body?.photoDataUri) {
+    const validationResult = AnalisisPlanoInputSchema.safeParse(body);
+    if (!validationResult.success) {
       return NextResponse.json(
-        { error: "photoDataUri es requerido" },
-        { status: 400 }
+        { error: "Los datos de entrada son inválidos.", details: validationResult.error.flatten() },
+        { status: 400, headers: corsHeaders }
       );
     }
+    
+    // El análisis con Genkit ahora se hace en el server-side flow.
+    const analisisOutput = await analizarPlano(validationResult.data);
 
-    let { mimeType, base64Data } = parseDataUri(body.photoDataUri);
+    return NextResponse.json({
+      cached: false, // La lógica de caché fue eliminada para simplificar.
+      cacheKey: null,
+      result: analisisOutput,
+    }, { headers: corsHeaders });
 
-    // Si es PDF, ya no lo procesamos aquí. Se asume que se subió a Storage
-    // y una Cloud Function lo convirtió. El frontend debería enviar una imagen.
-    if (mimeType === "application/pdf") {
-      return NextResponse.json(
-          {
-            error:
-              "Por ahora, solo se pueden analizar imágenes (JPG, PNG). Por favor, convierte tu PDF a una imagen y vuelve a intentarlo.",
-          },
-          { status: 400 }
-        );
-    }
-
-    // Validamos que tengamos una imagen
-    if (!mimeType.startsWith("image/")) {
-      return NextResponse.json(
-        {
-          error:
-            "Formato de archivo no soportado. Sube una imagen (JPG, PNG) o un PDF válido.",
-        },
-        { status: 400 }
-      );
-    }
-
-    const apiKey = process.env.GEMINI_API_KEY;
-    if (!apiKey) {
-      console.error("Falta GEMINI_API_KEY en variables de entorno");
-      return NextResponse.json(
-        { error: "Falta configuración del modelo de IA" },
-        { status: 500 }
-      );
-    }
-
-    const genAI = new GoogleGenerativeAI(apiKey);
-    // Modelo soportado por tu API key para imagen + texto
-    const model = genAI.getGenerativeModel({ model: "gemini-pro-vision" });
-
-    const prompt = `
-${BASE_PROMPT}
-
-Opciones solicitadas: ${JSON.stringify(body.opcionesSeleccionadas)}
-Notas del usuario: ${body.notasUsuario || "Sin notas adicionales."}
-ID de obra (solo contexto, no es necesario mostrarlo): ${body.obraId}
-`;
-
-    const result = await model.generateContent([
-      {
-        inlineData: {
-          data: base64Data,
-          mimeType,
-        },
-      },
-      { text: prompt },
-    ]);
-
-    const rawText = result.response.text().trim();
-    console.log("Gemini raw response:", rawText);
-
-    let cleaned = rawText;
-    cleaned = cleaned
-      .replace(/^```json/i, "")
-      .replace(/^```/i, "")
-      .replace(/```$/i, "")
-      .trim();
-
-    let parsed: AnalisisPlanoOutput;
-    try {
-      parsed = JSON.parse(cleaned) as AnalisisPlanoOutput;
-    } catch (err) {
-      console.error("No se pudo parsear la respuesta de IA como JSON:", cleaned);
-      throw new Error("La IA no devolvió un JSON válido.");
-    }
-
-    return NextResponse.json(parsed);
   } catch (error: any) {
-    console.error("Error en /api/analizar-plano:", error);
-    const message =
-      error?.message || "Error interno en el análisis de planos";
-    return NextResponse.json({ error: message }, { status: 500 });
+    console.error("[API /analizar-plano] Error:", error);
+    return NextResponse.json(
+      { error: error?.message || "Ocurrió un error inesperado en el servidor." },
+      { status: 500, headers: corsHeaders }
+    );
   }
 }

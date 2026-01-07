@@ -1,46 +1,43 @@
+// src/app/api/test-google-ai/route.ts
 import { NextResponse } from "next/server";
+import { ai } from "@/ai/genkit"; // Safe to import here
 
-export async function GET() {
-  const apiKey = process.env.GEMINI_API_KEY;
+export const runtime = "nodejs";
+export const maxDuration = 30;
 
-  if (!apiKey) {
-    return NextResponse.json(
-      {
-        ok: false,
-        source: "env",
-        body: { message: "GEMINI_API_KEY no está definida en el servidor." }
-      },
-      { status: 500 }
-    );
-  }
-
+export async function POST(req: Request) {
   try {
-    const url = `https://generativelanguage.googleapis.com/v1/models/gemini-2.5-flash?key=${apiKey}`;
+    const body = await req.json();
+    const prompt = body?.prompt;
 
-    const res = await fetch(url, {
-      method: "GET",
-      headers: { "Content-Type": "application/json" }
+    if (!prompt || typeof prompt !== "string") {
+      return NextResponse.json(
+        { error: 'Formato requerido: {"prompt":"..."}' },
+        { status: 400 }
+      );
+    }
+    
+    console.log("[api/test-google-ai] Executing Genkit...");
+    const resp = await ai.generate({
+      model: "gemini-1.5-flash-latest",
+      prompt,
+    });
+    
+    const text = resp.text();
+    console.log("[api/test-google-ai] Model response:", text);
+
+    return NextResponse.json({ ok: true, text });
+
+  } catch (e: any) {
+    console.error("[api/test-google-ai] Genkit call failed:", {
+      message: e?.message,
+      name: e?.name,
+      stack: e?.stack,
+      cause: e?.cause,
     });
 
-    const body = await res.json();
-
     return NextResponse.json(
-      {
-        ok: res.ok,
-        status: res.status,
-        source: "google-ai-api",
-        body
-      },
-      { status: res.status }
-    );
-  } catch (err: any) {
-    return NextResponse.json(
-      {
-        ok: false,
-        status: 0,
-        source: "network",
-        body: { message: err.message }
-      },
+      { ok: false, error: "Genkit call failed", details: { message: e?.message ?? "unknown" } },
       { status: 500 }
     );
   }
