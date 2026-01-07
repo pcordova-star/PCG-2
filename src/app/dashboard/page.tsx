@@ -210,7 +210,7 @@ const quickAccessModules = [
         description: 'Formulario rápido para dejar evidencia fotográfica de un hito o avance desde terreno.',
         href: '/operaciones/registro-fotografico',
         icon: Camera,
-        color: 'orange' as const,
+        color: 'orange',
         roles: ['superadmin', 'admin_empresa', 'jefe_obra', 'prevencionista']
     },
     {
@@ -219,7 +219,7 @@ const quickAccessModules = [
         description: 'Carga un plano, selecciona qué cubicar y deja que la IA te entregue una estimación de referencia.',
         href: '/cubicacion/analisis-planos',
         icon: BrainCircuit,
-        color: 'blue' as const,
+        color: 'blue',
         roles: ['superadmin', 'admin_empresa', 'jefe_obra']
     },
      {
@@ -228,7 +228,7 @@ const quickAccessModules = [
         description: 'Crea y gestiona consultas de información (RDI) con mandantes, proyectistas o subcontratos.',
         href: '/rdi',
         icon: MessageSquare,
-        color: 'green' as const,
+        color: 'green',
         roles: ['superadmin', 'admin_empresa', 'jefe_obra']
     },
     {
@@ -237,7 +237,7 @@ const quickAccessModules = [
         description: 'Gestiona la documentación mensual de subcontratistas para la aprobación de estados de pago.',
         href: '/cumplimiento',
         icon: ShieldCheck,
-        color: 'purple' as const,
+        color: 'purple',
         roles: ['superadmin', 'admin_empresa', 'contratista'],
         featureFlag: 'feature_compliance_module_enabled'
     },
@@ -345,7 +345,7 @@ export default function DashboardPage() {
 
                 const [rdiSnap, avancesSnap, edpSnap] = await Promise.all([
                     getDocs(rdiQuery),
-                    getDocs(avancesQuery),
+                    getDocs(avancesSnap),
                     getDocs(edpQuery)
                 ]);
 
@@ -514,7 +514,7 @@ export default function DashboardPage() {
                         title={mod.title}
                         description={mod.description}
                         icon={mod.icon}
-                        color={mod.color as any}
+                        color={mod.color as 'orange' | 'blue' | 'green' | 'purple'}
                         onClick={() => handleQuickAccessClick(mod.href)}
                     />
                 ))}
