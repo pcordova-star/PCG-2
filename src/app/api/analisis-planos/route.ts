@@ -2,7 +2,6 @@
 import { NextResponse } from "next/server";
 import { analizarPlano } from "@/ai/flows/analisis-planos-flow";
 import { AnalisisPlanoInputSchema } from "@/types/analisis-planos";
-import type { AnalisisPlanoInput } from "@/types/analisis-planos";
 
 export const runtime = "nodejs";
 export const maxDuration = 60;
@@ -10,7 +9,7 @@ export const maxDuration = 60;
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*", // Permitir cualquier origen
   "Access-Control-Allow-Methods": "POST,OPTIONS",
-  "Access-Control-Allow-Headers": "Content-Type, Authorization",
+  "Access-control-allow-headers": "Content-Type, Authorization",
 };
 
 export async function OPTIONS() {

@@ -35,8 +35,8 @@ async function fetchCalendarData(companyId: string, year: number) {
 }
 
 async function updateCalendarMonth(companyId: string, year: number, monthId: string, data: any) {
-    const res = await fetch('/api/mclp/calendar', {
-        method: 'PUT',
+    const res = await fetch('/api/mclp/calendar/update', {
+        method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ companyId, year, monthId, data }),
     });

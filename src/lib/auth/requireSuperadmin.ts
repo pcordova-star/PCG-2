@@ -20,7 +20,7 @@ export async function requireSuperadmin(req?: NextRequest): Promise<void> {
   
   try {
     const decodedToken = await auth.verifyIdToken(token);
-    const userClaims = decodedToken.role;
+    const userClaims = (decodedToken as any).role;
 
     if (userClaims !== "superadmin") {
       throw new Error("PERMISSION_DENIED");
