@@ -345,8 +345,8 @@ export default function DashboardPage() {
 
                 const [rdiSnap, avancesSnap, edpSnap] = await Promise.all([
                     getDocs(rdiQuery),
-                    getDocs(avancesSnap),
-                    getDocs(edpSnap)
+                    getDocs(avancesQuery),
+                    getDocs(edpQuery)
                 ]);
 
                 let rdiItems: ActivityItem[] = rdiSnap.docs
