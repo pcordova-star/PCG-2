@@ -77,7 +77,7 @@ export default function AdminFacturacionPage() {
             const usersQuery = query(collection(firebaseDb, 'users'), where('empresaId', '==', company.id), where('activo', '==', true));
             const obrasQuery = query(collection(firebaseDb, 'obras'), where('empresaId', '==', company.id));
 
-            const [usersSnap, obrasSnap] = await Promise.all([ getDocs(usersQuery), getDocs(obrasSnap) ]);
+            const [usersSnap, obrasSnap] = await Promise.all([ getDocs(usersQuery), getDocs(obrasQuery) ]);
 
             const userCount = usersSnap.size;
             const obraCount = obrasSnap.size;
