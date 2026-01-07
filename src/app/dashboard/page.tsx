@@ -163,7 +163,8 @@ const allMainModules = [
     icon: ListChecks,
     linkText: 'Gestionar Checklists',
     tooltip: 'Define tus formularios de inspección y control de calidad.',
-    roles: ['superadmin', 'admin_empresa', 'jefe_obra']
+    roles: ['superadmin', 'admin_empresa', 'jefe_obra'],
+    featureFlag: 'feature_operational_checklists_enabled'
   },
   {
     id: 'prevencion',
@@ -182,7 +183,8 @@ const allMainModules = [
     href: '/admin/documentos/proyecto',
     icon: BookCopy,
     linkText: 'Ir a Documentos',
-    roles: ['superadmin', 'admin_empresa', 'prevencionista']
+    roles: ['superadmin', 'admin_empresa', 'prevencionista'],
+    featureFlag: 'feature_document_control_enabled'
   },
   {
     id: 'rdi',
@@ -231,7 +233,7 @@ const quickAccessModules = [
         description: 'Gestiona la documentación mensual de subcontratistas para la aprobación de estados de pago.',
         href: '/cumplimiento',
         icon: ShieldCheck,
-        color: 'purple' as const,
+        color: 'yellow' as const,
         roles: ['superadmin', 'admin_empresa', 'contratista'],
         featureFlag: 'feature_compliance_module_enabled'
     }
@@ -272,9 +274,6 @@ export default function DashboardPage() {
   });
 
   const filteredQuickAccessModules = quickAccessModules.map(mod => {
-    if (mod.id === 'cumplimiento-legal') {
-      return { ...mod, color: 'yellow' as const };
-    }
     return mod;
   }).filter(module => {
     if (role === 'none') return false;
@@ -429,8 +428,10 @@ export default function DashboardPage() {
     const isObraCard = mod.title === 'Obras';
     const showTooltip = !isObraCard && !hasObras;
     
-    // Aplicar el fondo gris suave solo a la tarjeta de Prevención de Riesgos si es premium
-    const cardBackgroundColor = (mod.id === 'prevencion' && isPremium) ? 'bg-slate-50' : 'bg-white';
+    let cardBackgroundColor = 'bg-white';
+    if (isPremium) {
+        if (mod.id === 'prevencion') cardBackgroundColor = 'bg-slate-50';
+    }
 
     const card = (
          <Card className={cn(

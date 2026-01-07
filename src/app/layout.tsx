@@ -1,3 +1,4 @@
+
 // src/app/layout.tsx
 "use client";
 
@@ -22,6 +23,7 @@ import {
   BookCopy,
   MessageSquare, // Añadido para RDI
   BrainCircuit,
+  ListChecks,
 } from 'lucide-react';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import {
@@ -71,6 +73,14 @@ const navItemsBase = [
     roles: ['superadmin', 'admin_empresa', 'jefe_obra']
   },
   {
+    id: 'checklists-operacionales',
+    href: '/checklists-operacionales',
+    label: 'Checklists Operacionales',
+    icon: ListChecks,
+    roles: ['superadmin', 'admin_empresa', 'jefe_obra'],
+    featureFlag: 'feature_operational_checklists_enabled'
+  },
+  {
     id: 'prevencion',
     href: '/prevencion',
     label: 'Prevención',
@@ -91,7 +101,8 @@ const navItemsBase = [
     href: '/admin/documentos/proyecto',
     label: 'Documentos',
     icon: BookCopy,
-    roles: ['superadmin', 'admin_empresa', 'prevencionista']
+    roles: ['superadmin', 'admin_empresa', 'prevencionista'],
+    featureFlag: 'feature_document_control_enabled'
   },
   {
     id: 'rdi',

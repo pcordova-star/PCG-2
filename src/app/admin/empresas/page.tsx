@@ -1,3 +1,4 @@
+
 "use client";
 
 import React, { useState, useEffect, FormEvent } from 'react';
@@ -90,7 +91,9 @@ export default function AdminEmpresasPage() {
             valorPorUsuario: 35000, 
             feature_compliance_module_enabled: false,
             feature_plan_analysis_enabled: false,
-            feature_risk_prevention_enabled: false
+            feature_risk_prevention_enabled: false,
+            feature_operational_checklists_enabled: false,
+            feature_document_control_enabled: false,
         });
         setDialogOpen(true);
         setError(null);
@@ -121,6 +124,8 @@ export default function AdminEmpresasPage() {
             feature_compliance_module_enabled: currentCompany.feature_compliance_module_enabled || false,
             feature_plan_analysis_enabled: currentCompany.feature_plan_analysis_enabled || false,
             feature_risk_prevention_enabled: currentCompany.feature_risk_prevention_enabled || false,
+            feature_operational_checklists_enabled: currentCompany.feature_operational_checklists_enabled || false,
+            feature_document_control_enabled: currentCompany.feature_document_control_enabled || false,
         };
 
         try {
@@ -206,25 +211,21 @@ export default function AdminEmpresasPage() {
                             <TableRow>
                                 <TableHead>Nombre Fantasía</TableHead>
                                 <TableHead>RUT</TableHead>
-                                <TableHead>Estado</TableHead>
                                 <TableHead>M. Cumplimiento</TableHead>
                                 <TableHead>M. Análisis IA</TableHead>
                                 <TableHead>M. Prevención</TableHead>
+                                <TableHead>M. Checklists</TableHead>
+                                <TableHead>M. Documental</TableHead>
                                 <TableHead className="text-right">Acciones</TableHead>
                             </TableRow>
                         </TableHeader>
                         <TableBody>
                             {loading ? (
-                                <TableRow><TableCell colSpan={7} className="text-center h-24">Cargando empresas...</TableCell></TableRow>
+                                <TableRow><TableCell colSpan={8} className="text-center h-24">Cargando empresas...</TableCell></TableRow>
                             ) : empresas.map((emp) => (
                                 <TableRow key={emp.id}>
                                     <TableCell className="font-medium">{emp.nombreFantasia}</TableCell>
                                     <TableCell>{emp.rut}</TableCell>
-                                    <TableCell>
-                                        <Badge variant={emp.activa ? 'default' : 'secondary'}>
-                                            {emp.activa ? 'Activa' : 'Inactiva'}
-                                        </Badge>
-                                    </TableCell>
                                     <TableCell>
                                         <Badge variant={emp.feature_compliance_module_enabled ? 'default' : 'outline'}>
                                             {emp.feature_compliance_module_enabled ? 'On' : 'Off'}
@@ -238,6 +239,16 @@ export default function AdminEmpresasPage() {
                                     <TableCell>
                                         <Badge variant={emp.feature_risk_prevention_enabled ? 'default' : 'outline'}>
                                             {emp.feature_risk_prevention_enabled ? 'On' : 'Off'}
+                                        </Badge>
+                                    </TableCell>
+                                    <TableCell>
+                                        <Badge variant={emp.feature_operational_checklists_enabled ? 'default' : 'outline'}>
+                                            {emp.feature_operational_checklists_enabled ? 'On' : 'Off'}
+                                        </Badge>
+                                    </TableCell>
+                                    <TableCell>
+                                        <Badge variant={emp.feature_document_control_enabled ? 'default' : 'outline'}>
+                                            {emp.feature_document_control_enabled ? 'On' : 'Off'}
                                         </Badge>
                                     </TableCell>
                                     <TableCell className="text-right">
@@ -308,15 +319,23 @@ export default function AdminEmpresasPage() {
                                 </div>
                                 <div className="flex items-center space-x-2">
                                     <Checkbox id="feature_compliance_module_enabled" name="feature_compliance_module_enabled" checked={currentCompany?.feature_compliance_module_enabled} onCheckedChange={(checked) => handleFormChange({ target: { name: 'feature_compliance_module_enabled', value: '', type: 'checkbox', checked: !!checked } } as any)} />
-                                    <Label htmlFor="feature_compliance_module_enabled">Habilitar Módulo de Cumplimiento Legal (MCLP)</Label>
+                                    <Label htmlFor="feature_compliance_module_enabled">Módulo de Cumplimiento Legal (MCLP)</Label>
                                 </div>
                                 <div className="flex items-center space-x-2">
                                     <Checkbox id="feature_plan_analysis_enabled" name="feature_plan_analysis_enabled" checked={currentCompany?.feature_plan_analysis_enabled} onCheckedChange={(checked) => handleFormChange({ target: { name: 'feature_plan_analysis_enabled', value: '', type: 'checkbox', checked: !!checked } } as any)} />
-                                    <Label htmlFor="feature_plan_analysis_enabled">Habilitar Módulo de Análisis de Planos IA</Label>
+                                    <Label htmlFor="feature_plan_analysis_enabled">Módulo de Análisis de Planos IA</Label>
                                 </div>
                                 <div className="flex items-center space-x-2">
                                     <Checkbox id="feature_risk_prevention_enabled" name="feature_risk_prevention_enabled" checked={currentCompany?.feature_risk_prevention_enabled} onCheckedChange={(checked) => handleFormChange({ target: { name: 'feature_risk_prevention_enabled', value: '', type: 'checkbox', checked: !!checked } } as any)} />
-                                    <Label htmlFor="feature_risk_prevention_enabled">Habilitar Módulo de Prevención de Riesgos</Label>
+                                    <Label htmlFor="feature_risk_prevention_enabled">Módulo de Prevención de Riesgos</Label>
+                                </div>
+                                <div className="flex items-center space-x-2">
+                                    <Checkbox id="feature_operational_checklists_enabled" name="feature_operational_checklists_enabled" checked={currentCompany?.feature_operational_checklists_enabled} onCheckedChange={(checked) => handleFormChange({ target: { name: 'feature_operational_checklists_enabled', value: '', type: 'checkbox', checked: !!checked } } as any)} />
+                                    <Label htmlFor="feature_operational_checklists_enabled">Módulo de Checklists Operacionales</Label>
+                                </div>
+                                <div className="flex items-center space-x-2">
+                                    <Checkbox id="feature_document_control_enabled" name="feature_document_control_enabled" checked={currentCompany?.feature_document_control_enabled} onCheckedChange={(checked) => handleFormChange({ target: { name: 'feature_document_control_enabled', value: '', type: 'checkbox', checked: !!checked } } as any)} />
+                                    <Label htmlFor="feature_document_control_enabled">Módulo de Control Documental (ISO 9001)</Label>
                                 </div>
                             </div>
                             {error && <p className="text-sm font-medium text-destructive col-span-2">{error}</p>}
