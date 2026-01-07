@@ -9,7 +9,7 @@ import { useAuth } from '@/context/AuthContext';
 import { useToast } from '@/hooks/use-toast';
 import { ComplianceCalendarMonth } from '@/types/pcg';
 import { getOrCreateCalendarAction, listCalendarMonthsAction, updateCalendarMonthAction } from '@/lib/mclp/calendarActions';
-import { ChevronLeft, ChevronRight, Loader2, Edit, CalendarIcon, Lock } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Loader2, Edit, CalendarIcon, Lock, ArrowLeft } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Calendar } from '@/components/ui/calendar';
@@ -17,6 +17,7 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { Badge } from '@/components/ui/badge';
+import Link from 'next/link';
 
 interface EditMonthState {
   id: string;
@@ -201,9 +202,16 @@ export default function CalendarioMclpPage() {
     return (
         <div className="space-y-6">
             <header className="flex items-center justify-between">
-                <div>
-                    <h1 className="text-2xl font-bold">Calendario de Cumplimiento {year}</h1>
-                    <p className="text-muted-foreground">Visualiza y edita las fechas clave de cada período mensual.</p>
+                 <div className="flex items-center gap-4">
+                    <Button variant="outline" size="icon" asChild>
+                        <Link href="/cumplimiento/admin">
+                            <ArrowLeft />
+                        </Link>
+                    </Button>
+                    <div>
+                        <h1 className="text-2xl font-bold">Calendario de Cumplimiento {year}</h1>
+                        <p className="text-muted-foreground">Visualiza y edita las fechas clave de cada período mensual.</p>
+                    </div>
                 </div>
                 <div className="flex items-center gap-2">
                     <Button variant="outline" size="icon" onClick={() => setYear(y => y-1)}><ChevronLeft/></Button>
