@@ -1,6 +1,5 @@
 // src/server/lib/mclp/ensureMclpEnabled.ts
-import { getAdminDb } from "@/server/firebaseAdmin";
-import { Firestore } from "firebase-admin/firestore";
+import type { Firestore } from "firebase-admin/firestore";
 
 /**
  * Checks if the compliance module is enabled for a given company.
