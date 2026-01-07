@@ -1,3 +1,4 @@
+
 "use client";
 
 import { Card, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -9,7 +10,7 @@ interface QuickAccessCardProps {
   title: string;
   description: string;
   icon: LucideIcon;
-  color: 'orange' | 'blue' | 'green' | 'purple';
+  color: 'orange' | 'blue' | 'green' | 'purple' | 'yellow';
   onClick: () => void;
   isPremium?: boolean;
 }
@@ -20,6 +21,7 @@ export function QuickAccessCard({ title, description, icon: Icon, color, onClick
     blue: 'bg-blue-500 hover:bg-blue-600 text-white',
     green: 'bg-green-500 hover:bg-green-600 text-white',
     purple: 'bg-purple-500 hover:bg-purple-600 text-white',
+    yellow: 'bg-yellow-500 hover:bg-yellow-600 text-white',
   };
 
   const iconColorClasses = {
@@ -27,6 +29,7 @@ export function QuickAccessCard({ title, description, icon: Icon, color, onClick
       blue: 'text-blue-200',
       green: 'text-green-200',
       purple: 'text-purple-200',
+      yellow: 'text-yellow-200',
   }
 
   return (
