@@ -123,33 +123,48 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const unsub = onAuthStateChanged(firebaseAuth, async (firebaseUser) => {
       if (firebaseUser) {
         
-        await bootstrapSuperAdmin(firebaseUser); // Ejecuta el bootstrap
+        await bootstrapSuperAdmin(firebaseUser);
 
         const userDocRef = doc(firebaseDb, "users", firebaseUser.uid);
         const userDocSnap = await getDoc(userDocRef);
         
         let userRole: UserRole = 'none';
         let userCompanyId: string | null = null;
+        let mustChangePassword = false;
         
-        if (userDocSnap.exists() && userDocSnap.data().role && userDocSnap.data().empresaId !== undefined) {
+        if (userDocSnap.exists()) {
             const userData = userDocSnap.data() as AppUser;
-            userRole = userData.role;
-            userCompanyId = userData.empresaId;
-        } else {
+            if (userData.role && userData.empresaId !== undefined) {
+                userRole = userData.role;
+                userCompanyId = userData.empresaId;
+                mustChangePassword = userData.mustChangePassword === true;
+            }
+        }
+        
+        // La activación desde invitación se mantiene como fallback
+        if (userRole === 'none') {
             const activationResult = await activateUserFromInvitation(firebaseUser);
             userRole = activationResult.role;
             userCompanyId = activationResult.companyId;
+            mustChangePassword = true; // Forzar cambio de contraseña al activar
         }
 
         setRole(userRole);
         setCompanyId(userCompanyId);
         setUser(firebaseUser);
         
-        if (userRole === 'none') {
-            router.replace('/sin-acceso');
-        } else if (pathname.startsWith('/login') || pathname === '/') {
-           const targetPath = userRole === 'cliente' ? '/cliente' : userRole === 'contratista' ? '/cumplimiento/contratista' : '/dashboard';
-           router.replace(targetPath);
+        // --- Lógica de redirección centralizada ---
+        const isChangingPassword = pathname === '/cambiar-password';
+        
+        if (mustChangePassword && !isChangingPassword) {
+            router.replace('/cambiar-password');
+        } else if (!mustChangePassword) {
+            if (userRole === 'none') {
+                router.replace('/sin-acceso');
+            } else if (pathname.startsWith('/login') || pathname === '/' || isChangingPassword) {
+               const targetPath = userRole === 'cliente' ? '/cliente' : userRole === 'contratista' ? '/cumplimiento/contratista' : '/dashboard';
+               router.replace(targetPath);
+            }
         }
         
       } else {

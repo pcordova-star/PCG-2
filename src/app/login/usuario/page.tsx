@@ -33,15 +33,10 @@ export default function UsuarioLoginPage() {
     }
   }, []);
 
+  // La redirección post-login ahora es manejada por el AuthContext
   useEffect(() => {
-    if (!loading && user && role !== 'none') {
-        if (role === 'superadmin') {
-            router.replace('/admin/dashboard');
-        } else if (role === 'cliente') {
-            router.replace('/cliente');
-        } else {
-            router.replace('/dashboard');
-        }
+    if (!loading && user) {
+        // AuthContext se encargará de la redirección
     }
   }, [user, loading, role, router]);
 
@@ -56,11 +51,9 @@ export default function UsuarioLoginPage() {
     setIsLoggingIn(true);
     try {
       await login(email, password);
-      // Guardar la aceptación de términos en localStorage después de un login exitoso
       localStorage.setItem(TERMS_ACCEPTANCE_KEY, "true");
-      // La redirección se maneja con el useEffect
+      // La redirección ocurrirá automáticamente por el AuthContext
     } catch (err: any) {
-      // El error ahora viene con un mensaje claro desde AuthContext
       setError(err.message);
     } finally {
         setIsLoggingIn(false);
@@ -72,8 +65,6 @@ export default function UsuarioLoginPage() {
     if (accepted) {
       localStorage.setItem(TERMS_ACCEPTANCE_KEY, "true");
     } else {
-      // Si el usuario desmarca la casilla, eliminamos la clave.
-      // Esto es útil si necesitan re-aceptar en el futuro por un cambio de términos.
       localStorage.removeItem(TERMS_ACCEPTANCE_KEY);
     }
   };

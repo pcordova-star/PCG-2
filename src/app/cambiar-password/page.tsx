@@ -64,10 +64,10 @@ export default function CambiarPasswordPage() {
       
       toast({
           title: "Contraseña actualizada",
-          description: "Tu nueva contraseña ha sido guardada. Serás redirigido al dashboard.",
+          description: "Tu nueva contraseña ha sido guardada. Serás redirigido a tu panel.",
       });
 
-      // 3. Redirigir al dashboard
+      // 3. Redirigir. AuthContext se encargará del destino final.
       router.push('/dashboard');
 
     } catch (err: any) {
