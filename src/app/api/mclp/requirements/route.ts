@@ -1,7 +1,6 @@
 // src/app/api/mclp/requirements/route.ts
 import { NextRequest, NextResponse } from "next/server";
-// import { getAdminDb } from "@/server/firebaseAdmin"; // Eliminado para importación dinámica
-import type { Firestore, Timestamp, FieldValue } from "firebase-admin/firestore";
+import type { Firestore, Timestamp } from "firebase-admin/firestore";
 import { RequisitoDocumento } from "@/types/pcg";
 
 export const runtime = "nodejs";
