@@ -21,5 +21,5 @@ export function useIsMobile() {
     return () => window.removeEventListener("resize", checkIsMobile);
   }, []) // El array de dependencias vacío asegura que se ejecute solo una vez en el cliente
 
-  return !!isMobile
+  return isMobile
 }
