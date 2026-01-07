@@ -1,3 +1,4 @@
+
 // src/lib/invitaciones/invitarUsuario.ts
 
 import { addDoc, collection, serverTimestamp } from "firebase/firestore";
@@ -14,10 +15,10 @@ export type InvitarUsuarioParams = {
 
 
 function construirUrlInvitacion(invId: string, email: string): string {
-    const rawBaseUrl = process.env.APP_BASE_URL || "http://localhost:3000";
+    const rawBaseUrl = process.env.APP_BASE_URL ?? process.env.NEXT_PUBLIC_APP_BASE_URL ?? "http://localhost:3000";
     
     if (!rawBaseUrl) {
-      throw new Error("La URL base de la aplicación no está configurada.");
+      throw new Error("La URL base de la aplicación no está configurada en las variables de entorno.");
     }
   
     const appBaseUrl = rawBaseUrl.replace(/\/+$/, "");
@@ -47,7 +48,7 @@ export async function invitarUsuario(params: InvitarUsuarioParams): Promise<void
     });
 
     const finalAcceptInviteUrl = construirUrlInvitacion(newInvitationRef.id, params.email);
-    const platformUrl = process.env.APP_BASE_URL || "http://localhost:3000";
+    const platformUrl = process.env.APP_BASE_URL ?? process.env.NEXT_PUBLIC_APP_BASE_URL ?? "http://localhost:3000";
     const logoUrl = `${platformUrl}/logo.png`;
 
     const mailRef = collection(firebaseDb, "mail");
