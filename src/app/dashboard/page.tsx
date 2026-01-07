@@ -169,7 +169,8 @@ const allMainModules = [
     href: '/prevencion',
     icon: ShieldCheck,
     linkText: 'Ir a Prevención',
-    roles: ['superadmin', 'admin_empresa', 'jefe_obra', 'prevencionista']
+    roles: ['superadmin', 'admin_empresa', 'jefe_obra', 'prevencionista'],
+    featureFlag: 'feature_risk_prevention_enabled'
   },
   {
     id: 'documentos',
@@ -220,7 +221,8 @@ const quickAccessModules = [
         href: '/cubicacion/analisis-planos',
         icon: BrainCircuit,
         color: 'blue',
-        roles: ['superadmin', 'admin_empresa', 'jefe_obra']
+        roles: ['superadmin', 'admin_empresa', 'jefe_obra'],
+        featureFlag: 'feature_plan_analysis_enabled'
     },
      {
         id: 'rdi',
