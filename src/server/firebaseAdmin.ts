@@ -9,9 +9,9 @@ const serviceAccount = process.env.FIREBASE_SERVICE_ACCOUNT
 
 if (!admin.apps.length) {
   admin.initializeApp({
-    credential: serviceAccount 
-        ? admin.credential.cert(serviceAccount)
-        : undefined, // No usar applicationDefault() si no hay serviceAccount
+    credential: serviceAccount
+      ? admin.credential.cert(serviceAccount)
+      : admin.credential.applicationDefault(),
   });
 }
 
