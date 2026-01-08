@@ -1,8 +1,8 @@
 /**
  * Punto de entrada REAL de Cloud Functions.
- * Solo exportamos funciones que existen en src/
+ * Exportamos solo funciones que existen en la carpeta src/
  */
 
-export { createCompanyUser } from "./createCompanyUser";
-export { mclpDailyScheduler } from "./mclp/scheduler";
-export { requestModuleActivation } from "./requestModuleActivation";
+export { createCompanyUser } from "./src/createCompanyUser";
+export { mclpDailyScheduler } from "./src/mclp/scheduler";
+export { requestModuleActivation } from "./src/requestModuleActivation";
