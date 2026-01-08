@@ -1,12 +1,8 @@
 {
   "functions": [
     {
-      "source": "functions/gen1",
+      "source": "functions",
       "codebase": "default"
-    },
-    {
-      "source": "functions/gen2",
-      "codebase": "gen2"
     }
   ],
   "storage": {
