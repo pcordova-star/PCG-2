@@ -10,9 +10,7 @@ if (!admin.apps.length) {
 
 const SUPERADMIN_EMAIL = "pauloandrescordova@gmail.com"; 
 
-export const requestModuleActivation = onRequest(
-  { cors: false }, 
-  async (req, res) => {
+export const requestModuleActivation = onRequest(async (req, res) => {
 
     // --- CORS COMPLETO PARA CLOUD FUNCTIONS GEN2 ---
     const origin = req.headers.origin;
