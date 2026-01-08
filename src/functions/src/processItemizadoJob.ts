@@ -20,18 +20,16 @@ type ProcessItemizadoJobPayload = {
 export const processItemizadoJob = onDocumentCreated(
   {
     document: "itemizadoImportJobs/{jobId}",
-    // ⚠️ CORRECCIÓN: Se especifica la ruta completa del secreto, incluyendo el ID del proyecto "pcg-ia"
-    secrets: [{ secret: "GEMINI_API_KEY", projectId: "pcg-ia" }], 
     cpu: 1,
-    memory: "512MiB",
-    timeoutSeconds: 540,
+    memory: "1GiB",
+    timeoutSeconds: 300,
   },
   async (event) => {
     const { jobId } = event.params;
     
     // Log de seguridad para verificar la presencia de la API key en cada ejecución
-    const apiKeyExists = !!process.env.GEMINI_API_KEY;
-    logger.info(`[${jobId}] Verificación de API Key en handler: Existe=${apiKeyExists}, Longitud=${process.env.GEMINI_API_KEY?.length || 0}`);
+    const apiKeyExists = !!process.env["GEMINI_API_KEY"];
+    logger.info(`[${jobId}] Verificación de API Key en handler: Existe=${apiKeyExists}, Longitud=${process.env["GEMINI_API_KEY"]?.length || 0}`);
 
     const snapshot = event.data;
     if (!snapshot) {

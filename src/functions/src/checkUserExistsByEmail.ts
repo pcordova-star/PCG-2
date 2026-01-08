@@ -25,7 +25,7 @@ export const checkUserExistsByEmail = functions.region("southamerica-west1").htt
       const invRef = db.collection("invitacionesUsuarios").doc(invId);
       const invSnap = await invRef.get();
 
-      if (!invSnap.exists()) {
+      if (!invSnap.exists) {
         throw new functions.https.HttpsError("permission-denied", "La invitación proporcionada no es válida o ha expirado.");
       }
 
