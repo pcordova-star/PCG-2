@@ -15,7 +15,7 @@ export async function GET(req: NextRequest) {
     }
     
     const db = getAdminDb();
-    await ensureMclpEnabled(companyId, db);
+    await ensureMclpEnabled(db, companyId);
     
     const snap = await db
       .collection("subcontractors")
@@ -39,7 +39,7 @@ export async function POST(req: NextRequest) {
     }
     
     const db = getAdminDb();
-    await ensureMclpEnabled(companyId, db);
+    await ensureMclpEnabled(db, companyId);
     const ref = db.collection("subcontractors").doc();
     
     await ref.set({
@@ -72,7 +72,7 @@ export async function DELETE(req: NextRequest) {
         }
         
         const db = getAdminDb();
-        await ensureMclpEnabled(companyId, db);
+        await ensureMclpEnabled(db, companyId);
         
         await db.collection("subcontractors").doc(subcontractorId).update({
             activo: false,
