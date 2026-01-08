@@ -55,7 +55,7 @@ exports.checkUserExistsByEmail = functions.region("southamerica-west1").https.on
         // 1. Validar la invitación primero para asegurar que la solicitud es legítima.
         const invRef = db.collection("invitacionesUsuarios").doc(invId);
         const invSnap = await invRef.get();
-        if (!invSnap.exists()) {
+        if (!invSnap.exists) {
             throw new functions.https.HttpsError("permission-denied", "La invitación proporcionada no es válida o ha expirado.");
         }
         const invData = invSnap.data();
