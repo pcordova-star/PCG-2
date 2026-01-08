@@ -1,18 +1,15 @@
 {
   "compilerOptions": {
+    "target": "ES2020",
     "module": "commonjs",
-    "target": "es2017",
-    "lib": ["es2017"],
-    "moduleResolution": "node",
-    "outDir": "lib",
-    "rootDir": "src",
+    "outDir": "./lib",
+    "rootDir": "./",
     "strict": false,
     "esModuleInterop": true,
-    "resolveJsonModule": true,
     "skipLibCheck": true
   },
-  "include": ["src/**/*"],
-  "exclude": [
-    "node_modules"
+  "include": [
+    "index.ts",
+    "src/**/*"
   ]
 }
