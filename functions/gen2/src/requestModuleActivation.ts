@@ -10,29 +10,14 @@ if (!admin.apps.length) {
 
 const SUPERADMIN_EMAIL = "pauloandrescordova@gmail.com"; 
 
-export const requestModuleActivation = onRequest(async (req, res) => {
-
-    // --- CORS COMPLETO PARA CLOUD FUNCTIONS GEN2 ---
-    const origin = req.headers.origin;
-    const allowedOrigins = [
-      "https://pcgoperacion.com",
-      "http://localhost:3000"
-    ];
-
-    if (allowedOrigins.includes(origin || "")) {
-      res.set("Access-Control-Allow-Origin", origin);
-    }
-
-    res.set("Access-Control-Allow-Methods", "POST, OPTIONS");
-    res.set("Access-Control-Allow-Headers", "Content-Type, Authorization");
-    res.set("Access-Control-Allow-Credentials", "true");
-    res.set("Vary", "Origin");
-
-    if (req.method === "OPTIONS") {
-      res.status(204).send("");
-      return;
-    }
-    // --- END CORS ---
+export const requestModuleActivation = onRequest(
+  {
+    region: "southamerica-west1",
+    cors: true,
+  },
+  async (req, res) => {
+    // El manejo de OPTIONS y encabezados CORS ahora es gestionado por Firebase
+    // gracias a la opción `cors: true`.
 
     if (req.method !== "POST") {
       res.status(405).json({ success: false, error: "Method Not Allowed" });
