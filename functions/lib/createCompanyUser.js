@@ -41,9 +41,17 @@ const logger = __importStar(require("firebase-functions/logger"));
 if (!admin.apps.length) {
     admin.initializeApp();
 }
+function buildAcceptInviteUrl(invId, email) {
+    const rawBaseUrl = process.env.APP_BASE_URL || "http://localhost:3000";
+    if (!rawBaseUrl) {
+        logger.error("CRÍTICO: APP_BASE_URL no está configurada en las variables de entorno de la función. No se puede crear un enlace de invitación válido.");
+        throw new functions.https.HttpsError("internal", "El servidor no está configurado correctamente para enviar invitaciones.");
+    }
+    const appBaseUrl = rawBaseUrl.replace(/\/+$/, "");
+    return `${appBaseUrl}/accept-invite?invId=${encodeURIComponent(invId)}&email=${encodeURIComponent(email)}`;
+}
 exports.createCompanyUser = functions
     .region("southamerica-west1")
-    .runWith({}) // Agregado para sobreescribir cualquier config global heredada
     .https.onCall(async (data, context) => {
     if (!context.auth) {
         throw new functions.https.HttpsError("unauthenticated", "No autenticado.");
@@ -70,13 +78,13 @@ exports.createCompanyUser = functions
     let userRecord;
     try {
         userRecord = await auth.createUser({
-            email: data.email,
-            password: data.password,
-            displayName: data.nombre,
-            emailVerified: true, // Se crea verificado para que el usuario no tenga que hacer nada
+            email: email,
+            password: password,
+            displayName: nombre,
+            emailVerified: false,
             disabled: false,
         });
-        logger.info(`Usuario creado con éxito para ${data.email} con UID: ${userRecord.uid}`);
+        logger.info(`Usuario creado con éxito para ${email} con UID: ${userRecord.uid}`);
     }
     catch (error) {
         if (error.code === 'auth/email-already-exists') {
@@ -87,39 +95,59 @@ exports.createCompanyUser = functions
     }
     const uid = userRecord.uid;
     await auth.setCustomUserClaims(uid, {
-        role: data.role,
-        companyId: data.companyId,
+        role: role,
+        companyId: companyId,
     });
     const now = admin.firestore.FieldValue.serverTimestamp();
     const userProfileRef = db.collection("users").doc(uid);
     await userProfileRef.set({
-        nombre: data.nombre,
-        email: data.email,
-        role: data.role,
-        empresaId: data.companyId,
+        nombre: nombre,
+        email: email,
+        role: role,
+        empresaId: companyId,
         activo: true,
         createdAt: now,
         updatedAt: now,
+        mustChangePassword: true, // Forzar cambio de contraseña
     }, { merge: true });
+    // Crear una invitación para registro y trazabilidad
     const invitationRef = db.collection("invitacionesUsuarios").doc();
     await invitationRef.set({
         email: data.email,
         empresaId: data.companyId,
         empresaNombre: companyData.nombreFantasia || companyData.razonSocial || '',
         roleDeseado: data.role,
-        estado: 'activado', // El usuario se crea activo directamente
+        estado: 'pendiente_auth', // Estado que indica que el usuario fue creado, pero falta que acepte
         uid: uid,
         createdAt: now,
-        activatedAt: now,
         creadoPorUid: context.auth.uid,
+    });
+    // Enviar correo de invitación con el enlace correcto
+    const acceptInviteUrl = buildAcceptInviteUrl(invitationRef.id, data.email);
+    const platformUrl = process.env.APP_BASE_URL || "http://localhost:3000";
+    const logoUrl = `${platformUrl}/logo.png`;
+    await db.collection("mail").add({
+        to: [data.email],
+        message: {
+            subject: `Bienvenido a PCG - Acceso para ${companyData.nombreFantasia}`,
+            html: `
+            <p>Hola ${data.nombre},</p>
+            <p>Has sido registrado en la plataforma PCG para la empresa <strong>${companyData.nombreFantasia}</strong>.</p>
+            <p>Tu rol asignado es: <strong>${data.role}</strong>.</p>
+            <p>Tu contraseña temporal es: <strong>${data.password}</strong></p>
+            <p>Para completar tu registro y acceder, por favor haz clic en el siguiente enlace. Se te pedirá que establezcas una nueva contraseña por seguridad.</p>
+            <p><a href="${acceptInviteUrl}">Activar mi cuenta y acceder a PCG</a></p>
+            <p>Si el botón no funciona, copia y pega esta URL en tu navegador:</p>
+            <p><a href="${acceptInviteUrl}">${acceptInviteUrl}</a></p>
+            <p>Gracias,<br>El equipo de PCG</p>`,
+        },
     });
     return {
         uid,
         email: data.email,
         nombre: data.nombre,
-        role: data.role,
-        companyId: data.companyId,
+        role: role,
+        companyId: companyId,
         message: 'Usuario creado directamente y con éxito.'
     };
 });
-//# sourceMappingURL=createCompanyUser.js.map

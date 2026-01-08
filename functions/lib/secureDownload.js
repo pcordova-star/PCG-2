@@ -13,4 +13,3 @@ exports.getSecureDownloadUrl = (0, https_1.onCall)({ region: "southamerica-west1
     // Ejemplo de data que podrías recibir: const { filePath } = request.data;
     return { url: "https://placeholder.com/url-insegura-por-ahora" };
 });
-//# sourceMappingURL=secureDownload.js.map
