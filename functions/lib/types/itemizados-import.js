@@ -34,4 +34,3 @@ exports.ItemizadoImportOutputSchema = zod_1.z.object({
     chapters: zod_1.z.array(exports.ChapterSchema).describe("Un array con los nombres y códigos de los capítulos principales."),
     rows: zod_1.z.array(exports.ItemRowSchema).describe("Una lista plana de todas las partidas y subpartidas. La jerarquía se reconstruye usando 'id' y 'parentId'."),
 });
-//# sourceMappingURL=itemizados-import.js.map

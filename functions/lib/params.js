@@ -9,4 +9,3 @@ const params_1 = require("firebase-functions/params");
  * El nombre 'GEMINI_API_KEY' debe coincidir con el nombre del secreto en Google Secret Manager.
  */
 exports.GEMINI_API_KEY_SECRET = (0, params_1.defineSecret)('GEMINI_API_KEY');
-//# sourceMappingURL=params.js.map

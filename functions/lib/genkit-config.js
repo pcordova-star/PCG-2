@@ -16,4 +16,3 @@ exports.ai = (0, genkit_1.genkit)({
         }),
     ],
 });
-//# sourceMappingURL=genkit-config.js.map

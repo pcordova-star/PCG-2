@@ -1,11 +1,10 @@
 "use strict";
 // src/functions/src/index.ts
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.processItemizadoJob = exports.convertHeicToJpg = exports.testGoogleAi = exports.setSuperAdminClaim = exports.deactivateCompanyUser = exports.notifyDocumentDistribution = void 0;
+exports.mclpDailyScheduler = exports.processItemizadoJob = exports.convertHeicToJpg = exports.testGoogleAi = exports.setSuperAdminClaim = exports.deactivateCompanyUser = exports.notifyDocumentDistribution = void 0;
 /**
  * Este archivo es el punto de entrada para todas las Cloud Functions.
  * Cada función se importa desde su propio archivo y se exporta para que Firebase la despliegue.
- * NO debe haber inicialización de SDKs (ej: initializeApp) en este archivo.
  */
 // --- Funciones HTTP (Gen 1 y Gen 2 onCall/onRequest) ---
 // export { createCompanyUser } from "./createCompanyUser";
@@ -23,4 +22,6 @@ var convertHeic_1 = require("./convertHeic");
 Object.defineProperty(exports, "convertHeicToJpg", { enumerable: true, get: function () { return convertHeic_1.convertHeicToJpg; } });
 var processItemizadoJob_1 = require("./processItemizadoJob");
 Object.defineProperty(exports, "processItemizadoJob", { enumerable: true, get: function () { return processItemizadoJob_1.processItemizadoJob; } });
-//# sourceMappingURL=index.js.map
+// --- Módulo de Cumplimiento Legal (MCLP) ---
+var scheduler_1 = require("./mclp/scheduler");
+Object.defineProperty(exports, "mclpDailyScheduler", { enumerable: true, get: function () { return scheduler_1.mclpDailyScheduler; } });
