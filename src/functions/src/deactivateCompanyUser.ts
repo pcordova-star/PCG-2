@@ -4,7 +4,7 @@ import * as admin from "firebase-admin";
 import * as logger from "firebase-functions/logger";
 import { getAuth } from "firebase-admin/auth";
 
-// NO inicializar admin aquí en el scope global.
+// La inicialización ahora está en el index.ts principal.
 
 export const deactivateCompanyUser = onRequest(
   {
@@ -13,14 +13,8 @@ export const deactivateCompanyUser = onRequest(
     memory: "256MiB",
     timeoutSeconds: 30,
     cors: false, // Se deshabilita el CORS automático de Firebase para manejarlo manualmente
-    serviceAccount: "pcg-functions-sa@pcg-2-8bf1b.iam.gserviceaccount.com",
   },
   async (req, res) => {
-    // La inicialización se mueve DENTRO del handler.
-    if (!admin.apps.length) {
-      admin.initializeApp();
-    }
-
     // --- MANEJO MANUAL DE CORS ---
     res.set("Access-Control-Allow-Origin", "*");
     res.set("Access-Control-Allow-Methods", "POST, OPTIONS");
