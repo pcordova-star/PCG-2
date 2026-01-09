@@ -1,16 +1,13 @@
 // functions/src/notifyDocumentDistribution.ts
-import { onCall, HttpsError } from "firebase-functions/v2/https";
+import * as functions from "firebase-functions";
 import * as admin from "firebase-admin";
 import { z } from "zod";
 import * as logger from "firebase-functions/logger";
 import { getFirestore } from "firebase-admin/firestore";
 
-if (!admin.apps.length) {
-  admin.initializeApp();
-}
-
 const db = getFirestore();
 
+// Esquema de validación para los datos de entrada de la función
 const NotifyDocumentSchema = z.object({
   projectDocumentId: z.string().min(1),
   projectId: z.string().min(1),
@@ -21,14 +18,16 @@ const NotifyDocumentSchema = z.object({
   email: z.string().email(),
 });
 
-export const notifyDocumentDistribution = onCall(async (request) => {
-    if (!request.auth) {
-      throw new HttpsError("unauthenticated", "El usuario no está autenticado.");
+export const notifyDocumentDistribution = functions.region("southamerica-west1").https.onCall(async (data, context) => {
+    // 1. Autenticación y autorización (básica)
+    if (!context.auth) {
+      throw new functions.https.HttpsError("unauthenticated", "El usuario no está autenticado.");
     }
 
-    const parsed = NotifyDocumentSchema.safeParse(request.data);
+    // 2. Validación de datos de entrada
+    const parsed = NotifyDocumentSchema.safeParse(data);
     if (!parsed.success) {
-      throw new HttpsError(
+      throw new functions.https.HttpsError(
         "invalid-argument",
         "Los datos proporcionados son inválidos.",
         parsed.error.flatten()
@@ -45,17 +44,19 @@ export const notifyDocumentDistribution = onCall(async (request) => {
     } = parsed.data;
 
     try {
+      // 3. Obtener el nombre del documento desde projectDocuments
       const projectDocRef = db.collection("projectDocuments").doc(projectDocumentId);
       const projectDocSnap = await projectDocRef.get();
 
       if (!projectDocSnap.exists) {
-        throw new HttpsError("not-found", "El documento del proyecto no fue encontrado.");
+        throw new functions.https.HttpsError("not-found", "El documento del proyecto no fue encontrado.");
       }
       const projectDocument = projectDocSnap.data() as { name: string; code: string };
 
       const now = admin.firestore.Timestamp.now();
       const sentAtDate = now.toDate();
 
+      // 4. Registrar la distribución en Firestore
       await db.collection("documentDistribution").add({
         companyId,
         projectId,
@@ -68,6 +69,7 @@ export const notifyDocumentDistribution = onCall(async (request) => {
         sentAt: now,
       });
 
+      // 5. Enviar el correo electrónico a través de la extensión "Trigger Email"
       await db.collection("mail").add({
         to: [email],
         message: {
@@ -97,9 +99,10 @@ export const notifyDocumentDistribution = onCall(async (request) => {
 
     } catch (error: any) {
       logger.error("Error en notifyDocumentDistribution:", error);
-      if (error instanceof HttpsError) {
+      if (error instanceof functions.https.HttpsError) {
         throw error;
       }
-      throw new HttpsError("internal", "Ocurrió un error inesperado al procesar la distribución.", error.message);
+      throw new functions.https.HttpsError("internal", "Ocurrió un error inesperado al procesar la distribución.", error.message);
     }
-});
+  }
+);

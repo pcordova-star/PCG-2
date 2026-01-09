@@ -33,24 +33,33 @@ var __importStar = (this && this.__importStar) || (function () {
         return result;
     };
 })();
-var __exportStar = (this && this.__exportStar) || function(m, exports) {
-    for (var p in m) if (p !== "default" && !Object.prototype.hasOwnProperty.call(exports, p)) __createBinding(exports, m, p);
-};
 Object.defineProperty(exports, "__esModule", { value: true });
+exports.mclpDailyScheduler = exports.processItemizadoJob = exports.convertHeicToJpg = exports.requestModuleActivation = exports.deactivateCompanyUser = exports.testGoogleAi = exports.checkUserExistsByEmail = exports.setSuperAdminClaim = exports.notifyDocumentDistribution = exports.registrarAvanceRapido = exports.createCompanyUser = void 0;
 const admin = __importStar(require("firebase-admin"));
 if (admin.apps.length === 0) {
     admin.initializeApp();
 }
-// --- Exportación de funciones ---
-__exportStar(require("./createCompanyUser"), exports);
-__exportStar(require("./registrarAvanceRapido"), exports);
-__exportStar(require("./notifyDocumentDistribution"), exports);
-__exportStar(require("./setSuperAdmin"), exports);
-__exportStar(require("./checkUserExistsByEmail"), exports);
-__exportStar(require("./test-google-ai"), exports);
-__exportStar(require("./deactivateCompanyUser"), exports);
-__exportStar(require("./requestModuleActivation"), exports);
-__exportStar(require("./convertHeic"), exports);
-__exportStar(require("./processItemizadoJob"), exports);
-__exportStar(require("./mclp/scheduler"), exports);
+// --- Exportación de funciones v1 ---
+var createCompanyUser_1 = require("./createCompanyUser");
+Object.defineProperty(exports, "createCompanyUser", { enumerable: true, get: function () { return createCompanyUser_1.createCompanyUser; } });
+var registrarAvanceRapido_1 = require("./registrarAvanceRapido");
+Object.defineProperty(exports, "registrarAvanceRapido", { enumerable: true, get: function () { return registrarAvanceRapido_1.registrarAvanceRapido; } });
+var notifyDocumentDistribution_1 = require("./notifyDocumentDistribution");
+Object.defineProperty(exports, "notifyDocumentDistribution", { enumerable: true, get: function () { return notifyDocumentDistribution_1.notifyDocumentDistribution; } });
+var setSuperAdmin_1 = require("./setSuperAdmin");
+Object.defineProperty(exports, "setSuperAdminClaim", { enumerable: true, get: function () { return setSuperAdmin_1.setSuperAdminClaim; } });
+var checkUserExistsByEmail_1 = require("./checkUserExistsByEmail");
+Object.defineProperty(exports, "checkUserExistsByEmail", { enumerable: true, get: function () { return checkUserExistsByEmail_1.checkUserExistsByEmail; } });
+var test_google_ai_1 = require("./test-google-ai");
+Object.defineProperty(exports, "testGoogleAi", { enumerable: true, get: function () { return test_google_ai_1.testGoogleAi; } });
+var deactivateCompanyUser_1 = require("./deactivateCompanyUser");
+Object.defineProperty(exports, "deactivateCompanyUser", { enumerable: true, get: function () { return deactivateCompanyUser_1.deactivateCompanyUser; } });
+var requestModuleActivation_1 = require("./requestModuleActivation");
+Object.defineProperty(exports, "requestModuleActivation", { enumerable: true, get: function () { return requestModuleActivation_1.requestModuleActivation; } });
+var convertHeic_1 = require("./convertHeic");
+Object.defineProperty(exports, "convertHeicToJpg", { enumerable: true, get: function () { return convertHeic_1.convertHeicToJpg; } });
+var processItemizadoJob_1 = require("./processItemizadoJob");
+Object.defineProperty(exports, "processItemizadoJob", { enumerable: true, get: function () { return processItemizadoJob_1.processItemizadoJob; } });
+var scheduler_1 = require("./mclp/scheduler");
+Object.defineProperty(exports, "mclpDailyScheduler", { enumerable: true, get: function () { return scheduler_1.mclpDailyScheduler; } });
 //# sourceMappingURL=index.js.map
