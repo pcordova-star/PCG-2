@@ -22,10 +22,11 @@ type ProcessItemizadoJobPayload = {
 export const processItemizadoJob = onDocumentCreated(
   {
     document: "itemizadoImportJobs/{jobId}",
-    secrets: [GEMINI_API_KEY_SECRET],
+    secrets: [GEMINI_API_KEY_SECRET], // CORRECCIÓN: Usar la variable del parámetro
     cpu: 1,
     memory: "512MiB",
     timeoutSeconds: 540,
+    region: "us-central1" // Manteniendo región original
   },
   async (event) => {
     const { jobId } = event.params;
