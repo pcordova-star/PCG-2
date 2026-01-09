@@ -12,12 +12,11 @@ type ProcessItemizadoJobPayload = {
   notas?: string;
 };
 
-// Convertida a GCFv1 para consistencia
 export const processItemizadoJob = functions.runWith({
   timeoutSeconds: 540,
   memory: '1GB',
   secrets: ["GEMINI_API_KEY"]
-}).region("us-central1").firestore // Mantenemos us-central1 por si hay dependencias de IA
+}).region("us-central1").firestore
   .document("itemizadoImportJobs/{jobId}")
   .onCreate(async (snapshot, context) => {
     const { jobId } = context.params;

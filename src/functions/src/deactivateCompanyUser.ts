@@ -7,7 +7,6 @@ import cors from "cors";
 
 const corsHandler = cors({ origin: true });
 
-// Convertido a GCFv1 para consistencia y simplicidad de permisos.
 export const deactivateCompanyUser = functions.region("southamerica-west1").https.onRequest((req, res) => {
     corsHandler(req, res, async () => {
         if (req.method !== 'POST') {
