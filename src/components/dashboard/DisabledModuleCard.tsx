@@ -31,8 +31,25 @@ export function DisabledModuleCard({ title, description, icon: Icon, moduleId }:
     
     setIsRequesting(true);
     try {
-        const requestModuleActivationFn = httpsCallable(firebaseFunctions, 'requestModuleActivation');
-        await requestModuleActivationFn({ moduleId: moduleId, moduleTitle: title });
+        const idToken = await user.getIdToken();
+
+        // Se reemplaza la URL antigua por la nueva URL de la función de 2ª Generación.
+        const FUNCTION_URL = `https://requestmoduleactivation-3uw4oqhaxq-tl.a.run.app`;
+
+        const response = await fetch(FUNCTION_URL, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${idToken}`,
+            },
+            body: JSON.stringify({ moduleId: moduleId, moduleTitle: title }),
+        });
+        
+        const result = await response.json();
+
+        if (!response.ok) {
+            throw new Error(result.error || 'Error en el servidor');
+        }
         
         toast({
           title: "Solicitud Enviada",
