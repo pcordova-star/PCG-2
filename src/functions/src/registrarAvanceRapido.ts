@@ -1,5 +1,5 @@
 // functions/src/registrarAvanceRapido.ts
-import * as functions from 'firebase-functions';
+import { onRequest, HttpsError } from "firebase-functions/v2/https";
 import * as logger from "firebase-functions/logger";
 import { getFirestore, FieldValue } from "firebase-admin/firestore";
 import { z } from "zod";
@@ -21,7 +21,7 @@ function escapeHtml(s: string): string {
   return s.replace(/[&<>"']/g, (m: string) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[m]!));
 }
 
-export const registrarAvanceRapido = functions.region("southamerica-west1").https.onRequest((req, res) => {
+export const registrarAvanceRapido = onRequest((req, res) => {
     corsHandler(req, res, async () => {
         if (req.method === 'OPTIONS') {
             res.status(204).send('');
@@ -35,7 +35,7 @@ export const registrarAvanceRapido = functions.region("southamerica-west1").http
         try {
             const authHeader = req.headers.authorization;
             if (!authHeader || !authHeader.startsWith('Bearer ')) {
-                throw new functions.https.HttpsError('unauthenticated', 'El usuario no está autenticado.');
+                throw new HttpsError('unauthenticated', 'El usuario no está autenticado.');
             }
             const token = authHeader.split(' ')[1];
             const decodedToken = await getAuth().verifyIdToken(token);
@@ -44,7 +44,7 @@ export const registrarAvanceRapido = functions.region("southamerica-west1").http
 
             const parsed = AvanceSchema.safeParse(req.body);
             if (!parsed.success) {
-                throw new functions.https.HttpsError("invalid-argument", "Los datos proporcionados son inválidos.", parsed.error.flatten());
+                throw new HttpsError("invalid-argument", "Los datos proporcionados son inválidos.", parsed.error.flatten());
             }
 
             const { obraId, actividadId, porcentaje, comentario, fotos, visibleCliente } = parsed.data;
@@ -55,7 +55,7 @@ export const registrarAvanceRapido = functions.region("southamerica-west1").http
             const avanceId = await db.runTransaction(async (tx) => {
                 const obraSnap = await tx.get(obraRef);
                 if (!obraSnap.exists) {
-                    throw new functions.https.HttpsError("not-found", `La obra con ID ${obraId} no fue encontrada.`);
+                    throw new HttpsError("not-found", `La obra con ID ${obraId} no fue encontrada.`);
                 }
 
                 const avancesRef = obraRef.collection("avancesDiarios");
@@ -104,8 +104,8 @@ export const registrarAvanceRapido = functions.region("southamerica-west1").http
 
         } catch (error: any) {
             logger.error("Error en registrarAvanceRapido:", error);
-            if (error.httpErrorCode) {
-                res.status(error.httpErrorCode.status).json({ ok: false, error: error.code, details: error.message });
+            if (error instanceof HttpsError) {
+                res.status(400).json({ ok: false, error: error.code, details: error.message });
             } else {
                 res.status(500).json({ ok: false, error: "INTERNAL_SERVER_ERROR", details: error.message });
             }

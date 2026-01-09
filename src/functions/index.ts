@@ -1,21 +1,41 @@
+
+// src/functions/src/index.ts
+
 /**
- * Punto de entrada REAL para Cloud Functions.
- * SOLO exportamos funciones que realmente existen en /src
+ * Este archivo es el punto de entrada para todas las Cloud Functions.
+ * Cada función se importa desde su propio archivo y se exporta para que Firebase la despliegue.
  */
 
-// --- HTTP & Callable Functions ---
-export { createCompanyUser } from "./src/createCompanyUser";
-export { registrarAvanceRapido } from "./src/registrarAvanceRapido";
-export { notifyDocumentDistribution } from "./src/notifyDocumentDistribution";
-export { setSuperAdminClaim } from "./src/setSuperAdmin";
-export { testGoogleAi } from "./src/test-google-ai";
-export { requestModuleActivation } from "./src/requestModuleActivation";
+import { initializeApp, getApps } from "firebase-admin/app";
+import { setGlobalOptions } from "firebase-functions/v2";
 
-// --- Storage Triggers ---
-export { convertHeicToJpg } from "./src/convertHeic";
+// Inicializa Firebase Admin SDK solo si no se ha hecho antes.
+if (getApps().length === 0) {
+  initializeApp();
+}
 
-// --- Firestore Triggers ---
-export { processItemizadoJob } from "./src/processItemizadoJob";
+// Establece opciones globales para todas las funciones v2, asegurando la región
+// y la cuenta de servicio con permisos para acceder a secretos.
+setGlobalOptions({
+  region: "southamerica-west1",
+  serviceAccount: "pcg-functions-sa@pcg-2-8bf1b.iam.gserviceaccount.com"
+});
 
-// --- Módulo MCLP ---
-export { mclpDailyScheduler } from "./src/mclp/scheduler";
+// --- Exportación de funciones ---
+
+// Funciones v2 (callable, http, triggers)
+export { createCompanyUser } from "./createCompanyUser";
+export { deactivateCompanyUser } from "./deactivateCompanyUser";
+export { notifyDocumentDistribution } from "./notifyDocumentDistribution";
+export { requestModuleActivation } from "./requestModuleActivation";
+export { setSuperAdminClaim } from "./setSuperAdmin";
+export { testGoogleAi } from "./test-google-ai";
+export { registrarAvanceRapido } from "./registrarAvanceRapido";
+export { checkUserExistsByEmail } from "./checkUserExistsByEmail";
+
+// Triggers
+export { convertHeicToJpg } from './convertHeic';
+export { processItemizadoJob } from './processItemizadoJob';
+
+// Tareas programadas
+export { mclpDailyScheduler } from "./mclp/scheduler";
