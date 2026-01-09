@@ -6,7 +6,8 @@
     "strict": false,
     "esModuleInterop": true,
     "skipLibCheck": true,
-    "outDir": "lib"
+    "outDir": "lib",
+    "rootDir": "../src/functions"
   },
-  "include": ["src"]
+  "include": ["../src/functions/index.ts", "../src/functions/src/**/*.ts"]
 }
