@@ -3,7 +3,6 @@ import * as functions from 'firebase-functions';
 import * as admin from "firebase-admin";
 import * as logger from "firebase-functions/logger";
 
-// Se mantiene en v1 para poder usar una región específica para pubsub que no sea la default
 export const mclpDailyScheduler = functions
     .region("us-central1") // Región compatible con Cloud Scheduler
     .pubsub.schedule("every day 01:00")
@@ -63,7 +62,6 @@ async function closeAndFinalizePeriod(db: FirebaseFirestore.Firestore, companyId
     const statusRef = db.collection("compliancePeriods").doc(periodId).collection("status");
     const snap = await statusRef.get();
 
-    // Todo subcontratista que NO esté Cumple -> No Cumple final
     for (const d of snap.docs) {
         if (d.get("estado") !== "Cumple") {
         await d.ref.set({
@@ -106,7 +104,6 @@ async function ensurePeriodExists(db: FirebaseFirestore.Firestore, companyId: st
     await periodRef.set({
         companyId,
         periodo: periodKey,
-        // Copia las fechas desde el calendario (snapshot inmutable)
         corteCarga: monthData.corteCarga,
         limiteRevision: monthData.limiteRevision,
         fechaPago: monthData.fechaPago,

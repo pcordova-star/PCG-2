@@ -3,7 +3,6 @@ import * as functions from "firebase-functions";
 import * as logger from "firebase-functions/logger";
 import { getInitializedGenkitAi } from "./genkit-config"; 
 
-// Usando v1 onCall para consistencia
 export const testGoogleAi = functions.region("southamerica-west1")
   .runWith({ secrets: ["GEMINI_API_KEY"] })
   .https.onCall(async (data, context) => {
