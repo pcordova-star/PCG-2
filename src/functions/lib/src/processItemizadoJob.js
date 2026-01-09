@@ -40,20 +40,20 @@ const logger = __importStar(require("firebase-functions/logger"));
 const firestore_2 = require("firebase-admin/firestore");
 const app_1 = require("firebase-admin/app");
 const zod_1 = require("zod");
+const params_1 = require("./params"); // Importar el secreto
+const genkit_config_1 = require("./genkit-config"); // Importar la función inicializadora
 // Inicializar Firebase Admin SDK si no se ha hecho
 if ((0, app_1.getApps)().length === 0) {
     (0, app_1.initializeApp)();
 }
 exports.processItemizadoJob = (0, firestore_1.onDocumentCreated)({
     document: "itemizadoImportJobs/{jobId}",
+    secrets: [params_1.GEMINI_API_KEY_SECRET],
     cpu: 1,
-    memory: "1GiB",
-    timeoutSeconds: 300,
+    memory: "512MiB",
+    timeoutSeconds: 540,
 }, async (event) => {
     const { jobId } = event.params;
-    // Log de seguridad para verificar la presencia de la API key en cada ejecución
-    const apiKeyExists = !!process.env["GEMINI_API_KEY"];
-    logger.info(`[${jobId}] Verificación de API Key en handler: Existe=${apiKeyExists}, Longitud=${process.env["GEMINI_API_KEY"]?.length || 0}`);
     const snapshot = event.data;
     if (!snapshot) {
         logger.warn(`[${jobId}] No data found in event. Aborting.`);
@@ -83,25 +83,12 @@ exports.processItemizadoJob = (0, firestore_1.onDocumentCreated)({
     }
     catch (updateError) {
         logger.error(`[${jobId}] FATAL: Could not update job status to 'processing'. Aborting.`, updateError);
-        return; // Salir si no podemos ni siquiera marcar el inicio
+        return;
     }
     try {
         // 3. Carga diferida (Lazy Load) de Genkit y sus dependencias
-        let ai;
-        try {
-            const genkitModule = await Promise.resolve().then(() => __importStar(require("./genkit-config")));
-            ai = genkitModule.ai;
-            logger.info(`[${jobId}] Genkit module imported successfully.`);
-        }
-        catch (genkitError) {
-            logger.error(`[${jobId}] CRITICAL: Failed to import Genkit module.`, genkitError);
-            await jobRef.update({
-                status: "error",
-                errorMessage: `GENKIT_IMPORT_FAILED: ${genkitError.message}`,
-                processedAt: firestore_2.FieldValue.serverTimestamp(),
-            });
-            return;
-        }
+        const ai = (0, genkit_config_1.getInitializedGenkitAi)();
+        logger.info(`[${jobId}] Genkit module initialized successfully.`);
         const ImportarItemizadoInputSchema = zod_1.z.object({
             pdfDataUri: zod_1.z.string(),
             obraId: zod_1.z.string(),

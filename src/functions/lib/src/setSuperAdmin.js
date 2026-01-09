@@ -35,21 +35,21 @@ var __importStar = (this && this.__importStar) || (function () {
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.setSuperAdminClaim = void 0;
 // functions/src/setSuperAdmin.ts
-const functions = __importStar(require("firebase-functions"));
+const https_1 = require("firebase-functions/v2/https");
 const admin = __importStar(require("firebase-admin"));
 if (!admin.apps.length) {
     admin.initializeApp();
 }
-exports.setSuperAdminClaim = functions.region("southamerica-west1").https.onCall(async (data, context) => {
-    if (!context.auth) {
-        throw new functions.https.HttpsError("unauthenticated", "La función debe ser llamada por un usuario autenticado.");
+exports.setSuperAdminClaim = (0, https_1.onCall)(async (request) => {
+    if (!request.auth) {
+        throw new https_1.HttpsError("unauthenticated", "La función debe ser llamada por un usuario autenticado.");
     }
-    const email = data.email;
+    const email = request.data.email;
     if (!email || typeof email !== "string") {
-        throw new functions.https.HttpsError("invalid-argument", "Se requiere un 'email' en el cuerpo de la solicitud.");
+        throw new https_1.HttpsError("invalid-argument", "Se requiere un 'email' en el cuerpo de la solicitud.");
     }
     if (email.toLowerCase() !== "pauloandrescordova@gmail.com") {
-        throw new functions.https.HttpsError("permission-denied", "Esta función solo puede asignar el rol de superadmin al usuario predefinido.");
+        throw new https_1.HttpsError("permission-denied", "Esta función solo puede asignar el rol de superadmin al usuario predefinido.");
     }
     try {
         const auth = admin.auth();
@@ -65,9 +65,9 @@ exports.setSuperAdminClaim = functions.region("southamerica-west1").https.onCall
     }
     catch (error) {
         if (error.code === "auth/user-not-found") {
-            throw new functions.https.HttpsError("not-found", `No se encontró usuario con el email: ${email}`);
+            throw new https_1.HttpsError("not-found", `No se encontró usuario con el email: ${email}`);
         }
         console.error("Error al asignar superadmin:", error);
-        throw new functions.https.HttpsError("internal", "Ocurrió un error inesperado.", error.message);
+        throw new https_1.HttpsError("internal", "Ocurrió un error inesperado.", error.message);
     }
 });

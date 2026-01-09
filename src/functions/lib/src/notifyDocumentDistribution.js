@@ -35,7 +35,7 @@ var __importStar = (this && this.__importStar) || (function () {
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.notifyDocumentDistribution = void 0;
 // functions/src/notifyDocumentDistribution.ts
-const functions = __importStar(require("firebase-functions"));
+const https_1 = require("firebase-functions/v2/https");
 const admin = __importStar(require("firebase-admin"));
 const zod_1 = require("zod");
 const logger = __importStar(require("firebase-functions/logger"));
@@ -44,7 +44,6 @@ if (!admin.apps.length) {
     admin.initializeApp();
 }
 const db = (0, firestore_1.getFirestore)();
-// Esquema de validación para los datos de entrada de la función
 const NotifyDocumentSchema = zod_1.z.object({
     projectDocumentId: zod_1.z.string().min(1),
     projectId: zod_1.z.string().min(1),
@@ -54,30 +53,24 @@ const NotifyDocumentSchema = zod_1.z.object({
     notifiedUserId: zod_1.z.string().min(1),
     email: zod_1.z.string().email(),
 });
-exports.notifyDocumentDistribution = functions.region("southamerica-west1").https.onCall(async (data, context) => {
-    // 1. Autenticación y autorización (básica)
-    if (!context.auth) {
-        throw new functions.https.HttpsError("unauthenticated", "El usuario no está autenticado.");
+exports.notifyDocumentDistribution = (0, https_1.onCall)(async (request) => {
+    if (!request.auth) {
+        throw new https_1.HttpsError("unauthenticated", "El usuario no está autenticado.");
     }
-    // Podrías agregar una validación de rol si es necesario
-    // const uid = context.auth.uid;
-    // 2. Validación de datos de entrada
-    const parsed = NotifyDocumentSchema.safeParse(data);
+    const parsed = NotifyDocumentSchema.safeParse(request.data);
     if (!parsed.success) {
-        throw new functions.https.HttpsError("invalid-argument", "Los datos proporcionados son inválidos.", parsed.error.flatten());
+        throw new https_1.HttpsError("invalid-argument", "Los datos proporcionados son inválidos.", parsed.error.flatten());
     }
     const { projectDocumentId, projectId, companyId, companyDocumentId, version, notifiedUserId, email, } = parsed.data;
     try {
-        // 3. Obtener el nombre del documento desde projectDocuments
         const projectDocRef = db.collection("projectDocuments").doc(projectDocumentId);
         const projectDocSnap = await projectDocRef.get();
-        if (!projectDocSnap.exists) {
-            throw new functions.https.HttpsError("not-found", "El documento del proyecto no fue encontrado.");
+        if (!projectDocSnap.exists()) {
+            throw new https_1.HttpsError("not-found", "El documento del proyecto no fue encontrado.");
         }
         const projectDocument = projectDocSnap.data();
         const now = admin.firestore.Timestamp.now();
         const sentAtDate = now.toDate();
-        // 4. Registrar la distribución en Firestore
         await db.collection("documentDistribution").add({
             companyId,
             projectId,
@@ -89,7 +82,6 @@ exports.notifyDocumentDistribution = functions.region("southamerica-west1").http
             method: "email",
             sentAt: now,
         });
-        // 5. Enviar el correo electrónico a través de la extensión "Trigger Email"
         await db.collection("mail").add({
             to: [email],
             message: {
@@ -117,9 +109,9 @@ exports.notifyDocumentDistribution = functions.region("southamerica-west1").http
     }
     catch (error) {
         logger.error("Error en notifyDocumentDistribution:", error);
-        if (error instanceof functions.https.HttpsError) {
+        if (error instanceof https_1.HttpsError) {
             throw error;
         }
-        throw new functions.https.HttpsError("internal", "Ocurrió un error inesperado al procesar la distribución.", error.message);
+        throw new https_1.HttpsError("internal", "Ocurrió un error inesperado al procesar la distribución.", error.message);
     }
 });

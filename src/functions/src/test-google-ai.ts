@@ -30,7 +30,7 @@ export const testGoogleAi = onCall(
         prompt,
       });
 
-      const text = resp.text();
+      const text = resp.text;
       return { ok: true, text };
     } catch (e: any) {
       logger.error("Genkit call failed", {

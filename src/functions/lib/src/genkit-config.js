@@ -33,21 +33,37 @@ var __importStar = (this && this.__importStar) || (function () {
     };
 })();
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.ai = void 0;
+exports.getInitializedGenkitAi = getInitializedGenkitAi;
 // functions/src/genkit-config.ts
-// Este archivo centraliza la configuración de Genkit para las Cloud Functions.
 const genkit_1 = require("genkit");
 const google_genai_1 = require("@genkit-ai/google-genai");
 const logger = __importStar(require("firebase-functions/logger"));
-// Log de diagnóstico en el arranque del módulo para verificar la presencia de la API key.
-// Esto se ejecuta una sola vez cuando la instancia de la función se inicia (cold start).
-const apiKey = process.env.GEMINI_API_KEY;
-logger.info(`[genkit-config] Verificación de API Key al inicio: Presente=${!!apiKey}, Longitud=${apiKey?.length || 0}`);
-// La clave se obtiene de las variables de entorno inyectadas en la Cloud Function
-// a través de la opción 'secrets' o la configuración global.
-// Se elimina el fallback a GOOGLE_API_KEY para evitar ambigüedad.
-exports.ai = (0, genkit_1.genkit)({
-    plugins: [
-        (0, google_genai_1.googleAI)({ apiKey: apiKey })
-    ]
-});
+const params_1 = require("./params"); // Importar el parámetro del secreto
+let aiInstance = null;
+/**
+ * Obtiene una instancia inicializada de Genkit AI.
+ * La inicialización es diferida (lazy) para asegurar que las variables de entorno (secretos)
+ * estén disponibles en el momento de la ejecución de la función, no durante la carga del módulo.
+ *
+ * @returns Una instancia de Genkit configurada.
+ */
+function getInitializedGenkitAi() {
+    // Memoization simple para evitar reinicializar en una instancia "caliente" (warm instance).
+    if (aiInstance) {
+        return aiInstance;
+    }
+    const apiKey = params_1.GEMINI_API_KEY_SECRET.value();
+    // Log de diagnóstico en tiempo de ejecución
+    const apiKeyExists = !!apiKey;
+    logger.info(`[getInitializedGenkitAi] Verificación de API Key en runtime: Existe=${apiKeyExists}, Longitud=${apiKey?.length || 0}`);
+    if (!apiKeyExists) {
+        // Es crucial lanzar un error si la clave no está, para que la función falle explícitamente.
+        throw new Error("GEMINI_API_KEY no está disponible en el entorno de ejecución de la función.");
+    }
+    aiInstance = (0, genkit_1.genkit)({
+        plugins: [
+            (0, google_genai_1.googleAI)({ apiKey })
+        ]
+    });
+    return aiInstance;
+}

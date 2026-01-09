@@ -38,7 +38,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.registrarAvanceRapido = void 0;
 // functions/src/registrarAvanceRapido.ts
-const functions = __importStar(require("firebase-functions"));
+const https_1 = require("firebase-functions/v2/https");
 const logger = __importStar(require("firebase-functions/logger"));
 const firestore_1 = require("firebase-admin/firestore");
 const zod_1 = require("zod");
@@ -56,7 +56,7 @@ const AvanceSchema = zod_1.z.object({
 function escapeHtml(s) {
     return s.replace(/[&<>"']/g, (m) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[m]));
 }
-exports.registrarAvanceRapido = functions.region("southamerica-west1").https.onRequest((req, res) => {
+exports.registrarAvanceRapido = (0, https_1.onRequest)((req, res) => {
     corsHandler(req, res, async () => {
         if (req.method === 'OPTIONS') {
             res.status(204).send('');
@@ -69,7 +69,7 @@ exports.registrarAvanceRapido = functions.region("southamerica-west1").https.onR
         try {
             const authHeader = req.headers.authorization;
             if (!authHeader || !authHeader.startsWith('Bearer ')) {
-                throw new functions.https.HttpsError('unauthenticated', 'El usuario no está autenticado.');
+                throw new https_1.HttpsError('unauthenticated', 'El usuario no está autenticado.');
             }
             const token = authHeader.split(' ')[1];
             const decodedToken = await (0, auth_1.getAuth)().verifyIdToken(token);
@@ -77,7 +77,7 @@ exports.registrarAvanceRapido = functions.region("southamerica-west1").https.onR
             const displayName = decodedToken.name || decodedToken.email || "";
             const parsed = AvanceSchema.safeParse(req.body);
             if (!parsed.success) {
-                throw new functions.https.HttpsError("invalid-argument", "Los datos proporcionados son inválidos.", parsed.error.flatten());
+                throw new https_1.HttpsError("invalid-argument", "Los datos proporcionados son inválidos.", parsed.error.flatten());
             }
             const { obraId, actividadId, porcentaje, comentario, fotos, visibleCliente } = parsed.data;
             const db = (0, firestore_1.getFirestore)();
@@ -85,7 +85,7 @@ exports.registrarAvanceRapido = functions.region("southamerica-west1").https.onR
             const avanceId = await db.runTransaction(async (tx) => {
                 const obraSnap = await tx.get(obraRef);
                 if (!obraSnap.exists) {
-                    throw new functions.https.HttpsError("not-found", `La obra con ID ${obraId} no fue encontrada.`);
+                    throw new https_1.HttpsError("not-found", `La obra con ID ${obraId} no fue encontrada.`);
                 }
                 const avancesRef = obraRef.collection("avancesDiarios");
                 const nuevoAvanceRef = avancesRef.doc();
@@ -130,8 +130,8 @@ exports.registrarAvanceRapido = functions.region("southamerica-west1").https.onR
         }
         catch (error) {
             logger.error("Error en registrarAvanceRapido:", error);
-            if (error.httpErrorCode) {
-                res.status(error.httpErrorCode.status).json({ ok: false, error: error.code, details: error.message });
+            if (error instanceof https_1.HttpsError) {
+                res.status(400).json({ ok: false, error: error.code, details: error.message });
             }
             else {
                 res.status(500).json({ ok: false, error: "INTERNAL_SERVER_ERROR", details: error.message });
