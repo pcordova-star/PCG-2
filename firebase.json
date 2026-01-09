@@ -1,7 +1,7 @@
 {
   "functions": [
     {
-      "source": "src/functions-empty",
+      "source": "src/functions",
       "codebase": "default"
     }
   ],
