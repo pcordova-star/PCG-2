@@ -1,32 +1,25 @@
-
 // src/functions/src/requestModuleActivation.ts
 import { onRequest } from "firebase-functions/v2/https";
-import * as admin from "firebase-admin";
 import * as logger from "firebase-functions/logger";
 import { getAuth } from "firebase-admin/auth";
+import { getAdminApp } from "./firebaseAdmin";
 
-// NO inicializar admin aquí en el scope global para funciones v2.
+const admin = getAdminApp();
 
 const SUPERADMIN_EMAIL = "pauloandrescordova@gmail.com"; 
 
 export const requestModuleActivation = onRequest(
   {
     region: "southamerica-west1",
-    cors: true // Mantenemos esto por si Firebase hace optimizaciones, aunque manejemos manualmente.
+    cors: true 
   },
   async (req, res) => {
-    // La inicialización se mueve DENTRO del handler.
-    if (!admin.apps.length) {
-      admin.initializeApp();
-    }
 
-    // --- MANEJO MANUAL DE CORS COMPLETO ---
     res.set("Access-Control-Allow-Origin", "*");
     res.set("Access-Control-Allow-Methods", "POST, OPTIONS");
     res.set("Access-Control-Allow-Headers", "Content-Type, Authorization");
 
     if (req.method === "OPTIONS") {
-      // Respuesta pre-flight para CORS
       res.status(204).send("");
       return;
     }
@@ -35,7 +28,6 @@ export const requestModuleActivation = onRequest(
         res.status(405).json({ success: false, error: "Method Not Allowed" });
         return;
     }
-    // --- FIN MANEJO MANUAL DE CORS ---
 
     try {
       const authHeader = req.headers.authorization;
@@ -71,7 +63,6 @@ export const requestModuleActivation = onRequest(
         ? companySnap.data()?.nombreFantasia || "Empresa sin nombre"
         : "Empresa desconocida";
 
-      // Registrar solicitud
       const requestRef = await db.collection("moduleActivationRequests").add({
         companyId,
         companyName,
@@ -86,7 +77,6 @@ export const requestModuleActivation = onRequest(
 
       logger.info(`Solicitud de activación registrada: ${requestRef.id}`);
 
-      // enviar correo al superadmin
       await db.collection("mail").add({
         to: [SUPERADMIN_EMAIL],
         message: {

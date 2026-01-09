@@ -1,12 +1,12 @@
-
 // functions/src/notifyDocumentDistribution.ts
 import * as functions from "firebase-functions";
-import * as admin from "firebase-admin";
 import { z } from "zod";
 import * as logger from "firebase-functions/logger";
 import { getFirestore } from "firebase-admin/firestore";
+import { getAdminApp } from "./firebaseAdmin";
 
-const db = getFirestore();
+const admin = getAdminApp();
+const db = getFirestore(admin.app());
 
 // Esquema de validación para los datos de entrada de la función
 const NotifyDocumentSchema = z.object({
@@ -49,7 +49,7 @@ export const notifyDocumentDistribution = functions.region("us-central1").https.
       const projectDocRef = db.collection("projectDocuments").doc(projectDocumentId);
       const projectDocSnap = await projectDocRef.get();
 
-      if (!projectDocSnap.exists) {
+      if (!projectDocSnap.exists()) {
         throw new functions.https.HttpsError("not-found", "El documento del proyecto no fue encontrado.");
       }
       const projectDocument = projectDocSnap.data() as { name: string; code: string };

@@ -1,11 +1,9 @@
 // src/functions/src/createCompanyUser.ts
 import * as functions from 'firebase-functions';
-import * as admin from "firebase-admin";
 import * as logger from "firebase-functions/logger";
+import { getAdminApp } from "./firebaseAdmin";
 
-if (!admin.apps.length) {
-  admin.initializeApp();
-}
+const admin = getAdminApp();
 
 function buildAcceptInviteUrl(invId: string, email: string): string {
   const rawBaseUrl = functions.config().app?.base_url || "http://localhost:3000";

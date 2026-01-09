@@ -1,13 +1,14 @@
-
 // src/functions/src/convertHeic.ts
 import * as functions from 'firebase-functions';
-import * as admin from 'firebase-admin';
 import * as path from 'path';
 import * as os from 'os';
 import * as fs from 'fs';
 import heicConvert from 'heic-convert';
 import sharp from 'sharp';
 import * as logger from "firebase-functions/logger";
+import { getAdminApp } from "./firebaseAdmin";
+
+const admin = getAdminApp();
 
 export const convertHeicToJpg = functions
   .region("us-central1")
