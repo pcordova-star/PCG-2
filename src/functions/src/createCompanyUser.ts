@@ -1,49 +1,33 @@
 // functions/src/createCompanyUser.ts
-import { onCall, HttpsError } from "firebase-functions/v2/https";
+import * as functions from 'firebase-functions';
 import * as admin from "firebase-admin";
 import * as logger from "firebase-functions/logger";
 
-if (!admin.apps.length) {
-  admin.initializeApp();
-}
-
 function buildAcceptInviteUrl(invId: string, email: string): string {
-  const rawBaseUrl = process.env.APP_BASE_URL || "http://localhost:3000";
-  if (!rawBaseUrl) {
-    logger.error("CRÍTICO: APP_BASE_URL no está configurada. No se puede crear un enlace de invitación válido.");
-    throw new HttpsError("internal", "El servidor no está configurado para enviar invitaciones.");
-  }
+  const rawBaseUrl = functions.config().app?.base_url || "http://localhost:3000";
   const appBaseUrl = rawBaseUrl.replace(/\/+$/, "");
   return `${appBaseUrl}/accept-invite?invId=${encodeURIComponent(invId)}&email=${encodeURIComponent(email)}`;
 }
 
-export const createCompanyUser = onCall(async (request) => {
-    if (!request.auth) {
-      throw new HttpsError("unauthenticated", "No autenticado.");
+export const createCompanyUser = functions.region("southamerica-west1").https.onCall(async (data, context) => {
+    if (!context.auth) {
+      throw new functions.https.HttpsError("unauthenticated", "No autenticado.");
     }
     
     const auth = admin.auth();
     const db = admin.firestore();
 
-    const requesterClaims = await auth.getUser(request.auth.uid);
+    const requesterClaims = await auth.getUser(context.auth.uid);
     if (requesterClaims.customClaims?.role !== "superadmin") {
-      throw new HttpsError("permission-denied", "Solo SUPER_ADMIN puede crear usuarios.");
+      throw new functions.https.HttpsError("permission-denied", "Solo SUPER_ADMIN puede crear usuarios.");
     }
     
-    const data = request.data as {
-      companyId: string;
-      email: string;
-      nombre: string;
-      role: "admin_empresa" | "jefe_obra" | "prevencionista" | "cliente";
-      password?: string;
-    };
-
     if (!data.companyId || !data.email || !data.nombre || !data.role) {
-      throw new HttpsError("invalid-argument", "Faltan campos obligatorios: companyId, email, nombre, role.");
+      throw new functions.https.HttpsError("invalid-argument", "Faltan campos obligatorios: companyId, email, nombre, role.");
     }
     
     if (!data.password || data.password.length < 6) {
-        throw new HttpsError(
+        throw new functions.https.HttpsError(
             "invalid-argument",
             "La contraseña es obligatoria y debe tener al menos 6 caracteres."
         );
@@ -52,7 +36,7 @@ export const createCompanyUser = onCall(async (request) => {
     const companyRef = db.collection("companies").doc(data.companyId);
     const companySnap = await companyRef.get();
     if (!companySnap.exists) {
-      throw new HttpsError("not-found", "La empresa no existe.");
+      throw new functions.https.HttpsError("not-found", "La empresa no existe.");
     }
     const companyData = companySnap.data()!;
 
@@ -68,10 +52,10 @@ export const createCompanyUser = onCall(async (request) => {
       logger.info(`Usuario creado con éxito para ${data.email} con UID: ${userRecord.uid}`);
     } catch (error: any) {
       if (error.code === 'auth/email-already-exists') {
-        throw new HttpsError("already-exists", "Ya existe un usuario con este correo electrónico.");
+        throw new functions.https.HttpsError("already-exists", "Ya existe un usuario con este correo electrónico.");
       }
       logger.error("Error creando usuario en Firebase Auth:", error);
-      throw new HttpsError("internal", "Error interno al crear el usuario en Auth.", error);
+      throw new functions.https.HttpsError("internal", "Error interno al crear el usuario en Auth.", error);
     }
 
     const uid = userRecord.uid;
@@ -104,7 +88,7 @@ export const createCompanyUser = onCall(async (request) => {
         estado: 'pendiente_auth',
         uid: uid,
         createdAt: now,
-        creadoPorUid: request.auth.uid,
+        creadoPorUid: context.auth.uid,
     });
     
     const acceptInviteUrl = buildAcceptInviteUrl(invitationRef.id, data.email);

@@ -6,7 +6,6 @@ import { initializeApp, getApps } from "firebase-admin/app";
 import { z } from "zod";
 import { getInitializedGenkitAi } from "./genkit-config"; 
 
-// Inicializar Firebase Admin SDK si no se ha hecho
 if (getApps().length === 0) {
   initializeApp();
 }
