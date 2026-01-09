@@ -35,7 +35,7 @@ var __importStar = (this && this.__importStar) || (function () {
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.createCompanyUser = void 0;
 // functions/src/createCompanyUser.ts
-const functions = __importStar(require("firebase-functions"));
+const https_1 = require("firebase-functions/v2/https");
 const admin = __importStar(require("firebase-admin"));
 const logger = __importStar(require("firebase-functions/logger"));
 if (!admin.apps.length) {
@@ -44,88 +44,82 @@ if (!admin.apps.length) {
 function buildAcceptInviteUrl(invId, email) {
     const rawBaseUrl = process.env.APP_BASE_URL || "http://localhost:3000";
     if (!rawBaseUrl) {
-        logger.error("CRÍTICO: APP_BASE_URL no está configurada en las variables de entorno de la función. No se puede crear un enlace de invitación válido.");
-        throw new functions.https.HttpsError("internal", "El servidor no está configurado correctamente para enviar invitaciones.");
+        logger.error("CRÍTICO: APP_BASE_URL no está configurada. No se puede crear un enlace de invitación válido.");
+        throw new https_1.HttpsError("internal", "El servidor no está configurado para enviar invitaciones.");
     }
     const appBaseUrl = rawBaseUrl.replace(/\/+$/, "");
     return `${appBaseUrl}/accept-invite?invId=${encodeURIComponent(invId)}&email=${encodeURIComponent(email)}`;
 }
-exports.createCompanyUser = functions
-    .region("southamerica-west1")
-    .https.onCall(async (data, context) => {
-    if (!context.auth) {
-        throw new functions.https.HttpsError("unauthenticated", "No autenticado.");
+exports.createCompanyUser = (0, https_1.onCall)(async (request) => {
+    if (!request.auth) {
+        throw new https_1.HttpsError("unauthenticated", "No autenticado.");
     }
     const auth = admin.auth();
     const db = admin.firestore();
-    const requesterClaims = await auth.getUser(context.auth.uid);
+    const requesterClaims = await auth.getUser(request.auth.uid);
     if (requesterClaims.customClaims?.role !== "superadmin") {
-        throw new functions.https.HttpsError("permission-denied", "Solo SUPER_ADMIN puede crear usuarios.");
+        throw new https_1.HttpsError("permission-denied", "Solo SUPER_ADMIN puede crear usuarios.");
     }
-    const { companyId, email, nombre, role, password } = data;
-    if (!companyId || !email || !nombre || !role) {
-        throw new functions.https.HttpsError("invalid-argument", "Faltan campos obligatorios: companyId, email, nombre, role.");
+    const data = request.data;
+    if (!data.companyId || !data.email || !data.nombre || !data.role) {
+        throw new https_1.HttpsError("invalid-argument", "Faltan campos obligatorios: companyId, email, nombre, role.");
     }
-    if (!password || password.length < 6) {
-        throw new functions.https.HttpsError("invalid-argument", "La contraseña es obligatoria y debe tener al menos 6 caracteres.");
+    if (!data.password || data.password.length < 6) {
+        throw new https_1.HttpsError("invalid-argument", "La contraseña es obligatoria y debe tener al menos 6 caracteres.");
     }
-    const companyRef = db.collection("companies").doc(companyId);
+    const companyRef = db.collection("companies").doc(data.companyId);
     const companySnap = await companyRef.get();
     if (!companySnap.exists) {
-        throw new functions.https.HttpsError("not-found", "La empresa no existe.");
+        throw new https_1.HttpsError("not-found", "La empresa no existe.");
     }
     const companyData = companySnap.data();
     let userRecord;
     try {
         userRecord = await auth.createUser({
-            email: email,
-            password: password,
-            displayName: nombre,
+            email: data.email,
+            password: data.password,
+            displayName: data.nombre,
             emailVerified: false,
             disabled: false,
         });
-        logger.info(`Usuario creado con éxito para ${email} con UID: ${userRecord.uid}`);
+        logger.info(`Usuario creado con éxito para ${data.email} con UID: ${userRecord.uid}`);
     }
     catch (error) {
         if (error.code === 'auth/email-already-exists') {
-            throw new functions.https.HttpsError("already-exists", "Ya existe un usuario con este correo electrónico.");
+            throw new https_1.HttpsError("already-exists", "Ya existe un usuario con este correo electrónico.");
         }
         logger.error("Error creando usuario en Firebase Auth:", error);
-        throw new functions.https.HttpsError("internal", "Error interno al crear el usuario en Auth.", error);
+        throw new https_1.HttpsError("internal", "Error interno al crear el usuario en Auth.", error);
     }
     const uid = userRecord.uid;
     await auth.setCustomUserClaims(uid, {
-        role: role,
-        companyId: companyId,
+        role: data.role,
+        companyId: data.companyId,
     });
     const now = admin.firestore.FieldValue.serverTimestamp();
     const userProfileRef = db.collection("users").doc(uid);
     await userProfileRef.set({
-        nombre: nombre,
-        email: email,
-        role: role,
-        empresaId: companyId,
+        nombre: data.nombre,
+        email: data.email,
+        role: data.role,
+        empresaId: data.companyId,
         activo: true,
         createdAt: now,
         updatedAt: now,
-        mustChangePassword: true, // Forzar cambio de contraseña
+        mustChangePassword: true,
     }, { merge: true });
-    // Crear una invitación para registro y trazabilidad
     const invitationRef = db.collection("invitacionesUsuarios").doc();
     await invitationRef.set({
         email: data.email,
         empresaId: data.companyId,
         empresaNombre: companyData.nombreFantasia || companyData.razonSocial || '',
         roleDeseado: data.role,
-        estado: 'pendiente_auth', // Estado que indica que el usuario fue creado, pero falta que acepte
+        estado: 'pendiente_auth',
         uid: uid,
         createdAt: now,
-        creadoPorUid: context.auth.uid,
+        creadoPorUid: request.auth.uid,
     });
-    // Enviar correo de invitación con el enlace correcto
     const acceptInviteUrl = buildAcceptInviteUrl(invitationRef.id, data.email);
-    const platformUrl = process.env.APP_BASE_URL || "http://localhost:3000";
-    const logoUrl = `${platformUrl}/logo.png`;
     await db.collection("mail").add({
         to: [data.email],
         message: {
@@ -135,7 +129,7 @@ exports.createCompanyUser = functions
             <p>Has sido registrado en la plataforma PCG para la empresa <strong>${companyData.nombreFantasia}</strong>.</p>
             <p>Tu rol asignado es: <strong>${data.role}</strong>.</p>
             <p>Tu contraseña temporal es: <strong>${data.password}</strong></p>
-            <p>Para completar tu registro y acceder, por favor haz clic en el siguiente enlace. Se te pedirá que establezcas una nueva contraseña por seguridad.</p>
+            <p>Para completar tu registro y acceder, haz clic en el siguiente enlace. Se te pedirá que establezcas una nueva contraseña por seguridad.</p>
             <p><a href="${acceptInviteUrl}">Activar mi cuenta y acceder a PCG</a></p>
             <p>Si el botón no funciona, copia y pega esta URL en tu navegador:</p>
             <p><a href="${acceptInviteUrl}">${acceptInviteUrl}</a></p>
@@ -146,8 +140,8 @@ exports.createCompanyUser = functions
         uid,
         email: data.email,
         nombre: data.nombre,
-        role: role,
-        companyId: companyId,
+        role: data.role,
+        companyId: data.companyId,
         message: 'Usuario creado directamente y con éxito.'
     };
 });

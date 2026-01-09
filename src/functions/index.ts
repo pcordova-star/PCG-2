@@ -1,5 +1,4 @@
-
-// src/functions/src/index.ts
+// src/functions/index.ts
 
 /**
  * Este archivo es el punto de entrada para todas las Cloud Functions.
@@ -24,18 +23,18 @@ setGlobalOptions({
 // --- Exportación de funciones ---
 
 // Funciones v2 (callable, http, triggers)
-export { createCompanyUser } from "./createCompanyUser";
-export { deactivateCompanyUser } from "./deactivateCompanyUser";
-export { notifyDocumentDistribution } from "./notifyDocumentDistribution";
-export { requestModuleActivation } from "./requestModuleActivation";
-export { setSuperAdminClaim } from "./setSuperAdmin";
-export { testGoogleAi } from "./test-google-ai";
-export { registrarAvanceRapido } from "./registrarAvanceRapido";
-export { checkUserExistsByEmail } from "./checkUserExistsByEmail";
+export { createCompanyUser } from "./src/createCompanyUser";
+export { deactivateCompanyUser } from "./src/deactivateCompanyUser";
+export { notifyDocumentDistribution } from "./src/notifyDocumentDistribution";
+export { requestModuleActivation } from "./src/requestModuleActivation";
+export { setSuperAdminClaim } from "./src/setSuperAdmin";
+export { testGoogleAi } from "./src/test-google-ai";
+export { registrarAvanceRapido } from "./src/registrarAvanceRapido";
+export { checkUserExistsByEmail } from "./src/checkUserExistsByEmail";
 
 // Triggers
-export { convertHeicToJpg } from './convertHeic';
-export { processItemizadoJob } from './processItemizadoJob';
+export { convertHeicToJpg } from './src/convertHeic';
+export { processItemizadoJob } from './src/processItemizadoJob';
 
 // Tareas programadas
-export { mclpDailyScheduler } from "./mclp/scheduler";
+export { mclpDailyScheduler } from "./src/mclp/scheduler";
