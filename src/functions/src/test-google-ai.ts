@@ -3,7 +3,7 @@ import * as functions from "firebase-functions";
 import * as logger from "firebase-functions/logger";
 import { getInitializedGenkitAi } from "./genkit-config"; 
 
-// Using v1 onCall function
+// Usando v1 onCall para consistencia
 export const testGoogleAi = functions.region("southamerica-west1")
   .runWith({ secrets: ["GEMINI_API_KEY"] })
   .https.onCall(async (data, context) => {
@@ -14,7 +14,7 @@ export const testGoogleAi = functions.region("southamerica-west1")
       if (!prompt || typeof prompt !== "string") {
         throw new functions.https.HttpsError(
           "invalid-argument",
-          'Formato requerido: {"prompt":"..."}'
+          'Formato requerido: {"data":{"prompt":"..."}}'
         );
       }
       

@@ -4,7 +4,6 @@ import * as logger from "firebase-functions/logger";
 import { FieldValue } from "firebase-admin/firestore";
 import { z } from "zod";
 import { getInitializedGenkitAi } from "./genkit-config"; 
-import * as admin from 'firebase-admin';
 
 type ProcessItemizadoJobPayload = {
   pdfDataUri: string;
@@ -13,11 +12,12 @@ type ProcessItemizadoJobPayload = {
   notas?: string;
 };
 
+// Convertida a GCFv1 para consistencia
 export const processItemizadoJob = functions.runWith({
   timeoutSeconds: 540,
   memory: '1GB',
   secrets: ["GEMINI_API_KEY"]
-}).region("us-central1").firestore
+}).region("us-central1").firestore // Mantenemos us-central1 por si hay dependencias de IA
   .document("itemizadoImportJobs/{jobId}")
   .onCreate(async (snapshot, context) => {
     const { jobId } = context.params;
@@ -45,6 +45,7 @@ export const processItemizadoJob = functions.runWith({
         return;
     }
 
+
     try {
       const ai = getInitializedGenkitAi();
       logger.info(`[${jobId}] Genkit module initialized successfully.`);
@@ -60,33 +61,66 @@ export const processItemizadoJob = functions.runWith({
         {
           name: 'importarItemizadoPrompt',
           model: 'googleai/gemini-1.5-flash-latest',
-          input: { schema: ImportarItemizadoInputSchema },
-          prompt: `Eres un asistente experto en análisis de presupuestos de construcción... (el prompt completo va aquí)`
+          input: { schema: ImportarItemizadoInputSchema as any },
+          prompt: `Eres un asistente experto en análisis de presupuestos de construcción. Tu tarea es interpretar un presupuesto (en formato PDF) y extraer los capítulos y todas las partidas/subpartidas en una estructura plana.
+
+Debes seguir estas reglas estrictamente:
+
+1.  Analiza el documento PDF que se te entrega.
+2.  Primero, identifica los capítulos principales y llena el array 'chapters'.
+3.  Luego, procesa CADA LÍNEA del itemizado (capítulos, partidas, sub-partidas) y conviértela en un objeto para el array 'rows'.
+4.  Para cada fila en 'rows', genera un 'id' estable y único (ej: "1", "1.1", "1.2.3").
+5.  Para representar la jerarquía, asigna el 'id' del elemento padre al campo 'parentId'. Si un ítem es de primer nivel (dentro de un capítulo), su 'parentId' debe ser 'null'.
+6.  Asigna el 'chapterIndex' correcto a cada fila, correspondiendo a su capítulo en el array 'chapters'.
+7.  Extrae códigos, descripciones, unidades, cantidades, precios unitarios y totales para cada partida.
+8.  NO inventes cantidades, precios ni unidades si no están explícitamente en el documento. Si un valor no existe para un ítem, déjalo como 'null'.
+9.  Tu respuesta DEBE SER EXCLUSIVAMENTE un objeto JSON válido, sin texto adicional, explicaciones ni formato markdown.
+
+Aquí está la información proporcionada por el usuario:
+- Itemizado PDF: {{media url=pdfDataUri}}
+- Notas adicionales: {{{notas}}}
+
+Genera ahora el JSON de salida.`
         }
       );
 
       const importarItemizadoFlow = ai.defineFlow(
         {
           name: 'importarItemizadoCloudFunctionFlow',
-          inputSchema: ImportarItemizadoInputSchema,
+          inputSchema: ImportarItemizadoInputSchema as any,
         },
         async (input: any) => {
-          const res = await importarItemizadoPrompt(input);
-          if (!res.output) {
-            throw new Error("La IA no devolvió una respuesta válida.");
+          logger.info("[Genkit Flow] Iniciando análisis de itemizado...");
+          const res = await (importarItemizadoPrompt as any)(input);
+          const output = res?.output ?? res;
+          if (!output) {
+            throw new Error("La IA no devolvió una respuesta válida para el itemizado.");
           }
-          return res.output;
+          logger.info("[Genkit Flow] Análisis completado con éxito.");
+          return output;
         }
       );
 
       const parsedInput = ImportarItemizadoInputSchema.parse(jobData) as ProcessItemizadoJobPayload;
       
-      const analisisResult = await importarItemizadoFlow({
-          pdfDataUri: parsedInput.pdfDataUri,
-          obraId: parsedInput.obraId,
-          obraNombre: parsedInput.obraNombre,
-          notas: parsedInput.notas || "Analizar el itemizado completo.",
-      });
+      let analisisResult;
+      try {
+          logger.info(`[${jobId}] Calling Genkit flow for obra ${parsedInput.obraNombre}...`);
+          analisisResult = await (importarItemizadoFlow as any)({
+              pdfDataUri: parsedInput.pdfDataUri,
+              obraId: parsedInput.obraId,
+              obraNombre: parsedInput.obraNombre,
+              notas: parsedInput.notas || "Analizar el itemizado completo.",
+          });
+      } catch(flowError: any) {
+          logger.error(`[${jobId}] Genkit flow execution failed.`, flowError);
+          await jobRef.update({
+              status: "error",
+              errorMessage: `FLOW_FAILED: ${flowError.message}`,
+              processedAt: FieldValue.serverTimestamp(),
+          });
+          return;
+      }
 
       logger.info(`[${jobId}] AI analysis successful. Saving results...`);
       await jobRef.update({
