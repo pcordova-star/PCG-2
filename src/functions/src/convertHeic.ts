@@ -8,6 +8,7 @@ import heicConvert from 'heic-convert';
 import sharp from 'sharp';
 import * as logger from "firebase-functions/logger";
 
+// Convertida a GCFv1 para consistencia
 export const convertHeicToJpg = functions
   .region("southamerica-west1")
   .runWith({ memory: "512MB" })
