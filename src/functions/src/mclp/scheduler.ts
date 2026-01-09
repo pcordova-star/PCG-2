@@ -1,4 +1,3 @@
-
 // src/functions/src/mclp/scheduler.ts
 import * as functions from 'firebase-functions';
 import * as admin from "firebase-admin";
