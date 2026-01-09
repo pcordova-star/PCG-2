@@ -1,11 +1,7 @@
 // functions/src/mclp/scheduler.ts
-import { onSchedule } from "firebase-functions/v2/scheduler";
+import * as functions from "firebase-functions";
 import * as admin from "firebase-admin";
 import * as logger from "firebase-functions/logger";
-
-if (!admin.apps.length) {
-    admin.initializeApp();
-}
 
 function getPeriodKeyUTC(date: Date) {
   const y = date.getUTCFullYear();
@@ -25,7 +21,6 @@ async function closeAndFinalizePeriod(
 
   const snap = await statusRef.get();
 
-  // Todo subcontratista que NO esté Cumple -> No Cumple final
   for (const d of snap.docs) {
     if (d.get("estado") !== "Cumple") {
       await d.ref.set(
@@ -52,7 +47,6 @@ async function closeAndFinalizePeriod(
     );
 }
 
-// Lógica de creación de período si no existe, leyendo desde el calendario
 async function ensurePeriodExists(
   db: FirebaseFirestore.Firestore,
   companyId: string,
@@ -63,10 +57,9 @@ async function ensurePeriodExists(
   const periodSnap = await periodRef.get();
 
   if (periodSnap.exists) {
-    return periodRef; // Retorna la referencia si ya existe
+    return periodRef;
   }
 
-  // Si no existe, lo crea a partir del calendario
   logger.info(`[${companyId}] Period ${periodKey} does not exist. Creating from calendar.`);
   const year = periodKey.split('-')[0];
   const calendarId = `${companyId}_${year}`;
@@ -83,7 +76,6 @@ async function ensurePeriodExists(
   await periodRef.set({
     companyId,
     periodo: periodKey,
-    // Copia las fechas desde el calendario (snapshot inmutable)
     corteCarga: monthData.corteCarga,
     limiteRevision: monthData.limiteRevision,
     fechaPago: monthData.fechaPago,
@@ -92,7 +84,6 @@ async function ensurePeriodExists(
     updatedAt: admin.firestore.Timestamp.now(),
   });
 
-  // Marcar el mes del calendario como no editable
   await monthRef.update({ editable: false, updatedAt: admin.firestore.Timestamp.now() });
   
   logger.info(`[${companyId}] Period ${periodKey} created successfully.`);
@@ -106,22 +97,17 @@ async function processCompanyMclp(
   now: Date
 ) {
   const periodKey = getPeriodKeyUTC(now);
-
-  // Asegura que el período del mes actual exista, creándolo si es necesario
   const periodRef = await ensurePeriodExists(db, companyId, periodKey);
-  if (!periodRef) return; // No se pudo crear el período, se omite el resto
+  if (!periodRef) return;
 
   const periodSnap = await periodRef.get();
-  if (!periodSnap.exists) return; // Doble chequeo, no debería ocurrir
+  if (!periodSnap.exists) return;
 
   const { corteCarga, limiteRevision, fechaPago, estado } = periodSnap.data()!;
   
-  // Convertir timestamps de Firestore a Date de JS
   const corteCargaDate = (corteCarga as admin.firestore.Timestamp).toDate();
-  const limiteRevisionDate = (limiteRevision as admin.firestore.Timestamp).toDate();
   const fechaPagoDate = (fechaPago as admin.firestore.Timestamp).toDate();
   
-  // 1) Marcar En Revisión (después del corte)
   if (now > corteCargaDate && estado === "Abierto para Carga") {
     await periodRef.update({
       estado: "En Revisión",
@@ -130,16 +116,16 @@ async function processCompanyMclp(
     logger.info(`[${companyId}] Period ${periodKey} marked as 'En Revisión'.`);
   }
 
-  // 2) Cerrar período (en o después del día de pago)
   if (now >= fechaPagoDate && estado !== "Cerrado") {
     await closeAndFinalizePeriod(db, companyId, periodRef.id);
     logger.info(`[${companyId}] Period ${periodKey} finalized and closed.`);
   }
 }
 
-export const mclpDailyScheduler = onSchedule(
-  { schedule: "every day 01:00", timeZone: "UTC" },
-  async () => {
+export const mclpDailyScheduler = functions.region("us-central1").pubsub
+  .schedule("every day 01:00")
+  .timeZone("UTC")
+  .onRun(async (context) => {
     const db = admin.firestore();
     const now = new Date();
     logger.info("Running MCLP Daily Scheduler", { timestamp: now.toISOString() });
@@ -155,5 +141,4 @@ export const mclpDailyScheduler = onSchedule(
     }
     
     logger.info("MCLP Daily Scheduler finished.");
-  }
-);
+  });

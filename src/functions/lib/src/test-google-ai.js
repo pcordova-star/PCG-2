@@ -38,9 +38,8 @@ exports.testGoogleAi = void 0;
 const https_1 = require("firebase-functions/v2/https");
 const logger = __importStar(require("firebase-functions/logger"));
 const genkit_config_1 = require("./genkit-config");
-const params_1 = require("./params");
 exports.testGoogleAi = (0, https_1.onCall)({
-    secrets: [params_1.GEMINI_API_KEY_SECRET],
+    secrets: ["GEMINI_API_KEY"],
 }, async (request) => {
     try {
         const ai = (0, genkit_config_1.getInitializedGenkitAi)();

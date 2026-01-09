@@ -1,13 +1,21 @@
 {
   "compilerOptions": {
-    "target": "ES2020",
     "module": "commonjs",
-    "lib": ["ES2020"],
-    "strict": false,
-    "esModuleInterop": true,
-    "skipLibCheck": true,
+    "noImplicitReturns": true,
+    "noUnusedLocals": false,
     "outDir": "lib",
-    "rootDir": "."
+    "sourceMap": true,
+    "strict": true,
+    "target": "es2020",
+    "skipLibCheck": true,
+    "esModuleInterop": true,
+    "rootDir": "src",
+    "types": [
+      "node"
+    ]
   },
-  "include": ["index.ts", "src/**/*.ts"]
+  "compileOnSave": true,
+  "include": [
+    "src"
+  ]
 }

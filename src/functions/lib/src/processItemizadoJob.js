@@ -40,19 +40,18 @@ const logger = __importStar(require("firebase-functions/logger"));
 const firestore_2 = require("firebase-admin/firestore");
 const app_1 = require("firebase-admin/app");
 const zod_1 = require("zod");
-const params_1 = require("./params"); // Importar el secreto
-const genkit_config_1 = require("./genkit-config"); // Importar la función inicializadora
+const genkit_config_1 = require("./genkit-config");
 // Inicializar Firebase Admin SDK si no se ha hecho
 if ((0, app_1.getApps)().length === 0) {
     (0, app_1.initializeApp)();
 }
 exports.processItemizadoJob = (0, firestore_1.onDocumentCreated)({
     document: "itemizadoImportJobs/{jobId}",
-    secrets: [params_1.GEMINI_API_KEY_SECRET], // CORRECCIÓN: Usar la variable del parámetro
+    secrets: ["GEMINI_API_KEY"],
     cpu: 1,
     memory: "512MiB",
     timeoutSeconds: 540,
-    region: "us-central1" // Manteniendo región original
+    region: "us-central1"
 }, async (event) => {
     const { jobId } = event.params;
     const snapshot = event.data;
@@ -62,19 +61,16 @@ exports.processItemizadoJob = (0, firestore_1.onDocumentCreated)({
     }
     const jobData = snapshot.data();
     const jobRef = snapshot.ref;
-    // 1. Logging inicial para observabilidad
     logger.info(`[${jobId}] Job triggered.`, {
         location: event.location,
         path: snapshot.ref.path,
         jobKeys: Object.keys(jobData),
         currentStatus: jobData.status,
     });
-    // GUARD: Evitar dobles ejecuciones
     if (jobData.status !== 'queued') {
         logger.info(`[${jobId}] Job is not in 'queued' state (current: ${jobData.status}). Ignoring.`);
         return;
     }
-    // 2. Marcar el trabajo como "procesando" de forma segura
     try {
         await jobRef.update({
             status: "processing",
@@ -87,7 +83,6 @@ exports.processItemizadoJob = (0, firestore_1.onDocumentCreated)({
         return;
     }
     try {
-        // 3. Carga diferida (Lazy Load) de Genkit y sus dependencias
         const ai = (0, genkit_config_1.getInitializedGenkitAi)();
         logger.info(`[${jobId}] Genkit module initialized successfully.`);
         const ImportarItemizadoInputSchema = zod_1.z.object({
