@@ -2,15 +2,16 @@
 import * as functions from 'firebase-functions';
 import * as logger from "firebase-functions/logger";
 import { getAdminApp } from "../firebaseAdmin";
+import * as admin from "firebase-admin";
 
-const admin = getAdminApp();
+const adminApp = getAdminApp();
 
 export const mclpDailyScheduler = functions
     .region("us-central1") // Región compatible con Cloud Scheduler
     .pubsub.schedule("every day 01:00")
     .timeZone("UTC")
     .onRun(async (context) => {
-        const db = admin.firestore();
+        const db = adminApp.firestore();
         const now = new Date();
         logger.info("Running MCLP Daily Scheduler", { timestamp: now.toISOString() });
 
@@ -43,7 +44,7 @@ async function processCompanyMclp(db: FirebaseFirestore.Firestore, companyId: st
     if (now > corteCargaDate && estado === "Abierto para Carga") {
         await periodRef.update({
         estado: "En Revisión",
-        updatedAt: admin.firestore.Timestamp.now(),
+        updatedAt: adminApp.firestore.Timestamp.now(),
         });
         logger.info(`[${companyId}] Period ${periodKey} marked as 'En Revisión'.`);
     }
@@ -68,7 +69,7 @@ async function closeAndFinalizePeriod(db: FirebaseFirestore.Firestore, companyId
         if (d.get("estado") !== "Cumple") {
         await d.ref.set({
             estado: "No Cumple",
-            fechaAsignacion: admin.firestore.Timestamp.now(),
+            fechaAsignacion: adminApp.firestore.Timestamp.now(),
             asignadoPorUid: "system",
         }, { merge: true });
         }
@@ -76,8 +77,8 @@ async function closeAndFinalizePeriod(db: FirebaseFirestore.Firestore, companyId
 
     await db.collection("compliancePeriods").doc(periodId).set({
         estado: "Cerrado",
-        closedAt: admin.firestore.Timestamp.now(),
-        updatedAt: admin.firestore.Timestamp.now(),
+        closedAt: adminApp.firestore.Timestamp.now(),
+        updatedAt: adminApp.firestore.Timestamp.now(),
     }, { merge: true });
 }
 
@@ -110,11 +111,11 @@ async function ensurePeriodExists(db: FirebaseFirestore.Firestore, companyId: st
         limiteRevision: monthData.limiteRevision,
         fechaPago: monthData.fechaPago,
         estado: "Abierto para Carga",
-        createdAt: admin.firestore.Timestamp.now(),
-        updatedAt: admin.firestore.Timestamp.now(),
+        createdAt: adminApp.firestore.Timestamp.now(),
+        updatedAt: adminApp.firestore.Timestamp.now(),
     });
 
-    await monthRef.update({ editable: false, updatedAt: admin.firestore.Timestamp.now() });
+    await monthRef.update({ editable: false, updatedAt: adminApp.firestore.Timestamp.now() });
     
     logger.info(`[${companyId}] Period ${periodKey} created successfully.`);
     return periodRef;
