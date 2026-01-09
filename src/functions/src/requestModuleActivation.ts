@@ -1,114 +1,89 @@
 // src/functions/src/requestModuleActivation.ts
-import { onRequest } from "firebase-functions/v2/https";
+import * as functions from 'firebase-functions';
 import * as admin from "firebase-admin";
 import * as logger from "firebase-functions/logger";
 import { getAuth } from "firebase-admin/auth";
+import cors from "cors";
 
-if (!admin.apps.length) {
-  admin.initializeApp();
-}
+const corsHandler = cors({ origin: true });
 
 const SUPERADMIN_EMAIL = "pauloandrescordova@gmail.com"; 
 
-export const requestModuleActivation = onRequest(async (req, res) => {
+export const requestModuleActivation = functions.region("southamerica-west1").https.onRequest(async (req, res) => {
+    corsHandler(req, res, async () => {
+        if (req.method !== "POST") {
+            res.status(405).json({ success: false, error: "Method Not Allowed" });
+            return;
+        }
 
-    // --- CORS COMPLETO PARA CLOUD FUNCTIONS GEN2 ---
-    const origin = req.headers.origin;
-    const allowedOrigins = [
-      "https://pcgoperacion.com",
-      "http://localhost:3000"
-    ];
+        try {
+            const authHeader = req.headers.authorization;
+            if (!authHeader || !authHeader.startsWith("Bearer ")) {
+                res.status(401).json({ success: false, error: "Unauthorized: No token provided." });
+                return;
+            }
 
-    if (allowedOrigins.includes(origin || "")) {
-      res.set("Access-Control-Allow-Origin", origin);
-    }
+            const token = authHeader.split(" ")[1];
+            const decodedToken = await getAuth().verifyIdToken(token);
 
-    res.set("Access-Control-Allow-Methods", "POST, OPTIONS");
-    res.set("Access-Control-Allow-Headers", "Content-Type, Authorization");
-    res.set("Access-Control-Allow-Credentials", "true");
-    res.set("Vary", "Origin");
+            const { uid } = decodedToken;
+            const userEmail = decodedToken.email || "No disponible";
+            const userName = decodedToken.name || userEmail;
+            const companyId = (decodedToken as any).companyId;
 
-    if (req.method === "OPTIONS") {
-      res.status(204).send("");
-      return;
-    }
-    // --- END CORS ---
+            if (!companyId) {
+                res.status(400).json({ success: false, error: "El usuario no está asociado a ninguna empresa." });
+                return;
+            }
 
-    if (req.method !== "POST") {
-      res.status(405).json({ success: false, error: "Method Not Allowed" });
-      return;
-    }
+            const { moduleId, moduleTitle } = req.body;
+            if (!moduleId || !moduleTitle) {
+                res.status(400).json({ success: false, error: "Faltan los parámetros 'moduleId' y 'moduleTitle'." });
+                return;
+            }
 
-    try {
-      const authHeader = req.headers.authorization;
-      if (!authHeader || !authHeader.startsWith("Bearer ")) {
-        res.status(401).json({ success: false, error: "Unauthorized: No token provided." });
-        return;
-      }
+            const db = admin.firestore();
+            const companyRef = db.collection("companies").doc(companyId as string);
+            const companySnap = await companyRef.get();
 
-      const token = authHeader.split(" ")[1];
-      const decodedToken = await getAuth().verifyIdToken(token);
+            const companyName = companySnap.exists
+                ? companySnap.data()?.nombreFantasia || "Empresa sin nombre"
+                : "Empresa desconocida";
 
-      const { uid } = decodedToken;
-      const userEmail = decodedToken.email || "No disponible";
-      const userName = decodedToken.name || userEmail;
-      const companyId = (decodedToken as any).companyId;
+            const requestRef = await db.collection("moduleActivationRequests").add({
+                companyId,
+                companyName,
+                moduleId,
+                moduleTitle,
+                requestedByUserId: uid,
+                requestedByUserEmail: userEmail,
+                requestedByUserName: userName,
+                requestedAt: admin.firestore.FieldValue.serverTimestamp(),
+                status: "pending",
+            });
 
-      if (!companyId) {
-        res.status(400).json({ success: false, error: "El usuario no está asociado a ninguna empresa." });
-        return;
-      }
+            logger.info(`Solicitud de activación registrada: ${requestRef.id}`);
 
-      const { moduleId, moduleTitle } = req.body;
-      if (!moduleId || !moduleTitle) {
-        res.status(400).json({ success: false, error: "Faltan los parámetros 'moduleId' y 'moduleTitle'." });
-        return;
-      }
+            await db.collection("mail").add({
+                to: [SUPERADMIN_EMAIL],
+                message: {
+                subject: `PCG: Nueva solicitud de activación de módulo - ${companyName}`,
+                html: `
+                    <p>Se ha recibido una nueva solicitud de activación de módulo:</p>
+                    <ul>
+                    <li><strong>Empresa:</strong> ${companyName} (${companyId})</li>
+                    <li><strong>Módulo Solicitado:</strong> ${moduleTitle} (${moduleId})</li>
+                    <li><strong>Solicitado por:</strong> ${userName} (${userEmail})</li>
+                    </ul>
+                `,
+                },
+            });
 
-      const db = admin.firestore();
-      const companyRef = db.collection("companies").doc(companyId as string);
-      const companySnap = await companyRef.get();
+            res.status(200).json({ success: true, message: "Solicitud registrada y notificada." });
 
-      const companyName = companySnap.exists
-        ? companySnap.data()?.nombreFantasia || "Empresa sin nombre"
-        : "Empresa desconocida";
-
-      // Registrar solicitud
-      const requestRef = await db.collection("moduleActivationRequests").add({
-        companyId,
-        companyName,
-        moduleId,
-        moduleTitle,
-        requestedByUserId: uid,
-        requestedByUserEmail: userEmail,
-        requestedByUserName: userName,
-        requestedAt: admin.firestore.FieldValue.serverTimestamp(),
-        status: "pending",
-      });
-
-      logger.info(`Solicitud de activación registrada: ${requestRef.id}`);
-
-      // enviar correo al superadmin
-      await db.collection("mail").add({
-        to: [SUPERADMIN_EMAIL],
-        message: {
-          subject: `PCG: Nueva solicitud de activación de módulo - ${companyName}`,
-          html: `
-            <p>Se ha recibido una nueva solicitud de activación de módulo:</p>
-            <ul>
-              <li><strong>Empresa:</strong> ${companyName} (${companyId})</li>
-              <li><strong>Módulo Solicitado:</strong> ${moduleTitle} (${moduleId})</li>
-              <li><strong>Solicitado por:</strong> ${userName} (${userEmail})</li>
-            </ul>
-          `,
-        },
-      });
-
-      res.status(200).json({ success: true, message: "Solicitud registrada y notificada." });
-
-    } catch (error: any) {
-      logger.error("Error al procesar la solicitud de activación:", error);
-      res.status(500).json({ success: false, error: "Ocurrió un error al procesar tu solicitud." });
-    }
-  }
-);
+        } catch (error: any) {
+            logger.error("Error al procesar la solicitud de activación:", error);
+            res.status(500).json({ success: false, error: "Ocurrió un error al procesar tu solicitud." });
+        }
+    });
+});
