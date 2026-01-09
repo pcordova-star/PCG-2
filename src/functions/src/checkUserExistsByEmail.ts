@@ -1,7 +1,8 @@
-
 import * as functions from "firebase-functions";
-import * as admin from "firebase-admin";
 import * as logger from "firebase-functions/logger";
+import { getAdminApp } from "./firebaseAdmin";
+
+const admin = getAdminApp();
 
 export const checkUserExistsByEmail = functions.region("us-central1").https.onCall(
   async (data, context) => {
