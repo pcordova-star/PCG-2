@@ -35,10 +35,12 @@ var __importStar = (this && this.__importStar) || (function () {
 })();
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.mclpDailyScheduler = exports.processItemizadoJob = exports.convertHeicToJpg = exports.requestModuleActivation = exports.deactivateCompanyUser = exports.testGoogleAi = exports.checkUserExistsByEmail = exports.setSuperAdminClaim = exports.notifyDocumentDistribution = exports.registrarAvanceRapido = exports.createCompanyUser = void 0;
+/**
+ * Este archivo es el punto de entrada para todas las Cloud Functions.
+ * Cada función se importa desde su propio archivo y se exporta para que Firebase la despliegue.
+ */
 const admin = __importStar(require("firebase-admin"));
-if (admin.apps.length === 0) {
-    admin.initializeApp();
-}
+admin.initializeApp();
 // --- Exportación de funciones v1 ---
 var createCompanyUser_1 = require("./createCompanyUser");
 Object.defineProperty(exports, "createCompanyUser", { enumerable: true, get: function () { return createCompanyUser_1.createCompanyUser; } });
