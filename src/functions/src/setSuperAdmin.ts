@@ -1,23 +1,23 @@
 // functions/src/setSuperAdmin.ts
-import * as functions from 'firebase-functions';
+import { onCall, HttpsError } from "firebase-functions/v2/https";
 import * as admin from 'firebase-admin';
 
 if (!admin.apps.length) {
   admin.initializeApp();
 }
 
-export const setSuperAdminClaim = functions.region("southamerica-west1").https.onCall(async (data, context) => {
-    if (!context.auth) {
-      throw new functions.https.HttpsError("unauthenticated", "La función debe ser llamada por un usuario autenticado.");
+export const setSuperAdminClaim = onCall(async (request) => {
+    if (!request.auth) {
+      throw new HttpsError("unauthenticated", "La función debe ser llamada por un usuario autenticado.");
     }
     
-    const email = data.email;
+    const email = request.data.email;
     if (!email || typeof email !== "string") {
-      throw new functions.https.HttpsError("invalid-argument", "Se requiere un 'email' en el cuerpo de la solicitud.");
+      throw new HttpsError("invalid-argument", "Se requiere un 'email' en el cuerpo de la solicitud.");
     }
 
     if (email.toLowerCase() !== "pauloandrescordova@gmail.com") {
-        throw new functions.https.HttpsError(
+        throw new HttpsError(
             "permission-denied",
             "Esta función solo puede asignar el rol de superadmin al usuario predefinido."
         );
@@ -40,9 +40,9 @@ export const setSuperAdminClaim = functions.region("southamerica-west1").https.o
       };
     } catch (error: any) {
       if (error.code === "auth/user-not-found") {
-        throw new functions.https.HttpsError("not-found", `No se encontró usuario con el email: ${email}`);
+        throw new HttpsError("not-found", `No se encontró usuario con el email: ${email}`);
       }
       console.error("Error al asignar superadmin:", error);
-      throw new functions.https.HttpsError("internal", "Ocurrió un error inesperado.", error.message);
+      throw new HttpsError("internal", "Ocurrió un error inesperado.", error.message);
     }
 });
