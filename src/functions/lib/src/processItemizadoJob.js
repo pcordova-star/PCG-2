@@ -1,3 +1,4 @@
+// This file is compiled from src/processItemizadoJob.ts. Do not edit directly.
 "use strict";
 var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
     if (k2 === undefined) k2 = k;
@@ -15,56 +16,36 @@ var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (
 }) : function(o, v) {
     o["default"] = v;
 });
-var __importStar = (this && this.__importStar) || (function () {
-    var ownKeys = function(o) {
-        ownKeys = Object.getOwnPropertyNames || function (o) {
-            var ar = [];
-            for (var k in o) if (Object.prototype.hasOwnProperty.call(o, k)) ar[ar.length] = k;
-            return ar;
-        };
-        return ownKeys(o);
-    };
-    return function (mod) {
-        if (mod && mod.__esModule) return mod;
-        var result = {};
-        if (mod != null) for (var k = ownKeys(mod), i = 0; i < k.length; i++) if (k[i] !== "default") __createBinding(result, mod, k[i]);
-        __setModuleDefault(result, mod);
-        return result;
-    };
-})();
+var __importStar = (this && this.__importStar) || function (mod) {
+    if (mod && mod.__esModule) return mod;
+    var result = {};
+    if (mod != null) for (var k in mod) if (k !== "default" && Object.prototype.hasOwnProperty.call(mod, k)) __createBinding(result, mod, k);
+    __setModuleDefault(result, mod);
+    return result;
+};
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.processItemizadoJob = void 0;
 // functions/src/processItemizadoJob.ts
-const firestore_1 = require("firebase-functions/v2/firestore");
+const functions = __importStar(require("firebase-functions"));
 const logger = __importStar(require("firebase-functions/logger"));
-const firestore_2 = require("firebase-admin/firestore");
-const app_1 = require("firebase-admin/app");
+const firestore_1 = require("firebase-admin/firestore");
 const zod_1 = require("zod");
 const genkit_config_1 = require("./genkit-config");
-// Inicializar Firebase Admin SDK si no se ha hecho
-if ((0, app_1.getApps)().length === 0) {
-    (0, app_1.initializeApp)();
-}
-exports.processItemizadoJob = (0, firestore_1.onDocumentCreated)({
-    document: "itemizadoImportJobs/{jobId}",
-    secrets: ["GEMINI_API_KEY"],
-    cpu: 1,
-    memory: "512MiB",
+exports.processItemizadoJob = functions
+    .region("us-central1") // Región compatible con secretos y Genkit
+    .runWith({
     timeoutSeconds: 540,
-    region: "us-central1"
-}, async (event) => {
-    const { jobId } = event.params;
-    const snapshot = event.data;
-    if (!snapshot) {
-        logger.warn(`[${jobId}] No data found in event. Aborting.`);
-        return;
-    }
+    memory: '1GB',
+    secrets: ["GEMINI_API_KEY"]
+})
+    .firestore
+    .document("itemizadoImportJobs/{jobId}")
+    .onCreate(async (snapshot, context) => {
+    const { jobId } = context.params;
     const jobData = snapshot.data();
     const jobRef = snapshot.ref;
     logger.info(`[${jobId}] Job triggered.`, {
-        location: event.location,
         path: snapshot.ref.path,
-        jobKeys: Object.keys(jobData),
         currentStatus: jobData.status,
     });
     if (jobData.status !== 'queued') {
@@ -74,7 +55,7 @@ exports.processItemizadoJob = (0, firestore_1.onDocumentCreated)({
     try {
         await jobRef.update({
             status: "processing",
-            startedAt: firestore_2.FieldValue.serverTimestamp()
+            startedAt: firestore_1.FieldValue.serverTimestamp()
         });
         logger.info(`[${jobId}] Job status updated to 'processing'.`);
     }
@@ -93,7 +74,7 @@ exports.processItemizadoJob = (0, firestore_1.onDocumentCreated)({
         });
         const importarItemizadoPrompt = ai.definePrompt({
             name: 'importarItemizadoPrompt',
-            model: 'googleai/gemini-2.5-flash',
+            model: 'googleai/gemini-1.5-flash-latest',
             input: { schema: ImportarItemizadoInputSchema },
             prompt: `Eres un asistente experto en análisis de presupuestos de construcción. Tu tarea es interpretar un presupuesto (en formato PDF) y extraer los capítulos y todas las partidas/subpartidas en una estructura plana.
 
@@ -144,7 +125,7 @@ Genera ahora el JSON de salida.`
             await jobRef.update({
                 status: "error",
                 errorMessage: `FLOW_FAILED: ${flowError.message}`,
-                processedAt: firestore_2.FieldValue.serverTimestamp(),
+                processedAt: firestore_1.FieldValue.serverTimestamp(),
             });
             return;
         }
@@ -152,7 +133,7 @@ Genera ahora el JSON de salida.`
         await jobRef.update({
             status: "done",
             result: analisisResult,
-            processedAt: firestore_2.FieldValue.serverTimestamp(),
+            processedAt: firestore_1.FieldValue.serverTimestamp(),
         });
         logger.info(`[${jobId}] Job completed and saved.`);
     }
@@ -162,7 +143,7 @@ Genera ahora el JSON de salida.`
             await jobRef.update({
                 status: "error",
                 errorMessage: error.message || "Ocurrió un error desconocido durante el análisis.",
-                processedAt: firestore_2.FieldValue.serverTimestamp(),
+                processedAt: firestore_1.FieldValue.serverTimestamp(),
             });
         }
         catch (finalError) {
