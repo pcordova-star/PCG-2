@@ -31,8 +31,8 @@ export function DisabledModuleCard({ title, description, icon: Icon, moduleId }:
     try {
         const idToken = await user.getIdToken();
         
-        // URL de la función HTTP de 2da Gen
-        const FUNCTION_URL = `https://requestmoduleactivation-c23ohj7w2a-uc.a.run.app`;
+        // URL de la función HTTP de 2da Gen (CORREGIDA)
+        const FUNCTION_URL = "https://requestmoduleactivation-3uw4oqhaxq-tl.a.run.app";
         
         const response = await fetch(FUNCTION_URL, {
             method: 'POST',

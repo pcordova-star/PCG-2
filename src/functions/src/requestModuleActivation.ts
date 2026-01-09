@@ -12,7 +12,7 @@ const SUPERADMIN_EMAIL = "pauloandrescordova@gmail.com";
 export const requestModuleActivation = onRequest(
   {
     region: "southamerica-west1",
-    cors: false // Se deshabilita el CORS automático para manejarlo manualmente.
+    cors: true // Mantenemos esto por si Firebase hace optimizaciones, aunque manejemos manualmente.
   },
   async (req, res) => {
     // La inicialización se mueve DENTRO del handler.
