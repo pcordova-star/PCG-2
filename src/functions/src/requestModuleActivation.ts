@@ -1,28 +1,41 @@
+
 // src/functions/src/requestModuleActivation.ts
 import { onRequest } from "firebase-functions/v2/https";
 import * as admin from "firebase-admin";
 import * as logger from "firebase-functions/logger";
 import { getAuth } from "firebase-admin/auth";
 
-if (!admin.apps.length) {
-  admin.initializeApp();
-}
+// NO inicializar admin aquí en el scope global para funciones v2.
 
 const SUPERADMIN_EMAIL = "pauloandrescordova@gmail.com"; 
 
 export const requestModuleActivation = onRequest(
   {
     region: "southamerica-west1",
-    cors: true, // Habilitar CORS directamente en las opciones de la función v2
+    cors: false // Se deshabilita el CORS automático para manejarlo manualmente.
   },
   async (req, res) => {
-    // El manejo de OPTIONS y encabezados CORS ahora es gestionado por Firebase
-    // gracias a la opción `cors: true`.
+    // La inicialización se mueve DENTRO del handler.
+    if (!admin.apps.length) {
+      admin.initializeApp();
+    }
 
-    if (req.method !== "POST") {
-      res.status(405).json({ success: false, error: "Method Not Allowed" });
+    // --- MANEJO MANUAL DE CORS COMPLETO ---
+    res.set("Access-Control-Allow-Origin", "*");
+    res.set("Access-Control-Allow-Methods", "POST, OPTIONS");
+    res.set("Access-Control-Allow-Headers", "Content-Type, Authorization");
+
+    if (req.method === "OPTIONS") {
+      // Respuesta pre-flight para CORS
+      res.status(204).send("");
       return;
     }
+    
+    if (req.method !== "POST") {
+        res.status(405).json({ success: false, error: "Method Not Allowed" });
+        return;
+    }
+    // --- FIN MANEJO MANUAL DE CORS ---
 
     try {
       const authHeader = req.headers.authorization;

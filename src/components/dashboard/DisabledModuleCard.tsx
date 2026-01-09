@@ -6,8 +6,6 @@ import { Button } from "@/components/ui/button";
 import { LucideIcon, Sparkles, Loader2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useState } from "react";
-import { httpsCallable } from "firebase/functions";
-import { firebaseFunctions } from "@/lib/firebaseClient";
 import { useAuth } from "@/context/AuthContext";
 
 
@@ -31,17 +29,30 @@ export function DisabledModuleCard({ title, description, icon: Icon, moduleId }:
     
     setIsRequesting(true);
     try {
-        const requestModuleActivationFn = httpsCallable(firebaseFunctions, 'requestModuleActivation');
-        const result = await requestModuleActivationFn({ moduleId: moduleId, moduleTitle: title });
+        const idToken = await user.getIdToken();
         
-        if ((result.data as any).success) {
-            toast({
-              title: "Solicitud Enviada",
-              description: "Hemos notificado al administrador. Nos pondremos en contacto contigo a la brevedad.",
-            });
-        } else {
-            throw new Error((result.data as any).error || 'Error desconocido al procesar la solicitud.');
+        // URL de la función HTTP de 2da Gen
+        const FUNCTION_URL = `https://requestmoduleactivation-c23ohj7w2a-uc.a.run.app`;
+        
+        const response = await fetch(FUNCTION_URL, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${idToken}`,
+            },
+            body: JSON.stringify({ moduleId: moduleId, moduleTitle: title }),
+        });
+
+        const result = await response.json();
+
+        if (!response.ok) {
+            throw new Error(result.error || 'Error en el servidor');
         }
+
+        toast({
+          title: "Solicitud Enviada",
+          description: "Hemos notificado al administrador. Nos pondremos en contacto contigo a la brevedad.",
+        });
 
     } catch (error: any) {
         console.error("Error al solicitar activación:", error);
