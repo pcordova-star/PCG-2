@@ -7,7 +7,8 @@
   "main": "lib/index.js",
   "scripts": {
     "build": "tsc",
-    "clean": "rm -rf lib"
+    "clean": "rm -rf lib",
+    "deploy:functions": "npm run build && firebase deploy --only functions"
   },
   "dependencies": {
     "firebase-admin": "^12.0.0",
