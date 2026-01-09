@@ -22,5 +22,6 @@ var convertHeic_1 = require("./src/convertHeic");
 Object.defineProperty(exports, "convertHeicToJpg", { enumerable: true, get: function () { return convertHeic_1.convertHeicToJpg; } });
 var processItemizadoJob_1 = require("./src/processItemizadoJob");
 Object.defineProperty(exports, "processItemizadoJob", { enumerable: true, get: function () { return processItemizadoJob_1.processItemizadoJob; } });
+// MCLP (ruta confirmada)
 var scheduler_1 = require("./src/mclp/scheduler");
 Object.defineProperty(exports, "mclpDailyScheduler", { enumerable: true, get: function () { return scheduler_1.mclpDailyScheduler; } });
