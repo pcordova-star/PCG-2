@@ -1,49 +1,49 @@
-// functions/src/test-google-ai.ts
-import * as functions from "firebase-functions";
+// src/functions/src/test-google-ai.ts
+import { onCall, HttpsError } from "firebase-functions/v2/https";
 import * as logger from "firebase-functions/logger";
-import { ai } from "./genkit-config";
+import { getInitializedGenkitAi } from "./genkit-config"; // Importar la función inicializadora
+import { GEMINI_API_KEY_SECRET } from "./params";
 
-export const testGoogleAi = functions.region("southamerica-west1")
-  .runWith({ secrets: ["GEMINI_API_KEY"] })
-  .https.onCall(async (data, context) => {
-    const prompt = data?.prompt;
-
-    if (!prompt || typeof prompt !== "string") {
-      throw new functions.https.HttpsError(
-        "invalid-argument",
-        'Formato requerido: {"data":{"prompt":"..."}}'
-      );
-    }
-
-    logger.info("GenAI env check", {
-      hasGEMINI: !!process.env.GEMINI_API_KEY,
-      geminiLen: process.env.GEMINI_API_KEY?.length ?? 0,
-      hasAuth: !!context.auth,
-      uid: context.auth?.uid ?? null,
-    });
-
+/**
+ * Función "smoke test" para validar que Genkit y la API de Gemini
+ * están funcionando correctamente desde el entorno de Cloud Functions.
+ */
+export const testGoogleAi = onCall(
+  {
+    // Esta función necesita acceso al mismo secreto, vinculado con el nuevo patrón.
+    secrets: [GEMINI_API_KEY_SECRET],
+  },
+  async (request) => {
+    
     try {
-      const resp = await ai.generate({
-        model: "googleai/gemini-2.5-flash",
-        prompt,
+      // 1. Inicializar Genkit dentro del handler
+      const ai = getInitializedGenkitAi();
+      logger.info("[testGoogleAi] Genkit inicializado en runtime.");
+      
+      logger.info("[testGoogleAi] Intentando generar contenido con Genkit y Gemini...");
+      const response = await ai.generate({
+        model: 'googleai/gemini-1.5-flash-latest',
+        prompt: "Confirma que estás funcionando. Responde solo con: 'OK'",
       });
 
-      const text = typeof (resp as any).text === "function"
-          ? (resp as any).text()
-          : (resp as any).text;
+      const textResult = response.text();
+      logger.info(`[testGoogleAi] Respuesta del modelo: ${textResult}`);
 
-      return { ok: true, text: String(text ?? "") };
-    } catch (e: any) {
-      logger.error("Genkit call failed", {
-        message: e?.message,
-        name: e?.name,
-        stack: e?.stack,
-        cause: e?.cause,
-      });
+      if (textResult.includes('OK')) {
+        return {
+          ok: true,
+          message: "La conexión con la API de Google AI a través de Genkit fue exitosa.",
+          response: textResult
+        };
+      } else {
+        throw new Error(`Respuesta inesperada del modelo: ${textResult}`);
+      }
 
-      throw new functions.https.HttpsError("internal", "Genkit call failed", {
-        message: e?.message ?? "unknown",
-        name: e?.name ?? "unknown",
-      });
+    } catch (error: any) {
+      logger.error("[testGoogleAi] Error al llamar a la API de Gemini:", error);
+      // Incluir el stack trace en el log para un mejor diagnóstico.
+      logger.error("Stack trace:", error.stack);
+      throw new HttpsError("internal", `Error al contactar el modelo de IA: ${error.message}`);
     }
-  });
+  }
+);
