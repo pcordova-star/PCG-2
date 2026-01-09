@@ -3,7 +3,7 @@ import * as functions from "firebase-functions";
 import * as admin from "firebase-admin";
 import * as logger from "firebase-functions/logger";
 
-export const checkUserExistsByEmail = functions.region("southamerica-west1").https.onCall(
+export const checkUserExistsByEmail = functions.region("us-central1").https.onCall(
   async (data, context) => {
     const { email, invId } = data;
     const db = admin.firestore();

@@ -1,3 +1,4 @@
+
 // src/functions/src/convertHeic.ts
 import * as functions from 'firebase-functions';
 import * as admin from 'firebase-admin';
@@ -9,7 +10,7 @@ import sharp from 'sharp';
 import * as logger from "firebase-functions/logger";
 
 export const convertHeicToJpg = functions
-  .region("southamerica-west1")
+  .region("us-central1")
   .runWith({ memory: "512MB" })
   .storage.object()
   .onFinalize(async (object) => {

@@ -1,3 +1,4 @@
+
 // src/functions/src/createCompanyUser.ts
 import * as functions from 'firebase-functions';
 import * as admin from "firebase-admin";
@@ -9,7 +10,7 @@ function buildAcceptInviteUrl(invId: string, email: string): string {
   return `${appBaseUrl}/accept-invite?invId=${encodeURIComponent(invId)}&email=${encodeURIComponent(email)}`;
 }
 
-export const createCompanyUser = functions.region("southamerica-west1").https.onCall(async (data, context) => {
+export const createCompanyUser = functions.region("us-central1").https.onCall(async (data, context) => {
     if (!context.auth) {
       throw new functions.https.HttpsError("unauthenticated", "No autenticado.");
     }

@@ -1,3 +1,4 @@
+
 // functions/src/registrarAvanceRapido.ts
 import * as functions from 'firebase-functions';
 import * as logger from "firebase-functions/logger";
@@ -22,7 +23,7 @@ function escapeHtml(s: string): string {
 }
 
 // Convertido a Cloud Function v1 para mantener compatibilidad
-export const registrarAvanceRapido = functions.region("southamerica-west1").https.onRequest((req, res) => {
+export const registrarAvanceRapido = functions.region("us-central1").https.onRequest((req, res) => {
     corsHandler(req, res, async () => {
         if (req.method === 'OPTIONS') {
             res.status(204).send('');

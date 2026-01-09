@@ -1,3 +1,4 @@
+
 // src/functions/src/deactivateCompanyUser.ts
 import * as functions from 'firebase-functions';
 import * as admin from 'firebase-admin';
@@ -7,7 +8,7 @@ import cors from "cors";
 
 const corsHandler = cors({ origin: true });
 
-export const deactivateCompanyUser = functions.region("southamerica-west1").https.onRequest((req, res) => {
+export const deactivateCompanyUser = functions.region("us-central1").https.onRequest((req, res) => {
     corsHandler(req, res, async () => {
         if (req.method !== 'POST') {
             res.status(405).send('Method Not Allowed');
