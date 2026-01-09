@@ -5,9 +5,8 @@
  * Cada función se importa desde su propio archivo y se exporta para que Firebase la despliegue.
  */
 
-import * as admin from "firebase-admin";
-admin.initializeApp();
-
+// Se elimina la inicialización global de admin.initializeApp() para evitar timeouts en el deploy.
+// Cada función se encargará de su propia inicialización si es necesario.
 
 // --- Exportación de funciones v1 ---
 export { createCompanyUser } from "./src/createCompanyUser";
