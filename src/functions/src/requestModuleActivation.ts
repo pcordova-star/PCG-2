@@ -3,8 +3,9 @@ import { onRequest } from "firebase-functions/v2/https";
 import * as logger from "firebase-functions/logger";
 import { getAuth } from "firebase-admin/auth";
 import { getAdminApp } from "./firebaseAdmin";
+import * as admin from "firebase-admin";
 
-const admin = getAdminApp();
+const adminApp = getAdminApp();
 
 const SUPERADMIN_EMAIL = "pauloandrescordova@gmail.com"; 
 
@@ -55,7 +56,7 @@ export const requestModuleActivation = onRequest(
         return;
       }
 
-      const db = admin.firestore();
+      const db = adminApp.firestore();
       const companyRef = db.collection("companies").doc(companyId as string);
       const companySnap = await companyRef.get();
 

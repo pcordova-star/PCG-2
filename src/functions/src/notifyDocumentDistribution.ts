@@ -4,9 +4,10 @@ import { z } from "zod";
 import * as logger from "firebase-functions/logger";
 import { getFirestore } from "firebase-admin/firestore";
 import { getAdminApp } from "./firebaseAdmin";
+import * as admin from "firebase-admin";
 
-const admin = getAdminApp();
-const db = getFirestore(admin.app());
+const adminApp = getAdminApp();
+const db = adminApp.firestore();
 
 // Esquema de validación para los datos de entrada de la función
 const NotifyDocumentSchema = z.object({
