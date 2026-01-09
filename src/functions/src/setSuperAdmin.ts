@@ -3,6 +3,10 @@
 import * as functions from "firebase-functions";
 import * as admin from 'firebase-admin';
 
+if (!admin.apps.length) {
+  admin.initializeApp();
+}
+
 export const setSuperAdminClaim = functions.region("us-central1").https.onCall(async (data, context) => {
     if (!context.auth) {
       throw new functions.https.HttpsError("unauthenticated", "La función debe ser llamada por un usuario autenticado.");

@@ -6,6 +6,10 @@ import * as logger from "firebase-functions/logger";
 import { getAuth } from "firebase-admin/auth";
 import cors from "cors";
 
+if (!admin.apps.length) {
+  admin.initializeApp();
+}
+
 const corsHandler = cors({ origin: true });
 
 const SUPERADMIN_EMAIL = "pauloandrescordova@gmail.com"; 

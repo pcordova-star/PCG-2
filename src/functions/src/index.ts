@@ -5,10 +5,6 @@
  * Cada función se importa desde su propio archivo y se exporta para que Firebase la despliegue.
  */
 
-import * as admin from "firebase-admin";
-admin.initializeApp();
-
-
 // --- Exportación de funciones v1 ---
 export { createCompanyUser } from "./createCompanyUser";
 export { registrarAvanceRapido } from "./registrarAvanceRapido";

@@ -4,6 +4,10 @@ import * as functions from 'firebase-functions';
 import * as admin from "firebase-admin";
 import * as logger from "firebase-functions/logger";
 
+if (!admin.apps.length) {
+  admin.initializeApp();
+}
+
 export const mclpDailyScheduler = functions
     .region("us-central1") // Región compatible con Cloud Scheduler
     .pubsub.schedule("every day 01:00")
