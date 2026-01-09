@@ -12,11 +12,14 @@ type ProcessItemizadoJobPayload = {
   notas?: string;
 };
 
-export const processItemizadoJob = functions.runWith({
-  timeoutSeconds: 540,
-  memory: '1GB',
-  secrets: ["GEMINI_API_KEY"]
-}).region("us-central1").firestore
+export const processItemizadoJob = functions
+  .region("us-central1") // Región compatible con secretos y Genkit
+  .runWith({
+    timeoutSeconds: 540,
+    memory: '1GB',
+    secrets: ["GEMINI_API_KEY"]
+  })
+  .firestore
   .document("itemizadoImportJobs/{jobId}")
   .onCreate(async (snapshot, context) => {
     const { jobId } = context.params;
