@@ -31,30 +31,18 @@ export function DisabledModuleCard({ title, description, icon: Icon, moduleId }:
     
     setIsRequesting(true);
     try {
-        const idToken = await user.getIdToken();
-
-        // Se reemplaza la URL antigua por la nueva URL de la función de 2ª Generación.
-        const FUNCTION_URL = `https://requestmoduleactivation-3uw4oqhaxq-tl.a.run.app`;
-
-        const response = await fetch(FUNCTION_URL, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${idToken}`,
-            },
-            body: JSON.stringify({ moduleId: moduleId, moduleTitle: title }),
-        });
+        const requestModuleActivationFn = httpsCallable(firebaseFunctions, 'requestModuleActivation');
+        const result = await requestModuleActivationFn({ moduleId: moduleId, moduleTitle: title });
         
-        const result = await response.json();
-
-        if (!response.ok) {
-            throw new Error(result.error || 'Error en el servidor');
+        if ((result.data as any).success) {
+            toast({
+              title: "Solicitud Enviada",
+              description: "Hemos notificado al administrador. Nos pondremos en contacto contigo a la brevedad.",
+            });
+        } else {
+            throw new Error((result.data as any).error || 'Error desconocido al procesar la solicitud.');
         }
-        
-        toast({
-          title: "Solicitud Enviada",
-          description: "Hemos notificado al administrador. Nos pondremos en contacto contigo a la brevedad.",
-        });
+
     } catch (error: any) {
         console.error("Error al solicitar activación:", error);
         toast({
