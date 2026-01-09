@@ -1,3 +1,4 @@
+
 // functions/src/notifyDocumentDistribution.ts
 import * as functions from "firebase-functions";
 import * as admin from "firebase-admin";
@@ -18,7 +19,7 @@ const NotifyDocumentSchema = z.object({
   email: z.string().email(),
 });
 
-export const notifyDocumentDistribution = functions.region("southamerica-west1").https.onCall(async (data, context) => {
+export const notifyDocumentDistribution = functions.region("us-central1").https.onCall(async (data, context) => {
     // 1. Autenticación y autorización (básica)
     if (!context.auth) {
       throw new functions.https.HttpsError("unauthenticated", "El usuario no está autenticado.");

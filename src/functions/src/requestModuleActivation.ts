@@ -1,3 +1,4 @@
+
 // src/functions/src/requestModuleActivation.ts
 import * as functions from 'firebase-functions';
 import * as admin from "firebase-admin";
@@ -9,7 +10,7 @@ const corsHandler = cors({ origin: true });
 
 const SUPERADMIN_EMAIL = "pauloandrescordova@gmail.com"; 
 
-export const requestModuleActivation = functions.region("southamerica-west1").https.onRequest(async (req, res) => {
+export const requestModuleActivation = functions.region("us-central1").https.onRequest(async (req, res) => {
     corsHandler(req, res, async () => {
         if (req.method !== "POST") {
             res.status(405).json({ success: false, error: "Method Not Allowed" });
