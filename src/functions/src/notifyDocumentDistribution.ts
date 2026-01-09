@@ -49,7 +49,7 @@ export const notifyDocumentDistribution = functions.region("us-central1").https.
       const projectDocRef = db.collection("projectDocuments").doc(projectDocumentId);
       const projectDocSnap = await projectDocRef.get();
 
-      if (!projectDocSnap.exists()) {
+      if (!projectDocSnap.exists) {
         throw new functions.https.HttpsError("not-found", "El documento del proyecto no fue encontrado.");
       }
       const projectDocument = projectDocSnap.data() as { name: string; code: string };
