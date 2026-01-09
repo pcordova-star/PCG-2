@@ -3,18 +3,16 @@
     "target": "ES2020",
     "module": "commonjs",
     "lib": ["ES2020", "DOM"],
-    "types": ["node", "handlebars"],
     "strict": true,
     "esModuleInterop": true,
-
-    // ESTE ES EL PUNTO CLAVE:
-    "rootDir": "./src",
-    "outDir": "./lib",
-
+    "skipLibCheck": true,
+    "outDir": "lib",
+    "rootDir": "src",
     "sourceMap": true,
     "resolveJsonModule": true,
     "moduleResolution": "node",
-    "noImplicitAny": false
+    "noImplicitAny": false,
+    "types": ["node", "handlebars"]
   },
   "include": ["src/**/*.ts"],
   "exclude": ["node_modules"]
