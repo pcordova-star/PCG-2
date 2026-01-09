@@ -1,4 +1,3 @@
-
 // functions/src/registrarAvanceRapido.ts
 import * as functions from 'firebase-functions';
 import * as logger from "firebase-functions/logger";
@@ -6,6 +5,10 @@ import { getFirestore, FieldValue } from "firebase-admin/firestore";
 import { z } from "zod";
 import { getAuth } from "firebase-admin/auth";
 import cors from "cors";
+import { getAdminApp } from './firebaseAdmin';
+
+const adminApp = getAdminApp();
+const db = adminApp.firestore();
 
 const corsHandler = cors({ origin: true });
 
@@ -51,7 +54,6 @@ export const registrarAvanceRapido = functions.region("us-central1").https.onReq
 
             const { obraId, actividadId, porcentaje, comentario, fotos, visibleCliente } = parsed.data;
 
-            const db = getFirestore();
             const obraRef = db.collection("obras").doc(obraId);
 
             const avanceId = await db.runTransaction(async (tx) => {
