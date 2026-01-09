@@ -4,6 +4,10 @@ import * as functions from 'firebase-functions';
 import * as admin from "firebase-admin";
 import * as logger from "firebase-functions/logger";
 
+if (!admin.apps.length) {
+  admin.initializeApp();
+}
+
 function buildAcceptInviteUrl(invId: string, email: string): string {
   const rawBaseUrl = functions.config().app?.base_url || "http://localhost:3000";
   const appBaseUrl = rawBaseUrl.replace(/\/+$/, "");
