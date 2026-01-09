@@ -20,4 +20,4 @@ const app = getApps().length ? getApp() : initializeApp(firebaseConfig);
 export const firebaseAuth = getAuth(app);
 export const firebaseDb = getFirestore(app);
 export const firebaseStorage = getStorage(app);
-export const firebaseFunctions = getFunctions(app, "southamerica-west1");
+export const firebaseFunctions = getFunctions(app);
