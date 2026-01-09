@@ -9,7 +9,6 @@
     "target": "es2020",
     "skipLibCheck": true,
     "esModuleInterop": true,
-    "rootDir": "src",
     "types": [
       "node"
     ],
