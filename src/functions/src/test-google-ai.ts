@@ -2,11 +2,10 @@
 import { onCall, HttpsError } from "firebase-functions/v2/https";
 import * as logger from "firebase-functions/logger";
 import { getInitializedGenkitAi } from "./genkit-config"; 
-import { GEMINI_API_KEY_SECRET } from "./params";
 
 export const testGoogleAi = onCall(
   {
-    secrets: [GEMINI_API_KEY_SECRET],
+    secrets: ["GEMINI_API_KEY"],
   },
   async (request) => {
     try {

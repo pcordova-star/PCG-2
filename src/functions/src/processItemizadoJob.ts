@@ -4,8 +4,7 @@ import * as logger from "firebase-functions/logger";
 import { FieldValue } from "firebase-admin/firestore";
 import { initializeApp, getApps } from "firebase-admin/app";
 import { z } from "zod";
-import { GEMINI_API_KEY_SECRET } from './params'; // Importar el secreto
-import { getInitializedGenkitAi } from "./genkit-config"; // Importar la función inicializadora
+import { getInitializedGenkitAi } from "./genkit-config"; 
 
 // Inicializar Firebase Admin SDK si no se ha hecho
 if (getApps().length === 0) {
@@ -22,11 +21,11 @@ type ProcessItemizadoJobPayload = {
 export const processItemizadoJob = onDocumentCreated(
   {
     document: "itemizadoImportJobs/{jobId}",
-    secrets: [GEMINI_API_KEY_SECRET], // CORRECCIÓN: Usar la variable del parámetro
+    secrets: ["GEMINI_API_KEY"],
     cpu: 1,
     memory: "512MiB",
     timeoutSeconds: 540,
-    region: "us-central1" // Manteniendo región original
+    region: "us-central1" 
   },
   async (event) => {
     const { jobId } = event.params;
@@ -40,7 +39,6 @@ export const processItemizadoJob = onDocumentCreated(
     const jobData = snapshot.data();
     const jobRef = snapshot.ref;
     
-    // 1. Logging inicial para observabilidad
     logger.info(`[${jobId}] Job triggered.`, {
         location: event.location,
         path: snapshot.ref.path,
@@ -48,13 +46,11 @@ export const processItemizadoJob = onDocumentCreated(
         currentStatus: jobData.status,
     });
 
-    // GUARD: Evitar dobles ejecuciones
     if (jobData.status !== 'queued') {
       logger.info(`[${jobId}] Job is not in 'queued' state (current: ${jobData.status}). Ignoring.`);
       return;
     }
     
-    // 2. Marcar el trabajo como "procesando" de forma segura
     try {
         await jobRef.update({ 
             status: "processing",
@@ -68,7 +64,6 @@ export const processItemizadoJob = onDocumentCreated(
 
 
     try {
-      // 3. Carga diferida (Lazy Load) de Genkit y sus dependencias
       const ai = getInitializedGenkitAi();
       logger.info(`[${jobId}] Genkit module initialized successfully.`);
       

@@ -48,10 +48,11 @@ if ((0, app_1.getApps)().length === 0) {
 }
 exports.processItemizadoJob = (0, firestore_1.onDocumentCreated)({
     document: "itemizadoImportJobs/{jobId}",
-    secrets: [params_1.GEMINI_API_KEY_SECRET],
+    secrets: [params_1.GEMINI_API_KEY_SECRET], // CORRECCIÓN: Usar la variable del parámetro
     cpu: 1,
     memory: "512MiB",
     timeoutSeconds: 540,
+    region: "us-central1" // Manteniendo región original
 }, async (event) => {
     const { jobId } = event.params;
     const snapshot = event.data;
