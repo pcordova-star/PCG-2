@@ -122,10 +122,8 @@ async function processCompanyMclp(
   }
 }
 
-export const mclpDailyScheduler = functions.region("us-central1").pubsub
-  .schedule("every day 01:00")
-  .timeZone("UTC")
-  .onRun(async (context) => {
+// Esta es la función que se llamará desde el index.ts
+export const mclpDailyScheduler = async (context: functions.EventContext) => {
     const db = admin.firestore();
     const now = new Date();
     logger.info("Running MCLP Daily Scheduler", { timestamp: now.toISOString() });
@@ -141,4 +139,4 @@ export const mclpDailyScheduler = functions.region("us-central1").pubsub
     }
     
     logger.info("MCLP Daily Scheduler finished.");
-  });
+};
