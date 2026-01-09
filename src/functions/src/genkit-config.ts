@@ -22,7 +22,7 @@ export function getInitializedGenkitAi(): Genkit {
   
   // Log de diagnóstico en tiempo de ejecución
   const apiKeyExists = !!apiKey;
-  logger.info(`[getInitializedGenkitAi] Verificación de API Key en runtime: Existe=${apiKeyExists}, Longitud=${apiKey?.length || 0}`);
+  logger.info(`[getInitializedGenkitAi] Verificación de API Key en runtime: Existe=${apiKeyExists}`);
 
   if (!apiKeyExists) {
     // Es crucial lanzar un error si la clave no está, para que la función falle explícitamente.

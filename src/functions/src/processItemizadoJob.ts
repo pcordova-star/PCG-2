@@ -1,4 +1,4 @@
-// src/functions/src/processItemizadoJob.ts
+// functions/src/processItemizadoJob.ts
 import * as functions from 'firebase-functions';
 import * as logger from "firebase-functions/logger";
 import { FieldValue } from "firebase-admin/firestore";
