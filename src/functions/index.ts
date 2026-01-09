@@ -13,4 +13,6 @@ export { testGoogleAi } from "./src/test-google-ai";
 // Triggers
 export { convertHeicToJpg } from "./src/convertHeic";
 export { processItemizadoJob } from "./src/processItemizadoJob";
+
+// MCLP (ruta confirmada)
 export { mclpDailyScheduler } from "./src/mclp/scheduler";
