@@ -1,4 +1,4 @@
-// src/functions/src/checkUserExistsByEmail.ts
+
 import * as functions from "firebase-functions";
 import * as admin from "firebase-admin";
 import * as logger from "firebase-functions/logger";
@@ -37,7 +37,7 @@ export const checkUserExistsByEmail = functions.region("southamerica-west1").htt
         return { exists: false };
       }
       
-      if (error.code && error.httpErrorCode) { // Check if it's already an HttpsError
+      if (error.code && error.httpErrorCode) {
           throw error;
       }
 

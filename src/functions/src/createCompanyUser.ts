@@ -1,4 +1,4 @@
-// functions/src/createCompanyUser.ts
+// src/functions/src/createCompanyUser.ts
 import * as functions from 'firebase-functions';
 import * as admin from "firebase-admin";
 import * as logger from "firebase-functions/logger";
@@ -78,7 +78,7 @@ export const createCompanyUser = functions.region("southamerica-west1").https.on
       updatedAt: now,
       mustChangePassword: true,
     }, { merge: true });
-
+    
     const invitationRef = db.collection("invitacionesUsuarios").doc();
     await invitationRef.set({
         email: data.email,
