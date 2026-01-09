@@ -56,7 +56,7 @@ exports.testGoogleAi = (0, https_1.onCall)({
             model: "googleai/gemini-1.5-flash-latest",
             prompt,
         });
-        const text = resp.text();
+        const text = resp.text;
         return { ok: true, text };
     }
     catch (e) {

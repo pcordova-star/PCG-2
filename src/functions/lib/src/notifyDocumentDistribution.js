@@ -65,7 +65,7 @@ exports.notifyDocumentDistribution = (0, https_1.onCall)(async (request) => {
     try {
         const projectDocRef = db.collection("projectDocuments").doc(projectDocumentId);
         const projectDocSnap = await projectDocRef.get();
-        if (!projectDocSnap.exists()) {
+        if (!projectDocSnap.exists) {
             throw new https_1.HttpsError("not-found", "El documento del proyecto no fue encontrado.");
         }
         const projectDocument = projectDocSnap.data();
