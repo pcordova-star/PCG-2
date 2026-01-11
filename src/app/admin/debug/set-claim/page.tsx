@@ -18,6 +18,7 @@ import Link from "next/link";
 import { useToast } from "@/hooks/use-toast";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 
 export default function SetClaimPage() {
   const { user } = useAuth();
@@ -31,12 +32,14 @@ export default function SetClaimPage() {
   const [targetUid, setTargetUid] = useState("9Bmvi7VxSgMTrT5T3YWYtM0WbD2");
   const [targetRole, setTargetRole] = useState("admin_empresa");
   const [targetCompanyId, setTargetCompanyId] = useState("ips_construccion");
+  const [tokenRefreshed, setTokenRefreshed] = useState(false);
 
 
   const handleSetClaim = async () => {
     setLoading(true);
     setError(null);
     setResult(null);
+    setTokenRefreshed(false);
 
     if (!user) {
       setError("Debes estar autenticado como superadmin para esta acción.");
@@ -55,7 +58,12 @@ export default function SetClaimPage() {
       toast({
         title: "Éxito",
         description: (response.data as any).message || "Claims asignados."
-      })
+      });
+      
+      // FORZAR ACTUALIZACIÓN DEL TOKEN
+      await user.getIdToken(true);
+      setTokenRefreshed(true);
+
     } catch (err: any) {
       console.error("Error calling setCompanyClaims:", err);
       setError(err.message);
@@ -76,7 +84,7 @@ export default function SetClaimPage() {
           <CardTitle>Asignación de Custom Claims (Debug)</CardTitle>
           <CardDescription>
             Esta página asigna un `role` y `companyId` a un usuario por su UID. 
-            Recuerda que el usuario afectado debe <strong>cerrar y volver a iniciar sesión</strong> para que los cambios surtan efecto.
+            Recuerda que el usuario afectado debe <strong>cerrar y volver a iniciar sesión</strong> para que los cambios surtan efecto en su sesión.
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
@@ -97,6 +105,15 @@ export default function SetClaimPage() {
                 {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                 {loading ? "Asignando Claims..." : "Ejecutar Asignación de Claims"}
             </Button>
+            
+            {tokenRefreshed && (
+                <Alert variant="default" className="bg-green-50 border-green-200">
+                    <AlertTitle className="font-bold text-green-800">Token Actualizado</AlertTitle>
+                    <AlertDescription className="text-green-700">
+                        El token de autenticación ha sido refrescado. Ya puedes utilizar las funciones de administrador. Si el problema persiste, cierra sesión y vuelve a ingresar.
+                    </AlertDescription>
+                </Alert>
+            )}
 
             {error && (
                 <div className="mt-4 p-4 bg-destructive/10 text-destructive border border-destructive/20 rounded-md">
