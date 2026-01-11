@@ -46,16 +46,14 @@ export const requestModuleActivation = onRequest(
       
       let companyId = (decodedToken as any).companyId;
 
-      // ---- INICIO DE LA MODIFICACIÓN ----
       // Si el companyId no está en los claims, búscalo en Firestore como fallback.
       if (!companyId) {
         logger.info(`companyId no encontrado en los claims para UID ${uid}. Buscando en Firestore...`);
         const userDoc = await adminApp.firestore().collection("users").doc(uid).get();
-        if (userDoc.exists()) {
+        if (userDoc.exists) { // <- LÍNEA CORREGIDA
           companyId = userDoc.data()?.empresaId;
         }
       }
-      // ---- FIN DE LA MODIFICACIÓN ----
 
       if (!companyId) {
         res.status(400).json({ success: false, error: "El usuario no está asociado a ninguna empresa." });
