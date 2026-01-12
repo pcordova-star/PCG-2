@@ -6,7 +6,7 @@ import { useAuth } from '@/context/AuthContext';
 import { useRouter } from 'next/navigation';
 import { collection, getDocs, query, collectionGroup, orderBy, limit } from 'firebase/firestore';
 import { firebaseDb } from '@/lib/firebaseClient';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Building, HardHat, Users, Loader2, DollarSign, Settings, BellRing } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
