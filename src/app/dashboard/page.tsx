@@ -558,14 +558,16 @@ export default function DashboardPage() {
             </div>
         ) : null}
 
-          <div>
-              <h2 className="text-2xl font-semibold mb-4">Módulos Principales</h2>
-              <TooltipProvider delayDuration={100}>
-                  <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4 md:gap-6">
-                      {mainModules.map((mod) => renderModuleCard(mod))}
-                  </div>
-              </TooltipProvider>
-          </div>
+          {role !== 'superadmin' && (
+              <div>
+                  <h2 className="text-2xl font-semibold mb-4">Módulos Principales</h2>
+                  <TooltipProvider delayDuration={100}>
+                      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4 md:gap-6">
+                          {mainModules.map((mod) => renderModuleCard(mod))}
+                      </div>
+                  </TooltipProvider>
+              </div>
+          )}
 
         <Card>
             <CardHeader>
