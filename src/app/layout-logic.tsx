@@ -192,7 +192,7 @@ export default function LayoutLogic({ children }: { children: React.ReactNode })
                     {role === 'superadmin' && (
                         <>
                             <SidebarMenuSubItem>
-                                <SidebarMenuButton isSubmenu>
+                                <SidebarMenuButton>
                                     <LayoutDashboard/>
                                     <span>Admin</span>
                                 </SidebarMenuButton>
