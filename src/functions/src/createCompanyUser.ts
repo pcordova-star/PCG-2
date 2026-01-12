@@ -98,17 +98,74 @@ export const createCompanyUser = functions.region("us-central1").https.onCall(as
     await db.collection("mail").add({
       to: [data.email],
       message: {
-        subject: `Bienvenido a PCG - Acceso para ${companyData.nombreFantasia}`,
+        from: "control@pcgoperacion.com",
+        subject: `Invitación a Plataforma de Control de Gestión – ${companyData.nombreFantasia}`,
         html: `
-            <p>Hola ${data.nombre},</p>
-            <p>Has sido registrado en la plataforma PCG para la empresa <strong>${companyData.nombreFantasia}</strong>.</p>
-            <p>Tu rol asignado es: <strong>${data.role}</strong>.</p>
-            <p>Tu contraseña temporal es: <strong>${data.password}</strong></p>
-            <p>Para completar tu registro y acceder, haz clic en el siguiente enlace. Se te pedirá que establezcas una nueva contraseña por seguridad.</p>
-            <p><a href="${acceptInviteUrl}">Activar mi cuenta y acceder a PCG</a></p>
-            <p>Si el botón no funciona, copia y pega esta URL en tu navegador:</p>
-            <p><a href="${acceptInviteUrl}">${acceptInviteUrl}</a></p>
-            <p>Gracias,<br>El equipo de PCG</p>`,
+        <!DOCTYPE html>
+        <html lang="es">
+          <body style="margin:0; padding:0; background:#f5f7fa; font-family:Arial, sans-serif;">
+            <table width="100%" cellspacing="0" cellpadding="0" bgcolor="#f5f7fa">
+              <tr>
+                <td align="center" style="padding:30px 20px;">
+                  <table width="600" cellspacing="0" cellpadding="0" bgcolor="#ffffff" style="border-radius:8px; overflow:hidden; border:1px solid #e2e6eb;">
+
+                    <tr>
+                      <td align="center" style="background:#1a73e8; padding:24px 20px;">
+                        <h1 style="color:white; margin:0; font-size:24px; font-weight:600;">
+                          Plataforma de Control de Gestión
+                        </h1>
+                      </td>
+                    </tr>
+
+                    <tr>
+                      <td style="padding:32px 40px; color:#333333; font-size:16px; line-height:24px;">
+
+                        <p style="margin-top:0;">
+                          Hola ${data.nombre},
+                        </p>
+
+                        <p>
+                          Has sido invitado a unirte a la plataforma
+                          <strong>${companyData.nombreFantasia}</strong> en PCG.
+                        </p>
+
+                        <p>
+                          Para completar tu registro, haz clic en el siguiente botón:
+                        </p>
+
+                        <p style="text-align:center; margin:32px 0;">
+                          <a href="${acceptInviteUrl}"
+                             style="background:#1a73e8; color:white; text-decoration:none; padding:14px 28px; border-radius:6px; font-weight:600; display:inline-block;">
+                             Aceptar Invitación
+                          </a>
+                        </p>
+
+                        <p>Si el botón no funciona, copia y pega este enlace:</p>
+
+                        <p style="word-break:break-all; color:#1a73e8;">
+                          ${acceptInviteUrl}
+                        </p>
+
+                        <p>
+                          Este correo fue enviado a <strong>${data.email}</strong>.
+                        </p>
+
+                      </td>
+                    </tr>
+
+                    <tr>
+                      <td align="center" style="background:#f0f2f5; padding:18px 20px; font-size:12px; color:#666;">
+                        © 2026 PCG Operación · Todos los derechos reservados
+                      </td>
+                    </tr>
+
+                  </table>
+                </td>
+              </tr>
+            </table>
+          </body>
+        </html>
+        `,
       },
     });
 
