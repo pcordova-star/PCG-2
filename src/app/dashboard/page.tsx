@@ -29,6 +29,9 @@ import {
   BrainCircuit,
   FileSignature,
   Sparkles,
+  Settings,
+  BellRing,
+  Users,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useEffect, useState, useMemo, Suspense } from 'react';
@@ -237,6 +240,14 @@ const quickAccessModules = [
         roles: ['superadmin', 'admin_empresa', 'contratista'],
         featureFlag: 'feature_compliance_module_enabled'
     }
+];
+
+const adminCards = [
+    { title: "Empresas", href: "/admin/empresas", icon: Building, description: "Crear, editar y gestionar empresas cliente." },
+    { title: "Usuarios", href: "/admin/usuarios", icon: Users, description: "Invitar y administrar usuarios por empresa." },
+    { title: "Solicitudes", href: "/admin/solicitudes", icon: BellRing, description: "Revisar solicitudes de activación de módulos." },
+    { title: "Facturación", href: "/admin/facturacion", icon: DollarSign, description: "Calcular facturación estimada por empresa." },
+    { title: "Configurar Precios", href: "/admin/pricing", icon: Settings, description: "Definir los precios globales de la plataforma." },
 ];
 
 
@@ -530,6 +541,27 @@ export default function DashboardPage() {
                   color="orange"
                   onClick={() => handleQuickAccessClick('/prevencion/hallazgos/crear')}
               />
+         ) : role === 'superadmin' ? (
+              <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-5">
+                {adminCards.map(card => (
+                  <Card key={card.title} className="flex flex-col">
+                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                      <CardTitle className="text-sm font-medium">{card.title}</CardTitle>
+                      <card.icon className="h-4 w-4 text-muted-foreground" />
+                    </CardHeader>
+                    <CardContent className="flex-grow">
+                      <p className='text-xs text-muted-foreground'>{card.description}</p>
+                    </CardContent>
+                    <CardFooter>
+                      <Button asChild className="w-full mt-2" variant="outline">
+                        <Link href={card.href}>
+                          Gestionar
+                        </Link>
+                      </Button>
+                    </CardFooter>
+                  </Card>
+                ))}
+              </div>
          ) : filteredQuickAccessModules.length > 0 ? (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 md:gap-6">
                 {filteredQuickAccessModules.map((mod) => {
