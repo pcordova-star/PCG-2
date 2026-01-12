@@ -150,7 +150,7 @@ export default function AdminEmpresaUsuariosPage() {
         
         try {
             const idToken = await user.getIdToken();
-            const FUNCTION_URL = `https://deactivatecompanyuser-c23ohj7w2a-uc.a.run.app`;
+            const FUNCTION_URL = "https://deactivatecompanyuser-3uw4oqhaxq-tl.a.run.app";
             const response = await fetch(FUNCTION_URL, {
                 method: 'POST',
                 headers: {
