@@ -6,7 +6,19 @@ import cors from "cors";
 import { getAdminApp } from "./firebaseAdmin";
 
 const admin = getAdminApp();
-const corsHandler = cors({ origin: true });
+
+// Configuración de CORS más flexible para desarrollo y producción
+const allowedOrigins = [
+  "https://pcgoperacion.com",
+  "https://www.pcgoperacion.com",
+  "http://localhost:3000",
+  /https:\/\/.*\.google\.com/,
+  /https:\/\/.*\.firebaseapp\.com/,
+  /https:\/\/.*\.web\.app/,
+];
+
+const corsHandler = cors({ origin: allowedOrigins });
+
 
 export const deactivateCompanyUser = functions.region("us-central1").https.onRequest((req, res) => {
     corsHandler(req, res, async () => {
