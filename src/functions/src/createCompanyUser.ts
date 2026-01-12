@@ -98,7 +98,7 @@ export const createCompanyUser = functions.region("us-central1").https.onCall(as
     await db.collection("mail").add({
       to: [data.email],
       message: {
-        from: "control@pcgoperacion.com",
+        from: "PCG Operación <control@pcgoperacion.com>",
         subject: `Invitación a Plataforma de Control de Gestión – ${companyData.nombreFantasia}`,
         html: `
         <!DOCTYPE html>
