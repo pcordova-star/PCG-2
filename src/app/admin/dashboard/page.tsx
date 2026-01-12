@@ -117,32 +117,26 @@ export default function AdminDashboardPage() {
 
       {error && <p className="text-sm font-medium text-destructive">{error}</p>}
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Gestión Rápida</CardTitle>
-          <CardDescription>Accesos directos a los módulos de administración global.</CardDescription>
-        </CardHeader>
-        <CardContent className="grid gap-4 md:grid-cols-2 lg:grid-cols-5">
-            {adminCards.map(card => (
-                 <Card key={card.title} className="flex flex-col">
-                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                        <CardTitle className="text-sm font-medium">{card.title}</CardTitle>
-                        <card.icon className="h-4 w-4 text-muted-foreground" />
-                    </CardHeader>
-                    <CardContent className="flex-grow">
-                        <p className='text-xs text-muted-foreground'>{card.description}</p>
-                    </CardContent>
-                    <CardFooter>
-                        <Button asChild className="w-full mt-2" variant="outline">
-                            <Link href={card.href}>
-                                Gestionar
-                            </Link>
-                        </Button>
-                    </CardFooter>
-                </Card>
-            ))}
-        </CardContent>
-      </Card>
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-5">
+        {adminCards.map(card => (
+          <Card key={card.title} className="flex flex-col">
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">{card.title}</CardTitle>
+              <card.icon className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent className="flex-grow">
+              <p className='text-xs text-muted-foreground'>{card.description}</p>
+            </CardContent>
+            <CardFooter>
+              <Button asChild className="w-full mt-2" variant="outline">
+                <Link href={card.href}>
+                  Gestionar
+                </Link>
+              </Button>
+            </CardFooter>
+          </Card>
+        ))}
+      </div>
 
       <div className="grid gap-4 md:grid-cols-3">
           <Card>
