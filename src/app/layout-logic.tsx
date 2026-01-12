@@ -26,6 +26,7 @@ import {
   LogOut,
   ShieldCheck,
   User,
+  Users,
   BookCopy,
   MessageSquare,
   FileSignature,
