@@ -191,7 +191,7 @@ export default function LayoutLogic({ children }: { children: React.ReactNode })
                     <NavMenu items={navItems} role={role} pathname={pathname} />
                     {role === 'superadmin' && (
                         <>
-                            <SidebarMenuSubItem>
+                            <SidebarMenuItem>
                                 <SidebarMenuButton>
                                     <LayoutDashboard/>
                                     <span>Admin</span>
@@ -199,7 +199,7 @@ export default function LayoutLogic({ children }: { children: React.ReactNode })
                                 <SidebarMenuSub>
                                     <NavMenu items={adminNavItems} role={role} pathname={pathname} />
                                 </SidebarMenuSub>
-                            </SidebarMenuSubItem>
+                            </SidebarMenuItem>
                         </>
                     )}
                 </SidebarMenu>
