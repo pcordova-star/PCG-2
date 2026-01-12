@@ -6,7 +6,7 @@ import { useAuth } from '@/context/AuthContext';
 import { useRouter } from 'next/navigation';
 import { collection, getDocs, query, collectionGroup, orderBy, limit } from 'firebase/firestore';
 import { firebaseDb } from '@/lib/firebaseClient';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Building, HardHat, Users, Loader2, DollarSign, Settings, BellRing } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
@@ -29,7 +29,7 @@ type SummaryData = {
 };
 
 const adminCards = [
-    { title: "Empresas", href: "/admin/empresas", icon: Building, description: "Crear, editar y gestionar empresas." },
+    { title: "Empresas", href: "/admin/empresas", icon: Building, description: "Crear, editar y gestionar empresas cliente." },
     { title: "Usuarios", href: "/admin/usuarios", icon: Users, description: "Invitar y administrar usuarios por empresa." },
     { title: "Solicitudes", href: "/admin/solicitudes", icon: BellRing, description: "Revisar solicitudes de activación de módulos." },
     { title: "Facturación", href: "/admin/facturacion", icon: DollarSign, description: "Calcular facturación estimada por empresa." },
@@ -117,24 +117,32 @@ export default function AdminDashboardPage() {
 
       {error && <p className="text-sm font-medium text-destructive">{error}</p>}
 
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-5">
-        {adminCards.map(card => (
-             <Card key={card.title}>
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                    <CardTitle className="text-sm font-medium">{card.title}</CardTitle>
-                    <card.icon className="h-4 w-4 text-muted-foreground" />
-                </CardHeader>
-                <CardContent>
-                    <p className='text-xs text-muted-foreground h-10'>{card.description}</p>
-                    <Button asChild className="w-full mt-2" variant="outline">
-                        <Link href={card.href}>
-                            Gestionar {card.title}
-                        </Link>
-                    </Button>
-                </CardContent>
-            </Card>
-        ))}
-      </div>
+      <Card>
+        <CardHeader>
+          <CardTitle>Gestión Rápida</CardTitle>
+          <CardDescription>Accesos directos a los módulos de administración global.</CardDescription>
+        </CardHeader>
+        <CardContent className="grid gap-4 md:grid-cols-2 lg:grid-cols-5">
+            {adminCards.map(card => (
+                 <Card key={card.title} className="flex flex-col">
+                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                        <CardTitle className="text-sm font-medium">{card.title}</CardTitle>
+                        <card.icon className="h-4 w-4 text-muted-foreground" />
+                    </CardHeader>
+                    <CardContent className="flex-grow">
+                        <p className='text-xs text-muted-foreground'>{card.description}</p>
+                    </CardContent>
+                    <CardFooter>
+                        <Button asChild className="w-full mt-2" variant="outline">
+                            <Link href={card.href}>
+                                Gestionar
+                            </Link>
+                        </Button>
+                    </CardFooter>
+                </Card>
+            ))}
+        </CardContent>
+      </Card>
 
       <div className="grid gap-4 md:grid-cols-3">
           <Card>

@@ -278,9 +278,8 @@ export default function DashboardPage() {
     return true;
   });
 
-  const filteredQuickAccessModules = quickAccessModules.map(mod => {
-    return mod;
-  }).filter(module => {
+  const filteredQuickAccessModules = quickAccessModules.filter(module => {
+    if (role === 'superadmin') return false; // Ocultar para superadmin
     if (role === 'none') return false;
     if (!module.roles.includes(role)) return false;
     return true;
@@ -531,7 +530,7 @@ export default function DashboardPage() {
                   color="orange"
                   onClick={() => handleQuickAccessClick('/prevencion/hallazgos/crear')}
               />
-         ) : (
+         ) : filteredQuickAccessModules.length > 0 ? (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 md:gap-6">
                 {filteredQuickAccessModules.map((mod) => {
                     const isEnabled = !mod.featureFlag || !!company?.[mod.featureFlag];
@@ -557,7 +556,7 @@ export default function DashboardPage() {
                     );
                 })}
             </div>
-        )}
+        ) : null}
 
           <div>
               <h2 className="text-2xl font-semibold mb-4">Módulos Principales</h2>
