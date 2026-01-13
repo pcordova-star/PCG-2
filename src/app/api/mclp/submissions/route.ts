@@ -1,6 +1,6 @@
 // src/app/api/mclp/submissions/route.ts
 import { NextRequest, NextResponse } from "next/server";
-import { getAdminDb } from "@/server/firebaseAdmin";
+import { getAdminApp } from "@/server/firebaseAdmin";
 import { Timestamp } from "firebase-admin/firestore";
 
 export const runtime = "nodejs";
@@ -19,7 +19,8 @@ export async function GET(req: NextRequest) {
         const companyId = req.nextUrl.searchParams.get("companyId");
         const periodId = req.nextUrl.searchParams.get("periodId");
         const subcontractorId = req.nextUrl.searchParams.get("subcontractorId");
-        const db = getAdminDb();
+        const admin = getAdminApp();
+        const db = admin.firestore();
 
         if (!companyId || !periodId) {
             return NextResponse.json({ error: "companyId y periodId son requeridos" }, { status: 400 });

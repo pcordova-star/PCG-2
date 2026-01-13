@@ -3,18 +3,38 @@
 
 import * as admin from "firebase-admin";
 
-const serviceAccount = process.env.FIREBASE_SERVICE_ACCOUNT
-  ? JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT)
-  : undefined;
+/**
+ * Obtiene una instancia inicializada y segura de Firebase Admin.
+ * Utiliza un patrón de inicialización diferida (lazy initialization) para ser
+ * compatible con entornos serverless como Vercel.
+ *
+ * @returns La instancia de Firebase Admin.
+ */
+export function getAdminApp(): typeof admin {
+  // Si ya hay una app inicializada (en una instancia "caliente"), la reutilizamos.
+  if (admin.apps.length > 0) {
+    return admin;
+  }
 
-if (!admin.apps.length) {
-  admin.initializeApp({
-    credential: serviceAccount
-      ? admin.credential.cert(serviceAccount)
-      : admin.credential.applicationDefault(),
-  });
+  // Si no hay app, la inicializamos.
+  const serviceAccountJson = process.env.FIREBASE_SERVICE_ACCOUNT;
+
+  if (!serviceAccountJson) {
+    throw new Error(
+      "La variable de entorno FIREBASE_SERVICE_ACCOUNT no está definida. No se puede inicializar Firebase Admin."
+    );
+  }
+
+  try {
+    const serviceAccount = JSON.parse(serviceAccountJson);
+
+    admin.initializeApp({
+      credential: admin.credential.cert(serviceAccount),
+    });
+
+  } catch (error: any) {
+    throw new Error(`Error al parsear FIREBASE_SERVICE_ACCOUNT o al inicializar Firebase Admin: ${error.message}`);
+  }
+
+  return admin;
 }
-
-export const getAdminDb = () => admin.firestore();
-export const getAdminAuth = () => admin.auth();
-export const getAdminStorage = () => admin.storage();

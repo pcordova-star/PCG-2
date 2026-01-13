@@ -1,6 +1,6 @@
 // src/app/api/mclp/calendar/route.ts
 import { NextRequest, NextResponse } from "next/server";
-import { getAdminDb } from "@/server/firebaseAdmin";
+import { getAdminApp } from "@/server/firebaseAdmin";
 import { Timestamp, FieldValue } from "firebase-admin/firestore";
 
 export const runtime = "nodejs";
@@ -14,7 +14,8 @@ async function ensureMclpEnabled(db: FirebaseFirestore.Firestore, companyId: str
 }
 
 async function createDefaultMonths(calendarRef: FirebaseFirestore.DocumentReference, year: number) {
-    const db = getAdminDb();
+    const admin = getAdminApp();
+    const db = admin.firestore();
     const batch = db.batch();
     
     const programRef = db.collection("compliancePrograms").doc(calendarRef.id.split('_')[0]);
@@ -48,7 +49,8 @@ export async function GET(req: NextRequest) {
     try {
         const companyId = req.nextUrl.searchParams.get("companyId");
         const yearStr = req.nextUrl.searchParams.get("year");
-        const db = getAdminDb();
+        const admin = getAdminApp();
+        const db = admin.firestore();
 
         if (!companyId || !yearStr) {
             return NextResponse.json({ error: "companyId y year son requeridos" }, { status: 400 });
