@@ -2,6 +2,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import type { Firestore, Timestamp } from "firebase-admin/firestore";
 import { RequisitoDocumento } from "@/types/pcg";
+import { getAdminApp } from "@/server/firebaseAdmin";
 
 export const runtime = "nodejs";
 
@@ -16,9 +17,9 @@ async function ensureMclpEnabled(db: Firestore, companyId: string) {
 // GET /api/mclp/requirements?companyId=[ID]
 export async function GET(req: NextRequest) {
     try {
-        const { getAdminDb } = await import("@/server/firebaseAdmin");
         const companyId = req.nextUrl.searchParams.get("companyId");
-        const db = getAdminDb();
+        const admin = getAdminApp();
+        const db = admin.firestore();
 
         if (!companyId) {
             return NextResponse.json({ error: "companyId es requerido" }, { status: 400 });
@@ -51,9 +52,9 @@ export async function GET(req: NextRequest) {
 // POST /api/mclp/requirements
 export async function POST(req: NextRequest) {
     try {
-        const { getAdminDb } = await import("@/server/firebaseAdmin");
         const { companyId, requirement } = await req.json();
-        const db = getAdminDb();
+        const admin = getAdminApp();
+        const db = admin.firestore();
         const { Timestamp } = await import("firebase-admin/firestore");
 
         if (!companyId || !requirement) {
@@ -80,9 +81,9 @@ export async function POST(req: NextRequest) {
 // PUT /api/mclp/requirements
 export async function PUT(req: NextRequest) {
     try {
-        const { getAdminDb } = await import("@/server/firebaseAdmin");
         const { companyId, requirement } = await req.json();
-        const db = getAdminDb();
+        const admin = getAdminApp();
+        const db = admin.firestore();
         const { Timestamp } = await import("firebase-admin/firestore");
 
 

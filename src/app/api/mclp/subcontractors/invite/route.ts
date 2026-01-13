@@ -1,6 +1,6 @@
 // src/app/api/mclp/subcontractors/invite/route.ts
 import { NextRequest, NextResponse } from "next/server";
-import { getAdminAuth, getAdminDb } from "@/server/firebaseAdmin";
+import { getAdminApp } from "@/server/firebaseAdmin";
 import { ensureMclpEnabled } from "@/server/lib/mclp/ensureMclpEnabled";
 import { Timestamp } from "firebase-admin/firestore";
 
@@ -13,10 +13,11 @@ export async function POST(req: NextRequest) {
     if (!companyId || !subcontractorId || !email || !nombre) {
       return NextResponse.json({ error: "Faltan parámetros requeridos" }, { status: 400 });
     }
-
-    const db = getAdminDb();
-    const auth = getAdminAuth();
-    await ensureMclpEnabled(companyId, db);
+    
+    const admin = getAdminApp();
+    const db = admin.firestore();
+    const auth = admin.auth();
+    await ensureMclpEnabled(db, companyId);
 
     let user;
     try {
