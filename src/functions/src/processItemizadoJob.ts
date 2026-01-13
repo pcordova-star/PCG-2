@@ -62,7 +62,7 @@ export const processItemizadoJob = functions
       const importarItemizadoPrompt = ai.definePrompt(
         {
           name: 'importarItemizadoPrompt',
-          model: 'googleai/gemini-1.5-flash-latest',
+          model: 'googleai/gemini-1.5-flash',
           input: { schema: ImportarItemizadoInputSchema as any },
           prompt: `Eres un asistente experto en análisis de presupuestos de construcción. Tu tarea es interpretar un presupuesto (en formato PDF) y extraer los capítulos y todas las partidas/subpartidas en una estructura plana.
 

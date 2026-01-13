@@ -19,7 +19,7 @@ export async function POST(req: Request) {
     
     console.log("[api/test-google-ai] Executing Genkit...");
     const resp = await ai.generate({
-      model: "gemini-1.5-flash-latest",
+      model: "googleai/gemini-1.5-flash",
       prompt,
     });
     
