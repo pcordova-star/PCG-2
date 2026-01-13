@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { getAdminDb } from "@/server/firebaseAdmin";
+import { getAdminApp } from "@/server/firebaseAdmin";
 
 export const runtime = "nodejs";
 
@@ -11,7 +11,8 @@ export async function GET(req: Request, ctx: { params: { jobId: string } }) {
   }
 
   try {
-    const snap = await getAdminDb()
+    const db = getAdminApp().firestore();
+    const snap = await db
       .collection("itemizadoImportJobs")
       .doc(jobId)
       .get();
