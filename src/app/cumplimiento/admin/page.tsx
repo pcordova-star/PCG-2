@@ -7,7 +7,7 @@ import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter }
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
 import { useEffect } from "react";
-import { Loader2, Calendar, Users, ListChecks } from "lucide-react";
+import { Loader2, Calendar, Users, ListChecks, ArrowLeft } from "lucide-react";
 
 export default function AdminCumplimientoPage() {
     const { role, loading, company } = useAuth();
@@ -34,6 +34,9 @@ export default function AdminCumplimientoPage() {
          return (
             <div className="space-y-6">
                 <header>
+                    <Button asChild variant="outline" size="sm" className="mb-4">
+                      <Link href="/dashboard"><ArrowLeft className="mr-2 h-4 w-4" />Volver al Dashboard</Link>
+                    </Button>
                     <h1 className="text-3xl font-bold">Módulo de Cumplimiento Legal</h1>
                     <p className="text-muted-foreground">Gestión de programas y revisión de documentación de subcontratistas.</p>
                 </header>
@@ -77,6 +80,9 @@ export default function AdminCumplimientoPage() {
     return (
         <div className="space-y-6">
             <header>
+                 <Button asChild variant="outline" size="sm" className="mb-4">
+                  <Link href="/dashboard"><ArrowLeft className="mr-2 h-4 w-4" />Volver al Dashboard</Link>
+                </Button>
                 <h1 className="text-3xl font-bold">Panel de Cumplimiento Legal</h1>
                 <p className="text-muted-foreground">Gestión de programas y revisión de documentación de subcontratistas.</p>
             </header>
