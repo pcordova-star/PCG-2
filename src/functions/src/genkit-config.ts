@@ -31,7 +31,11 @@ export function getInitializedGenkitAi(): Genkit {
   
   aiInstance = genkit({
     plugins: [
-      googleAI({ apiKey })
+      googleAI({
+        apiKey,
+        // Se define explícitamente un modelo compatible para evitar errores de carga.
+        model: "googleai/gemini-2.5-flash"
+      })
     ]
   });
 
