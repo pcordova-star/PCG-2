@@ -1,4 +1,3 @@
-
 // src/app/cumplimiento/contratista/dashboard/page.tsx
 "use client";
 
@@ -7,8 +6,10 @@ import { useRouter } from 'next/navigation';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { useEffect, useState } from "react";
-import { Loader2, CheckCircle, AlertTriangle, Clock } from "lucide-react";
+import { Loader2, CheckCircle, AlertTriangle, Clock, ArrowLeft } from "lucide-react";
 import { cn } from "@/lib/utils";
+import Link from "next/link";
+import { Badge } from "@/components/ui/badge";
 
 type EstadoCumplimiento = "CUMPLIENDO" | "EN_REVISION" | "ACCION_REQUERIDA" | "PENDIENTE_DE_CARGA";
 type EstadoDocumento = "Aprobado" | "En Revisión" | "Observado" | "Pendiente de Carga";
@@ -92,6 +93,9 @@ export default function ContratistaDashboardPage() {
     return (
         <div className="space-y-6">
             <header>
+                <Button asChild variant="outline" size="sm" className="mb-4">
+                  <Link href="/dashboard"><ArrowLeft className="mr-2 h-4 w-4" />Volver al Dashboard</Link>
+                </Button>
                 <h1 className="text-3xl font-bold">Portal del Contratista</h1>
                 <p className="text-muted-foreground">Bienvenido, {user?.displayName || user?.email}.</p>
             </header>
