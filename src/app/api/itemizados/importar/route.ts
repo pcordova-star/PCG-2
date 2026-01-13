@@ -1,7 +1,6 @@
 // src/app/api/itemizados/importar/route.ts
 import { NextResponse } from 'next/server';
-import { collection, addDoc, serverTimestamp, doc, getDoc } from 'firebase/firestore';
-import { firebaseDb } from '@/lib/firebaseClient';
+import { getAdminApp } from '@/server/firebaseAdmin';
 import { z } from 'zod';
 
 export const runtime = "nodejs";
@@ -21,6 +20,9 @@ const ApiInputSchema = z.object({
  */
 export async function POST(req: Request) {
   try {
+    const admin = getAdminApp();
+    const db = admin.firestore();
+    
     const body = await req.json();
     console.log("Received body for import:", body ? "Body received" : "Body is null/undefined");
 
@@ -37,11 +39,11 @@ export async function POST(req: Request) {
     const { pdfDataUri, obraId, obraNombre, notas } = validationResult.data;
 
     // 2. Crear un nuevo documento de trabajo en Firestore
-    const jobsCollection = collection(firebaseDb, "itemizadoImportJobs");
+    const jobsCollection = db.collection("itemizadoImportJobs");
     
     const newJobDoc = {
       status: "queued",
-      createdAt: serverTimestamp(),
+      createdAt: admin.firestore.FieldValue.serverTimestamp(),
       obraId,
       obraNombre,
       notas: notas || "",
@@ -49,7 +51,7 @@ export async function POST(req: Request) {
       pdfDataUri,
     };
 
-    const docRef = await addDoc(jobsCollection, newJobDoc);
+    const docRef = await jobsCollection.add(newJobDoc);
     const jobId = docRef.id;
 
     // 3. Devolver una respuesta rápida (200 OK) con el ID del trabajo
@@ -81,14 +83,17 @@ export async function GET(request: Request) {
   }
 
   try {
-    const jobRef = doc(firebaseDb, 'itemizadoImportJobs', jobId);
-    const jobSnap = await getDoc(jobRef);
+    const admin = getAdminApp();
+    const db = admin.firestore();
+
+    const jobRef = db.collection('itemizadoImportJobs').doc(jobId);
+    const jobSnap = await jobRef.get();
 
     if (!jobSnap.exists()) {
       return NextResponse.json({ error: 'Trabajo no encontrado' }, { status: 404 });
     }
 
-    const jobData = jobSnap.data();
+    const jobData = jobSnap.data()!;
     
     const response = {
         status: jobData.status,
