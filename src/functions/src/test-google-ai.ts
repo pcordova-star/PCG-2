@@ -23,7 +23,7 @@ export const testGoogleAi = functions.region("us-central1")
       });
 
       const resp = await ai.generate({
-        model: "googleai/gemini-1.5-flash-latest",
+        model: "googleai/gemini-1.5-flash",
         prompt,
       });
 
