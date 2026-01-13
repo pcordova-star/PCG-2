@@ -10,7 +10,8 @@ async function handler(req: NextRequest) {
     return NextResponse.json({ error: "Invalid payload" }, { status: 400 });
   }
 
-  const db = getAdminApp().firestore();
+  const admin = getAdminApp();
+  const db = admin.firestore();
   await db.collection("companies").doc(companyId).set(
     { feature_compliance_module_enabled: enabled },
     { merge: true }

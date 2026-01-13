@@ -11,7 +11,8 @@ export async function GET(req: Request, ctx: { params: { jobId: string } }) {
   }
 
   try {
-    const db = getAdminApp().firestore();
+    const admin = getAdminApp();
+    const db = admin.firestore();
     const snap = await db
       .collection("itemizadoImportJobs")
       .doc(jobId)

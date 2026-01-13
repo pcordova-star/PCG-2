@@ -3,7 +3,7 @@ import { NextResponse } from "next/server";
 import { analizarPlano } from "@/ai/flows/analisis-planos-flow";
 import { AnalisisPlanoInputSchema } from "@/types/analisis-planos";
 import type { AnalisisPlanoInput } from "@/types/analisis-planos";
-import { getAdminDb } from "@/server/firebaseAdmin";
+import { getAdminApp } from "@/server/firebaseAdmin";
 import { FieldValue } from "firebase-admin/firestore";
 
 export const runtime = "nodejs";
