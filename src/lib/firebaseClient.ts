@@ -16,16 +16,13 @@ const firebaseConfig: FirebaseOptions = {
 };
 
 // Bucle de validación para asegurar que todas las variables requeridas están presentes.
-// Esto lanza un error claro durante la fase de build si falta una variable.
 for (const key in firebaseConfig) {
   if (Object.prototype.hasOwnProperty.call(firebaseConfig, key)) {
     const typedKey = key as keyof FirebaseOptions;
     if (!firebaseConfig[typedKey]) {
-      // Convertir camelCase (apiKey) a SCREAMING_SNAKE_CASE (API_KEY)
       const envVarKey = typedKey.replace(/([A-Z])/g, '_$1').toUpperCase();
       const fullEnvVarName = `NEXT_PUBLIC_FIREBASE_${envVarKey}`;
       
-      // Este error detendrá la compilación si falta una variable, lo cual es bueno.
       throw new Error(
         `Error de configuración: La variable de entorno Firebase '${fullEnvVarName}' no está definida o está vacía. ` +
         `Por favor, defínala en su archivo .env o en la configuración de su entorno de producción.`
