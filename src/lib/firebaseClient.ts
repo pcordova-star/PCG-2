@@ -19,7 +19,7 @@ const firebaseConfig: FirebaseOptions = {
 for (const key in firebaseConfig) {
   if (Object.prototype.hasOwnProperty.call(firebaseConfig, key)) {
     const typedKey = key as keyof FirebaseOptions;
-    if (!firebaseConfig[typedKey]) {
+    if (!firebaseConfig[typedKey] && typedKey !== 'storageBucket') { // storageBucket está hardcodeado, no necesita env var
       // Este error detendrá la compilación si falta una variable, lo cual es bueno.
       throw new Error(
         `La variable de entorno Firebase '${typedKey}' no está configurada. Por favor, define NEXT_PUBLIC_FIREBASE_${key
