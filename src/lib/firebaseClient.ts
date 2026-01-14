@@ -9,14 +9,16 @@ const firebaseConfig: FirebaseOptions = {
   apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
   authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN,
   projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID,
-  storageBucket: "pcg-2-8bf1b.firebasestorage.app", // CORRECCIÓN: Se codifica el valor correcto para evitar errores de entorno.
+  storageBucket: "pcg-2-8bf1b.firebasestorage.app", // Hardcoded to prevent derivation errors
   messagingSenderId: process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID,
   appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID,
 };
 
-// Validación para asegurar que la configuración es correcta antes de inicializar
-if (!firebaseConfig.apiKey) {
-  throw new Error("La API Key de Firebase no está configurada en las variables de entorno (NEXT_PUBLIC_FIREBASE_API_KEY).");
+// Validation to ensure all required config values are present
+for (const key in firebaseConfig) {
+  if (Object.prototype.hasOwnProperty.call(firebaseConfig, key) && !firebaseConfig[key as keyof FirebaseOptions]) {
+    throw new Error(`Firebase config missing. Please set NEXT_PUBLIC_FIREBASE_${key.toUpperCase()} in your environment variables.`);
+  }
 }
 
 // Evita la reinicialización en el lado del cliente con HMR de Next.js
