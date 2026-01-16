@@ -1,7 +1,6 @@
 // src/app/api/comparacion-planos/upload/route.ts
 import { NextResponse } from 'next/server';
 import { getAdminApp } from '@/server/firebaseAdmin';
-import { headers } from 'next/headers';
 import { getAuth } from 'firebase-admin/auth';
 import { ComparacionJobStatus } from '@/types/comparacion-planos';
 import * as crypto from 'crypto';
@@ -16,7 +15,7 @@ const MAX_FILE_SIZE_MB = 15;
 export async function POST(req: Request) {
     let jobId: string | null = null;
     try {
-        const authorization = headers().get("Authorization");
+        const authorization = req.headers.get("Authorization");
         if (!authorization?.startsWith("Bearer ")) {
             return NextResponse.json({ error: 'No autorizado: Token no proporcionado.' }, { status: 401 });
         }

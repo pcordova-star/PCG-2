@@ -6,7 +6,6 @@ import { runDiffFlow } from '@/ai/comparacion-planos/flows/flowDiff';
 import { runCubicacionFlow } from '@/ai/comparacion-planos/flows/flowCubicacion';
 import { runImpactosFlow } from '@/ai/comparacion-planos/flows/flowImpactos';
 import { getAuth } from 'firebase-admin/auth';
-import { headers } from 'next/headers';
 import { canUseComparacionPlanos } from '@/lib/comparacion-planos/permissions';
 
 export const runtime = 'nodejs';
@@ -38,7 +37,7 @@ async function withRetries<T>(fn: () => Promise<T>, retries = 1, delay = 300): P
 export async function POST(req: Request) {
   let jobId: string | null = null;
   try {
-    const authorization = headers().get("Authorization");
+    const authorization = req.headers.get("Authorization");
     if (!authorization?.startsWith("Bearer ")) {
       return NextResponse.json({ error: 'No autorizado: Token no proporcionado.' }, { status: 401 });
     }
