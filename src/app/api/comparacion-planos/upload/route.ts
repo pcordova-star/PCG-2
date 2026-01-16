@@ -8,7 +8,7 @@ import { canUseComparacionPlanos } from '@/lib/comparacion-planos/permissions';
 
 const adminApp = getAdminApp();
 const db = adminApp.firestore();
-const storage = adminApp.storage().bucket();
+const storage = adminApp.storage().bucket(process.env.FIREBASE_STORAGE_BUCKET);
 
 const MAX_FILE_SIZE_MB = 15;
 
