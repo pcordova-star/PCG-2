@@ -11,6 +11,28 @@ export const ComparacionPlanosInputSchema = z.object({
 
 export type ComparacionPlanosInput = z.infer<typeof ComparacionPlanosInputSchema>;
 
+
+// --- Esquema del Árbol de Impactos ---
+
+// Definición recursiva para un nodo del árbol de impacto.
+const BaseImpactoNodeSchema = z.object({
+  especialidad: z.string().describe("Especialidad afectada (ej: 'arquitectura', 'estructura', 'electricidad')."),
+  impactoDirecto: z.string().describe("Descripción del cambio o impacto específico en esta especialidad."),
+  impactoIndirecto: z.string().optional().describe("Descripción de cómo este cambio afecta a otras áreas."),
+  severidad: z.enum(["baja", "media", "alta"]).describe("Nivel de severidad del impacto (baja, media, alta)."),
+  riesgo: z.string().optional().describe("Breve descripción del riesgo principal asociado (ej: 'Sobrecosto', 'Atraso en programa', 'Incompatibilidad')."),
+  consecuencias: z.array(z.string()).optional().describe("Lista de efectos o problemas secundarios que podrían surgir."),
+  recomendaciones: z.array(z.string()).optional().describe("Lista de acciones sugeridas para mitigar el impacto."),
+});
+
+type ImpactoNode = z.infer<typeof BaseImpactoNodeSchema> & {
+  subImpactos?: ImpactoNode[];
+};
+
+const ImpactoNodeSchema: z.ZodType<ImpactoNode> = BaseImpactoNodeSchema.extend({
+  subImpactos: z.lazy(() => z.array(ImpactoNodeSchema)).optional(),
+});
+
 // Esquema de salida que la IA debe generar.
 export const ComparacionPlanosOutputSchema = z.object({
   diffTecnico: z.string().describe(
@@ -19,8 +41,8 @@ export const ComparacionPlanosOutputSchema = z.object({
   cubicacionDiferencial: z.string().describe(
     "Un resumen en formato Markdown con una tabla de las variaciones de cubicación, mostrando Item, Unidad, Cantidad Anterior, Cantidad Nueva y Diferencia."
   ),
-  arbolImpactos: z.string().describe(
-    "Un árbol de dependencias en formato Markdown que muestra cómo un cambio en una especialidad (ej: Arquitectura) impacta a otras (ej: Cálculo, Sanitario, Eléctrico)."
+  arbolImpactos: z.array(ImpactoNodeSchema).describe(
+    "Un árbol jerárquico de objetos JSON que muestra cómo un cambio en una especialidad impacta a las otras."
   ),
 });
 
