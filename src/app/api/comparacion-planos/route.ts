@@ -25,9 +25,6 @@ export async function POST(req: Request) {
     const planoABuffer = Buffer.from(await planoAFile.arrayBuffer());
     const planoBBuffer = Buffer.from(await planoBFile.arrayBuffer());
 
-    // NOTA: En una implementación real, aquí iría la lógica para convertir PDF a JPEG en el servidor.
-    // Por ahora, asumimos que los archivos ya son imágenes o se pueden procesar directamente.
-    // Esta es una simplificación para mantener la estructura.
     const planoA_DataUri = await bufferToDataUri(planoABuffer, planoAFile.type);
     const planoB_DataUri = await bufferToDataUri(planoBBuffer, planoBFile.type);
     
