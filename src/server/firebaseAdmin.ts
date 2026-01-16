@@ -16,20 +16,13 @@ export function getAdminApp(): typeof admin {
     return admin;
   }
 
-  const serviceAccount = process.env.FIREBASE_SERVICE_ACCOUNT;
-  if (!serviceAccount) {
-    throw new Error("La variable de entorno FIREBASE_SERVICE_ACCOUNT no está definida.");
-  }
-
-  try {
-    admin.initializeApp({
-      credential: admin.credential.cert(JSON.parse(serviceAccount)),
-      storageBucket: process.env.FIREBASE_STORAGE_BUCKET,
-    });
-
-  } catch (error: any) {
-    throw new Error(`Error al parsear FIREBASE_SERVICE_ACCOUNT o al inicializar Firebase Admin: ${error.message}`);
-  }
+  // En entornos de despliegue (como Vercel), Firebase Admin SDK detectará
+  // automáticamente las credenciales desde las variables de entorno si no se
+  // pasa un `credential` explícito. Esto evita errores de parseo de JSON.
+  // Solo necesitamos especificar el bucket de almacenamiento.
+  admin.initializeApp({
+    storageBucket: process.env.FIREBASE_STORAGE_BUCKET,
+  });
 
   return admin;
 }
