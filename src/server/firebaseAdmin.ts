@@ -16,7 +16,7 @@ export function getAdminApp(): typeof admin {
     return admin;
   }
 
-  // En entornos de despliegue (como Vercel), Firebase Admin SDK detectará
+  // En entornos de despliegue como Vercel, Firebase Admin SDK detectará
   // automáticamente las credenciales desde las variables de entorno si no se
   // pasa un `credential` explícito. Esto evita errores de parseo de JSON.
   // Solo necesitamos especificar el bucket de almacenamiento.
