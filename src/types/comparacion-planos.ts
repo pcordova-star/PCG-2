@@ -26,3 +26,30 @@ export const ComparacionPlanosOutputSchema = z.object({
 });
 
 export type ComparacionPlanosOutput = z.infer<typeof ComparacionPlanosOutputSchema>;
+
+// --- Tipos para el Job Asíncrono ---
+
+export type ComparacionJobStatus =
+  | 'pending'
+  | 'uploading'
+  | 'uploaded'
+  | 'processing'
+  | 'analyzing-diff'
+  | 'analyzing-cubicacion'
+  | 'generating-impactos'
+  | 'completed'
+  | 'error';
+
+export interface ComparacionPlanosJob {
+    id?: string;
+    jobId: string;
+    empresaId: string;
+    userId: string;
+    createdAt: any; // Firestore Timestamp
+    updatedAt: any; // Firestore Timestamp
+    status: ComparacionJobStatus;
+    planoA_storagePath?: string;
+    planoB_storagePath?: string;
+    errorMessage?: string;
+    results?: ComparacionPlanosOutput;
+}
