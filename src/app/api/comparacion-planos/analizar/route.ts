@@ -2,23 +2,24 @@
 import { NextResponse } from 'next/server';
 
 export async function POST(req: Request) {
-  // ARQUITECTURA DEL ENDPOINT DE ANÁLISIS:
-  // Este endpoint se llama DESPUÉS de que los archivos han sido subidos.
-  
-  // 1. Extraer `jobId` del cuerpo de la solicitud.
-  //    const { jobId } = await req.json();
-
-  // 2. Validar que el usuario tenga permiso para analizar este job.
-
-  // 3. Actualizar estado del job a "processing".
-  //    await updateComparacionJobStatus(jobId, "processing");
-  
-  // 4. Obtener las URLs de los planos desde Firebase Storage.
-  //    const urlA = await getPlanoAUrl(jobId);
-  //    const urlB = await getPlanoBUrl(jobId);
-
-  // 5. Ejecutar los flujos de IA en secuencia:
+  let jobId: string | null = null;
   try {
+    // 1. Extraer `jobId` del cuerpo de la solicitud.
+    //    const { jobId: receivedJobId } = await req.json();
+    //    jobId = receivedJobId;
+    //    if (!jobId) throw new Error("ANALYZE_NO_JOB_ID", "No se proporcionó un ID de trabajo.");
+
+    // 2. Validar que el usuario tenga permiso para analizar este job.
+
+    // 3. Actualizar estado del job a "processing".
+    //    await updateComparacionJobStatus(jobId, "processing");
+    
+    // 4. Obtener las URLs de los planos desde Firebase Storage.
+    //    const urlA = await getPlanoAUrl(jobId);
+    //    const urlB = await getPlanoBUrl(jobId);
+
+    // 5. Ejecutar los flujos de IA en secuencia:
+    
     // a) Diff Técnico
     //    await updateComparacionJobStatus(jobId, "analyzing-diff");
     //    const diffResult = await runDiffFlow({ planoA_DataUri: urlA, planoB_DataUri: urlB });
@@ -47,9 +48,15 @@ export async function POST(req: Request) {
     // 9. Devolver una respuesta exitosa.
     //    return NextResponse.json({ jobId, status: "completed" });
 
-  } catch (error) {
+  } catch (error: any) {
     // En caso de error en cualquier paso, actualizar estado a "error".
-    //    await updateComparacionJobStatus(jobId, "error", { errorMessage: error.message });
+    //    if (jobId) {
+    //        await updateComparacionJobStatus(jobId, "error", {
+    //            code: error.code || "ANALYSIS_FAILED",
+    //            message: error.message,
+    //            details: error.stack
+    //        });
+    //    }
     //    return NextResponse.json({ error: error.message }, { status: 500 });
   }
 
