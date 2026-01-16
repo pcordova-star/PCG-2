@@ -225,14 +225,14 @@ const quickAccessModules = [
     {
         id: 'comparacion-planos',
         title: 'Comparación de Planos (IA)',
-        description: 'Analiza dos versiones de un plano para detectar diferencias de forma automática usando IA.',
+        description: 'Detecta diferencias entre versiones de planos y evalúa impactos.',
         href: '/comparacion-planos',
         icon: GitCompareArrows,
         color: 'purple' as const,
         roles: ['superadmin', 'admin_empresa', 'jefe_obra'],
         featureFlag: 'feature_plan_comparison_enabled'
     },
-     {
+    {
         id: 'rdi',
         title: 'Requerimientos (RDI)',
         description: 'Crea y gestiona consultas de información (RDI) con mandantes, proyectistas o subcontratos.',
