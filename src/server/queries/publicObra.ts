@@ -1,6 +1,7 @@
 // src/server/queries/publicObra.ts
-import { firebaseDb } from "@/lib/firebaseClient";
-import { doc, getDoc } from "firebase/firestore";
+import { getAdminApp } from "@/server/firebaseAdmin";
+
+const db = getAdminApp().firestore();
 
 /**
  * Obtiene los datos públicos de una obra por su ID.
@@ -11,17 +12,20 @@ export async function getPublicObraByShareId(shareId: string) {
   if (!shareId) return null;
 
   try {
-    const ref = doc(firebaseDb, "obras", shareId);
-    const snap = await getDoc(ref);
+    const ref = db.collection("obras").doc(shareId);
+    const snap = await ref.get();
 
-    if (!snap.exists()) {
+    if (!snap.exists) {
       console.warn(`[publicObra] Obra no encontrada con shareId: ${shareId}`);
       return null;
     }
 
+    const data = snap.data();
+    if (!data) return null;
+
     return {
       id: snap.id,
-      ...snap.data(),
+      ...data,
     };
   } catch (error) {
     console.error(`[publicObra] Error al obtener la obra con shareId ${shareId}:`, error);
