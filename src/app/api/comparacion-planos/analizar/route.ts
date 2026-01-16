@@ -4,7 +4,10 @@ import { getComparacionJob, updateComparacionJob, updateComparacionJobStatus } f
 import { getPlanoAsDataUri } from '@/lib/comparacion-planos/storage';
 import { runDiffFlow } from '@/ai/comparacion-planos/flows/flowDiff';
 import { runCubicacionFlow } from '@/ai/comparacion-planos/flows/flowCubicacion';
-import { runImpactosFlow } from '@/ai/comparacion-planos/flows/flowImpactos';
+import { runImpactosFlow } from '@/ai/comparacion-planos/flows/flowImpactos'; // Importar el nuevo flow
+
+export const runtime = 'nodejs';
+export const maxDuration = 180; // Aumentar timeout a 3 minutos
 
 export async function POST(req: Request) {
   let jobId: string | null = null;
@@ -37,15 +40,14 @@ export async function POST(req: Request) {
         getPlanoAsDataUri(job.planoA_storagePath),
         getPlanoAsDataUri(job.planoB_storagePath),
     ]);
-
     const flowInput = { planoA_DataUri, planoB_DataUri };
-    const partialResults: any = {};
+    
+    const results: any = {};
 
     // --- Etapa 1: Diff Técnico ---
     try {
         await updateComparacionJobStatus(jobId, "analyzing-diff");
-        const diffResult = await runDiffFlow(flowInput);
-        partialResults['results.diffTecnico'] = diffResult;
+        results.diffTecnico = await runDiffFlow(flowInput);
     } catch (err) {
         throw new Error(`IA_DIFF_FAILED: ${(err as Error).message}`);
     }
@@ -53,36 +55,42 @@ export async function POST(req: Request) {
     // --- Etapa 2: Cubicación Diferencial ---
     try {
         await updateComparacionJobStatus(jobId, "analyzing-cubicacion");
-        const cubicacionResult = await runCubicacionFlow(flowInput);
-        partialResults['results.cubicacionDiferencial'] = cubicacionResult;
+        results.cubicacionDiferencial = await runCubicacionFlow(flowInput);
     } catch (err) {
         throw new Error(`IA_CUBICACION_FAILED: ${(err as Error).message}`);
     }
 
-    // Guardar resultados parciales hasta ahora
-    await updateComparacionJob(jobId, partialResults);
+    // --- Etapa 3: Árbol de Impactos ---
+    try {
+        await updateComparacionJobStatus(jobId, "generating-impactos");
+        results.arbolImpactos = await runImpactosFlow({
+            ...flowInput,
+            diffContext: results.diffTecnico,
+            cubicacionContext: results.cubicacionDiferencial
+        });
+    } catch (err) {
+        throw new Error(`IA_IMPACTOS_FAILED: ${(err as Error).message}`);
+    }
     
-    // 5. Simular generación de árbol de impactos
-    await updateComparacionJobStatus(jobId, "generating-impactos");
-    await new Promise(r => setTimeout(r, 1500)); // Simulación
-    
-    // 6. Marcar como completado
-    await updateComparacionJobStatus(jobId, "completed");
+    // 6. Consolidar y marcar como completado
+    await updateComparacionJob(jobId, {
+      status: 'completed',
+      results,
+    });
 
     return NextResponse.json({ jobId, status: "completed" });
 
   } catch (error: any) {
     console.error(`[API /analizar] Error en job ${jobId}:`, error);
     if (jobId) {
-        const errorCode = error.message.startsWith("IA_") ? error.message.split(':')[0].trim() : "ANALYSIS_PIPELINE_FAILED";
+        const errorCode = error.message.split(':')[0].trim();
+        const errorMessage = { code: errorCode, message: error.message };
         try {
-            await updateComparacionJob(jobId, {
-                status: 'error',
-                errorMessage: { code: errorCode, message: error.message }
-            });
+            await updateComparacionJob(jobId, { status: 'error', errorMessage });
         } catch (dbError) {
              console.error(`[API /analizar] CRITICAL: No se pudo actualizar el estado del job a 'error' para ${jobId}:`, dbError);
         }
+        return NextResponse.json({ error: errorMessage }, { status: 500 });
     }
     return NextResponse.json({ error: error.message || 'Error interno del servidor.' }, { status: 500 });
   }

@@ -71,11 +71,17 @@ const ImpactoNodeSchema: z.ZodType<ImpactoNode> = BaseImpactoNodeSchema.extend({
   subImpactos: z.lazy(() => z.array(ImpactoNodeSchema)).optional(),
 });
 
+export const ArbolImpactosOutputSchema = z.object({
+    impactos: z.array(ImpactoNodeSchema),
+});
+export type ArbolImpactosOutput = z.infer<typeof ArbolImpactosOutputSchema>;
+
+
 // Esquema de salida que la IA debe generar.
 export const ComparacionPlanosOutputSchema = z.object({
   diffTecnico: DiffTecnicoOutputSchema,
   cubicacionDiferencial: CubicacionDiferencialOutputSchema,
-  arbolImpactos: z.array(ImpactoNodeSchema).describe(
+  arbolImpactos: ArbolImpactosOutputSchema.describe(
     "Un árbol jerárquico de objetos JSON que muestra cómo un cambio en una especialidad impacta a las otras."
   ),
 });
