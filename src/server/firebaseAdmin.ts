@@ -17,23 +17,17 @@ export function getAdminApp(): typeof admin {
   }
 
   try {
-    // Usamos las variables de entorno públicas que ya están definidas para el cliente.
-    // Esto asegura consistencia entre el frontend y el backend.
-    const projectId = process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID;
-    const bucketName = process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET;
+    // Se utiliza una variable de entorno de SERVIDOR, no una pública.
+    const bucketName = process.env.FIREBASE_STORAGE_BUCKET;
 
-    // Validamos que las variables de entorno necesarias existan.
-    if (!projectId) {
-      throw new Error("La variable de entorno NEXT_PUBLIC_FIREBASE_PROJECT_ID no está configurada.");
-    }
+    // Validamos que la variable de entorno necesaria exista.
     if (!bucketName) {
-      throw new Error("La variable de entorno NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET no está configurada.");
+      throw new Error("La variable de entorno del servidor FIREBASE_STORAGE_BUCKET no está configurada.");
     }
     
-    // Inicializamos la app de Admin con la configuración explícita.
-    // El SDK Admin puede inferir las credenciales desde el entorno de Vercel (ADC).
+    // Inicializamos la app de Admin.
+    // El SDK puede inferir projectId y credenciales del entorno de Vercel (ADC).
     admin.initializeApp({
-      projectId: projectId,
       storageBucket: bucketName.replace(/^gs:\/\//, ""), // Limpiamos el prefijo si existe
     });
 
