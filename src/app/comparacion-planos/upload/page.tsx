@@ -48,8 +48,8 @@ export default function UploadPage() {
                 description: `Job creado con ID: ${result.jobId}`,
             });
 
-            // TODO: En el siguiente paso, se implementará la navegación a la página de progreso.
-            // router.push(`/comparacion-planos/${result.jobId}`);
+            // Navegar a la página de progreso
+            router.push(`/comparacion-planos/${result.jobId}`);
             
         } catch (error: any) {
             console.error("Error al iniciar análisis:", error);
