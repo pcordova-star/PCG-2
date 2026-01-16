@@ -6,10 +6,11 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { ArrowLeft, GitCompareArrows, Loader2, FileCheck2, CheckCircle, AlertTriangle } from 'lucide-react';
 import { UploaderPlano } from '@/components/comparacion/UploaderPlano';
-import { ComparacionJobStatus, ComparacionPlanosOutput } from '@/types/comparacion-planos';
+import { ComparacionJobStatus } from '@/types/comparacion-planos';
 import { useToast } from '@/hooks/use-toast';
 import { useRouter } from 'next/navigation';
 import { Progress } from '@/components/ui/progress';
+import { useAuth } from '@/context/AuthContext';
 
 const statusDescriptions: Record<ComparacionJobStatus, string> = {
     pending: "Esperando para iniciar...",
@@ -26,6 +27,8 @@ const statusDescriptions: Record<ComparacionJobStatus, string> = {
 export default function ComparacionPlanosPage() {
   const router = useRouter();
   const { toast } = useToast();
+  const { user } = useAuth(); // Obtener el usuario autenticado
+
   const [planoA, setPlanoA] = useState<File | null>(null);
   const [planoB, setPlanoB] = useState<File | null>(null);
   
@@ -35,7 +38,7 @@ export default function ComparacionPlanosPage() {
   
   const [isSubmitting, setIsSubmitting] = useState(false);
   
-  // Polling
+  // Polling para el estado del job
   useEffect(() => {
     if (jobId && jobStatus !== 'completed' && jobStatus !== 'error') {
       const interval = setInterval(async () => {
@@ -52,6 +55,8 @@ export default function ComparacionPlanosPage() {
           }
         } catch (err) {
           console.error("Polling error:", err);
+          setJobStatus('error');
+          setErrorMessage('No se pudo verificar el estado del análisis.');
         }
       }, 3000); // Poll cada 3 segundos
       return () => clearInterval(interval);
@@ -64,6 +69,10 @@ export default function ComparacionPlanosPage() {
       toast({ variant: 'destructive', title: 'Faltan archivos', description: 'Debes subir ambas versiones del plano.' });
       return;
     }
+    if (!user) {
+      toast({ variant: 'destructive', title: 'Autenticación requerida', description: 'Debes iniciar sesión para realizar un análisis.' });
+      return;
+    }
 
     setIsSubmitting(true);
     setJobId(null);
@@ -71,22 +80,35 @@ export default function ComparacionPlanosPage() {
     setErrorMessage(null);
 
     try {
-      // 1. Crear el Job y subir los archivos
+      const idToken = await user.getIdToken();
+      
       const formData = new FormData();
       formData.append('planoA', planoA);
       formData.append('planoB', planoB);
       
-      const createRes = await fetch('/api/comparacion-planos/create', { method: 'POST', body: formData });
-      if (!createRes.ok) throw new Error('Error al crear el trabajo de análisis.');
+      setJobStatus('uploading');
+      const createRes = await fetch('/api/comparacion-planos/create', { 
+        method: 'POST', 
+        headers: { 'Authorization': `Bearer ${idToken}` },
+        body: formData 
+      });
+      
+      if (!createRes.ok) {
+          const errorData = await createRes.json();
+          throw new Error(errorData.error || 'Error al crear el trabajo de análisis.');
+      }
       
       const { jobId: newJobId } = await createRes.json();
       setJobId(newJobId);
       setJobStatus('uploaded');
 
-      // 2. Disparar el análisis (fire-and-forget)
+      // Disparar el análisis (fire-and-forget)
       await fetch('/api/comparacion-planos/analizar', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${idToken}`
+        },
         body: JSON.stringify({ jobId: newJobId }),
       });
       setJobStatus('processing');
@@ -95,8 +117,7 @@ export default function ComparacionPlanosPage() {
       setJobStatus('error');
       setErrorMessage(err.message);
       toast({ variant: 'destructive', title: 'Error de Inicio', description: err.message });
-    } finally {
-        // No ponemos isSubmitting a false, para que el UI quede bloqueado en el estado de "procesando"
+      setIsSubmitting(false); // Permitir reintentar
     }
   };
 
@@ -138,11 +159,11 @@ export default function ComparacionPlanosPage() {
 
         <div className="sticky top-24 space-y-4">
             <Button onClick={handleAnalizar} disabled={isSubmitting || !planoA || !planoB} className="w-full">
-                {isSubmitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <GitCompareArrows className="mr-2 h-4 w-4" />}
-                {isSubmitting ? 'Analizando...' : 'Analizar Planos'}
+                {isSubmitting && jobStatus !== 'error' ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <GitCompareArrows className="mr-2 h-4 w-4" />}
+                {isSubmitting && jobStatus !== 'error' ? 'Analizando...' : 'Analizar Planos'}
             </Button>
             
-            {jobStatus && (
+            {isSubmitting && (
                 <Card>
                     <CardHeader>
                         <CardTitle className="flex items-center gap-2">
@@ -152,7 +173,7 @@ export default function ComparacionPlanosPage() {
                     </CardHeader>
                     <CardContent>
                         <Progress value={getProgress()} className="h-2 mb-2" />
-                        <p className="text-sm text-center font-medium">{statusDescriptions[jobStatus]}</p>
+                        <p className="text-sm text-center font-medium">{jobStatus ? statusDescriptions[jobStatus] : "Iniciando..."}</p>
                         {jobStatus === 'error' && <p className="text-xs text-center text-destructive mt-1">{errorMessage}</p>}
                     </CardContent>
                 </Card>

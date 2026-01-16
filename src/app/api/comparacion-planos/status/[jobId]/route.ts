@@ -2,6 +2,8 @@
 import { NextResponse } from 'next/server';
 import { getAdminApp } from '@/server/firebaseAdmin';
 
+export const runtime = 'nodejs';
+
 export async function GET(req: Request, { params }: { params: { jobId: string } }) {
     const { jobId } = params;
 
