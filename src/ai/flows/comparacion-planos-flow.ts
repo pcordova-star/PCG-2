@@ -13,7 +13,7 @@ import type { ComparacionPlanosInput, ComparacionPlanosOutput } from '@/types/co
 const comparacionPrompt = ai.definePrompt(
   {
     name: 'comparacionPlanosPrompt',
-    model: 'googleai/gemini-1.5-pro',
+    model: 'googleai/gemini-1.5-pro-latest',
     input: { schema: ComparacionPlanosInputSchema },
     output: { schema: ComparacionPlanosOutputSchema },
     prompt: `Eres un arquitecto experto en revisión de planos y control de cambios en proyectos de construcción.
