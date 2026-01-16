@@ -1,12 +1,15 @@
 // src/app/comparacion-planos/[jobId]/page.tsx
 "use client";
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 import AnalisisProgreso from '@/components/comparacion-planos/AnalisisProgreso';
 import { Button } from '@/components/ui/button';
-import { Loader2 } from 'lucide-react';
+import { Loader2, ShieldAlert } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useToast } from '@/hooks/use-toast';
+import { useAuth } from '@/context/AuthContext';
+import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
+import Link from 'next/link';
 
 export default function ProgresoPage({ params }: { params: { jobId: string } }) {
     const [status, setStatus] = useState<string | null>(null);
@@ -14,20 +17,35 @@ export default function ProgresoPage({ params }: { params: { jobId: string } }) 
     const [isAnalysisTriggered, setIsAnalysisTriggered] = useState(false);
     const router = useRouter();
     const { toast } = useToast();
+    const { user, company, role, loading: authLoading } = useAuth();
+
+    const hasAccess = useMemo(() => {
+        if (authLoading) return false;
+        if (role === 'superadmin') return true;
+        if (!company) return false;
+        const allowedRoles = ["admin_empresa", "jefe_obra"];
+        return company.feature_plan_comparison_enabled === true && allowedRoles.includes(role);
+    }, [company, role, authLoading]);
 
     // Polling effect to get status
     useEffect(() => {
+        if (!user || !hasAccess) return;
+
         let interval: NodeJS.Timeout;
 
         const fetchEstado = async () => {
             try {
-                const response = await fetch(`/api/comparacion-planos/estado/${params.jobId}`);
+                const token = await user.getIdToken();
+                const response = await fetch(`/api/comparacion-planos/estado/${params.jobId}`, {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+
                 if (!response.ok) {
-                    if (response.status === 404) {
-                        throw new Error('El trabajo de análisis no fue encontrado.');
-                    }
+                    if (response.status === 403) throw new Error("No tienes permiso para ver este análisis.");
+                    if (response.status === 404) throw new Error('El trabajo de análisis no fue encontrado.');
                     throw new Error('Error al consultar el estado del trabajo.');
                 }
+
                 const data = await response.json();
                 setStatus(data.status);
                 
@@ -36,51 +54,63 @@ export default function ProgresoPage({ params }: { params: { jobId: string } }) 
                    router.push(`/comparacion-planos/${params.jobId}/resultado`);
                 } else if (data.status === 'error') {
                    if (interval) clearInterval(interval);
-                   setError("El análisis falló. Revisa los logs del servidor para más detalles.");
+                   setError(data.errorMessage?.message || "El análisis falló. Revisa los logs del servidor para más detalles.");
                 }
 
             } catch (err: any) {
                 setError(err.message);
-                // Stop polling on error
                 if (interval) clearInterval(interval);
             }
         };
 
-        // Start polling if not completed or errored
         if (status !== 'completed' && status !== 'error') {
             fetchEstado(); // Initial call
             interval = setInterval(fetchEstado, 3000);
         }
 
-        // Cleanup interval on component unmount
         return () => clearInterval(interval);
-    }, [params.jobId, router, status]);
+    }, [params.jobId, router, status, user, hasAccess]);
 
     const iniciarAnalisis = async () => {
+        if (!user) return;
         setIsAnalysisTriggered(true);
         toast({ title: "Iniciando análisis...", description: "El servidor comenzará a procesar los planos." });
         
         try {
+            const token = await user.getIdToken();
             const response = await fetch('/api/comparacion-planos/analizar', {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
+                headers: { 
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`,
+                },
                 body: JSON.stringify({ jobId: params.jobId })
             });
 
             const result = await response.json();
 
             if (!response.ok) {
-                throw new Error(result.error || 'Fallo al iniciar el análisis.');
+                throw new Error(result.error?.message || 'Fallo al iniciar el análisis.');
             }
-            
-            // Polling will update the status. We just show that it was triggered.
 
         } catch (err: any) {
              toast({ variant: 'destructive', title: 'Error', description: err.message });
              setIsAnalysisTriggered(false); // Allow re-try if it fails to start
         }
     };
+    
+    if (authLoading) return <Loader2 className="animate-spin" />;
 
+    if (!hasAccess) {
+        return (
+             <div className="max-w-2xl mx-auto text-center space-y-4">
+                <Card>
+                    <CardHeader className="items-center"><ShieldAlert className="h-12 w-12 text-destructive"/><CardTitle>Acceso Denegado</CardTitle><CardDescription>No tienes permisos para acceder a este módulo.</CardDescription></CardHeader>
+                    <CardContent><Button asChild variant="outline"><Link href="/dashboard">Volver al Dashboard</Link></Button></CardContent>
+                </Card>
+            </div>
+        );
+    }
 
     return (
         <div className="max-w-2xl mx-auto text-center space-y-6">

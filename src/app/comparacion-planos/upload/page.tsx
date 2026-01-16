@@ -3,18 +3,26 @@
 import UploadPlanesForm from "@/components/comparacion-planos/UploadPlanesForm";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { useRouter } from "next/navigation";
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, ShieldAlert } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import { useToast } from "@/hooks/use-toast";
 
 export default function UploadPage() {
     const router = useRouter();
-    const { user } = useAuth();
+    const { user, company, role, loading: authLoading } = useAuth();
     const { toast } = useToast();
     const [isSubmitting, setIsSubmitting] = useState(false);
+
+    const hasAccess = useMemo(() => {
+        if (authLoading) return false;
+        if (role === 'superadmin') return true;
+        if (!company) return false;
+        const allowedRoles = ["admin_empresa", "jefe_obra"];
+        return company.feature_plan_comparison_enabled === true && allowedRoles.includes(role);
+    }, [company, role, authLoading]);
 
     const handleFormSubmit = async (files: { planoA: File; planoB: File }) => {
         if (!user) {
@@ -48,7 +56,6 @@ export default function UploadPage() {
                 description: `Job creado con ID: ${result.jobId}`,
             });
 
-            // Navegar a la página de progreso
             router.push(`/comparacion-planos/${result.jobId}`);
             
         } catch (error: any) {
@@ -59,6 +66,29 @@ export default function UploadPage() {
         }
     };
     
+    if (authLoading) {
+        return <div>Cargando...</div>
+    }
+
+    if (!hasAccess) {
+        return (
+            <div className="max-w-2xl mx-auto text-center space-y-4">
+                 <Button asChild variant="outline" size="sm">
+                    <Link href="/dashboard"><ArrowLeft className="mr-2 h-4 w-4" />Volver al Dashboard</Link>
+                </Button>
+                <Card>
+                    <CardHeader className="items-center">
+                        <ShieldAlert className="h-12 w-12 text-destructive"/>
+                        <CardTitle>Acceso Denegado</CardTitle>
+                        <CardDescription>
+                            No tienes permisos para acceder al módulo de Comparación de Planos. Contacta a un administrador para habilitar esta función para tu empresa.
+                        </CardDescription>
+                    </CardHeader>
+                </Card>
+            </div>
+        );
+    }
+
     return (
         <div className="max-w-2xl mx-auto space-y-6">
             <Button asChild variant="outline" size="sm">

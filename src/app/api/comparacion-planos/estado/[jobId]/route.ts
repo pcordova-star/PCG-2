@@ -1,6 +1,9 @@
 // src/app/api/comparacion-planos/estado/[jobId]/route.ts
 import { NextResponse } from 'next/server';
 import { getAdminApp } from '@/server/firebaseAdmin';
+import { headers } from 'next/headers';
+import { getAuth } from 'firebase-admin/auth';
+import { canUseComparacionPlanos } from '@/lib/comparacion-planos/permissions';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic'; // Asegura que no se cachee la respuesta
@@ -8,11 +11,26 @@ export const dynamic = 'force-dynamic'; // Asegura que no se cachee la respuesta
 export async function GET(req: Request, { params }: { params: { jobId: string } }) {
   const { jobId } = params;
 
-  if (!jobId) {
-    return NextResponse.json({ error: 'jobId es requerido.' }, { status: 400 });
-  }
-
   try {
+    const authorization = headers().get("Authorization");
+    if (!authorization?.startsWith("Bearer ")) {
+        return NextResponse.json({ error: 'No autorizado: Token no proporcionado.' }, { status: 401 });
+    }
+    const token = authorization.split("Bearer ")[1];
+    const decodedToken = await getAuth().verifyIdToken(token);
+    const userId = decodedToken.uid;
+
+    // --- Permission Check ---
+    const hasAccess = await canUseComparacionPlanos(userId);
+    if (!hasAccess) {
+        return NextResponse.json({ error: 'Acceso denegado a este módulo.' }, { status: 403 });
+    }
+    // --- End Permission Check ---
+
+    if (!jobId) {
+      return NextResponse.json({ error: 'jobId es requerido.' }, { status: 400 });
+    }
+
     const db = getAdminApp().firestore();
     const jobRef = db.collection('comparacionPlanosJobs').doc(jobId);
     const jobSnap = await jobRef.get();

@@ -5,6 +5,7 @@ import { headers } from 'next/headers';
 import { getAuth } from 'firebase-admin/auth';
 import { ComparacionJobStatus } from '@/types/comparacion-planos';
 import * as crypto from 'crypto';
+import { canUseComparacionPlanos } from '@/lib/comparacion-planos/permissions';
 
 const adminApp = getAdminApp();
 const db = adminApp.firestore();
@@ -15,6 +16,22 @@ const MAX_FILE_SIZE_MB = 15;
 export async function POST(req: Request) {
     let jobId: string | null = null;
     try {
+        const authorization = headers().get("Authorization");
+        if (!authorization?.startsWith("Bearer ")) {
+            return NextResponse.json({ error: 'No autorizado: Token no proporcionado.' }, { status: 401 });
+        }
+        const token = authorization.split("Bearer ")[1];
+        const decodedToken = await getAuth().verifyIdToken(token);
+        const userId = decodedToken.uid;
+        const empresaId = (decodedToken as any).companyId || 'default_company';
+
+        // --- Permission Check ---
+        const hasAccess = await canUseComparacionPlanos(userId);
+        if (!hasAccess) {
+            return NextResponse.json({ error: 'Acceso denegado a este módulo.' }, { status: 403 });
+        }
+        // --- End Permission Check ---
+
         const formData = await req.formData();
         const planoAFile = formData.get('planoA') as File | null;
         const planoBFile = formData.get('planoB') as File | null;
@@ -27,15 +44,6 @@ export async function POST(req: Request) {
              return NextResponse.json({ error: `El tamaño de los archivos no puede superar los ${MAX_FILE_SIZE_MB}MB.` }, { status: 400 });
         }
         
-        const authorization = headers().get("Authorization");
-        if (!authorization?.startsWith("Bearer ")) {
-            return NextResponse.json({ error: 'No autorizado: Token no proporcionado.' }, { status: 401 });
-        }
-        const token = authorization.split("Bearer ")[1];
-        const decodedToken = await getAuth().verifyIdToken(token);
-        const userId = decodedToken.uid;
-        const empresaId = (decodedToken as any).companyId || 'default_company';
-
         jobId = crypto.randomUUID();
         
         const jobRef = db.collection('comparacionPlanosJobs').doc(jobId);
