@@ -13,6 +13,9 @@ import { useRouter } from 'next/navigation';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
+import { useToast } from '@/hooks/use-toast';
+import { exportAnalisisToPdf } from '@/lib/comparacion-planos/exportToPdf';
+
 
 type JobData = {
     jobId: string;
@@ -24,9 +27,12 @@ type JobData = {
 export default function ResultadoPage({ params }: { params: { jobId: string } }) {
     const [jobData, setJobData] = useState<JobData | null>(null);
     const [loading, setLoading] = useState(true);
+    const [isReanalyzing, setIsReanalyzing] = useState(false);
+    const [isDownloadingPdf, setIsDownloadingPdf] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const { user, company, role, loading: authLoading } = useAuth();
     const router = useRouter();
+    const { toast } = useToast();
 
     const hasAccess = useMemo(() => {
         if (authLoading) return false;
@@ -62,6 +68,63 @@ export default function ResultadoPage({ params }: { params: { jobId: string } })
         };
         fetchJobData();
     }, [params.jobId, user, hasAccess, authLoading]);
+
+    const handleReanalyse = async () => {
+        if (!user) return;
+        setIsReanalyzing(true);
+        toast({ title: "Iniciando nuevo análisis...", description: "Clonando archivos y creando un nuevo job." });
+        try {
+            const token = await user.getIdToken();
+            const response = await fetch('/api/comparacion-planos/reanalizar', {
+                method: 'POST',
+                headers: { 
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`,
+                },
+                body: JSON.stringify({ oldJobId: params.jobId }),
+            });
+            const result = await response.json();
+            if (!response.ok) throw new Error(result.error || "No se pudo iniciar el re-análisis.");
+            
+            router.push(`/comparacion-planos/${result.newJobId}`);
+
+        } catch (err: any) {
+            toast({ variant: "destructive", title: "Error", description: err.message });
+            setIsReanalyzing(false);
+        }
+    };
+
+    const handleDownloadJson = () => {
+        if (!jobData?.results) return;
+        const jsonString = `data:text/json;charset=utf-8,${encodeURIComponent(
+            JSON.stringify(jobData.results, null, 2)
+        )}`;
+        const link = document.createElement("a");
+        link.href = jsonString;
+        link.download = `analisis_comparacion_${params.jobId}.json`;
+        link.click();
+    };
+
+    const handleDownloadPdf = async () => {
+        if (!jobData?.results) return;
+        setIsDownloadingPdf(true);
+        try {
+            const pdfBuffer = await exportAnalisisToPdf({ jobId: params.jobId, results: jobData.results });
+            const blob = new Blob([pdfBuffer], { type: "application/pdf" });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement("a");
+            a.href = url;
+            a.download = `analisis_${params.jobId}.pdf`;
+            a.click();
+            URL.revokeObjectURL(url);
+        } catch (err) {
+            console.error("Error al generar PDF:", err);
+            toast({ variant: 'destructive', title: 'Error', description: 'No se pudo generar el PDF.' });
+        } finally {
+            setIsDownloadingPdf(false);
+        }
+    };
+
 
     if (loading || authLoading) {
         return (
@@ -117,16 +180,6 @@ export default function ResultadoPage({ params }: { params: { jobId: string } })
          return <div className="max-w-6xl mx-auto px-4 py-8 text-center p-8 text-muted-foreground">El análisis finalizó pero no se encontraron resultados.</div>;
     }
 
-    const handleDownloadJson = () => {
-        const jsonString = `data:text/json;charset=utf-8,${encodeURIComponent(
-            JSON.stringify(jobData.results, null, 2)
-        )}`;
-        const link = document.createElement("a");
-        link.href = jsonString;
-        link.download = `analisis_comparacion_${params.jobId}.json`;
-        link.click();
-    };
-
     return (
         <div className="max-w-7xl mx-auto px-4 py-8 space-y-8">
             <header className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
@@ -134,13 +187,19 @@ export default function ResultadoPage({ params }: { params: { jobId: string } })
                     <Button variant="outline" size="sm" asChild className="mb-4">
                         <Link href="/dashboard"><ArrowLeft className="mr-2"/>Volver al Dashboard</Link>
                     </Button>
-                    <h1 className="text-3xl font-semibold text-gray-900">Resultados del Análisis</h1>
+                    <h1 className="text-3xl font-semibold text-gray-900">Resultados del Análisis Comparativo</h1>
                     <p className="text-muted-foreground font-mono text-sm mt-1">Job ID: {params.jobId}</p>
                 </div>
                  <div className="flex flex-wrap gap-2">
                     <Button variant="outline" onClick={handleDownloadJson}><Download className="mr-2"/>Descargar JSON</Button>
-                    <Button variant="outline" disabled><FileText className="mr-2"/>Descargar PDF (Próximamente)</Button>
-                    <Button variant="secondary" disabled><RefreshCw className="mr-2"/>Re-analizar</Button>
+                    <Button variant="secondary" onClick={handleDownloadPdf} disabled={isDownloadingPdf}>
+                        {isDownloadingPdf ? <Loader2 className="mr-2 animate-spin"/> : <FileText className="mr-2"/>}
+                        Descargar PDF
+                    </Button>
+                    <Button onClick={handleReanalyse} disabled={isReanalyzing}>
+                         {isReanalyzing ? <Loader2 className="mr-2 animate-spin"/> : <RefreshCw className="mr-2"/>}
+                        Re-analizar
+                    </Button>
                 </div>
             </header>
 
