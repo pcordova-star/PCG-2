@@ -52,7 +52,17 @@ export const ComparacionPlanosOutputSchema = z.object({
 
 export type ComparacionPlanosOutput = z.infer<typeof ComparacionPlanosOutputSchema>;
 
+
 // --- Tipos para el Job Asíncrono ---
+
+/**
+ * Define la estructura de un error estandarizado para el job.
+ */
+export interface ComparacionError {
+  code: string; // ej: "UPLOAD_INVALID_FILE", "AI_DIFF_FAILED"
+  message: string; // descripción breve para el usuario
+  details?: any; // stack trace, metadata, etc. para debugging
+}
 
 export interface ComparacionPlanosJob {
     id?: string;
@@ -64,6 +74,6 @@ export interface ComparacionPlanosJob {
     status: ComparacionJobStatus;
     planoA_storagePath?: string;
     planoB_storagePath?: string;
-    errorMessage?: string;
+    errorMessage?: ComparacionError | null; // Almacenará el error si el estado es 'error'
     results?: ComparacionPlanosOutput;
 }
