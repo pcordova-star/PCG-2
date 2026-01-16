@@ -10,7 +10,30 @@ import { headers } from 'next/headers';
 import { canUseComparacionPlanos } from '@/lib/comparacion-planos/permissions';
 
 export const runtime = 'nodejs';
-export const maxDuration = 180; // Aumentar timeout a 3 minutos
+export const maxDuration = 300; // Aumentar timeout a 5 minutos para dar tiempo a los 3 análisis
+
+/**
+ * Helper para reintentar una promesa en caso de fallo.
+ * @param fn La función asíncrona a ejecutar.
+ * @param retries Número de reintentos.
+ * @param delay Tiempo de espera entre reintentos en ms.
+ * @returns El resultado de la función.
+ */
+async function withRetries<T>(fn: () => Promise<T>, retries = 1, delay = 300): Promise<T> {
+  let lastError: Error | undefined;
+  for (let i = 0; i <= retries; i++) {
+    try {
+      return await fn();
+    } catch (error) {
+      lastError = error as Error;
+      if (i < retries) {
+        await new Promise(res => setTimeout(res, delay));
+      }
+    }
+  }
+  throw lastError;
+}
+
 
 export async function POST(req: Request) {
   let jobId: string | null = null;
@@ -60,31 +83,35 @@ export async function POST(req: Request) {
     
     const results: any = {};
 
+    // Step 1: Diff Técnico
     try {
         await updateComparacionJobStatus(jobId, "analyzing-diff");
-        results.diffTecnico = await runDiffFlow(flowInput);
+        results.diffTecnico = await withRetries(() => runDiffFlow(flowInput));
     } catch (err) {
         throw new Error(`IA_DIFF_FAILED: ${(err as Error).message}`);
     }
     
+    // Step 2: Cubicación Diferencial
     try {
         await updateComparacionJobStatus(jobId, "analyzing-cubicacion");
-        results.cubicacionDiferencial = await runCubicacionFlow(flowInput);
+        results.cubicacionDiferencial = await withRetries(() => runCubicacionFlow(flowInput));
     } catch (err) {
         throw new Error(`IA_CUBICACION_FAILED: ${(err as Error).message}`);
     }
 
+    // Step 3: Árbol de Impactos
     try {
         await updateComparacionJobStatus(jobId, "generating-impactos");
-        results.arbolImpactos = await runImpactosFlow({
+        results.arbolImpactos = await withRetries(() => runImpactosFlow({
             ...flowInput,
             diffContext: results.diffTecnico,
             cubicacionContext: results.cubicacionDiferencial
-        });
+        }));
     } catch (err) {
         throw new Error(`IA_IMPACTOS_FAILED: ${(err as Error).message}`);
     }
     
+    // Step 4: Finalización
     await updateComparacionJob(jobId, {
       status: 'completed',
       results,
