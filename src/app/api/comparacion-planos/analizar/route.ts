@@ -27,8 +27,6 @@ export async function POST(req: Request) {
     }
 
     // --- INICIO DEL PIPELINE DE ANÁLISIS ---
-
-    // 1. Marcar como procesando
     await updateComparacionJobStatus(jobId, "processing");
 
     // 2. Obtener Data URIs de los planos desde Storage
@@ -40,14 +38,29 @@ export async function POST(req: Request) {
         getPlanoAsDataUri(job.planoB_storagePath),
     ]);
 
-    // 3. Ejecutar Flow de Diff Técnico
-    await updateComparacionJobStatus(jobId, "analyzing-diff");
-    const diffResult = await runDiffFlow({ planoA_DataUri, planoB_DataUri });
-    await updateComparacionJob(jobId, { "results.diffTecnico": diffResult });
+    const flowInput = { planoA_DataUri, planoB_DataUri };
+    const partialResults: any = {};
+
+    // --- Etapa 1: Diff Técnico ---
+    try {
+        await updateComparacionJobStatus(jobId, "analyzing-diff");
+        const diffResult = await runDiffFlow(flowInput);
+        partialResults['results.diffTecnico'] = diffResult;
+    } catch (err) {
+        throw new Error(`IA_DIFF_FAILED: ${(err as Error).message}`);
+    }
     
-    // 4. Simular análisis de cubicación
-    await updateComparacionJobStatus(jobId, "analyzing-cubicacion");
-    await new Promise(r => setTimeout(r, 1500)); // Simulación
+    // --- Etapa 2: Cubicación Diferencial ---
+    try {
+        await updateComparacionJobStatus(jobId, "analyzing-cubicacion");
+        const cubicacionResult = await runCubicacionFlow(flowInput);
+        partialResults['results.cubicacionDiferencial'] = cubicacionResult;
+    } catch (err) {
+        throw new Error(`IA_CUBICACION_FAILED: ${(err as Error).message}`);
+    }
+
+    // Guardar resultados parciales hasta ahora
+    await updateComparacionJob(jobId, partialResults);
     
     // 5. Simular generación de árbol de impactos
     await updateComparacionJobStatus(jobId, "generating-impactos");
@@ -61,13 +74,11 @@ export async function POST(req: Request) {
   } catch (error: any) {
     console.error(`[API /analizar] Error en job ${jobId}:`, error);
     if (jobId) {
+        const errorCode = error.message.startsWith("IA_") ? error.message.split(':')[0].trim() : "ANALYSIS_PIPELINE_FAILED";
         try {
             await updateComparacionJob(jobId, {
                 status: 'error',
-                errorMessage: {
-                    code: error.name || "ANALYSIS_PIPELINE_FAILED",
-                    message: error.message,
-                }
+                errorMessage: { code: errorCode, message: error.message }
             });
         } catch (dbError) {
              console.error(`[API /analizar] CRITICAL: No se pudo actualizar el estado del job a 'error' para ${jobId}:`, dbError);

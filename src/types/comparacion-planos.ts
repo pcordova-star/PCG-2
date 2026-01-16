@@ -32,6 +32,23 @@ export const ComparacionPlanosInputSchema = z.object({
 
 export type ComparacionPlanosInput = z.infer<typeof ComparacionPlanosInputSchema>;
 
+// --- Esquemas para Cubicación Diferencial ---
+export const CubicacionPartidaSchema = z.object({
+  partida: z.string().describe("Nombre de la partida o elemento afectado."),
+  unidad: z.string().describe("Unidad de medida (m2, m3, ml, u, kg, etc.)."),
+  cantidadA: z.number().nullable().describe("Cantidad estimada en el Plano A."),
+  cantidadB: z.number().nullable().describe("Cantidad estimada en el Plano B."),
+  diferencia: z.number().describe("Diferencia calculada (cantidadB - cantidadA)."),
+  observaciones: z.string().optional().describe("Aclaraciones sobre el cálculo o suposición clave."),
+});
+
+export const CubicacionDiferencialOutputSchema = z.object({
+  partidas: z.array(CubicacionPartidaSchema).describe("Lista de todas las partidas con variaciones de cantidad detectadas."),
+  resumen: z.string().describe("Un resumen conciso del impacto general en la cubicación."),
+});
+
+export type CubicacionDiferencialOutput = z.infer<typeof CubicacionDiferencialOutputSchema>;
+
 
 // --- Esquema del Árbol de Impactos ---
 
@@ -57,9 +74,7 @@ const ImpactoNodeSchema: z.ZodType<ImpactoNode> = BaseImpactoNodeSchema.extend({
 // Esquema de salida que la IA debe generar.
 export const ComparacionPlanosOutputSchema = z.object({
   diffTecnico: DiffTecnicoOutputSchema,
-  cubicacionDiferencial: z.string().describe(
-    "Un resumen en formato Markdown con una tabla de las variaciones de cubicación, mostrando Item, Unidad, Cantidad Anterior, Cantidad Nueva y Diferencia."
-  ),
+  cubicacionDiferencial: CubicacionDiferencialOutputSchema,
   arbolImpactos: z.array(ImpactoNodeSchema).describe(
     "Un árbol jerárquico de objetos JSON que muestra cómo un cambio en una especialidad impacta a las otras."
   ),
