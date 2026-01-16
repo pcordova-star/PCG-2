@@ -7,29 +7,56 @@ import { useState } from 'react';
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
+import { useAuth } from "@/context/AuthContext";
+import { useToast } from "@/hooks/use-toast";
 
 export default function UploadPage() {
     const router = useRouter();
+    const { user } = useAuth();
+    const { toast } = useToast();
     const [isSubmitting, setIsSubmitting] = useState(false);
 
     const handleFormSubmit = async (files: { planoA: File; planoB: File }) => {
-        console.log("Archivos seleccionados:", files);
-        alert("Se recibieron los archivos. Aún no se inicia el análisis.");
+        if (!user) {
+            toast({ variant: 'destructive', title: 'Error de autenticación', description: 'Debes iniciar sesión para iniciar un análisis.' });
+            return;
+        }
 
-        // Placeholder for future logic
-        // setIsSubmitting(true);
-        // try {
-        //     const formData = new FormData();
-        //     formData.append('planoA', files.planoA);
-        //     formData.append('planoB', files.planoB);
-        //
-        //     // ... Lógica para llamar a /api/comparacion-planos/create
-        //
-        // } catch (error) {
-        //     console.error("Error al iniciar análisis:", error);
-        // } finally {
-        //     setIsSubmitting(false);
-        // }
+        setIsSubmitting(true);
+        try {
+            const token = await user.getIdToken();
+            const formData = new FormData();
+            formData.append('planoA', files.planoA);
+            formData.append('planoB', files.planoB);
+
+            const response = await fetch('/api/comparacion-planos/upload', {
+                method: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                },
+                body: formData,
+            });
+
+            const result = await response.json();
+            
+            if (!response.ok) {
+                throw new Error(result.error || 'Error en el servidor al subir los archivos.');
+            }
+
+            toast({
+                title: "Análisis iniciado",
+                description: `Job creado con ID: ${result.jobId}`,
+            });
+
+            // TODO: En el siguiente paso, se implementará la navegación a la página de progreso.
+            // router.push(`/comparacion-planos/${result.jobId}`);
+            
+        } catch (error: any) {
+            console.error("Error al iniciar análisis:", error);
+            toast({ variant: 'destructive', title: 'Error', description: error.message });
+        } finally {
+            setIsSubmitting(false);
+        }
     };
     
     return (
