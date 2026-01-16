@@ -4,8 +4,7 @@
       "https://pcgoperacion.com",
       "https://www.pcgoperacion.com",
       "https://pcg-2-8bf1b.web.app",
-      "http://localhost:3000",
-      "https://studio.firebase.google.com"
+      "http://localhost:3000"
     ],
     "method": [
       "GET",
