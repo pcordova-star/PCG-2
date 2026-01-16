@@ -1,36 +1,28 @@
 // src/lib/comparacion-planos/storage.ts
-// Este archivo contendrá la lógica para interactuar con Firebase Storage
-// para el módulo de Comparación de Planos.
+import { getAdminApp } from "@/server/firebaseAdmin";
 
-/*
-Estructura de carpetas recomendada en Firebase Storage:
+const storage = getAdminApp().storage();
 
-/comparacion-planos/{jobId}/A.jpg
-/comparacion-planos/{jobId}/B.jpg
-/comparacion-planos/{jobId}/aux/{...otros archivos}
+/**
+ * Downloads a file from Firebase Storage and converts it to a Data URI.
+ * @param storagePath The full path to the file in the bucket.
+ * @returns A promise that resolves to the Data URI string.
+ */
+export async function getPlanoAsDataUri(storagePath: string): Promise<string> {
+  const bucket = storage.bucket(); // default bucket
+  const file = bucket.file(storagePath);
 
-*/
+  // Primero, verificamos que el archivo exista para evitar errores de descarga.
+  const [exists] = await file.exists();
+  if (!exists) {
+    throw new Error(`El archivo no se encontró en la ruta de Storage: ${storagePath}`);
+  }
 
-export async function uploadPlanoA(jobId: string, file: File | Blob) {
-  // TODO: implementar subida de archivo A
-  console.log(`Subiendo Plano A para el job ${jobId}`);
-  return null;
-}
+  const [metadata] = await file.getMetadata();
+  const contentType = metadata.contentType || 'application/octet-stream';
 
-export async function uploadPlanoB(jobId: string, file: File | Blob) {
-  // TODO: implementar subida de archivo B
-  console.log(`Subiendo Plano B para el job ${jobId}`);
-  return null;
-}
-
-export async function getPlanoAUrl(jobId: string) {
-  // TODO: obtener URL del archivo A
-  console.log(`Obteniendo URL del Plano A para el job ${jobId}`);
-  return null;
-}
-
-export async function getPlanoBUrl(jobId: string) {
-  // TODO: obtener URL del archivo B
-  console.log(`Obteniendo URL del Plano B para el job ${jobId}`);
-  return null;
+  const [buffer] = await file.download();
+  const base64 = buffer.toString('base64');
+  
+  return `data:${contentType};base64,${base64}`;
 }

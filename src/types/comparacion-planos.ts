@@ -7,6 +7,23 @@ import { ComparacionPlanosFSM } from '@/lib/comparacion-planos/fsm';
 // Export the status type from the FSM definition
 export type ComparacionJobStatus = (typeof ComparacionPlanosFSM.validStatuses)[number];
 
+// --- Esquemas para el Análisis de Diferencias (Diff) ---
+
+export const DiffElementoSchema = z.object({
+  tipo: z.enum(["agregado", "eliminado", "modificado"]).describe("Tipo de diferencia detectada."),
+  descripcion: z.string().describe("Descripción clara y concisa del cambio."),
+  ubicacion: z.string().optional().describe("Ubicación aproximada del cambio en el plano."),
+});
+
+export type DiffElemento = z.infer<typeof DiffElementoSchema>;
+
+export const DiffTecnicoOutputSchema = z.object({
+  elementos: z.array(DiffElementoSchema).describe("Lista de todos los elementos diferentes encontrados."),
+  resumen: z.string().describe("Un resumen conciso de los cambios más importantes."),
+});
+
+export type DiffTecnicoOutput = z.infer<typeof DiffTecnicoOutputSchema>;
+
 // Esquema de entrada para el flujo de IA.
 export const ComparacionPlanosInputSchema = z.object({
   planoA_DataUri: z.string().describe("Imagen del Plano A (versión original) en formato Data URI."),
@@ -39,9 +56,7 @@ const ImpactoNodeSchema: z.ZodType<ImpactoNode> = BaseImpactoNodeSchema.extend({
 
 // Esquema de salida que la IA debe generar.
 export const ComparacionPlanosOutputSchema = z.object({
-  diffTecnico: z.string().describe(
-    "Un resumen técnico en formato Markdown que lista las diferencias geométricas, textuales y de cotas. Incluir elementos agregados y eliminados."
-  ),
+  diffTecnico: DiffTecnicoOutputSchema,
   cubicacionDiferencial: z.string().describe(
     "Un resumen en formato Markdown con una tabla de las variaciones de cubicación, mostrando Item, Unidad, Cantidad Anterior, Cantidad Nueva y Diferencia."
   ),
@@ -61,7 +76,7 @@ export type ComparacionPlanosOutput = z.infer<typeof ComparacionPlanosOutputSche
 export interface ComparacionError {
   code: string; // ej: "UPLOAD_INVALID_FILE", "AI_DIFF_FAILED"
   message: string; // descripción breve para el usuario
-  details?: any; // stack trace, metadata, etc. para debugging
+  details?: any; // stack trace, metadata, contexto
 }
 
 export interface ComparacionPlanosJob {
@@ -75,5 +90,5 @@ export interface ComparacionPlanosJob {
     planoA_storagePath?: string;
     planoB_storagePath?: string;
     errorMessage?: ComparacionError | null; // Almacenará el error si el estado es 'error'
-    results?: ComparacionPlanosOutput;
+    results?: Partial<ComparacionPlanosOutput>;
 }

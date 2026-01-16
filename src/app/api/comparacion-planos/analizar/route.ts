@@ -1,17 +1,10 @@
 // src/app/api/comparacion-planos/analizar/route.ts
 import { NextResponse } from 'next/server';
-import { getAdminApp } from '@/server/firebaseAdmin';
-import { getDoc, doc, Timestamp } from 'firebase-admin/firestore';
-import { ComparacionJobStatus } from '@/types/comparacion-planos';
-
-const db = getAdminApp().firestore();
-
-// Helper to update job status and timestamp
-const updateJobStatus = async (jobId: string, status: ComparacionJobStatus, details?: object) => {
-  const jobRef = db.collection('comparacionPlanosJobs').doc(jobId);
-  await jobRef.update({ status, updatedAt: Timestamp.now(), ...details });
-};
-
+import { getComparacionJob, updateComparacionJob, updateComparacionJobStatus } from '@/lib/comparacion-planos/firestore';
+import { getPlanoAsDataUri } from '@/lib/comparacion-planos/storage';
+import { runDiffFlow } from '@/ai/comparacion-planos/flows/flowDiff';
+import { runCubicacionFlow } from '@/ai/comparacion-planos/flows/flowCubicacion';
+import { runImpactosFlow } from '@/ai/comparacion-planos/flows/flowImpactos';
 
 export async function POST(req: Request) {
   let jobId: string | null = null;
@@ -23,59 +16,56 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'Falta el ID del trabajo (jobId).' }, { status: 400 });
     }
 
-    const jobRef = db.collection('comparacionPlanosJobs').doc(jobId);
-    const jobSnap = await getDoc(jobRef);
+    const job = await getComparacionJob(jobId);
 
-    if (!jobSnap.exists) {
+    if (!job) {
         return NextResponse.json({ error: 'El trabajo no fue encontrado.' }, { status: 404 });
     }
-
-    const currentStatus = jobSnap.data()?.status;
-    if (currentStatus !== 'uploaded') {
-        return NextResponse.json({ error: `El trabajo no está en el estado correcto para analizar (estado actual: ${currentStatus}).` }, { status: 409 });
+    
+    if (job.status !== 'uploaded') {
+        return NextResponse.json({ error: `El trabajo no está en el estado correcto para analizar (estado actual: ${job.status}).` }, { status: 409 });
     }
 
-    // --- INICIO DE LA SIMULACIÓN DEL PIPELINE ---
+    // --- INICIO DEL PIPELINE DE ANÁLISIS ---
 
     // 1. Marcar como procesando
-    await updateJobStatus(jobId, "processing");
-    await new Promise(r => setTimeout(r, 500));
+    await updateComparacionJobStatus(jobId, "processing");
 
-    // 2. Simular análisis de diferencias
-    await updateJobStatus(jobId, "analyzing-diff");
-    await new Promise(r => setTimeout(r, 1000));
-    // En el futuro: const diffResult = await runDiffFlow(...);
+    // 2. Obtener Data URIs de los planos desde Storage
+    if (!job.planoA_storagePath || !job.planoB_storagePath) {
+        throw new Error("Las rutas de los archivos en Storage no están definidas en el job.");
+    }
+    const [planoA_DataUri, planoB_DataUri] = await Promise.all([
+        getPlanoAsDataUri(job.planoA_storagePath),
+        getPlanoAsDataUri(job.planoB_storagePath),
+    ]);
 
-    // 3. Simular análisis de cubicación
-    await updateJobStatus(jobId, "analyzing-cubicacion");
-    await new Promise(r => setTimeout(r, 1000));
-    // En el futuro: const cubicacionResult = await runCubicacionFlow(...);
+    // 3. Ejecutar Flow de Diff Técnico
+    await updateComparacionJobStatus(jobId, "analyzing-diff");
+    const diffResult = await runDiffFlow({ planoA_DataUri, planoB_DataUri });
+    await updateComparacionJob(jobId, { "results.diffTecnico": diffResult });
     
-    // 4. Simular generación de árbol de impactos
-    await updateJobStatus(jobId, "generating-impactos");
-    await new Promise(r => setTimeout(r, 1000));
-    // En el futuro: const impactosResult = await runImpactosFlow(...);
+    // 4. Simular análisis de cubicación
+    await updateComparacionJobStatus(jobId, "analyzing-cubicacion");
+    await new Promise(r => setTimeout(r, 1500)); // Simulación
     
-    // 5. Guardar resultados (placeholder) y marcar como completado
-    await updateJobStatus(jobId, "completed", {
-      results: {
-        diffTecnico: "Placeholder de resultados del diff técnico.",
-        cubicacionDiferencial: "Placeholder de resultados de la cubicación.",
-        arbolImpactos: [],
-      }
-    });
+    // 5. Simular generación de árbol de impactos
+    await updateComparacionJobStatus(jobId, "generating-impactos");
+    await new Promise(r => setTimeout(r, 1500)); // Simulación
+    
+    // 6. Marcar como completado
+    await updateComparacionJobStatus(jobId, "completed");
 
-    // --- FIN DE LA SIMULACIÓN ---
-    
     return NextResponse.json({ jobId, status: "completed" });
 
   } catch (error: any) {
     console.error(`[API /analizar] Error en job ${jobId}:`, error);
     if (jobId) {
         try {
-            await updateJobStatus(jobId, "error", {
+            await updateComparacionJob(jobId, {
+                status: 'error',
                 errorMessage: {
-                    code: "ANALYSIS_PIPELINE_FAILED",
+                    code: error.name || "ANALYSIS_PIPELINE_FAILED",
                     message: error.message,
                 }
             });
