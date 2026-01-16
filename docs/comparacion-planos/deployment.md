@@ -22,9 +22,9 @@ Antes de cualquier despliegue en un entorno compartido (staging o producción), 
 El primer despliegue se realizará en un proyecto de Firebase/Vercel de `staging` que sea una réplica del entorno de producción.
 
 -   **Pruebas de Smoke Obligatorias**:
-    -   **Navegación**: El flujo `Upload` -> `Progreso` -> `Resultados` debe ser navegable, aunque los componentes solo muestren placeholders.
-    -   **API Endpoints**: Cada endpoint (`/upload`, `/analizar`, `/estado/[jobId]`) debe estar desplegado y responder con el `placeholder` definido (ej. `200 OK` con un mensaje simple), sin lógica real.
-    -   **Creación de Job**: Al llamar a la API de `upload` (manualmente o con una UI de prueba), se debe crear un documento vacío en Firestore (`comparacionPlanosJobs/{jobId}`) y una carpeta en Storage (`/comparacion-planos/{jobId}/`), confirmando el aislamiento.
+    -   **Navegación**: El flujo `Upload` -> `Progreso` -> `Resultados` debe ser navegable y los componentes deben renderizarse correctamente.
+    -   **API Endpoints**: Cada endpoint (`/upload`, `/analizar`, `/estado/[jobId]`) debe estar desplegado y responder con el estado esperado (ej. `200 OK` con un `jobId`).
+    -   **Creación de Job**: Al llamar a la API de `upload` (manualmente o con la UI), se debe crear un documento en `comparacionPlanosJobs/{jobId}` y una carpeta en Storage (`/comparacion-planos/{jobId}/`), confirmando el aislamiento.
     -   **Renderizado**: El componente de la tarjeta PREMIUM en el dashboard debe renderizarse correctamente según el flag de la empresa (simulado en staging).
 
 ## 3. Activación Gradual en Producción (Feature Flag)
