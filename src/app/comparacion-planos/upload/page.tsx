@@ -75,17 +75,17 @@ export default function UploadPage() {
     };
     
     if (authLoading) {
-        return <div>Cargando...</div>
+        return <div className="max-w-6xl mx-auto px-4 py-8">Cargando...</div>
     }
 
     if (!hasAccess) {
         return (
-            <div className="max-w-2xl mx-auto text-center space-y-4">
-                 <Button asChild variant="outline" size="sm">
+            <div className="max-w-6xl mx-auto px-4 py-8">
+                <Button asChild variant="outline" size="sm" className="mb-4">
                     <Link href="/dashboard"><ArrowLeft className="mr-2 h-4 w-4" />Volver al Dashboard</Link>
                 </Button>
-                <Card>
-                    <CardHeader className="items-center">
+                <Card className="max-w-2xl mx-auto">
+                    <CardHeader className="items-center text-center">
                         <ShieldAlert className="h-12 w-12 text-destructive"/>
                         <CardTitle>Acceso Denegado</CardTitle>
                         <CardDescription>
@@ -98,19 +98,26 @@ export default function UploadPage() {
     }
 
     return (
-        <div className="max-w-2xl mx-auto space-y-6">
-            <Button asChild variant="outline" size="sm">
-              <Link href="/dashboard">
-                <ArrowLeft className="mr-2 h-4 w-4" />
-                Volver al Dashboard
-              </Link>
-            </Button>
+        <div className="max-w-2xl mx-auto px-4 py-8 space-y-8">
+            <header className="space-y-2">
+                 <Button asChild variant="outline" size="sm">
+                  <Link href="/dashboard">
+                    <ArrowLeft className="mr-2 h-4 w-4" />
+                    Volver al Dashboard
+                  </Link>
+                </Button>
+                 <h1 className="text-3xl font-semibold text-gray-900">Comparación de Planos con IA</h1>
+                 <p className="text-muted-foreground">
+                    Sube dos versiones de un mismo plano (original y modificado) para que la IA detecte las diferencias,
+                    analice el impacto en la cubicación y evalúe las consecuencias en las distintas especialidades.
+                </p>
+            </header>
+
             <Card>
                 <CardHeader>
-                    <CardTitle>Comparación de Planos con IA</CardTitle>
+                    <CardTitle>Cargar Planos</CardTitle>
                     <CardDescription>
-                        Sube dos versiones de un mismo plano (original y modificado) para que la IA detecte las diferencias,
-                        analice el impacto en la cubicación y evalúe las consecuencias en las distintas especialidades.
+                       Selecciona la versión original (Plano A) y la versión modificada (Plano B). Los archivos pueden ser PDF, JPG o PNG.
                     </CardDescription>
                 </CardHeader>
                 <CardContent>

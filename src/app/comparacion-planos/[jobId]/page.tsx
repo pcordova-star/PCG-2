@@ -4,7 +4,7 @@
 import { useEffect, useState, useMemo } from 'react';
 import AnalisisProgreso from '@/components/comparacion-planos/AnalisisProgreso';
 import { Button } from '@/components/ui/button';
-import { Loader2, ShieldAlert } from 'lucide-react';
+import { Loader2, ShieldAlert, ArrowLeft } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/context/AuthContext';
@@ -99,30 +99,42 @@ export default function ProgresoPage({ params }: { params: { jobId: string } }) 
         }
     };
     
-    if (authLoading) return <Loader2 className="animate-spin" />;
+    if (authLoading) return <div className="max-w-6xl mx-auto px-4 py-8 text-center"><Loader2 className="animate-spin" /></div>;
 
     if (!hasAccess) {
         return (
-             <div className="max-w-2xl mx-auto text-center space-y-4">
-                <Card>
-                    <CardHeader className="items-center"><ShieldAlert className="h-12 w-12 text-destructive"/><CardTitle>Acceso Denegado</CardTitle><CardDescription>No tienes permisos para acceder a este módulo.</CardDescription></CardHeader>
-                    <CardContent><Button asChild variant="outline"><Link href="/dashboard">Volver al Dashboard</Link></Button></CardContent>
+             <div className="max-w-6xl mx-auto px-4 py-8">
+                <Card className="max-w-2xl mx-auto">
+                    <CardHeader className="items-center text-center"><ShieldAlert className="h-12 w-12 text-destructive"/><CardTitle>Acceso Denegado</CardTitle><CardDescription>No tienes permisos para acceder a este módulo.</CardDescription></CardHeader>
+                    <CardContent className="text-center"><Button asChild variant="outline"><Link href="/dashboard">Volver al Dashboard</Link></Button></CardContent>
                 </Card>
             </div>
         );
     }
 
     return (
-        <div className="max-w-2xl mx-auto text-center space-y-6">
-            <h1 className="text-2xl font-bold">Análisis de Planos en Progreso</h1>
-            <p className="text-muted-foreground">Tu solicitud está siendo procesada. Puedes ver el estado del análisis a continuación.</p>
+        <div className="max-w-2xl mx-auto px-4 py-8 space-y-8 text-center">
+            <header className="space-y-2">
+                 <Button asChild variant="outline" size="sm" className="mb-4">
+                  <Link href="/comparacion-planos/upload">
+                    <ArrowLeft className="mr-2 h-4 w-4" />
+                    Subir otros planos
+                  </Link>
+                </Button>
+                <h1 className="text-3xl font-semibold text-gray-900">Análisis de Planos en Progreso</h1>
+                <p className="text-muted-foreground">Tu solicitud está siendo procesada. Puedes ver el estado del análisis a continuación.</p>
+            </header>
             
-            <div className="p-4 border rounded-lg bg-card">
+            <Card className="p-6">
                  <h2 className="text-lg font-semibold">Job ID:</h2>
                  <p className="font-mono text-sm text-muted-foreground mb-4">{params.jobId}</p>
                 <div className="flex items-center justify-center gap-4">
                     {error ? (
-                        <p className="text-destructive font-semibold">{error}</p>
+                        <div className="text-destructive font-semibold flex flex-col items-center gap-2">
+                            <AlertTriangle className="h-8 w-8"/>
+                            <p>Error en el análisis</p>
+                            <p className="text-xs font-normal">{error}</p>
+                        </div>
                     ) : !status ? (
                         <div className="flex items-center gap-2 text-muted-foreground">
                             <Loader2 className="animate-spin" />
@@ -135,17 +147,15 @@ export default function ProgresoPage({ params }: { params: { jobId: string } }) 
                         </div>
                     )}
                 </div>
-            </div>
+            </Card>
             
             {status === 'uploaded' && !isAnalysisTriggered && (
                  <Button onClick={iniciarAnalisis}>
-                    Iniciar Análisis (simulado)
+                    Iniciar Análisis
                 </Button>
             )}
 
             <AnalisisProgreso />
-            
-             <Button variant="outline" onClick={() => router.back()}>Volver</Button>
         </div>
     );
 }
