@@ -31,12 +31,12 @@ export default function ProgresoPage({ params }: { params: { jobId: string } }) 
                 const data = await response.json();
                 setStatus(data.status);
                 
-                if (data.status === 'completed' || data.status === 'error') {
+                if (data.status === 'completed') {
                    if (interval) clearInterval(interval);
-                   // Futuro: si el estado es 'completed', navegar a la página de resultados.
-                   // if (data.status === 'completed') {
-                   //   router.push(`/comparacion-planos/${params.jobId}/resultado`);
-                   // }
+                   router.push(`/comparacion-planos/${params.jobId}/resultado`);
+                } else if (data.status === 'error') {
+                   if (interval) clearInterval(interval);
+                   setError("El análisis falló. Revisa los logs del servidor para más detalles.");
                 }
 
             } catch (err: any) {
@@ -46,13 +46,15 @@ export default function ProgresoPage({ params }: { params: { jobId: string } }) 
             }
         };
 
-        // Start polling
-        fetchEstado(); // Initial call
-        interval = setInterval(fetchEstado, 3000);
+        // Start polling if not completed or errored
+        if (status !== 'completed' && status !== 'error') {
+            fetchEstado(); // Initial call
+            interval = setInterval(fetchEstado, 3000);
+        }
 
         // Cleanup interval on component unmount
         return () => clearInterval(interval);
-    }, [params.jobId, router]);
+    }, [params.jobId, router, status]);
 
     const iniciarAnalisis = async () => {
         setIsAnalysisTriggered(true);
@@ -72,7 +74,6 @@ export default function ProgresoPage({ params }: { params: { jobId: string } }) 
             }
             
             // Polling will update the status. We just show that it was triggered.
-            // No need to do anything with the response here.
 
         } catch (err: any) {
              toast({ variant: 'destructive', title: 'Error', description: err.message });

@@ -1,62 +1,43 @@
 // src/components/comparacion-planos/ResumenEjecutivo.tsx
-// Placeholder para el resumen ejecutivo del análisis de comparación.
+import { ComparacionPlanosOutput } from "@/types/comparacion-planos";
 
-import { Badge } from "@/components/ui/badge";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { AlertTriangle, FileDiff, List, Network } from "lucide-react";
+interface Props {
+  data: ComparacionPlanosOutput;
+}
 
-export default function ResumenEjecutivo() {
+export default function ResumenEjecutivo({ data }: Props) {
+  if (!data) return null;
+
+  const { diffTecnico, cubicacionDiferencial, arbolImpactos } = data;
+
   return (
-    <Card className="mb-6 border-l-4 border-primary bg-primary/5">
-      <CardHeader>
-        <CardTitle className="text-xl font-bold">Resumen Ejecutivo del Análisis</CardTitle>
-      </CardHeader>
-      <CardContent className="space-y-6">
-        {/* Indicadores Clave */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-center">
-          <div className="p-3 bg-card rounded-lg border">
-            <p className="text-xs text-muted-foreground">Cambios Detectados</p>
-            <p className="text-2xl font-bold">12</p>
-          </div>
-          <div className="p-3 bg-card rounded-lg border">
-            <p className="text-xs text-muted-foreground">Especialidades Afectadas</p>
-            <p className="text-2xl font-bold">4</p>
-          </div>
-          <div className="p-3 bg-card rounded-lg border">
-            <p className="text-xs text-muted-foreground">Severidad Global</p>
-            <Badge variant="destructive" className="text-lg mt-2">Alta</Badge>
-          </div>
-          <div className="p-3 bg-card rounded-lg border">
-            <p className="text-xs text-muted-foreground">Riesgo Principal</p>
-            <p className="text-lg font-semibold text-destructive mt-1">Sobrecosto</p>
-          </div>
-        </div>
+    <div>
+      <h2>Resumen Ejecutivo del Análisis</h2>
+      <div>Cambios detectados: {diffTecnico?.elementos?.length || 0}</div>
+      <div>Partidas modificadas: {cubicacionDiferencial?.partidas?.length || 0}</div>
+      <div>Especialidades afectadas: {arbolImpactos?.impactos?.length || 0}</div>
+      <div>Severidad global: … (placeholder)</div>
 
-        {/* Resúmenes por Sección */}
-        <div className="space-y-4">
-          <div className="flex items-start gap-3">
-            <FileDiff className="h-5 w-5 text-muted-foreground mt-1" />
-            <div>
-              <h4 className="font-semibold">Resumen Diff Técnico</h4>
-              <p className="text-sm text-muted-foreground">Se detectaron 5 elementos modificados, 3 agregados y 4 eliminados, principalmente en tabiquería y vanos.</p>
-            </div>
-          </div>
-          <div className="flex items-start gap-3">
-            <List className="h-5 w-5 text-muted-foreground mt-1" />
-            <div>
-              <h4 className="font-semibold">Resumen Cubicación Diferencial</h4>
-              <p className="text-sm text-muted-foreground">Variación significativa en m² de tabiquería (+15 m²) y una reducción en unidades de ventanas (-2 un).</p>
-            </div>
-          </div>
-          <div className="flex items-start gap-3">
-            <Network className="h-5 w-5 text-muted-foreground mt-1" />
-            <div>
-              <h4 className="font-semibold">Resumen Árbol de Impactos</h4>
-              <p className="text-sm text-muted-foreground">El desplazamiento de un muro en arquitectura genera un impacto de alta severidad en la estructura y requiere una revisión completa del trazado eléctrico.</p>
-            </div>
-          </div>
-        </div>
-      </CardContent>
-    </Card>
+      <hr className="my-4" />
+
+      <div>
+        <h3>Resumen Diff Técnico</h3>
+        <p>{diffTecnico?.resumen || "No disponible."}</p>
+      </div>
+
+      <hr className="my-4" />
+
+      <div>
+        <h3>Resumen Cubicación Diferencial</h3>
+        <p>{cubicacionDiferencial?.resumen || "No disponible."}</p>
+      </div>
+
+      <hr className="my-4" />
+
+      <div>
+        <h3>Resumen Árbol de Impactos</h3>
+        <p>El análisis de impacto identificó {arbolImpactos?.impactos?.length || 0} cadenas de impacto principales.</p>
+      </div>
+    </div>
   );
 }

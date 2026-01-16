@@ -1,10 +1,19 @@
 // src/components/comparacion-planos/ResultadoArbolImpactos.tsx
-// Placeholder para mostrar el árbol de impactos
-export default function ResultadoArbolImpactos() {
+import { ArbolImpactosOutput } from "@/types/comparacion-planos";
+
+interface Props {
+  data: ArbolImpactosOutput;
+}
+
+export default function ResultadoArbolImpactos({ data }: Props) {
+  if (!data) return <div>No hay datos de árbol de impactos.</div>;
+
   return (
     <div>
       <h2>Árbol de Impactos</h2>
-      <div>Árbol de especialidades…</div>
+      <pre className="bg-slate-100 p-4 rounded-md text-xs whitespace-pre-wrap">
+        {JSON.stringify(data, null, 2)}
+      </pre>
     </div>
   );
 }
