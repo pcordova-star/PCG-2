@@ -2,6 +2,10 @@
 
 import { z } from 'zod';
 import { Timestamp } from 'firebase/firestore';
+import { ComparacionPlanosFSM } from '@/lib/comparacion-planos/fsm';
+
+// Export the status type from the FSM definition
+export type ComparacionJobStatus = (typeof ComparacionPlanosFSM.validStatuses)[number];
 
 // Esquema de entrada para el flujo de IA.
 export const ComparacionPlanosInputSchema = z.object({
@@ -50,24 +54,13 @@ export type ComparacionPlanosOutput = z.infer<typeof ComparacionPlanosOutputSche
 
 // --- Tipos para el Job Asíncrono ---
 
-export type ComparacionJobStatus =
-  | 'pending'
-  | 'uploading'
-  | 'uploaded'
-  | 'processing'
-  | 'analyzing-diff'
-  | 'analyzing-cubicacion'
-  | 'generating-impactos'
-  | 'completed'
-  | 'error';
-
 export interface ComparacionPlanosJob {
     id?: string;
     jobId: string;
     empresaId: string;
     userId: string;
-    createdAt: Timestamp; 
-    updatedAt: Timestamp; 
+    createdAt: Timestamp;
+    updatedAt: Timestamp;
     status: ComparacionJobStatus;
     planoA_storagePath?: string;
     planoB_storagePath?: string;
