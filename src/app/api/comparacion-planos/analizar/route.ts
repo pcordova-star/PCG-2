@@ -4,7 +4,10 @@ import { getComparacionJob, updateComparacionJob, updateComparacionJobStatus } f
 import { getPlanoAsDataUri } from '@/lib/comparacion-planos/storage';
 import { runDiffFlow } from '@/ai/comparacion-planos/flows/flowDiff';
 import { runCubicacionFlow } from '@/ai/comparacion-planos/flows/flowCubicacion';
-import { runImpactosFlow } from '@/ai/comparacion-planos/flows/flowImpactos'; // Importar el nuevo flow
+import { runImpactosFlow } from '@/ai/comparacion-planos/flows/flowImpactos';
+import { getAuth } from 'firebase-admin/auth';
+import { headers } from 'next/headers';
+import { canUseComparacionPlanos } from '@/lib/comparacion-planos/permissions';
 
 export const runtime = 'nodejs';
 export const maxDuration = 180; // Aumentar timeout a 3 minutos
@@ -12,6 +15,21 @@ export const maxDuration = 180; // Aumentar timeout a 3 minutos
 export async function POST(req: Request) {
   let jobId: string | null = null;
   try {
+    const authorization = headers().get("Authorization");
+    if (!authorization?.startsWith("Bearer ")) {
+      return NextResponse.json({ error: 'No autorizado: Token no proporcionado.' }, { status: 401 });
+    }
+    const token = authorization.split("Bearer ")[1];
+    const decodedToken = await getAuth().verifyIdToken(token);
+    const userId = decodedToken.uid;
+
+    // --- Permission Check ---
+    const hasAccess = await canUseComparacionPlanos(userId);
+    if (!hasAccess) {
+        return NextResponse.json({ error: 'Acceso denegado a este módulo.' }, { status: 403 });
+    }
+    // --- End Permission Check ---
+
     const body = await req.json();
     jobId = body.jobId;
 
@@ -29,10 +47,8 @@ export async function POST(req: Request) {
         return NextResponse.json({ error: `El trabajo no está en el estado correcto para analizar (estado actual: ${job.status}).` }, { status: 409 });
     }
 
-    // --- INICIO DEL PIPELINE DE ANÁLISIS ---
     await updateComparacionJobStatus(jobId, "processing");
 
-    // 2. Obtener Data URIs de los planos desde Storage
     if (!job.planoA_storagePath || !job.planoB_storagePath) {
         throw new Error("Las rutas de los archivos en Storage no están definidas en el job.");
     }
@@ -44,7 +60,6 @@ export async function POST(req: Request) {
     
     const results: any = {};
 
-    // --- Etapa 1: Diff Técnico ---
     try {
         await updateComparacionJobStatus(jobId, "analyzing-diff");
         results.diffTecnico = await runDiffFlow(flowInput);
@@ -52,7 +67,6 @@ export async function POST(req: Request) {
         throw new Error(`IA_DIFF_FAILED: ${(err as Error).message}`);
     }
     
-    // --- Etapa 2: Cubicación Diferencial ---
     try {
         await updateComparacionJobStatus(jobId, "analyzing-cubicacion");
         results.cubicacionDiferencial = await runCubicacionFlow(flowInput);
@@ -60,7 +74,6 @@ export async function POST(req: Request) {
         throw new Error(`IA_CUBICACION_FAILED: ${(err as Error).message}`);
     }
 
-    // --- Etapa 3: Árbol de Impactos ---
     try {
         await updateComparacionJobStatus(jobId, "generating-impactos");
         results.arbolImpactos = await runImpactosFlow({
@@ -72,7 +85,6 @@ export async function POST(req: Request) {
         throw new Error(`IA_IMPACTOS_FAILED: ${(err as Error).message}`);
     }
     
-    // 6. Consolidar y marcar como completado
     await updateComparacionJob(jobId, {
       status: 'completed',
       results,
