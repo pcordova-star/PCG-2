@@ -4,6 +4,9 @@ import UploadPlanesForm from "@/components/comparacion-planos/UploadPlanesForm";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { useRouter } from "next/navigation";
 import { useState } from 'react';
+import { Button } from "@/components/ui/button";
+import Link from "next/link";
+import { ArrowLeft } from "lucide-react";
 
 export default function UploadPage() {
     const router = useRouter();
@@ -30,7 +33,13 @@ export default function UploadPage() {
     };
     
     return (
-        <div className="max-w-2xl mx-auto">
+        <div className="max-w-2xl mx-auto space-y-6">
+            <Button asChild variant="outline" size="sm">
+              <Link href="/dashboard">
+                <ArrowLeft className="mr-2 h-4 w-4" />
+                Volver al Dashboard
+              </Link>
+            </Button>
             <Card>
                 <CardHeader>
                     <CardTitle>Comparación de Planos con IA</CardTitle>
