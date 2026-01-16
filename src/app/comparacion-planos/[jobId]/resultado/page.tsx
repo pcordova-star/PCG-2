@@ -6,7 +6,7 @@ import ResumenEjecutivo from "@/components/comparacion-planos/ResumenEjecutivo";
 import ResultadoArbolImpactos from "@/components/comparacion-planos/ResultadoArbolImpactos";
 import ResultadoCubicacion from "@/components/comparacion-planos/ResultadoCubicacion";
 import ResultadoDiffTecnico from "@/components/comparacion-planos/ResultadoDiffTecnico";
-import { Loader2, ShieldAlert } from 'lucide-react';
+import { Loader2, ShieldAlert, ArrowLeft, Download, FileText, RefreshCw } from 'lucide-react';
 import { ComparacionPlanosOutput, ComparacionError } from '@/types/comparacion-planos';
 import { useAuth } from '@/context/AuthContext';
 import { useRouter } from 'next/navigation';
@@ -37,7 +37,10 @@ export default function ResultadoPage({ params }: { params: { jobId: string } })
     }, [company, role, authLoading]);
     
     useEffect(() => {
-        if (!user || !hasAccess) return;
+        if (!user || !hasAccess) {
+            if(!authLoading) setLoading(false);
+            return;
+        };
 
         const fetchJobData = async () => {
             try {
@@ -58,7 +61,7 @@ export default function ResultadoPage({ params }: { params: { jobId: string } })
             }
         };
         fetchJobData();
-    }, [params.jobId, user, hasAccess]);
+    }, [params.jobId, user, hasAccess, authLoading]);
 
     if (loading || authLoading) {
         return (
@@ -71,36 +74,38 @@ export default function ResultadoPage({ params }: { params: { jobId: string } })
     
     if (!hasAccess) {
         return (
-             <div className="max-w-2xl mx-auto text-center space-y-4">
-                <Card>
-                    <CardHeader className="items-center"><ShieldAlert className="h-12 w-12 text-destructive"/><CardTitle>Acceso Denegado</CardTitle><CardDescription>No tienes permisos para acceder a este módulo.</CardDescription></CardHeader>
-                    <CardContent><Button asChild variant="outline"><Link href="/dashboard">Volver al Dashboard</Link></Button></CardContent>
+             <div className="max-w-6xl mx-auto px-4 py-8">
+                <Card className="max-w-2xl mx-auto">
+                    <CardHeader className="items-center text-center"><ShieldAlert className="h-12 w-12 text-destructive"/><CardTitle>Acceso Denegado</CardTitle><CardDescription>No tienes permisos para acceder a este módulo.</CardDescription></CardHeader>
+                    <CardContent className="text-center"><Button asChild variant="outline"><Link href="/dashboard">Volver al Dashboard</Link></Button></CardContent>
                 </Card>
             </div>
         );
     }
 
     if (error) {
-        return <div className="text-center p-8 text-destructive bg-destructive/10 rounded-md">{error}</div>;
+        return <div className="max-w-6xl mx-auto px-4 py-8 text-center p-8 text-destructive bg-destructive/10 rounded-md">{error}</div>;
     }
 
     if (!jobData || !jobData.status) {
-         return <div className="text-center p-8 text-muted-foreground">No se encontraron datos para este trabajo.</div>;
+         return <div className="max-w-6xl mx-auto px-4 py-8 text-center p-8 text-muted-foreground">No se encontraron datos para este trabajo.</div>;
     }
 
     if (jobData.status !== 'completed') {
         return (
-            <div className="flex flex-col items-center justify-center min-h-[300px]">
-                <Loader2 className="h-8 w-8 animate-spin text-primary" />
-                <p className="mt-4 text-muted-foreground">El análisis está en progreso. Estado actual: <span className="font-bold">{jobData.status}</span></p>
-                <p className="text-xs mt-2">La página se actualizará automáticamente cuando finalice.</p>
+            <div className="max-w-6xl mx-auto px-4 py-8">
+                <div className="flex flex-col items-center justify-center min-h-[300px]">
+                    <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                    <p className="mt-4 text-muted-foreground">El análisis está en progreso. Estado actual: <span className="font-bold">{jobData.status}</span></p>
+                    <p className="text-xs mt-2">La página se actualizará automáticamente cuando finalice.</p>
+                </div>
             </div>
         );
     }
     
      if (jobData.status === 'error' && jobData.errorMessage) {
         return (
-             <div className="text-center p-8 text-destructive bg-destructive/10 rounded-md">
+             <div className="max-w-6xl mx-auto px-4 py-8 text-center p-8 text-destructive bg-destructive/10 rounded-md">
                 <h3 className="font-bold text-lg">Error en el Análisis</h3>
                 <p className="mt-2">{jobData.errorMessage.message}</p>
                 <p className="font-mono text-xs mt-1">Código: {jobData.errorMessage.code}</p>
@@ -109,16 +114,39 @@ export default function ResultadoPage({ params }: { params: { jobId: string } })
     }
 
     if (!jobData.results) {
-         return <div className="text-center p-8 text-muted-foreground">El análisis finalizó pero no se encontraron resultados.</div>;
+         return <div className="max-w-6xl mx-auto px-4 py-8 text-center p-8 text-muted-foreground">El análisis finalizó pero no se encontraron resultados.</div>;
     }
 
+    const handleDownloadJson = () => {
+        const jsonString = `data:text/json;charset=utf-8,${encodeURIComponent(
+            JSON.stringify(jobData.results, null, 2)
+        )}`;
+        const link = document.createElement("a");
+        link.href = jsonString;
+        link.download = `analisis_comparacion_${params.jobId}.json`;
+        link.click();
+    };
+
     return (
-        <div className="space-y-8">
-            <h1 className="text-3xl font-bold">Resultados del análisis para Job: <span className="font-mono text-2xl text-primary">{params.jobId}</span></h1>
-            
+        <div className="max-w-7xl mx-auto px-4 py-8 space-y-8">
+            <header className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+                <div>
+                    <Button variant="outline" size="sm" asChild className="mb-4">
+                        <Link href="/dashboard"><ArrowLeft className="mr-2"/>Volver al Dashboard</Link>
+                    </Button>
+                    <h1 className="text-3xl font-semibold text-gray-900">Resultados del Análisis</h1>
+                    <p className="text-muted-foreground font-mono text-sm mt-1">Job ID: {params.jobId}</p>
+                </div>
+                 <div className="flex flex-wrap gap-2">
+                    <Button variant="outline" onClick={handleDownloadJson}><Download className="mr-2"/>Descargar JSON</Button>
+                    <Button variant="outline" disabled><FileText className="mr-2"/>Descargar PDF (Próximamente)</Button>
+                    <Button variant="secondary" disabled><RefreshCw className="mr-2"/>Re-analizar</Button>
+                </div>
+            </header>
+
             <ResumenEjecutivo data={jobData.results} />
             
-            <div className="space-y-6">
+            <div className="space-y-8">
                 <ResultadoDiffTecnico data={jobData.results.diffTecnico} />
                 <ResultadoCubicacion data={jobData.results.cubicacionDiferencial} />
                 <ResultadoArbolImpactos data={jobData.results.arbolImpactos} />
