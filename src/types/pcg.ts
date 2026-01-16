@@ -1,4 +1,3 @@
-
 // src/types/pcg.ts
 
 import { Timestamp } from "firebase/firestore";
@@ -23,7 +22,7 @@ export interface Company {
   activa: boolean;
   feature_compliance_module_enabled?: boolean;
   feature_plan_analysis_enabled?: boolean;
-  feature_plan_comparison_enabled?: boolean; // Nuevo flag
+  feature_plan_comparison_enabled?: boolean;
   feature_risk_prevention_enabled?: boolean;
   feature_operational_checklists_enabled?: boolean;
   feature_document_control_enabled?: boolean;

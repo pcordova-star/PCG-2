@@ -4,7 +4,7 @@
 import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { ArrowLeft, GitCompareArrows, Loader2, FileCheck2, CheckCircle, AlertTriangle } from 'lucide-react';
+import { ArrowLeft, GitCompareArrows, Loader2, FileCheck2, CheckCircle, AlertTriangle, ShieldAlert } from 'lucide-react';
 import { UploaderPlano } from '@/components/comparacion/UploaderPlano';
 import { ComparacionJobStatus } from '@/types/comparacion-planos';
 import { useToast } from '@/hooks/use-toast';
@@ -27,7 +27,7 @@ const statusDescriptions: Record<ComparacionJobStatus, string> = {
 export default function ComparacionPlanosPage() {
   const router = useRouter();
   const { toast } = useToast();
-  const { user } = useAuth(); // Obtener el usuario autenticado
+  const { user, company, loading: authLoading } = useAuth(); // Obtener el usuario autenticado
 
   const [planoA, setPlanoA] = useState<File | null>(null);
   const [planoB, setPlanoB] = useState<File | null>(null);
@@ -130,6 +130,28 @@ export default function ComparacionPlanosPage() {
     };
     return progressMap[jobStatus] || 0;
   };
+  
+  if (authLoading) {
+      return (
+        <div className="flex h-64 items-center justify-center">
+            <Loader2 className="h-8 w-8 animate-spin" />
+        </div>
+      );
+  }
+
+  if (!company?.feature_plan_comparison_enabled) {
+      return (
+         <Card className="max-w-2xl mx-auto mt-10">
+          <CardHeader className="text-center">
+            <ShieldAlert className="mx-auto h-12 w-12 text-destructive"/>
+            <CardTitle className="mt-2 text-2xl">Acceso Denegado</CardTitle>
+            <CardDescription className="text-base">
+              Este módulo no está habilitado para tu empresa. Contacta al administrador para solicitar su activación.
+            </CardDescription>
+          </CardHeader>
+        </Card>
+      );
+  }
 
   return (
     <div className="space-y-6">
