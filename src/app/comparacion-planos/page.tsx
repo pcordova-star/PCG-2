@@ -1,5 +1,7 @@
 // src/app/comparacion-planos/page.tsx
-// Pantalla inicial del módulo de Comparación de Planos
+import { redirect } from 'next/navigation';
+
+// Redirige a la página de subida de planos, que actúa como la página principal del módulo.
 export default function ComparacionPlanosPage() {
-  return <div>Página Principal de Comparación de Planos</div>;
+  redirect('/comparacion-planos/upload');
 }
