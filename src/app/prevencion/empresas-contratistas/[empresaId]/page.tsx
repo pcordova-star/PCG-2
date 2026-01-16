@@ -1,8 +1,8 @@
 // Esta página muestra la ficha detallada de una empresa contratista.
 // Es una Server Component que carga los datos iniciales.
 
-import { doc, getDoc, Timestamp } from 'firebase/firestore';
-import { firebaseDb } from '@/lib/firebaseClient';
+import { getAdminApp } from '@/server/firebaseAdmin';
+import { Timestamp } from 'firebase-admin/firestore';
 import FichaContent from './FichaContent';
 import { EmpresaContratista } from '../page';
 import { notFound } from 'next/navigation';
@@ -25,15 +25,17 @@ async function getEmpresaData(empresaId: string): Promise<{ empresa: Serializabl
     if (!empresaId) return null;
 
     try {
-        // Cargar datos de la empresa
-        const empresaRef = doc(firebaseDb, 'empresasContratistas', empresaId);
-        const empresaSnap = await getDoc(empresaRef);
+        const db = getAdminApp().firestore();
 
-        if (!empresaSnap.exists()) {
+        // Cargar datos de la empresa
+        const empresaRef = db.collection('empresasContratistas').doc(empresaId);
+        const empresaSnap = await empresaRef.get();
+
+        if (!empresaSnap.exists) {
             return null;
         }
 
-        const empresaRawData = empresaSnap.data();
+        const empresaRawData = empresaSnap.data()!;
         // Serialize Firestore Timestamp to string
         const empresaData: SerializableEmpresaContratista = {
             id: empresaSnap.id,
@@ -45,14 +47,14 @@ async function getEmpresaData(empresaId: string): Promise<{ empresa: Serializabl
 
 
         // Cargar datos de la obra asociada
-        const obraRef = doc(firebaseDb, 'obras', empresaData.obraId);
-        const obraSnap = await getDoc(obraRef);
+        const obraRef = db.collection('obras').doc(empresaData.obraId);
+        const obraSnap = await obraRef.get();
 
         if (!obraSnap.exists()) {
             throw new Error(`La obra con ID ${empresaData.obraId} no fue encontrada.`);
         }
 
-        const obraRawData = obraSnap.data();
+        const obraRawData = obraSnap.data()!;
         const obraData: Obra = {
             id: obraSnap.id,
             ...obraRawData,

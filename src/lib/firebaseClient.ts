@@ -1,9 +1,9 @@
 // src/lib/firebaseClient.ts
-import { initializeApp, getApps, getApp, FirebaseOptions } from "firebase/app";
-import { getAuth } from "firebase/auth";
-import { getFirestore } from "firebase/firestore";
-import { getStorage } from "firebase/storage";
-import { getFunctions } from "firebase/functions";
+import { initializeApp, getApps, getApp, FirebaseApp, FirebaseOptions } from "firebase/app";
+import { getAuth, Auth } from "firebase/auth";
+import { getFirestore, Firestore } from "firebase/firestore";
+import { getStorage, FirebaseStorage } from "firebase/storage";
+import { getFunctions, Functions } from "firebase/functions";
 
 // Definimos la estructura esperada de las variables de entorno
 const firebaseConfig: FirebaseOptions = {
@@ -15,26 +15,40 @@ const firebaseConfig: FirebaseOptions = {
   appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID,
 };
 
-// Bucle de validación para asegurar que todas las variables requeridas están presentes.
-for (const key in firebaseConfig) {
-  if (Object.prototype.hasOwnProperty.call(firebaseConfig, key)) {
-    const typedKey = key as keyof FirebaseOptions;
-    if (!firebaseConfig[typedKey]) {
-      const envVarKey = typedKey.replace(/([A-Z])/g, '_$1').toUpperCase();
-      const fullEnvVarName = `NEXT_PUBLIC_FIREBASE_${envVarKey}`;
-      
-      throw new Error(
-        `Error de configuración: La variable de entorno Firebase '${fullEnvVarName}' no está definida o está vacía. ` +
-        `Por favor, defínala en su archivo .env o en la configuración de su entorno de producción.`
-      );
+let app: FirebaseApp;
+let firebaseAuth: Auth;
+let firebaseDb: Firestore;
+let firebaseStorage: FirebaseStorage;
+let firebaseFunctions: Functions;
+
+// Solo inicializar en el cliente (entorno del navegador)
+if (typeof window !== 'undefined') {
+  
+  // Validar que todas las variables de entorno requeridas están presentes en el cliente.
+  for (const key in firebaseConfig) {
+    if (Object.prototype.hasOwnProperty.call(firebaseConfig, key)) {
+      const typedKey = key as keyof FirebaseOptions;
+      if (!firebaseConfig[typedKey]) {
+        // Formatear el nombre de la variable para el mensaje de error
+        const envVarKey = key.replace(/([A-Z])/g, '_$1').toUpperCase();
+        const fullEnvVarName = `NEXT_PUBLIC_FIREBASE_${envVarKey}`;
+        
+        throw new Error(
+          `Error de configuración del cliente: La variable de entorno Firebase '${fullEnvVarName}' no está definida o está vacía. ` +
+          `Asegúrate de que esté configurada en tu archivo .env.local o en las variables de entorno de producción.`
+        );
+      }
     }
   }
+
+  // Evita la reinicialización en el lado del cliente con HMR de Next.js
+  app = getApps().length ? getApp() : initializeApp(firebaseConfig);
+
+  firebaseAuth = getAuth(app);
+  firebaseDb = getFirestore(app);
+  firebaseStorage = getStorage(app);
+  firebaseFunctions = getFunctions(app, "southamerica-west1");
 }
 
-// Evita la reinicialización en el lado del cliente con HMR de Next.js
-const app = getApps().length ? getApp() : initializeApp(firebaseConfig);
-
-export const firebaseAuth = getAuth(app);
-export const firebaseDb = getFirestore(app);
-export const firebaseStorage = getStorage(app);
-export const firebaseFunctions = getFunctions(app, "southamerica-west1");
+// Exporta las instancias que serán undefined en el servidor pero estarán disponibles en el cliente.
+export { firebaseAuth, firebaseDb, firebaseStorage, firebaseFunctions };
