@@ -17,23 +17,12 @@ export function getAdminApp(): typeof admin {
   }
 
   // Si no hay app, la inicializamos.
-  const serviceAccountJson = process.env.FIREBASE_SERVICE_ACCOUNT;
-
-  if (!serviceAccountJson) {
-    throw new Error(
-      "La variable de entorno FIREBASE_SERVICE_ACCOUNT no está definida. No se puede inicializar Firebase Admin."
-    );
-  }
-
+  // Esta versión simplificada confía en las credenciales por defecto de la aplicación (ADC),
+  // que es la forma recomendada en entornos como Vercel o Google Cloud.
   try {
-    const serviceAccount = JSON.parse(serviceAccountJson);
-
-    admin.initializeApp({
-      credential: admin.credential.cert(serviceAccount),
-    });
-
+    admin.initializeApp();
   } catch (error: any) {
-    throw new Error(`Error al parsear FIREBASE_SERVICE_ACCOUNT o al inicializar Firebase Admin: ${error.message}`);
+    throw new Error(`Error al inicializar Firebase Admin: ${error.message}`);
   }
 
   return admin;
