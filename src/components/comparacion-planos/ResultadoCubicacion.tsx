@@ -1,10 +1,23 @@
 // src/components/comparacion-planos/ResultadoCubicacion.tsx
-// Placeholder para mostrar la cubicación diferencial
-export default function ResultadoCubicacion() {
+import { CubicacionDiferencialOutput } from "@/types/comparacion-planos";
+
+interface Props {
+  data: CubicacionDiferencialOutput;
+}
+
+export default function ResultadoCubicacion({ data }: Props) {
+   if (!data) return <div>No hay datos de cubicación diferencial.</div>;
+
   return (
     <div>
       <h2>Cubicación Diferencial</h2>
-      <div>Listado de partidas…</div>
+      <ul className="list-disc pl-5">
+        {data.partidas.map((p, i) => (
+          <li key={i}>
+            {p.partida}: {p.diferencia.toLocaleString('es-CL')} {p.unidad}
+          </li>
+        ))}
+      </ul>
     </div>
   );
 }
