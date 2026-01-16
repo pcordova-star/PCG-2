@@ -61,12 +61,13 @@ export async function POST(req: Request) {
             planoBFile.arrayBuffer().then(b => Buffer.from(b)),
         ]);
         
+        // Ahora siempre guardamos como .jpg porque la conversión ocurre en el cliente
         const pathA = `comparacion-planos/${jobId}/A.jpg`;
         const pathB = `comparacion-planos/${jobId}/B.jpg`;
 
         await Promise.all([
-            storage.file(pathA).save(bufferA, { contentType: planoAFile.type }),
-            storage.file(pathB).save(bufferB, { contentType: planoBFile.type }),
+            storage.file(pathA).save(bufferA, { contentType: 'image/jpeg' }),
+            storage.file(pathB).save(bufferB, { contentType: 'image/jpeg' }),
         ]);
 
         await jobRef.update({
