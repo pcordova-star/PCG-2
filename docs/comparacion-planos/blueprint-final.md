@@ -167,4 +167,3 @@ Permitir a los usuarios comparar dos versiones de un plano (A y B) para detectar
 -   **Staging:** Despliegue inicial en un entorno de pruebas réplica de producción para validación E2E con mocks.
 -   **Activación Gradual:** Uso del feature flag `feature_plan_comparison_enabled` para activar el módulo primero a nivel interno y luego por cliente.
 -   **Rollback Seguro:** Gracias al aislamiento, el rollback se simplifica a revertir los commits del módulo, sin necesidad de rollback de base de datos o storage.
-
