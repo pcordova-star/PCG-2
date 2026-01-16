@@ -16,18 +16,27 @@ export function getAdminApp(): typeof admin {
     return admin;
   }
 
-  // Si no hay app, la inicializamos.
-  // Esta versión simplificada confía en las credenciales por defecto de la aplicación (ADC),
-  // que es la forma recomendada en entornos como Vercel o Google Cloud.
   try {
-    // Usamos la variable de entorno para el bucket, eliminando el prefijo 'gs://' si existe.
-    const bucketName = process.env.FIREBASE_STORAGE_BUCKET || process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET;
+    // Usamos las variables de entorno públicas que ya están definidas para el cliente.
+    // Esto asegura consistencia entre el frontend y el backend.
+    const projectId = process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID;
+    const bucketName = process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET;
+
+    // Validamos que las variables de entorno necesarias existan.
+    if (!projectId) {
+      throw new Error("La variable de entorno NEXT_PUBLIC_FIREBASE_PROJECT_ID no está configurada.");
+    }
+    if (!bucketName) {
+      throw new Error("La variable de entorno NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET no está configurada.");
+    }
     
+    // Inicializamos la app de Admin con la configuración explícita.
+    // El SDK Admin puede inferir las credenciales desde el entorno de Vercel (ADC).
     admin.initializeApp({
-        // El SDK Admin puede inferir las credenciales desde el entorno de Vercel (ADC)
-        // pero especificar el bucket es una buena práctica para asegurar la consistencia.
-        storageBucket: bucketName?.replace(/^gs:\/\//, ""),
+      projectId: projectId,
+      storageBucket: bucketName.replace(/^gs:\/\//, ""), // Limpiamos el prefijo si existe
     });
+
   } catch (error: any) {
     throw new Error(`Error al inicializar Firebase Admin: ${error.message}`);
   }
