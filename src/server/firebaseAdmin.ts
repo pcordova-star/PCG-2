@@ -16,16 +16,19 @@ export function getAdminApp(): typeof admin {
     return admin;
   }
 
+  const serviceAccount = process.env.FIREBASE_SERVICE_ACCOUNT;
+  if (!serviceAccount) {
+    throw new Error("La variable de entorno FIREBASE_SERVICE_ACCOUNT no está definida.");
+  }
+
   try {
-    // Se inicializa con ADC (Application Default Credentials), pero se especifica
-    // explícitamente el bucket de Storage para evitar problemas en entornos de
-    // despliegue donde la detección automática puede fallar.
     admin.initializeApp({
-      storageBucket: "pcg-2-8bf1b.appspot.com",
+      credential: admin.credential.cert(JSON.parse(serviceAccount)),
+      storageBucket: process.env.FIREBASE_STORAGE_BUCKET,
     });
 
   } catch (error: any) {
-    throw new Error(`Error al inicializar Firebase Admin: ${error.message}`);
+    throw new Error(`Error al parsear FIREBASE_SERVICE_ACCOUNT o al inicializar Firebase Admin: ${error.message}`);
   }
 
   return admin;
