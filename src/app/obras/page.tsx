@@ -312,9 +312,9 @@ export default function ObrasPage() {
                         <div className="flex justify-end gap-2">
                           {role !== 'prevencionista' && (
                             <Button variant="secondary" size="sm" asChild>
-                              <Link href={`/operaciones/presupuestos/nuevo?obraId=${obra.id}`}>
+                              <Link href={`/operaciones/presupuestos?obraId=${obra.id}`}>
                                 <DollarSign className="mr-2 h-3 w-3" />
-                                Crear Presupuesto
+                                Crear Itemizado
                               </Link>
                             </Button>
                           )}
