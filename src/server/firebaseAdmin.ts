@@ -17,18 +17,10 @@ export function getAdminApp(): typeof admin {
   }
 
   try {
-    // Se utiliza una variable de entorno de SERVIDOR, no una pública.
-    const bucketName = process.env.FIREBASE_STORAGE_BUCKET;
-
-    // Validamos que la variable de entorno necesaria exista.
-    if (!bucketName) {
-      throw new Error("La variable de entorno del servidor FIREBASE_STORAGE_BUCKET no está configurada.");
-    }
-    
-    // Inicializamos la app de Admin.
-    // El SDK puede inferir projectId y credenciales del entorno de Vercel (ADC).
+    // Se inicializa con ADC, pero se especifica explícitamente el bucket de Storage
+    // para evitar problemas en entornos de despliegue donde la detección automática puede fallar.
     admin.initializeApp({
-      storageBucket: bucketName.replace(/^gs:\/\//, ""), // Limpiamos el prefijo si existe
+      storageBucket: "pcg-2-8bf1b.appspot.com",
     });
 
   } catch (error: any) {
