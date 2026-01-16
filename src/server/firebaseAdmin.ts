@@ -20,7 +20,7 @@ export function getAdminApp(): typeof admin {
     // Se inicializa con ADC, pero se especifica explícitamente el bucket de Storage
     // para evitar problemas en entornos de despliegue donde la detección automática puede fallar.
     admin.initializeApp({
-      storageBucket: "pcg-2-8bf1b.appspot.com",
+      storageBucket: process.env.FIREBASE_STORAGE_BUCKET,
     });
 
   } catch (error: any) {
