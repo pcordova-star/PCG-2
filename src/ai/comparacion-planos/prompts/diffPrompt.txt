@@ -13,14 +13,3 @@ Instrucciones:
 5.  Si es aplicable, indica la ubicación aproximada del cambio en el campo "ubicacion".
 6.  Genera un "resumen" conciso de los cambios más importantes.
 7.  Tu respuesta DEBE SER EXCLUSIVAMENTE un objeto JSON válido que siga la siguiente estructura, sin texto adicional, explicaciones ni formato markdown fuera del JSON.
-
-{
-  "elementos": [
-    {
-      "tipo": "agregado" | "eliminado" | "modificado",
-      "descripcion": string,
-      "ubicacion": string?
-    }
-  ],
-  "resumen": string
-}
