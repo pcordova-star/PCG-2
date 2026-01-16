@@ -1,5 +1,12 @@
+
 // src/app/comparacion-planos/[jobId]/resultado/page.tsx
-// Pantalla para mostrar los resultados del análisis
-export default function JobResultPage({ params }: { params: { jobId: string } }) {
-  return <div>Resultados del Análisis para el Job ID: {params.jobId}</div>;
+export default function ResultadoPage({ params }: { params: { jobId: string } }) {
+    return (
+        <div>
+            <h1>Resultados del análisis</h1>
+            {/* ResultadoDiffTecnico */}
+            {/* ResultadoCubicacion */}
+            {/* ResultadoArbolImpactos */}
+        </div>
+    );
 }
