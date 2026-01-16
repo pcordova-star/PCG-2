@@ -32,6 +32,7 @@ import {
   Settings,
   BellRing,
   Users,
+  GitCompareArrows,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useEffect, useState, useMemo, Suspense } from 'react';
@@ -221,6 +222,16 @@ const quickAccessModules = [
         roles: ['superadmin', 'admin_empresa', 'jefe_obra'],
         featureFlag: 'feature_plan_analysis_enabled'
     },
+    {
+        id: 'comparacion-planos',
+        title: 'Comparación de Planos (IA)',
+        description: 'Analiza dos versiones de un plano para detectar diferencias de forma automática usando IA.',
+        href: '/comparacion-planos',
+        icon: GitCompareArrows,
+        color: 'purple' as const,
+        roles: ['superadmin', 'admin_empresa', 'jefe_obra'],
+        featureFlag: 'feature_plan_comparison_enabled'
+    },
      {
         id: 'rdi',
         title: 'Requerimientos (RDI)',
@@ -409,7 +420,7 @@ export default function DashboardPage() {
   }, [user, role, companyId, authLoading, isPrevencionista]);
   
   const handleQuickAccessClick = (target: string) => {
-    if (['/rdi', '/cubicacion/analisis-planos', '/cumplimiento'].includes(target)) {
+    if (['/rdi', '/cubicacion/analisis-planos', '/cumplimiento', '/comparacion-planos'].includes(target)) {
         router.push(target);
         return;
     }

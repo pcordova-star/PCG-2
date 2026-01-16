@@ -91,6 +91,7 @@ export default function AdminEmpresasPage() {
             valorPorUsuario: 35000, 
             feature_compliance_module_enabled: false,
             feature_plan_analysis_enabled: false,
+            feature_plan_comparison_enabled: false,
             feature_risk_prevention_enabled: false,
             feature_operational_checklists_enabled: false,
             feature_document_control_enabled: false,
@@ -123,6 +124,7 @@ export default function AdminEmpresasPage() {
             valorPorUsuario: currentCompany.valorPorUsuario || 35000,
             feature_compliance_module_enabled: currentCompany.feature_compliance_module_enabled || false,
             feature_plan_analysis_enabled: currentCompany.feature_plan_analysis_enabled || false,
+            feature_plan_comparison_enabled: currentCompany.feature_plan_comparison_enabled || false,
             feature_risk_prevention_enabled: currentCompany.feature_risk_prevention_enabled || false,
             feature_operational_checklists_enabled: currentCompany.feature_operational_checklists_enabled || false,
             feature_document_control_enabled: currentCompany.feature_document_control_enabled || false,
@@ -213,6 +215,7 @@ export default function AdminEmpresasPage() {
                                 <TableHead>RUT</TableHead>
                                 <TableHead>M. Cumplimiento</TableHead>
                                 <TableHead>M. Análisis IA</TableHead>
+                                <TableHead>M. Comparación IA</TableHead>
                                 <TableHead>M. Prevención</TableHead>
                                 <TableHead>M. Checklists</TableHead>
                                 <TableHead>M. Documental</TableHead>
@@ -221,7 +224,7 @@ export default function AdminEmpresasPage() {
                         </TableHeader>
                         <TableBody>
                             {loading ? (
-                                <TableRow><TableCell colSpan={8} className="text-center h-24">Cargando empresas...</TableCell></TableRow>
+                                <TableRow><TableCell colSpan={9} className="text-center h-24">Cargando empresas...</TableCell></TableRow>
                             ) : empresas.map((emp) => (
                                 <TableRow key={emp.id}>
                                     <TableCell className="font-medium">{emp.nombreFantasia}</TableCell>
@@ -234,6 +237,11 @@ export default function AdminEmpresasPage() {
                                     <TableCell>
                                         <Badge variant={emp.feature_plan_analysis_enabled ? 'default' : 'outline'}>
                                             {emp.feature_plan_analysis_enabled ? 'On' : 'Off'}
+                                        </Badge>
+                                    </TableCell>
+                                    <TableCell>
+                                        <Badge variant={emp.feature_plan_comparison_enabled ? 'default' : 'outline'}>
+                                            {emp.feature_plan_comparison_enabled ? 'On' : 'Off'}
                                         </Badge>
                                     </TableCell>
                                     <TableCell>
@@ -324,6 +332,10 @@ export default function AdminEmpresasPage() {
                                 <div className="flex items-center space-x-2">
                                     <Checkbox id="feature_plan_analysis_enabled" name="feature_plan_analysis_enabled" checked={currentCompany?.feature_plan_analysis_enabled} onCheckedChange={(checked) => handleFormChange({ target: { name: 'feature_plan_analysis_enabled', value: '', type: 'checkbox', checked: !!checked } } as any)} />
                                     <Label htmlFor="feature_plan_analysis_enabled">Módulo de Análisis de Planos IA</Label>
+                                </div>
+                                <div className="flex items-center space-x-2">
+                                    <Checkbox id="feature_plan_comparison_enabled" name="feature_plan_comparison_enabled" checked={currentCompany?.feature_plan_comparison_enabled} onCheckedChange={(checked) => handleFormChange({ target: { name: 'feature_plan_comparison_enabled', value: '', type: 'checkbox', checked: !!checked } } as any)} />
+                                    <Label htmlFor="feature_plan_comparison_enabled">Módulo de Comparación de Planos IA</Label>
                                 </div>
                                 <div className="flex items-center space-x-2">
                                     <Checkbox id="feature_risk_prevention_enabled" name="feature_risk_prevention_enabled" checked={currentCompany?.feature_risk_prevention_enabled} onCheckedChange={(checked) => handleFormChange({ target: { name: 'feature_risk_prevention_enabled', value: '', type: 'checkbox', checked: !!checked } } as any)} />
