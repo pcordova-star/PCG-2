@@ -1,5 +1,10 @@
+
 // src/app/comparacion-planos/[jobId]/page.tsx
-// Pantalla para mostrar el progreso del análisis
-export default function JobStatusPage({ params }: { params: { jobId: string } }) {
-  return <div>Progreso del Análisis para el Job ID: {params.jobId}</div>;
+export default function ProgresoPage({ params }: { params: { jobId: string } }) {
+    return (
+        <div>
+            <h1>Estado del análisis: {params.jobId}</h1>
+            {/* AnalisisProgreso */}
+        </div>
+    );
 }
