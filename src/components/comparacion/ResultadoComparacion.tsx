@@ -3,9 +3,11 @@
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ComparacionPlanosOutput } from '@/types/comparacion-planos';
-import { ChevronRight, Zap, AlertTriangle, TrendingUp, Lightbulb } from 'lucide-react';
+import { ChevronRight, Zap, AlertTriangle, TrendingUp, Lightbulb, Building, FileText, Download } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import React from 'react';
+import { Button } from '../ui/button';
+import { useToast } from '@/hooks/use-toast';
 
 interface ResultadoComparacionProps {
   resultado: ComparacionPlanosOutput;
@@ -117,10 +119,41 @@ const ImpactoNode = ({ node, level = 0 }: { node: any, level?: number }) => {
 
 
 export function ResultadoComparacion({ resultado }: ResultadoComparacionProps) {
+  const { toast } = useToast();
+
+  const handleDownloadJson = () => {
+    const jsonString = `data:text/json;charset=utf-8,${encodeURIComponent(
+      JSON.stringify(resultado, null, 2)
+    )}`;
+    const link = document.createElement("a");
+    link.href = jsonString;
+    link.download = "analisis_comparacion_planos.json";
+    link.click();
+  };
+
+  const handleDownloadPdf = () => {
+      toast({
+          title: "Funcionalidad en desarrollo",
+          description: "La exportación a PDF estará disponible próximamente.",
+      });
+  };
+
   return (
     <Card>
-      <CardHeader>
-        <CardTitle>Resultados de la Comparación de Planos</CardTitle>
+      <CardHeader className="flex flex-row justify-between items-start">
+        <div>
+            <CardTitle>Resultados de la Comparación de Planos</CardTitle>
+        </div>
+         <div className="flex items-center gap-2">
+            <Button variant="outline" size="sm" onClick={handleDownloadJson}>
+                <Download className="mr-2 h-4 w-4" />
+                Descargar JSON
+            </Button>
+             <Button variant="outline" size="sm" onClick={handleDownloadPdf}>
+                <FileText className="mr-2 h-4 w-4" />
+                Generar Reporte PDF (Próximamente)
+            </Button>
+        </div>
       </CardHeader>
       <CardContent>
         <Tabs defaultValue="arbol-impacto" className="w-full">

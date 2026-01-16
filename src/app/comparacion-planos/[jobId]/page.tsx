@@ -4,7 +4,7 @@ import { ComparacionPlanosJob } from '@/types/comparacion-planos';
 import { notFound } from 'next/navigation';
 import { ResultadoComparacion } from '@/components/comparacion/ResultadoComparacion';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { AlertTriangle, ArrowLeft } from 'lucide-react';
+import { AlertTriangle, ArrowLeft, Download, FileText } from 'lucide-react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 
@@ -45,11 +45,13 @@ export default async function JobResultPage({ params }: { params: { jobId: strin
                         <p className="text-sm text-muted-foreground">Job ID: {jobData.jobId}</p>
                     </div>
                 </div>
-                 <Button asChild variant="default">
-                    <Link href="/comparacion-planos">
-                        Realizar otra comparación
-                    </Link>
-                </Button>
+                 <div className="flex items-center gap-2">
+                    <Button asChild variant="default">
+                        <Link href="/comparacion-planos">
+                            Realizar otra comparación
+                        </Link>
+                    </Button>
+                 </div>
             </header>
 
             {jobData.status === 'error' && (
