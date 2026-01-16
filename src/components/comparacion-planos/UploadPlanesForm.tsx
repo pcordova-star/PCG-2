@@ -13,6 +13,7 @@ interface UploadPlanesFormProps {
 }
 
 const ALLOWED_TYPES = ['application/pdf', 'image/jpeg', 'image/png'];
+const MAX_SIZE_MB = 15;
 
 export default function UploadPlanesForm({ onSubmit, isSubmitting = false }: UploadPlanesFormProps) {
   const [planoA, setPlanoA] = useState<File | null>(null);
@@ -22,11 +23,19 @@ export default function UploadPlanesForm({ onSubmit, isSubmitting = false }: Upl
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>, setter: React.Dispatch<React.SetStateAction<File | null>>) => {
     setError(null);
     const file = e.target.files?.[0] || null;
-    if (file && !ALLOWED_TYPES.includes(file.type)) {
-      setError(`Tipo de archivo no permitido: ${file.name}. Sube PDF, JPG o PNG.`);
-      setter(null);
-      e.target.value = ''; // Reset input
-      return;
+    if (file) {
+      if (!ALLOWED_TYPES.includes(file.type)) {
+        setError(`Tipo de archivo no permitido: ${file.name}. Sube PDF, JPG o PNG.`);
+        setter(null);
+        e.target.value = '';
+        return;
+      }
+      if (file.size > MAX_SIZE_MB * 1024 * 1024) {
+        setError(`Archivo demasiado grande: ${file.name}. El máximo es ${MAX_SIZE_MB}MB.`);
+        setter(null);
+        e.target.value = '';
+        return;
+      }
     }
     setter(file);
   };

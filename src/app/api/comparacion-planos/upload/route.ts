@@ -1,47 +1,94 @@
 // src/app/api/comparacion-planos/upload/route.ts
 import { NextResponse } from 'next/server';
+import { getAdminApp } from '@/server/firebaseAdmin';
+import { headers } from 'next/headers';
+import { getAuth } from 'firebase-admin/auth';
+import { ComparacionJobStatus } from '@/types/comparacion-planos';
+import * as crypto from 'crypto';
+
+const adminApp = getAdminApp();
+const db = adminApp.firestore();
+const storage = adminApp.storage().bucket();
+
+const MAX_FILE_SIZE_MB = 15;
 
 export async function POST(req: Request) {
-  // ARQUITECTURA DEL ENDPOINT DE UPLOAD:
-  try {
-    // 1. Validar que el usuario esté autenticado y tenga permisos para el módulo.
+    let jobId: string | null = null;
+    try {
+        const formData = await req.formData();
+        const planoAFile = formData.get('planoA') as File | null;
+        const planoBFile = formData.get('planoB') as File | null;
 
-    // 2. Extraer los archivos `planoA` y `planoB` del FormData.
-    //    const formData = await req.formData();
-    //    const planoA = formData.get('planoA');
-    //    const planoB = formData.get('planoB');
-    //    if (!planoA || !planoB) throw new Error("UPLOAD_MISSING_FILES", "Faltan archivos.");
+        if (!planoAFile || !planoBFile) {
+            return NextResponse.json({ error: 'Se requieren ambos archivos de plano.' }, { status: 400 });
+        }
+        
+        if (planoAFile.size > MAX_FILE_SIZE_MB * 1024 * 1024 || planoBFile.size > MAX_FILE_SIZE_MB * 1024 * 1024) {
+             return NextResponse.json({ error: `El tamaño de los archivos no puede superar los ${MAX_FILE_SIZE_MB}MB.` }, { status: 400 });
+        }
+        
+        const authorization = headers().get("Authorization");
+        if (!authorization?.startsWith("Bearer ")) {
+            return NextResponse.json({ error: 'No autorizado: Token no proporcionado.' }, { status: 401 });
+        }
+        const token = authorization.split("Bearer ")[1];
+        const decodedToken = await getAuth().verifyIdToken(token);
+        const userId = decodedToken.uid;
+        const empresaId = (decodedToken as any).companyId || 'default_company';
 
-    // 3. Generar un `jobId` único.
-    //    const jobId = crypto.randomUUID();
+        jobId = crypto.randomUUID();
+        
+        const jobRef = db.collection('comparacionPlanosJobs').doc(jobId);
+        await jobRef.set({
+            jobId,
+            userId,
+            empresaId,
+            status: 'pending-upload' as ComparacionJobStatus,
+            createdAt: new Date(),
+            updatedAt: new Date(),
+        });
+        
+        const [bufferA, bufferB] = await Promise.all([
+            planoAFile.arrayBuffer().then(b => Buffer.from(b)),
+            planoBFile.arrayBuffer().then(b => Buffer.from(b)),
+        ]);
+        
+        const pathA = `comparacion-planos/${jobId}/A.jpg`;
+        const pathB = `comparacion-planos/${jobId}/B.jpg`;
 
-    // 4. Llamar a la función de la librería de Firestore para crear el documento del job.
-    //    await createComparacionJob(jobId, { status: "pending-upload", userId: "..." });
+        await Promise.all([
+            storage.file(pathA).save(bufferA, { contentType: planoAFile.type }),
+            storage.file(pathB).save(bufferB, { contentType: planoBFile.type }),
+        ]);
 
-    // 5. Convertir los archivos a JPEG (si son PDF) usando la función `convertToJpeg`.
-    //    const jpegBufferA = await convertToJpeg(planoA);
-    //    const jpegBufferB = await convertToJpeg(planoB);
+        await jobRef.update({
+            status: 'uploaded',
+            planoA_storagePath: pathA,
+            planoB_storagePath: pathB,
+            updatedAt: new Date(),
+        });
+        
+        return NextResponse.json({ jobId, status: "uploaded" });
 
-    // 6. Subir los JPEGs resultantes a Firebase Storage.
-    //    await uploadPlanoA(jobId, jpegBufferA);
-    //    await uploadPlanoB(jobId, jpegBufferB);
-
-    // 7. Actualizar el estado del job en Firestore a "uploaded".
-    //    await updateComparacionJobStatus(jobId, "uploaded");
-
-    // 8. Devolver el ID del job para que el frontend pueda iniciar el análisis y el polling.
-    //    return NextResponse.json({ jobId, status: "uploaded" });
-
-  } catch (error: any) {
-    // En caso de cualquier error en esta etapa:
-    // a. Si el job ya fue creado, actualizar su estado a 'error' y guardar el mensaje.
-    //    if (jobId) {
-    //        await updateComparacionJobStatus(jobId, "error");
-    //        await setComparacionJobError(jobId, { code: error.code, message: error.message });
-    //    }
-    // b. Devolver una respuesta de error al cliente.
-    //    return NextResponse.json({ status: "error", code: error.code, message: error.message }, { status: 500 });
-  }
-
-  return NextResponse.json({ message: "upload endpoint placeholder" });
+    } catch (error: any) {
+        if (jobId) {
+            try {
+                const jobRef = db.collection('comparacionPlanosJobs').doc(jobId);
+                await jobRef.update({
+                    status: 'error',
+                    errorMessage: {
+                        code: error.code || "UPLOAD_FAILED",
+                        message: error.message,
+                    },
+                    updatedAt: new Date(),
+                });
+            } catch (dbError) {
+                console.error("Failed to update job status to error:", dbError);
+            }
+        }
+        if (error.code === 'auth/id-token-expired' || error.code === 'auth/argument-error') {
+            return NextResponse.json({ error: 'Token de autenticación inválido o expirado.' }, { status: 401 });
+        }
+        return NextResponse.json({ error: error.message || 'Error desconocido al crear el trabajo.' }, { status: 500 });
+    }
 }
