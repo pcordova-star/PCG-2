@@ -262,31 +262,6 @@ function PresupuestosTab() {
         });
         return () => unsubscribe();
     }, [obraSeleccionadaId, toast]);
-
-    const handleDuplicar = async (presupuestoId: string) => {
-        const presupuestoOriginal = await getDoc(doc(firebaseDb, "presupuestos", presupuestoId));
-        if (!presupuestoOriginal.exists()) {
-            toast({ variant: "destructive", title: "Error", description: "No se encontró el itemizado a duplicar." });
-            return;
-        }
-        const data = presupuestoOriginal.data();
-        // eslint-disable-next-line @typescript-eslint/no-unused-vars
-        const { id, ...dataToCopy } = data;
-        const nuevoNombre = `Copia de ${data.nombre}`;
-        
-        try {
-            const docRef = await addDoc(collection(firebaseDb, "presupuestos"), {
-                ...dataToCopy,
-                nombre: nuevoNombre,
-                fechaCreacion: serverTimestamp()
-            });
-            toast({ title: "Éxito", description: `Itemizado duplicado. Ahora puedes editar la copia.` });
-            router.push(`/operaciones/presupuestos/${docRef.id}`);
-        } catch (error) {
-            console.error("Error duplicating budget:", error);
-            toast({ variant: "destructive", title: "Error", description: "No se pudo duplicar el itemizado." });
-        }
-    };
     
     const handleDelete = async (presupuestoId: string) => {
         try {
@@ -337,7 +312,6 @@ function PresupuestosTab() {
                                     <TableCell className="flex gap-2">
                                         <Button variant="secondary" size="sm" onClick={() => router.push(`/operaciones/programacion?obraId=${p.obraId}`)}><GanttChartSquare className="mr-2 h-3 w-3" />Ir a Programación</Button>
                                         <Button variant="outline" size="sm" onClick={() => router.push(`/operaciones/presupuestos/${p.id}`)}>Ver / Editar</Button>
-                                        <Button variant="ghost" size="icon" onClick={() => handleDuplicar(p.id)}><Copy className="h-4 w-4" /></Button>
                                         <AlertDialog>
                                             <AlertDialogTrigger asChild>
                                                 <Button variant="ghost" size="icon" className="text-destructive hover:text-destructive"><Trash2 className="h-4 w-4" /></Button>
