@@ -63,7 +63,7 @@ function formatoMoneda(value: number) {
         style: "currency",
         currency: "CLP",
         maximumFractionDigits: 0,
-    }).format(valor);
+    }).format(value);
 }
 
 function formatNumber(value: number): string {
