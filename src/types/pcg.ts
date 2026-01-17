@@ -58,6 +58,7 @@ export interface AppUser {
   role: RolInvitado | 'superadmin' | 'none' | 'contratista'; // Se añade el nuevo rol
   empresaId: string | null;
   subcontractorId?: string; // ID de la empresa subcontratista a la que pertenece
+  permissions?: string[];
   createdAt: Date | Timestamp;
   activo?: boolean;
   eliminado?: boolean;
