@@ -1,7 +1,7 @@
 // Esta página muestra la ficha detallada de una empresa contratista.
 // Es una Server Component que carga los datos iniciales.
 
-import { getAdminApp } from '@/server/firebaseAdmin';
+import admin from '@/server/firebaseAdmin';
 import { Timestamp } from 'firebase-admin/firestore';
 import FichaContent from './FichaContent';
 import { EmpresaContratista } from '../page';
@@ -25,7 +25,7 @@ async function getEmpresaData(empresaId: string): Promise<{ empresa: Serializabl
     if (!empresaId) return null;
 
     try {
-        const db = getAdminApp().firestore();
+        const db = admin.firestore();
 
         // Cargar datos de la empresa
         const empresaRef = db.collection('empresasContratistas').doc(empresaId);
