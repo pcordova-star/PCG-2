@@ -6,7 +6,8 @@ import { runDiffFlow } from '@/ai/comparacion-planos/flows/flowDiff';
 import { runCubicacionFlow } from '@/ai/comparacion-planos/flows/flowCubicacion';
 import { runImpactosFlow } from '@/ai/comparacion-planos/flows/flowImpactos';
 import admin from '@/server/firebaseAdmin';
-import { canUseComparacionPlanos } from '@/lib/comparacion-planos/permissions';
+import { canUserAccessCompany, getCompany } from '@/lib/comparacion-planos/permissions';
+import { AppUser } from '@/types/pcg';
 
 export const runtime = 'nodejs';
 export const maxDuration = 300; // Aumentar timeout a 5 minutos para dar tiempo a los 3 análisis
@@ -43,15 +44,18 @@ export async function POST(req: Request) {
     }
     const token = authorization.split("Bearer ")[1];
     const decodedToken = await admin.auth().verifyIdToken(token);
-    const userId = decodedToken.uid;
+    const userRole = (decodedToken as any).role;
+    const userCompanyId = (decodedToken as any).companyId;
 
-    // --- Permission Check ---
-    const hasAccess = await canUseComparacionPlanos(userId);
-    if (!hasAccess) {
-        return NextResponse.json({ error: 'Acceso denegado a este módulo.' }, { status: 403 });
-    }
-    // --- End Permission Check ---
-
+    const userForPerms: AppUser = {
+        id: decodedToken.uid,
+        role: userRole,
+        companyId: userCompanyId,
+        email: decodedToken.email || '',
+        nombre: decodedToken.name || '',
+        createdAt: new Date()
+    };
+    
     const body = await req.json();
     jobId = body.jobId;
 
@@ -65,6 +69,19 @@ export async function POST(req: Request) {
         return NextResponse.json({ error: 'El trabajo no fue encontrado.' }, { status: 404 });
     }
     
+    // --- Permission Check ---
+    const hasAccessToJobCompany = await canUserAccessCompany(userForPerms, job.empresaId);
+    if (!hasAccessToJobCompany) {
+        return NextResponse.json({ error: 'Acceso denegado a este recurso.' }, { status: 403 });
+    }
+    if (userRole !== 'superadmin') {
+        const company = await getCompany(userCompanyId);
+        if (!company?.feature_plan_comparison_enabled) {
+            return NextResponse.json({ error: 'Acceso denegado: El módulo de comparación de planos no está habilitado para su empresa.' }, { status: 403 });
+        }
+    }
+    // --- End Permission Check ---
+
     if (job.status !== 'uploaded') {
         return NextResponse.json({ error: `El trabajo no está en el estado correcto para analizar (estado actual: ${job.status}).` }, { status: 409 });
     }

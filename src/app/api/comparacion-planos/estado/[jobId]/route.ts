@@ -1,7 +1,8 @@
 // src/app/api/comparacion-planos/estado/[jobId]/route.ts
 import { NextResponse } from 'next/server';
 import admin from '@/server/firebaseAdmin';
-import { canUseComparacionPlanos } from '@/lib/comparacion-planos/permissions';
+import { canUserAccessCompany, getCompany } from '@/lib/comparacion-planos/permissions';
+import { AppUser } from '@/types/pcg';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic'; // Asegura que no se cachee la respuesta
@@ -17,13 +18,9 @@ export async function GET(req: Request, { params }: { params: { jobId: string } 
     const token = authorization.split("Bearer ")[1];
     const decodedToken = await admin.auth().verifyIdToken(token);
     const userId = decodedToken.uid;
-
-    // --- Permission Check ---
-    const hasAccess = await canUseComparacionPlanos(userId);
-    if (!hasAccess) {
-        return NextResponse.json({ error: 'Acceso denegado a este módulo.' }, { status: 403 });
-    }
-    // --- End Permission Check ---
+    const userRole = (decodedToken as any).role;
+    const userCompanyId = (decodedToken as any).companyId;
+    const userForPerms: AppUser = { id: userId, role: userRole, companyId: userCompanyId, email: '', nombre: '', createdAt: new Date() };
 
     if (!jobId) {
       return NextResponse.json({ error: 'jobId es requerido.' }, { status: 400 });
@@ -38,6 +35,13 @@ export async function GET(req: Request, { params }: { params: { jobId: string } 
     }
 
     const jobData = jobSnap.data();
+
+    // --- Permission Check ---
+    const hasAccess = await canUserAccessCompany(userForPerms, jobData!.empresaId);
+    if (!hasAccess) {
+        return NextResponse.json({ error: 'Acceso denegado a este recurso.' }, { status: 403 });
+    }
+    // --- End Permission Check ---
 
     // Devolver los datos relevantes del job
     return NextResponse.json({

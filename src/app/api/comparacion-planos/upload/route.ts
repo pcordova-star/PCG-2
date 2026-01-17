@@ -3,10 +3,10 @@ import { NextResponse } from 'next/server';
 import admin, { bucket } from '@/server/firebaseAdmin';
 import { ComparacionJobStatus } from '@/types/comparacion-planos';
 import * as crypto from 'crypto';
-import { canUseComparacionPlanos } from '@/lib/comparacion-planos/permissions';
+import { getCompany } from '@/lib/comparacion-planos/permissions';
+import { AppUser } from '@/types/pcg';
 
 const db = admin.firestore();
-const storage = bucket;
 
 const MAX_FILE_SIZE_MB = 15;
 
@@ -20,12 +20,18 @@ export async function POST(req: Request) {
         const token = authorization.split("Bearer ")[1];
         const decodedToken = await admin.auth().verifyIdToken(token);
         const userId = decodedToken.uid;
-        const empresaId = (decodedToken as any).companyId || 'default_company';
+        const userRole = (decodedToken as any).role;
+        const empresaId = (decodedToken as any).companyId;
 
         // --- Permission Check ---
-        const hasAccess = await canUseComparacionPlanos(userId);
-        if (!hasAccess) {
-            return NextResponse.json({ error: 'Acceso denegado a este módulo.' }, { status: 403 });
+        if (userRole !== 'superadmin') {
+            if (!empresaId) {
+                return NextResponse.json({ error: 'Acceso denegado: Usuario no asociado a una empresa.' }, { status: 403 });
+            }
+            const company = await getCompany(empresaId);
+            if (!company?.feature_plan_comparison_enabled) {
+                return NextResponse.json({ error: 'Acceso denegado: El módulo de comparación de planos no está habilitado para su empresa.' }, { status: 403 });
+            }
         }
         // --- End Permission Check ---
 
@@ -47,7 +53,7 @@ export async function POST(req: Request) {
         await jobRef.set({
             jobId,
             userId,
-            empresaId,
+            empresaId: empresaId || 'default_company',
             status: 'pending-upload' as ComparacionJobStatus,
             createdAt: new Date(),
             updatedAt: new Date(),
@@ -63,8 +69,8 @@ export async function POST(req: Request) {
         const pathB = `comparacion-planos/${jobId}/B.jpg`;
 
         await Promise.all([
-            storage.file(pathA).save(bufferA, { contentType: 'image/jpeg' }),
-            storage.file(pathB).save(bufferB, { contentType: 'image/jpeg' }),
+            bucket.file(pathA).save(bufferA, { contentType: 'image/jpeg' }),
+            bucket.file(pathB).save(bufferB, { contentType: 'image/jpeg' }),
         ]);
 
         await jobRef.update({
