@@ -1,6 +1,6 @@
 // src/app/api/comparacion-planos/status/[jobId]/route.ts
 import { NextResponse } from 'next/server';
-import { getAdminApp } from '@/server/firebaseAdmin';
+import admin from '@/server/firebaseAdmin';
 
 export const runtime = 'nodejs';
 
@@ -12,7 +12,7 @@ export async function GET(req: Request, { params }: { params: { jobId: string } 
     }
 
     try {
-        const db = getAdminApp().firestore();
+        const db = admin.firestore();
         const jobRef = db.collection('comparacionPlanosJobs').doc(jobId);
         const jobSnap = await jobRef.get();
 

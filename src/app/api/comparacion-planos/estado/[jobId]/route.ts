@@ -1,7 +1,6 @@
 // src/app/api/comparacion-planos/estado/[jobId]/route.ts
 import { NextResponse } from 'next/server';
-import { getAdminApp } from '@/server/firebaseAdmin';
-import { getAuth } from 'firebase-admin/auth';
+import admin from '@/server/firebaseAdmin';
 import { canUseComparacionPlanos } from '@/lib/comparacion-planos/permissions';
 
 export const runtime = 'nodejs';
@@ -16,7 +15,7 @@ export async function GET(req: Request, { params }: { params: { jobId: string } 
         return NextResponse.json({ error: 'No autorizado: Token no proporcionado.' }, { status: 401 });
     }
     const token = authorization.split("Bearer ")[1];
-    const decodedToken = await getAuth().verifyIdToken(token);
+    const decodedToken = await admin.auth().verifyIdToken(token);
     const userId = decodedToken.uid;
 
     // --- Permission Check ---
@@ -30,7 +29,7 @@ export async function GET(req: Request, { params }: { params: { jobId: string } 
       return NextResponse.json({ error: 'jobId es requerido.' }, { status: 400 });
     }
 
-    const db = getAdminApp().firestore();
+    const db = admin.firestore();
     const jobRef = db.collection('comparacionPlanosJobs').doc(jobId);
     const jobSnap = await jobRef.get();
 

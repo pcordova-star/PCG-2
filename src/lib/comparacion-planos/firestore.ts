@@ -1,9 +1,9 @@
 // src/lib/comparacion-planos/firestore.ts
-import { getAdminApp } from "@/server/firebaseAdmin";
+import admin from "@/server/firebaseAdmin";
 import { ComparacionJob, ComparacionJobStatus } from "@/types/comparacion-planos";
 import { FieldValue } from "firebase-admin/firestore";
 
-const db = getAdminApp().firestore();
+const db = admin.firestore();
 const jobsCollection = db.collection("comparacionPlanosJobs");
 
 export async function getComparacionJob(jobId: string): Promise<ComparacionJob | null> {

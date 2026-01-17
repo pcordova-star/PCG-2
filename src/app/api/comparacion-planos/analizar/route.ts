@@ -5,7 +5,7 @@ import { getPlanoAsDataUri } from '@/lib/comparacion-planos/storage';
 import { runDiffFlow } from '@/ai/comparacion-planos/flows/flowDiff';
 import { runCubicacionFlow } from '@/ai/comparacion-planos/flows/flowCubicacion';
 import { runImpactosFlow } from '@/ai/comparacion-planos/flows/flowImpactos';
-import { getAuth } from 'firebase-admin/auth';
+import admin from '@/server/firebaseAdmin';
 import { canUseComparacionPlanos } from '@/lib/comparacion-planos/permissions';
 
 export const runtime = 'nodejs';
@@ -42,7 +42,7 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'No autorizado: Token no proporcionado.' }, { status: 401 });
     }
     const token = authorization.split("Bearer ")[1];
-    const decodedToken = await getAuth().verifyIdToken(token);
+    const decodedToken = await admin.auth().verifyIdToken(token);
     const userId = decodedToken.uid;
 
     // --- Permission Check ---
