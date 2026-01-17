@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { getAdminApp } from "@/server/firebaseAdmin";
+import admin from "@/server/firebaseAdmin";
 
 export const runtime = "nodejs";
 
@@ -11,7 +11,6 @@ export async function GET(req: Request, ctx: { params: { jobId: string } }) {
   }
 
   try {
-    const admin = getAdminApp();
     const db = admin.firestore();
     const snap = await db
       .collection("itemizadoImportJobs")

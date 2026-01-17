@@ -1,6 +1,6 @@
 // src/app/api/superadmin/mclp/feature-flag/route.ts
 import { NextRequest, NextResponse } from "next/server";
-import { getAdminApp } from "@/server/firebaseAdmin";
+import admin from "@/server/firebaseAdmin";
 import { withSuperadminAuth } from "@/lib/auth/requireSuperadmin";
 
 async function handler(req: NextRequest) {
@@ -10,7 +10,6 @@ async function handler(req: NextRequest) {
     return NextResponse.json({ error: "Invalid payload" }, { status: 400 });
   }
 
-  const admin = getAdminApp();
   const db = admin.firestore();
   await db.collection("companies").doc(companyId).set(
     { feature_compliance_module_enabled: enabled },

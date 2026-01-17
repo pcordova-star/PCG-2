@@ -1,6 +1,6 @@
 // src/app/api/mclp/calendar/update/route.ts
 import { NextRequest, NextResponse } from "next/server";
-import { getAdminApp } from "@/server/firebaseAdmin";
+import admin from "@/server/firebaseAdmin";
 import { Timestamp, FieldValue } from "firebase-admin/firestore";
 
 export const runtime = "nodejs";
@@ -17,7 +17,6 @@ async function ensureMclpEnabled(db: FirebaseFirestore.Firestore, companyId: str
 export async function POST(req: NextRequest) {
     try {
         const { companyId, year, monthId, data } = await req.json();
-        const admin = getAdminApp();
         const db = admin.firestore();
 
         if (!companyId || !year || !monthId || !data) {

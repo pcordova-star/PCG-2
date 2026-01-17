@@ -1,6 +1,6 @@
 // src/app/api/mclp/calendar/route.ts
 import { NextRequest, NextResponse } from "next/server";
-import { getAdminApp } from "@/server/firebaseAdmin";
+import admin from "@/server/firebaseAdmin";
 import { Timestamp, FieldValue } from "firebase-admin/firestore";
 
 export const runtime = "nodejs";
@@ -14,7 +14,6 @@ async function ensureMclpEnabled(db: FirebaseFirestore.Firestore, companyId: str
 }
 
 async function createDefaultMonths(calendarRef: FirebaseFirestore.DocumentReference, year: number) {
-    const admin = getAdminApp();
     const db = admin.firestore();
     const batch = db.batch();
     
@@ -49,7 +48,6 @@ export async function GET(req: NextRequest) {
     try {
         const companyId = req.nextUrl.searchParams.get("companyId");
         const yearStr = req.nextUrl.searchParams.get("year");
-        const admin = getAdminApp();
         const db = admin.firestore();
 
         if (!companyId || !yearStr) {

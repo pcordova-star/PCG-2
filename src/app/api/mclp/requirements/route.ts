@@ -2,7 +2,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import type { Firestore, Timestamp } from "firebase-admin/firestore";
 import { RequisitoDocumento } from "@/types/pcg";
-import { getAdminApp } from "@/server/firebaseAdmin";
+import admin from "@/server/firebaseAdmin";
 
 export const runtime = "nodejs";
 
@@ -18,7 +18,6 @@ async function ensureMclpEnabled(db: Firestore, companyId: string) {
 export async function GET(req: NextRequest) {
     try {
         const companyId = req.nextUrl.searchParams.get("companyId");
-        const admin = getAdminApp();
         const db = admin.firestore();
 
         if (!companyId) {
@@ -53,7 +52,6 @@ export async function GET(req: NextRequest) {
 export async function POST(req: NextRequest) {
     try {
         const { companyId, requirement } = await req.json();
-        const admin = getAdminApp();
         const db = admin.firestore();
         const { Timestamp } = await import("firebase-admin/firestore");
 
@@ -82,7 +80,6 @@ export async function POST(req: NextRequest) {
 export async function PUT(req: NextRequest) {
     try {
         const { companyId, requirement } = await req.json();
-        const admin = getAdminApp();
         const db = admin.firestore();
         const { Timestamp } = await import("firebase-admin/firestore");
 

@@ -1,6 +1,6 @@
 // src/app/api/itemizados/importar/route.ts
 import { NextResponse } from 'next/server';
-import { getAdminApp } from '@/server/firebaseAdmin';
+import admin from '@/server/firebaseAdmin';
 import { z } from 'zod';
 
 export const runtime = "nodejs";
@@ -20,7 +20,6 @@ const ApiInputSchema = z.object({
  */
 export async function POST(req: Request) {
   try {
-    const admin = getAdminApp();
     const db = admin.firestore();
     
     const body = await req.json();
@@ -83,7 +82,6 @@ export async function GET(request: Request) {
   }
 
   try {
-    const admin = getAdminApp();
     const db = admin.firestore();
 
     const jobRef = db.collection('itemizadoImportJobs').doc(jobId);
