@@ -266,6 +266,7 @@ function PresupuestosTab() {
     const handleDelete = async (presupuestoId: string) => {
         try {
             await deleteDoc(doc(firebaseDb, "presupuestos", presupuestoId));
+            setPresupuestos(prev => prev.filter(p => p.id !== presupuestoId));
             toast({title: "Éxito", description: "Itemizado eliminado correctamente."});
         } catch (error) {
             console.error("Error deleting budget:", error);
@@ -285,7 +286,7 @@ function PresupuestosTab() {
                     <Button variant="outline" onClick={() => router.push('/operaciones/presupuestos/itemizados/importar')}>
                         <Wand2 className="mr-2 h-4 w-4" /> Importar (beta)
                     </Button>
-                    <Button onClick={() => router.push('/operaciones/presupuestos/nuevo')}>
+                    <Button onClick={() => router.push(`/operaciones/presupuestos/nuevo?obraId=${obraSeleccionadaId}`)} disabled={!obraSeleccionadaId}>
                         <PlusCircle className="mr-2" /> Nuevo Itemizado
                     </Button>
                 </div>
