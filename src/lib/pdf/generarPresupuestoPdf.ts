@@ -40,6 +40,7 @@ export type DatosPresupuesto = {
 };
 
 function formatoMoneda(valor: number) {
+  if (isNaN(valor)) return '$ 0';
   return new Intl.NumberFormat("es-CL", {
     style: "currency",
     currency: "CLP",
@@ -173,6 +174,15 @@ export function generarPresupuestoPdf(
 
   cursorY = (doc as any).lastAutoTable.finalY + 10;
   
+  const pageHeight = doc.internal.pageSize.getHeight();
+  const bottomMargin = 20;
+  const summaryBlockHeight = 40; // Altura estimada para el bloque de totales
+
+  if (cursorY + summaryBlockHeight > pageHeight - bottomMargin) {
+      doc.addPage();
+      cursorY = 20; // Reiniciar en la parte superior de la nueva página
+  }
+
   const colTotalX = 195;
   const colLabelX = colTotalX - 55;
 
@@ -185,7 +195,7 @@ export function generarPresupuestoPdf(
 
   doc.text(`Gastos Generales y Utilidades (${presupuesto.gastosGeneralesPorcentaje}%):`, colLabelX, cursorY, { align: "right" });
   doc.text(formatoMoneda(presupuesto.gastosGenerales), colTotalX, cursorY, { align: "right" });
-  cursorY += 6;
+  cursorY += 8; // Aumentar espacio
 
   doc.setFont("helvetica", "bold");
   doc.text("Subtotal + GGyU:", colLabelX, cursorY, { align: "right" });
@@ -195,7 +205,7 @@ export function generarPresupuestoPdf(
   doc.setFont("helvetica", "normal");
   doc.text("IVA (19%):", colLabelX, cursorY, { align: "right" });
   doc.text(formatoMoneda(presupuesto.iva), colTotalX, cursorY, { align: "right" });
-  cursorY += 6;
+  cursorY += 8; // Aumentar espacio
 
   doc.setFont("helvetica", "bold");
   doc.setFontSize(12);
