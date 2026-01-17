@@ -4,15 +4,13 @@ import { googleAI } from '@genkit-ai/google-genai';
 
 // This is a server-only module and must not be imported into any client-side code.
 
-const apiKey = process.env.GEMINI_API_KEY;
-
-if (!apiKey) {
-    console.error("CRITICAL ERROR: The GEMINI_API_KEY environment variable is not set. AI features will not work.");
-}
+// NOTE: The API key is not explicitly passed here.
+// Genkit will attempt to use Application Default Credentials (ADC)
+// or other configured authentication methods.
+// This avoids conflicts with Firebase Functions secrets during deployment.
 
 export const ai = genkit({
   plugins: [
-    // Explicitly provide the API key from environment variables.
-    googleAI({ apiKey: apiKey })
+    googleAI()
   ]
 });
