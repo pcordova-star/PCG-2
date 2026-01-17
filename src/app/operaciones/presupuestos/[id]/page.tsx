@@ -59,7 +59,11 @@ type Presupuesto = {
 
 function formatoMoneda(value: number) {
     if (isNaN(value)) return '$ 0';
-    return value.toLocaleString('es-CL', { style: 'currency', currency: 'CLP', maximumFractionDigits: 0 });
+    return new Intl.NumberFormat("es-CL", {
+        style: "currency",
+        currency: "CLP",
+        maximumFractionDigits: 0,
+    }).format(valor);
 }
 
 function formatNumber(value: number): string {
@@ -334,18 +338,23 @@ export default function PresupuestoEditPage() {
             return;
         }
         setIsSaving(true);
-        const dataToSave: Omit<Presupuesto, 'id' | 'fechaCreacion'> & { updatedAt: any, fechaCreacion?: any } = {
+        
+        // Create a mutable copy to modify before saving
+        const dataToSave: any = {
             ...presupuesto,
-            items: items.map(({ id, ...rest }) => rest),
+            items: items.map(({ id, ...rest }) => rest), // Strip client-side UUIDs from items
             updatedAt: serverTimestamp()
         };
 
+        // Remove the 'id' field from the object to be saved, as it's the document key.
+        delete dataToSave.id;
+
         try {
             let itemizadoId: string;
-            if (presupuesto.id) {
+            if (presupuesto.id) { // Editing existing document
                 itemizadoId = presupuesto.id;
                 await setDoc(doc(firebaseDb, "presupuestos", itemizadoId), dataToSave, { merge: true });
-            } else {
+            } else { // Creating new document
                 dataToSave.fechaCreacion = serverTimestamp();
                 const docRef = await addDoc(collection(firebaseDb, "presupuestos"), dataToSave);
                 itemizadoId = docRef.id;

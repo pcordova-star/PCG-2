@@ -270,11 +270,13 @@ function PresupuestosTab() {
             return;
         }
         const data = presupuestoOriginal.data();
+        // Defensively remove the id field from the copied data
+        const { id, ...dataToCopy } = data;
         const nuevoNombre = `Copia de ${data.nombre}`;
         
         try {
             const docRef = await addDoc(collection(firebaseDb, "presupuestos"), {
-                ...data,
+                ...dataToCopy,
                 nombre: nuevoNombre,
                 fechaCreacion: serverTimestamp()
             });
