@@ -9,7 +9,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { ArrowLeft, Trash2, Loader2, Save, PlusCircle, FolderPlus, FilePlus, Type, AlertTriangle } from 'lucide-react';
+import { ArrowLeft, Trash2, Loader2, Save, PlusCircle, FolderPlus, FilePlus, Type, AlertTriangle, ArrowUp, ArrowDown, Edit } from 'lucide-react';
 import { collection, doc, getDoc, setDoc, addDoc, serverTimestamp, query, orderBy, getDocs, Timestamp, where, writeBatch, updateDoc } from 'firebase/firestore';
 import { firebaseDb } from '@/lib/firebaseClient';
 import { useToast } from "@/hooks/use-toast";
@@ -244,6 +244,45 @@ export default function PresupuestoEditPage() {
     return { hierarchicalItems: flattened, totalPresupuesto: total };
 }, [items]);
 
+    const siblingsMap = useMemo(() => {
+        const map = new Map<string | null, HierarchicalItem[]>();
+        hierarchicalItems.forEach(item => {
+            const parentId = item.parentId;
+            if (!map.has(parentId)) {
+                map.set(parentId, []);
+            }
+            map.get(parentId)!.push(item);
+        });
+        return map;
+    }, [hierarchicalItems]);
+
+    const moveItem = (itemId: string, direction: 'up' | 'down') => {
+        setItems(prevItems => {
+            const itemIndex = prevItems.findIndex(i => i.id === itemId);
+            if (itemIndex === -1) return prevItems;
+
+            const itemToMove = prevItems[itemIndex];
+            const siblings = prevItems.filter(i => i.parentId === itemToMove.parentId);
+            const siblingIndex = siblings.findIndex(s => s.id === itemId);
+
+            let swapWithItem: PresupuestoItem | undefined;
+
+            if (direction === 'up' && siblingIndex > 0) {
+                swapWithItem = siblings[siblingIndex - 1];
+            } else if (direction === 'down' && siblingIndex < siblings.length - 1) {
+                swapWithItem = siblings[siblingIndex + 1];
+            }
+
+            if (!swapWithItem) return prevItems;
+
+            const swapWithIndex = prevItems.findIndex(i => i.id === swapWithItem!.id);
+            
+            const newItems = [...prevItems];
+            [newItems[itemIndex], newItems[swapWithIndex]] = [newItems[swapWithIndex], newItems[itemIndex]];
+            
+            return newItems;
+        });
+    };
 
     const actualizarCatalogoDesdePresupuesto = async (presupuestoItems: PresupuestoItem[]) => {
         const partidas = presupuestoItems.filter(item => item.type === 'item' && item.descripcion && item.precioUnitario > 0);
@@ -515,7 +554,13 @@ export default function PresupuestoEditPage() {
                             </TableRow>
                         </TableHeader>
                         <TableBody>
-                            {hierarchicalItems.map(item => (
+                            {hierarchicalItems.map((item, index) => {
+                                const siblings = siblingsMap.get(item.parentId) || [];
+                                const myIndexInSiblings = siblings.findIndex(s => s.id === item.id);
+                                const isFirst = myIndexInSiblings === 0;
+                                const isLast = myIndexInSiblings === siblings.length - 1;
+
+                                return (
                                 <TableRow key={item.id} className={cn(item.type === 'chapter' && 'bg-blue-50 font-bold', item.type === 'subchapter' && 'bg-slate-100 font-semibold')}>
                                     <TableCell style={{ paddingLeft: `${1 + item.level * 1.5}rem` }} className="font-mono">
                                         {item.itemNumber}
@@ -527,18 +572,20 @@ export default function PresupuestoEditPage() {
                                     <TableCell className="font-bold">{formatoMoneda(item.subtotal)}</TableCell>
                                     <TableCell className="text-right">
                                        <div className="flex gap-1 justify-end">
+                                            <Button variant="ghost" size="icon" onClick={() => moveItem(item.id, 'up')} title="Mover Arriba" disabled={isFirst}><ArrowUp className="h-4 w-4" /></Button>
+                                            <Button variant="ghost" size="icon" onClick={() => moveItem(item.id, 'down')} title="Mover Abajo" disabled={isLast}><ArrowDown className="h-4 w-4" /></Button>
                                             {item.type === 'chapter' && (
                                                 <Button variant="ghost" size="icon" onClick={() => handleAddNewItem('subchapter', item.id)} title="Agregar Título de Actividad"><Type className="h-4 w-4 text-slate-600" /></Button>
                                             )}
                                             {(item.type === 'chapter' || item.type === 'subchapter') && (
                                                 <Button variant="ghost" size="icon" onClick={() => handleAddNewItem('item', item.id)} title="Agregar Partida"><FilePlus className="h-4 w-4" /></Button>
                                             )}
-                                            <Button variant="ghost" size="icon" onClick={() => handleEditItem(item as PresupuestoItem)}><Trash2 className="h-4 w-4 text-blue-600"/></Button>
-                                            <Button variant="ghost" size="icon" onClick={() => removeItem(item.id)}><Trash2 className="h-4 w-4 text-destructive"/></Button>
+                                            <Button variant="ghost" size="icon" onClick={() => handleEditItem(item as PresupuestoItem)} title="Editar"><Edit className="h-4 w-4 text-blue-600"/></Button>
+                                            <Button variant="ghost" size="icon" onClick={() => removeItem(item.id)} title="Eliminar"><Trash2 className="h-4 w-4 text-destructive"/></Button>
                                        </div>
                                     </TableCell>
                                 </TableRow>
-                            ))}
+                            )})}
                         </TableBody>
                     </Table>
                 </CardContent>
