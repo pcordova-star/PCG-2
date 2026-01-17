@@ -1,3 +1,4 @@
+
 {
   "name": "functions",
   "scripts": {
@@ -13,11 +14,11 @@
   },
   "main": "lib/index.js",
   "dependencies": {
-    "@genkit-ai/google-genai": "^1.0.0",
+    "@genkit-ai/core": "^0.7.1",
+    "@genkit-ai/google-ai": "^0.7.1",
     "cors": "^2.8.5",
     "firebase-admin": "^12.2.0",
     "firebase-functions": "^5.0.1",
-    "genkit": "^1.0.0",
     "heic-convert": "^2.1.0",
     "sharp": "^0.33.4",
     "zod": "^3.23.8"
