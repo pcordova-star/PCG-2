@@ -25,6 +25,8 @@ import { PlanType } from '@/lib/image/planPresets';
 import { CubicacionUiMetrics } from '@/types/cubicacion-ui';
 import CubicacionMetricsPanel from '@/components/cubicacion/CubicacionMetricsPanel';
 import { computeCubicacionMetrics } from '@/lib/image/cubicacionMetrics';
+import { httpsCallable } from 'firebase/functions';
+import { firebaseFunctions } from '@/lib/firebaseClient';
 
 
 const progressSteps = [
@@ -37,38 +39,6 @@ const progressSteps = [
   { percent: 85, text: "Compilando el informe de resultados..." },
   { percent: 95, text: "Finalizando análisis, casi listo..." },
 ];
-
-async function fetchJsonSafe(url: string, init?: RequestInit) {
-  const res = await fetch(url, init);
-  const contentType = res.headers.get("content-type") || "";
-  const text = await res.text();
-
-  let data: any = null;
-  try {
-    data = text ? JSON.parse(text) : null;
-  } catch {
-    // no es JSON
-  }
-
-  if (!res.ok) {
-    const preview = text?.slice(0, 200) || "";
-    const detail =
-      data?.error || data?.message || preview || `HTTP ${res.status}`;
-    throw new Error(
-      `API error ${res.status} (${contentType}): ${detail}`
-    );
-  }
-
-  if (!data) {
-    const preview = text?.slice(0, 200) || "";
-    throw new Error(
-      `Respuesta no-JSON desde API (${contentType}). Preview: ${preview}`
-    );
-  }
-
-  return data;
-}
-
 
 export default function AnalisisPlanosPage() {
   const router = useRouter();
@@ -143,14 +113,7 @@ export default function AnalisisPlanosPage() {
     setIsCached(false);
 
     try {
-        const modelId = "gemini-2.5-flash";
-        const promptVersion = "pcg-cubicador-v1";
-        const presetVersion = "presets-v1";
-
-        const hash = await sha256DataUrl(dataUri);
-        const cacheKey = `${hash}_${modelId}_${promptVersion}_${presetVersion}`;
-
-        const input: AnalisisPlanoInput = {
+        const input: Omit<AnalisisPlanoInput, 'cache' | 'imageMeta'> = {
             photoDataUri: dataUri,
             opciones,
             notas,
@@ -158,21 +121,14 @@ export default function AnalisisPlanosPage() {
             obraNombre: company?.nombreFantasia ?? 'Obra Desconocida',
             companyId: companyId,
             planType: meta.planType,
-            cache: { hash, cacheKey, modelId, promptVersion, presetVersion },
-            imageMeta: { sizeMb: meta.sizeMb, width: meta.width, height: meta.height },
         };
 
-        const base = process.env.NEXT_PUBLIC_BASE_URL;
-        const url = base ? `${base}/api/analizar-plano` : "/api/analizar-plano";
-
-        const data = await fetchJsonSafe(url, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(input),
-        });
+        const analizarPlanoFn = httpsCallable(firebaseFunctions, 'analizarPlano');
+        const response = await analizarPlanoFn(input);
         
-        setResultado(data.result as AnalisisPlanoOutput);
-        setIsCached(data.cached);
+        const data = response.data as { result: AnalisisPlanoOutput };
+
+        setResultado(data.result);
 
     } catch (err: any) {
         console.error("Error al analizar el plano:", err);

@@ -15,7 +15,8 @@ export { checkUserExistsByEmail } from "./src/checkUserExistsByEmail";
 export { testGoogleAi } from "./src/test-google-ai";
 export { deactivateCompanyUser } from "./src/deactivateCompanyUser";
 export { requestModuleActivation } from "./src/requestModuleActivation";
-export { setCompanyClaims } from "./src/setCompanyClaims"; // <--- NUEVA FUNCIÓN
+export { setCompanyClaims } from "./src/setCompanyClaims"; 
+export { analizarPlano } from "./src/analizarPlano";
 
 // --- Triggers (Storage, Firestore) ---
 export { convertHeicToJpg } from "./src/convertHeic";
