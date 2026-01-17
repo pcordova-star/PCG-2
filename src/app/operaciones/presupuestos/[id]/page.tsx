@@ -469,6 +469,26 @@ export default function PresupuestoEditPage() {
         generarPresupuestoPdf(datosEmpresa, datosObra, datosPresupuesto, isAiGenerated);
     };
 
+    const getDialogTitle = () => {
+        if (!currentItem) return 'Crear Ítem';
+        
+        const isEditing = items.some(i => i.id === currentItem.id);
+
+        if (isEditing) {
+            switch (currentItem.type) {
+                case 'chapter': return 'Editar Título Principal';
+                case 'subchapter': return 'Editar Título de Actividad';
+                default: return 'Editar Partida';
+            }
+        } else {
+            switch (currentItem.type) {
+                case 'chapter': return 'Nuevo Título Principal';
+                case 'subchapter': return 'Nuevo Título de Actividad';
+                default: return 'Nueva Partida';
+            }
+        }
+    };
+
 
     if (loading) {
         return <div className="p-8 text-center"><Loader2 className="animate-spin" /> Cargando...</div>
@@ -633,7 +653,7 @@ export default function PresupuestoEditPage() {
             <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
                  <DialogContent>
                     <DialogHeader>
-                        <DialogTitle>{currentItem?.id ? 'Editar Ítem' : 'Nuevo Ítem'}</DialogTitle>
+                        <DialogTitle>{getDialogTitle()}</DialogTitle>
                     </DialogHeader>
                     {currentItem && (
                         <div className="grid gap-4 py-4">
