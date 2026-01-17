@@ -2,9 +2,11 @@
 import { NextResponse } from 'next/server';
 import admin from '@/server/firebaseAdmin';
 import * as crypto from 'crypto';
-import { canUseComparacionPlanos } from '@/lib/comparacion-planos/permissions';
+import { canUserAccessCompany, getCompany } from '@/lib/comparacion-planos/permissions';
 import { copyPlanoFiles } from '@/lib/comparacion-planos/storage';
 import { FieldValue } from 'firebase-admin/firestore';
+import { AppUser } from '@/types/pcg';
+import { getComparacionJob } from '@/lib/comparacion-planos/firestore';
 
 const db = admin.firestore();
 
@@ -18,16 +20,35 @@ export async function POST(req: Request) {
     const token = authorization.split("Bearer ")[1];
     const decodedToken = await admin.auth().verifyIdToken(token);
     const userId = decodedToken.uid;
-
-    const hasAccess = await canUseComparacionPlanos(userId);
-    if (!hasAccess) {
-      return NextResponse.json({ error: 'Acceso denegado a este módulo.' }, { status: 403 });
-    }
+    const userRole = (decodedToken as any).role;
+    const userCompanyId = (decodedToken as any).companyId;
+    const userForPerms: AppUser = { id: userId, role: userRole, companyId: userCompanyId, email: '', nombre: '', createdAt: new Date() };
 
     const { oldJobId } = await req.json();
     if (!oldJobId) {
         return NextResponse.json({ error: 'El ID del job original es requerido.' }, { status: 400 });
     }
+
+    const oldJob = await getComparacionJob(oldJobId);
+    if (!oldJob) {
+        return NextResponse.json({ error: 'El job original no fue encontrado.' }, { status: 404 });
+    }
+
+    // --- Permission Check ---
+    const hasAccess = await canUserAccessCompany(userForPerms, oldJob.empresaId);
+    if (!hasAccess) {
+        return NextResponse.json({ error: 'Acceso denegado a este recurso.' }, { status: 403 });
+    }
+    if (userRole !== 'superadmin') {
+        if (!userCompanyId) {
+            return NextResponse.json({ error: 'Acceso denegado: Usuario no asociado a una empresa.' }, { status: 403 });
+        }
+        const company = await getCompany(userCompanyId);
+        if (!company?.feature_plan_comparison_enabled) {
+            return NextResponse.json({ error: 'Acceso denegado: El módulo de comparación de planos no está habilitado para su empresa.' }, { status: 403 });
+        }
+    }
+    // --- End Permission Check ---
 
     // 1. Crear nuevo ID de Job
     newJobId = crypto.randomUUID();
@@ -40,7 +61,7 @@ export async function POST(req: Request) {
     await newJobRef.set({
       jobId: newJobId,
       userId: userId,
-      empresaId: (decodedToken as any).companyId || 'default_company',
+      empresaId: userCompanyId || 'default_company',
       status: 'uploaded',
       planoA_storagePath: newPathA,
       planoB_storagePath: newPathB,
@@ -52,8 +73,6 @@ export async function POST(req: Request) {
 
   } catch (error: any) {
     console.error(`[API /reanalizar] Error:`, error);
-    // Si la re-analización falla, no hay un job nuevo que marcar como error.
-    // Simplemente devolvemos un error genérico.
     return NextResponse.json({ error: error.message || 'Error interno del servidor al re-analizar.' }, { status: 500 });
   }
 }
