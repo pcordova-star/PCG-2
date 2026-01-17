@@ -44,6 +44,9 @@ const firestore_1 = require("firebase-admin/firestore");
 const zod_1 = require("zod");
 const auth_1 = require("firebase-admin/auth");
 const cors_1 = __importDefault(require("cors"));
+const firebaseAdmin_1 = require("./firebaseAdmin");
+const adminApp = (0, firebaseAdmin_1.getAdminApp)();
+const db = adminApp.firestore();
 const corsHandler = (0, cors_1.default)({ origin: true });
 const AvanceSchema = zod_1.z.object({
     obraId: zod_1.z.string().min(1),
@@ -56,7 +59,8 @@ const AvanceSchema = zod_1.z.object({
 function escapeHtml(s) {
     return s.replace(/[&<>"']/g, (m) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[m]));
 }
-exports.registrarAvanceRapido = functions.region("southamerica-west1").https.onRequest((req, res) => {
+// Convertido a Cloud Function v1 para mantener compatibilidad
+exports.registrarAvanceRapido = functions.region("us-central1").https.onRequest((req, res) => {
     corsHandler(req, res, async () => {
         if (req.method === 'OPTIONS') {
             res.status(204).send('');
@@ -80,7 +84,6 @@ exports.registrarAvanceRapido = functions.region("southamerica-west1").https.onR
                 throw new functions.https.HttpsError("invalid-argument", "Los datos proporcionados son inválidos.", parsed.error.flatten());
             }
             const { obraId, actividadId, porcentaje, comentario, fotos, visibleCliente } = parsed.data;
-            const db = (0, firestore_1.getFirestore)();
             const obraRef = db.collection("obras").doc(obraId);
             const avanceId = await db.runTransaction(async (tx) => {
                 const obraSnap = await tx.get(obraRef);

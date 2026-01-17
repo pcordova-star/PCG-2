@@ -36,14 +36,12 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.notifyDocumentDistribution = void 0;
 // functions/src/notifyDocumentDistribution.ts
 const functions = __importStar(require("firebase-functions"));
-const admin = __importStar(require("firebase-admin"));
 const zod_1 = require("zod");
 const logger = __importStar(require("firebase-functions/logger"));
-const firestore_1 = require("firebase-admin/firestore");
-if (!admin.apps.length) {
-    admin.initializeApp();
-}
-const db = (0, firestore_1.getFirestore)();
+const firebaseAdmin_1 = require("./firebaseAdmin");
+const admin = __importStar(require("firebase-admin"));
+const adminApp = (0, firebaseAdmin_1.getAdminApp)();
+const db = adminApp.firestore();
 // Esquema de validación para los datos de entrada de la función
 const NotifyDocumentSchema = zod_1.z.object({
     projectDocumentId: zod_1.z.string().min(1),
@@ -54,13 +52,11 @@ const NotifyDocumentSchema = zod_1.z.object({
     notifiedUserId: zod_1.z.string().min(1),
     email: zod_1.z.string().email(),
 });
-exports.notifyDocumentDistribution = functions.region("southamerica-west1").https.onCall(async (data, context) => {
+exports.notifyDocumentDistribution = functions.region("us-central1").https.onCall(async (data, context) => {
     // 1. Autenticación y autorización (básica)
     if (!context.auth) {
         throw new functions.https.HttpsError("unauthenticated", "El usuario no está autenticado.");
     }
-    // Podrías agregar una validación de rol si es necesario
-    // const uid = context.auth.uid;
     // 2. Validación de datos de entrada
     const parsed = NotifyDocumentSchema.safeParse(data);
     if (!parsed.success) {

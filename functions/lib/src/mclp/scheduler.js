@@ -34,12 +34,48 @@ var __importStar = (this && this.__importStar) || (function () {
 })();
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.mclpDailyScheduler = void 0;
-// functions/src/mclp/scheduler.ts
-const scheduler_1 = require("firebase-functions/v2/scheduler");
-const admin = __importStar(require("firebase-admin"));
+// src/functions/src/mclp/scheduler.ts
+const functions = __importStar(require("firebase-functions/v2/scheduler"));
 const logger = __importStar(require("firebase-functions/logger"));
-if (!admin.apps.length) {
-    admin.initializeApp();
+const firebaseAdmin_1 = require("../firebaseAdmin");
+const adminApp = (0, firebaseAdmin_1.getAdminApp)();
+exports.mclpDailyScheduler = functions
+    .onSchedule({ schedule: "every day 01:00", timeZone: "UTC" }, async (context) => {
+    const db = adminApp.firestore();
+    const now = new Date();
+    logger.info("Running MCLP Daily Scheduler", { timestamp: now.toISOString() });
+    const companiesSnap = await db
+        .collection("companies")
+        .where("feature_compliance_module_enabled", "==", true)
+        .get();
+    for (const c of companiesSnap.docs) {
+        logger.info(`Processing company: ${c.id}`);
+        await processCompanyMclp(db, c.id, now);
+    }
+    logger.info("MCLP Daily Scheduler finished.");
+});
+async function processCompanyMclp(db, companyId, now) {
+    const periodKey = getPeriodKeyUTC(now);
+    const periodRef = await ensurePeriodExists(db, companyId, periodKey);
+    if (!periodRef)
+        return;
+    const periodSnap = await periodRef.get();
+    if (!periodSnap.exists)
+        return;
+    const { corteCarga, limiteRevision, fechaPago, estado } = periodSnap.data();
+    const corteCargaDate = corteCarga.toDate();
+    const fechaPagoDate = fechaPago.toDate();
+    if (now > corteCargaDate && estado === "Abierto para Carga") {
+        await periodRef.update({
+            estado: "En Revisión",
+            updatedAt: adminApp.firestore.Timestamp.now(),
+        });
+        logger.info(`[${companyId}] Period ${periodKey} marked as 'En Revisión'.`);
+    }
+    if (now >= fechaPagoDate && estado !== "Cerrado") {
+        await closeAndFinalizePeriod(db, companyId, periodRef.id);
+        logger.info(`[${companyId}] Period ${periodKey} finalized and closed.`);
+    }
 }
 function getPeriodKeyUTC(date) {
     const y = date.getUTCFullYear();
@@ -47,39 +83,30 @@ function getPeriodKeyUTC(date) {
     return `${y}-${m}`; // YYYY-MM
 }
 async function closeAndFinalizePeriod(db, companyId, periodId) {
-    const statusRef = db
-        .collection("compliancePeriods")
-        .doc(periodId)
-        .collection("status");
+    const statusRef = db.collection("compliancePeriods").doc(periodId).collection("status");
     const snap = await statusRef.get();
-    // Todo subcontratista que NO esté Cumple -> No Cumple final
     for (const d of snap.docs) {
         if (d.get("estado") !== "Cumple") {
             await d.ref.set({
                 estado: "No Cumple",
-                fechaAsignacion: admin.firestore.Timestamp.now(),
+                fechaAsignacion: adminApp.firestore.Timestamp.now(),
                 asignadoPorUid: "system",
             }, { merge: true });
         }
     }
-    await db
-        .collection("compliancePeriods")
-        .doc(periodId)
-        .set({
+    await db.collection("compliancePeriods").doc(periodId).set({
         estado: "Cerrado",
-        closedAt: admin.firestore.Timestamp.now(),
-        updatedAt: admin.firestore.Timestamp.now(),
+        closedAt: adminApp.firestore.Timestamp.now(),
+        updatedAt: adminApp.firestore.Timestamp.now(),
     }, { merge: true });
 }
-// Lógica de creación de período si no existe, leyendo desde el calendario
 async function ensurePeriodExists(db, companyId, periodKey) {
     const periodId = `${companyId}_${periodKey}`;
     const periodRef = db.collection("compliancePeriods").doc(periodId);
     const periodSnap = await periodRef.get();
     if (periodSnap.exists) {
-        return periodRef; // Retorna la referencia si ya existe
+        return periodRef;
     }
-    // Si no existe, lo crea a partir del calendario
     logger.info(`[${companyId}] Period ${periodKey} does not exist. Creating from calendar.`);
     const year = periodKey.split('-')[0];
     const calendarId = `${companyId}_${year}`;
@@ -93,58 +120,14 @@ async function ensurePeriodExists(db, companyId, periodKey) {
     await periodRef.set({
         companyId,
         periodo: periodKey,
-        // Copia las fechas desde el calendario (snapshot inmutable)
         corteCarga: monthData.corteCarga,
         limiteRevision: monthData.limiteRevision,
         fechaPago: monthData.fechaPago,
         estado: "Abierto para Carga",
-        createdAt: admin.firestore.Timestamp.now(),
-        updatedAt: admin.firestore.Timestamp.now(),
+        createdAt: adminApp.firestore.Timestamp.now(),
+        updatedAt: adminApp.firestore.Timestamp.now(),
     });
-    // Marcar el mes del calendario como no editable
-    await monthRef.update({ editable: false, updatedAt: admin.firestore.Timestamp.now() });
+    await monthRef.update({ editable: false, updatedAt: adminApp.firestore.Timestamp.now() });
     logger.info(`[${companyId}] Period ${periodKey} created successfully.`);
     return periodRef;
 }
-async function processCompanyMclp(db, companyId, now) {
-    const periodKey = getPeriodKeyUTC(now);
-    // Asegura que el período del mes actual exista, creándolo si es necesario
-    const periodRef = await ensurePeriodExists(db, companyId, periodKey);
-    if (!periodRef)
-        return; // No se pudo crear el período, se omite el resto
-    const periodSnap = await periodRef.get();
-    if (!periodSnap.exists)
-        return; // Doble chequeo, no debería ocurrir
-    const { corteCarga, limiteRevision, fechaPago, estado } = periodSnap.data();
-    // Convertir timestamps de Firestore a Date de JS
-    const corteCargaDate = corteCarga.toDate();
-    const limiteRevisionDate = limiteRevision.toDate();
-    const fechaPagoDate = fechaPago.toDate();
-    // 1) Marcar En Revisión (después del corte)
-    if (now > corteCargaDate && estado === "Abierto para Carga") {
-        await periodRef.update({
-            estado: "En Revisión",
-            updatedAt: admin.firestore.Timestamp.now(),
-        });
-        logger.info(`[${companyId}] Period ${periodKey} marked as 'En Revisión'.`);
-    }
-    // 2) Cerrar período (en o después del día de pago)
-    if (now >= fechaPagoDate && estado !== "Cerrado") {
-        await closeAndFinalizePeriod(db, companyId, periodRef.id);
-        logger.info(`[${companyId}] Period ${periodKey} finalized and closed.`);
-    }
-}
-exports.mclpDailyScheduler = (0, scheduler_1.onSchedule)({ schedule: "every day 01:00", timeZone: "UTC" }, async () => {
-    const db = admin.firestore();
-    const now = new Date();
-    logger.info("Running MCLP Daily Scheduler", { timestamp: now.toISOString() });
-    const companiesSnap = await db
-        .collection("companies")
-        .where("feature_compliance_module_enabled", "==", true)
-        .get();
-    for (const c of companiesSnap.docs) {
-        logger.info(`Processing company: ${c.id}`);
-        await processCompanyMclp(db, c.id, now);
-    }
-    logger.info("MCLP Daily Scheduler finished.");
-});

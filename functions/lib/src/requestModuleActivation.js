@@ -36,32 +36,23 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.requestModuleActivation = void 0;
 // src/functions/src/requestModuleActivation.ts
 const https_1 = require("firebase-functions/v2/https");
-const admin = __importStar(require("firebase-admin"));
 const logger = __importStar(require("firebase-functions/logger"));
 const auth_1 = require("firebase-admin/auth");
-if (!admin.apps.length) {
-    admin.initializeApp();
-}
+const firebaseAdmin_1 = require("./firebaseAdmin");
+const admin = __importStar(require("firebase-admin"));
+const adminApp = (0, firebaseAdmin_1.getAdminApp)();
 const SUPERADMIN_EMAIL = "pauloandrescordova@gmail.com";
-exports.requestModuleActivation = (0, https_1.onRequest)(async (req, res) => {
-    // --- CORS COMPLETO PARA CLOUD FUNCTIONS GEN2 ---
-    const origin = req.headers.origin;
-    const allowedOrigins = [
-        "https://pcgoperacion.com",
-        "http://localhost:3000"
-    ];
-    if (allowedOrigins.includes(origin || "")) {
-        res.set("Access-Control-Allow-Origin", origin);
-    }
+exports.requestModuleActivation = (0, https_1.onRequest)({
+    region: "southamerica-west1",
+    cors: true
+}, async (req, res) => {
+    res.set("Access-Control-Allow-Origin", "*");
     res.set("Access-Control-Allow-Methods", "POST, OPTIONS");
     res.set("Access-Control-Allow-Headers", "Content-Type, Authorization");
-    res.set("Access-Control-Allow-Credentials", "true");
-    res.set("Vary", "Origin");
     if (req.method === "OPTIONS") {
         res.status(204).send("");
         return;
     }
-    // --- END CORS ---
     if (req.method !== "POST") {
         res.status(405).json({ success: false, error: "Method Not Allowed" });
         return;
@@ -77,7 +68,15 @@ exports.requestModuleActivation = (0, https_1.onRequest)(async (req, res) => {
         const { uid } = decodedToken;
         const userEmail = decodedToken.email || "No disponible";
         const userName = decodedToken.name || userEmail;
-        const companyId = decodedToken.companyId;
+        let companyId = decodedToken.companyId;
+        // Si el companyId no está en los claims, búscalo en Firestore como fallback.
+        if (!companyId) {
+            logger.info(`companyId no encontrado en los claims para UID ${uid}. Buscando en Firestore...`);
+            const userDoc = await adminApp.firestore().collection("users").doc(uid).get();
+            if (userDoc.exists) { // <- LÍNEA CORREGIDA
+                companyId = userDoc.data()?.empresaId;
+            }
+        }
         if (!companyId) {
             res.status(400).json({ success: false, error: "El usuario no está asociado a ninguna empresa." });
             return;
@@ -87,13 +86,12 @@ exports.requestModuleActivation = (0, https_1.onRequest)(async (req, res) => {
             res.status(400).json({ success: false, error: "Faltan los parámetros 'moduleId' y 'moduleTitle'." });
             return;
         }
-        const db = admin.firestore();
+        const db = adminApp.firestore();
         const companyRef = db.collection("companies").doc(companyId);
         const companySnap = await companyRef.get();
         const companyName = companySnap.exists
             ? companySnap.data()?.nombreFantasia || "Empresa sin nombre"
             : "Empresa desconocida";
-        // Registrar solicitud
         const requestRef = await db.collection("moduleActivationRequests").add({
             companyId,
             companyName,
@@ -106,7 +104,6 @@ exports.requestModuleActivation = (0, https_1.onRequest)(async (req, res) => {
             status: "pending",
         });
         logger.info(`Solicitud de activación registrada: ${requestRef.id}`);
-        // enviar correo al superadmin
         await db.collection("mail").add({
             to: [SUPERADMIN_EMAIL],
             message: {

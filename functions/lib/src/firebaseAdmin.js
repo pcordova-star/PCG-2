@@ -1,5 +1,4 @@
 "use strict";
-// functions/src/genkit-config.ts
 var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
     if (k2 === undefined) k2 = k;
     var desc = Object.getOwnPropertyDescriptor(m, k);
@@ -34,26 +33,12 @@ var __importStar = (this && this.__importStar) || (function () {
     };
 })();
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.getInitializedGenkitAi = getInitializedGenkitAi;
-const genkit_1 = require("genkit");
-const google_genai_1 = require("@genkit-ai/google-genai");
-const logger = __importStar(require("firebase-functions/logger"));
-const params_1 = require("./params");
-let aiInstance = null;
-function getInitializedGenkitAi() {
-    if (aiInstance)
-        return aiInstance;
-    const apiKey = params_1.GEMINI_API_KEY_SECRET.value();
-    if (!apiKey) {
-        throw new Error("GEMINI_API_KEY no está disponible en runtime.");
+exports.getAdminApp = getAdminApp;
+// src/functions/src/firebaseAdmin.ts
+const admin = __importStar(require("firebase-admin"));
+function getAdminApp() {
+    if (!admin.apps.length) {
+        admin.initializeApp();
     }
-    logger.info("[genkit-config] Secret cargado correctamente.");
-    aiInstance = (0, genkit_1.genkit)({
-        plugins: [
-            (0, google_genai_1.googleAI)({
-                apiKey
-            })
-        ]
-    });
-    return aiInstance;
+    return admin;
 }

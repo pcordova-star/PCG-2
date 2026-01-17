@@ -1,30 +1,21 @@
 // functions/src/genkit-config.ts
-
-import { genkit } from "genkit";
-import { googleAI } from "@genkit-ai/google-genai";
+import { genkit } from "@genkit-ai/core";
+import { googleAI } from "@genkit-ai/google-ai";
 import * as logger from "firebase-functions/logger";
-import { GEMINI_API_KEY_SECRET } from "./params";
-
-let aiInstance: any = null;
+import { PPCG_GEMINI_API_KEY_SECRET } from "./params";
 
 export function getInitializedGenkitAi() {
-  if (aiInstance) return aiInstance;
-
-  const apiKey = GEMINI_API_KEY_SECRET.value();
+  const apiKey = PPCG_GEMINI_API_KEY_SECRET.value();
 
   if (!apiKey) {
-    throw new Error("GEMINI_API_KEY no está disponible en runtime.");
+    throw new Error("PPCG_GEMINI_API_KEY no está disponible en runtime.");
   }
 
-  logger.info("[genkit-config] Secret cargado correctamente.");
+  logger.info("[genkit-config] API Key cargada correctamente.");
 
-  aiInstance = genkit({
+  return genkit({
     plugins: [
-      googleAI({
-        apiKey
-      })
+      googleAI({ apiKey })
     ]
   });
-
-  return aiInstance;
 }

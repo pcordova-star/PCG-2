@@ -3,7 +3,7 @@ import { onCall, HttpsError } from "firebase-functions/v2/https";
 import * as logger from "firebase-functions/logger";
 import { getInitializedGenkitAi } from "./genkit-config"; 
 import { z } from "zod";
-import { GEMINI_API_KEY_SECRET } from "./params";
+import { PPCG_GEMINI_API_KEY_SECRET } from "./params";
 
 // --- Schemas (copiados desde /types/analisis-planos.ts para desacoplar) ---
 const OpcionesAnalisisSchema = z.object({
@@ -43,7 +43,7 @@ export const analizarPlano = onCall(
     region: "us-central1",
     timeoutSeconds: 300,
     memory: '1GiB',
-    secrets: [GEMINI_API_KEY_SECRET],
+    secrets: [PPCG_GEMINI_API_KEY_SECRET],
     cors: [
         "https://pcgoperacion.com",
         /https:\/\/.*\.firebase-studio\.app$/,

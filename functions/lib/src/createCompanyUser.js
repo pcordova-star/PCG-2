@@ -34,25 +34,17 @@ var __importStar = (this && this.__importStar) || (function () {
 })();
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.createCompanyUser = void 0;
-// functions/src/createCompanyUser.ts
+// src/functions/src/createCompanyUser.ts
 const functions = __importStar(require("firebase-functions"));
-const admin = __importStar(require("firebase-admin"));
 const logger = __importStar(require("firebase-functions/logger"));
-if (!admin.apps.length) {
-    admin.initializeApp();
-}
+const firebaseAdmin_1 = require("./firebaseAdmin");
+const admin = (0, firebaseAdmin_1.getAdminApp)();
 function buildAcceptInviteUrl(invId, email) {
-    const rawBaseUrl = process.env.APP_BASE_URL || "http://localhost:3000";
-    if (!rawBaseUrl) {
-        logger.error("CRÍTICO: APP_BASE_URL no está configurada en las variables de entorno de la función. No se puede crear un enlace de invitación válido.");
-        throw new functions.https.HttpsError("internal", "El servidor no está configurado correctamente para enviar invitaciones.");
-    }
+    const rawBaseUrl = functions.config().app?.base_url || "http://localhost:3000";
     const appBaseUrl = rawBaseUrl.replace(/\/+$/, "");
     return `${appBaseUrl}/accept-invite?invId=${encodeURIComponent(invId)}&email=${encodeURIComponent(email)}`;
 }
-exports.createCompanyUser = functions
-    .region("southamerica-west1")
-    .https.onCall(async (data, context) => {
+exports.createCompanyUser = functions.region("us-central1").https.onCall(async (data, context) => {
     if (!context.auth) {
         throw new functions.https.HttpsError("unauthenticated", "No autenticado.");
     }
@@ -62,14 +54,13 @@ exports.createCompanyUser = functions
     if (requesterClaims.customClaims?.role !== "superadmin") {
         throw new functions.https.HttpsError("permission-denied", "Solo SUPER_ADMIN puede crear usuarios.");
     }
-    const { companyId, email, nombre, role, password } = data;
-    if (!companyId || !email || !nombre || !role) {
+    if (!data.companyId || !data.email || !data.nombre || !data.role) {
         throw new functions.https.HttpsError("invalid-argument", "Faltan campos obligatorios: companyId, email, nombre, role.");
     }
-    if (!password || password.length < 6) {
+    if (!data.password || data.password.length < 6) {
         throw new functions.https.HttpsError("invalid-argument", "La contraseña es obligatoria y debe tener al menos 6 caracteres.");
     }
-    const companyRef = db.collection("companies").doc(companyId);
+    const companyRef = db.collection("companies").doc(data.companyId);
     const companySnap = await companyRef.get();
     if (!companySnap.exists) {
         throw new functions.https.HttpsError("not-found", "La empresa no existe.");
@@ -78,13 +69,13 @@ exports.createCompanyUser = functions
     let userRecord;
     try {
         userRecord = await auth.createUser({
-            email: email,
-            password: password,
-            displayName: nombre,
+            email: data.email,
+            password: data.password,
+            displayName: data.nombre,
             emailVerified: false,
             disabled: false,
         });
-        logger.info(`Usuario creado con éxito para ${email} con UID: ${userRecord.uid}`);
+        logger.info(`Usuario creado con éxito para ${data.email} con UID: ${userRecord.uid}`);
     }
     catch (error) {
         if (error.code === 'auth/email-already-exists') {
@@ -95,59 +86,112 @@ exports.createCompanyUser = functions
     }
     const uid = userRecord.uid;
     await auth.setCustomUserClaims(uid, {
-        role: role,
-        companyId: companyId,
+        role: data.role,
+        companyId: data.companyId,
     });
     const now = admin.firestore.FieldValue.serverTimestamp();
     const userProfileRef = db.collection("users").doc(uid);
     await userProfileRef.set({
-        nombre: nombre,
-        email: email,
-        role: role,
-        empresaId: companyId,
+        nombre: data.nombre,
+        email: data.email,
+        role: data.role,
+        empresaId: data.companyId,
         activo: true,
         createdAt: now,
         updatedAt: now,
-        mustChangePassword: true, // Forzar cambio de contraseña
+        mustChangePassword: true,
     }, { merge: true });
-    // Crear una invitación para registro y trazabilidad
     const invitationRef = db.collection("invitacionesUsuarios").doc();
     await invitationRef.set({
         email: data.email,
         empresaId: data.companyId,
         empresaNombre: companyData.nombreFantasia || companyData.razonSocial || '',
         roleDeseado: data.role,
-        estado: 'pendiente_auth', // Estado que indica que el usuario fue creado, pero falta que acepte
+        estado: 'pendiente_auth',
         uid: uid,
         createdAt: now,
         creadoPorUid: context.auth.uid,
     });
-    // Enviar correo de invitación con el enlace correcto
     const acceptInviteUrl = buildAcceptInviteUrl(invitationRef.id, data.email);
-    const platformUrl = process.env.APP_BASE_URL || "http://localhost:3000";
-    const logoUrl = `${platformUrl}/logo.png`;
     await db.collection("mail").add({
         to: [data.email],
         message: {
-            subject: `Bienvenido a PCG - Acceso para ${companyData.nombreFantasia}`,
+            from: "PCG Operación <control@pcgoperacion.com>",
+            subject: `Invitación a Plataforma de Control de Gestión – ${companyData.nombreFantasia}`,
             html: `
-            <p>Hola ${data.nombre},</p>
-            <p>Has sido registrado en la plataforma PCG para la empresa <strong>${companyData.nombreFantasia}</strong>.</p>
-            <p>Tu rol asignado es: <strong>${data.role}</strong>.</p>
-            <p>Tu contraseña temporal es: <strong>${data.password}</strong></p>
-            <p>Para completar tu registro y acceder, por favor haz clic en el siguiente enlace. Se te pedirá que establezcas una nueva contraseña por seguridad.</p>
-            <p><a href="${acceptInviteUrl}">Activar mi cuenta y acceder a PCG</a></p>
-            <p>Si el botón no funciona, copia y pega esta URL en tu navegador:</p>
-            <p><a href="${acceptInviteUrl}">${acceptInviteUrl}</a></p>
-            <p>Gracias,<br>El equipo de PCG</p>`,
+        <!DOCTYPE html>
+        <html lang="es">
+          <body style="margin:0; padding:0; background:#f5f7fa; font-family:Arial, sans-serif;">
+            <table width="100%" cellspacing="0" cellpadding="0" bgcolor="#f5f7fa">
+              <tr>
+                <td align="center" style="padding:30px 20px;">
+                  <table width="600" cellspacing="0" cellpadding="0" bgcolor="#ffffff" style="border-radius:8px; overflow:hidden; border:1px solid #e2e6eb;">
+
+                    <tr>
+                      <td align="center" style="background:#1a73e8; padding:24px 20px;">
+                        <h1 style="color:white; margin:0; font-size:24px; font-weight:600;">
+                          Plataforma de Control de Gestión
+                        </h1>
+                      </td>
+                    </tr>
+
+                    <tr>
+                      <td style="padding:32px 40px; color:#333333; font-size:16px; line-height:24px;">
+
+                        <p style="margin-top:0;">
+                          Hola ${data.nombre},
+                        </p>
+
+                        <p>
+                          Has sido invitado a unirte a la plataforma
+                          <strong>${companyData.nombreFantasia}</strong> en PCG.
+                        </p>
+
+                        <p>
+                          Para completar tu registro, haz clic en el siguiente botón:
+                        </p>
+
+                        <p style="text-align:center; margin:32px 0;">
+                          <a href="${acceptInviteUrl}"
+                             style="background:#1a73e8; color:white; text-decoration:none; padding:14px 28px; border-radius:6px; font-weight:600; display:inline-block;">
+                             Aceptar Invitación
+                          </a>
+                        </p>
+
+                        <p>Si el botón no funciona, copia y pega este enlace:</p>
+
+                        <p style="word-break:break-all; color:#1a73e8;">
+                          ${acceptInviteUrl}
+                        </p>
+
+                        <p>
+                          Este correo fue enviado a <strong>${data.email}</strong>.
+                        </p>
+
+                      </td>
+                    </tr>
+
+                    <tr>
+                      <td align="center" style="background:#f0f2f5; padding:18px 20px; font-size:12px; color:#666;">
+                        © 2026 PCG Operación · Todos los derechos reservados
+                      </td>
+                    </tr>
+
+                  </table>
+                </td>
+              </tr>
+            </table>
+          </body>
+        </html>
+        `,
         },
     });
     return {
         uid,
         email: data.email,
         nombre: data.nombre,
-        role: role,
-        companyId: companyId,
+        role: data.role,
+        companyId: data.companyId,
         message: 'Usuario creado directamente y con éxito.'
     };
 });

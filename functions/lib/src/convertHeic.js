@@ -1,5 +1,4 @@
 "use strict";
-// functions/src/convertHeic.ts
 var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
     if (k2 === undefined) k2 = k;
     var desc = Object.getOwnPropertyDescriptor(m, k);
@@ -38,26 +37,23 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.convertHeicToJpg = void 0;
-const storage_1 = require("firebase-functions/v2/storage");
-const admin = __importStar(require("firebase-admin"));
+// src/functions/src/convertHeic.ts
+const functions = __importStar(require("firebase-functions"));
 const path = __importStar(require("path"));
 const os = __importStar(require("os"));
 const fs = __importStar(require("fs"));
 const heic_convert_1 = __importDefault(require("heic-convert"));
 const sharp_1 = __importDefault(require("sharp"));
 const logger = __importStar(require("firebase-functions/logger"));
-// Asegurarse de que Firebase Admin esté inicializado
-if (!admin.apps.length) {
-    admin.initializeApp();
-}
-const storage = admin.storage();
-exports.convertHeicToJpg = (0, storage_1.onObjectFinalized)({
-    // La región y SA se heredan de setGlobalOptions
-    cpu: 1,
-    memory: "512MiB",
-}, async (event) => {
-    const { bucket, name: filePath, contentType } = event.data;
-    const storageBucket = storage.bucket(bucket);
+const firebaseAdmin_1 = require("./firebaseAdmin");
+const admin = (0, firebaseAdmin_1.getAdminApp)();
+exports.convertHeicToJpg = functions
+    .region("us-central1")
+    .runWith({ memory: "512MB" })
+    .storage.object()
+    .onFinalize(async (object) => {
+    const { bucket, name: filePath, contentType } = object;
+    const storageBucket = admin.storage().bucket(bucket);
     if (!filePath) {
         logger.warn('File path is undefined.');
         return null;
@@ -98,7 +94,7 @@ exports.convertHeicToJpg = (0, storage_1.onObjectFinalized)({
             destination: finalJpgPath,
             metadata: {
                 contentType: 'image/jpeg',
-                metadata: event.data.metadata,
+                metadata: object.metadata,
             },
         });
         logger.log(`Uploaded JPG file to: ${finalJpgPath}`);

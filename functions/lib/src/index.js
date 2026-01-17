@@ -1,28 +1,37 @@
 "use strict";
-/**
- * Import function triggers from their respective submodules:
- *
- * import {onCall} from "firebase-functions/v2/https";
- * import {onDocumentWritten} from "firebase-functions/v2/firestore";
- *
- * See a full list of supported triggers at https://firebase.google.com/docs/functions
- */
+// src/functions/src/index.ts
 Object.defineProperty(exports, "__esModule", { value: true });
-const firebase_functions_1 = require("firebase-functions");
-// Start writing functions
-// https://firebase.google.com/docs/functions/typescript
-// For cost control, you can set the maximum number of containers that can be
-// running at the same time. This helps mitigate the impact of unexpected
-// traffic spikes by instead downgrading performance. This limit is a
-// per-function limit. You can override the limit for each function using the
-// `maxInstances` option in the function's options, e.g.
-// `onRequest({ maxInstances: 5 }, (req, res) => { ... })`.
-// NOTE: setGlobalOptions does not apply to functions using the v1 API. V1
-// functions should each use functions.runWith({ maxInstances: 10 }) instead.
-// In the v1 API, each function can only serve one request per container, so
-// this will be the maximum concurrent request count.
-(0, firebase_functions_1.setGlobalOptions)({ maxInstances: 10 });
-// export const helloWorld = onRequest((request, response) => {
-//   logger.info("Hello logs!", {structuredData: true});
-//   response.send("Hello from Firebase!");
-// });
+exports.mclpDailyScheduler = exports.processItemizadoJob = exports.convertHeicToJpg = exports.analizarPlano = exports.setCompanyClaims = exports.requestModuleActivation = exports.deactivateCompanyUser = exports.testGoogleAi = exports.checkUserExistsByEmail = exports.setSuperAdminClaim = exports.notifyDocumentDistribution = exports.registrarAvanceRapido = exports.createCompanyUser = void 0;
+/**
+ * Este archivo es el punto de entrada para todas las Cloud Functions.
+ * Cada función se importa desde su propio archivo y se exporta para que Firebase la despliegue.
+ */
+// --- Exportación de funciones v1 y v2 ---
+var createCompanyUser_1 = require("./createCompanyUser");
+Object.defineProperty(exports, "createCompanyUser", { enumerable: true, get: function () { return createCompanyUser_1.createCompanyUser; } });
+var registrarAvanceRapido_1 = require("./registrarAvanceRapido");
+Object.defineProperty(exports, "registrarAvanceRapido", { enumerable: true, get: function () { return registrarAvanceRapido_1.registrarAvanceRapido; } });
+var notifyDocumentDistribution_1 = require("./notifyDocumentDistribution");
+Object.defineProperty(exports, "notifyDocumentDistribution", { enumerable: true, get: function () { return notifyDocumentDistribution_1.notifyDocumentDistribution; } });
+var setSuperAdmin_1 = require("./setSuperAdmin");
+Object.defineProperty(exports, "setSuperAdminClaim", { enumerable: true, get: function () { return setSuperAdmin_1.setSuperAdminClaim; } });
+var checkUserExistsByEmail_1 = require("./checkUserExistsByEmail");
+Object.defineProperty(exports, "checkUserExistsByEmail", { enumerable: true, get: function () { return checkUserExistsByEmail_1.checkUserExistsByEmail; } });
+var test_google_ai_1 = require("./test-google-ai");
+Object.defineProperty(exports, "testGoogleAi", { enumerable: true, get: function () { return test_google_ai_1.testGoogleAi; } });
+var deactivateCompanyUser_1 = require("./deactivateCompanyUser");
+Object.defineProperty(exports, "deactivateCompanyUser", { enumerable: true, get: function () { return deactivateCompanyUser_1.deactivateCompanyUser; } });
+var requestModuleActivation_1 = require("./requestModuleActivation");
+Object.defineProperty(exports, "requestModuleActivation", { enumerable: true, get: function () { return requestModuleActivation_1.requestModuleActivation; } });
+var setCompanyClaims_1 = require("./setCompanyClaims");
+Object.defineProperty(exports, "setCompanyClaims", { enumerable: true, get: function () { return setCompanyClaims_1.setCompanyClaims; } });
+var analizarPlano_1 = require("./analizarPlano");
+Object.defineProperty(exports, "analizarPlano", { enumerable: true, get: function () { return analizarPlano_1.analizarPlano; } });
+// --- Triggers (Storage, Firestore) ---
+var convertHeic_1 = require("./convertHeic");
+Object.defineProperty(exports, "convertHeicToJpg", { enumerable: true, get: function () { return convertHeic_1.convertHeicToJpg; } });
+var processItemizadoJob_1 = require("./processItemizadoJob");
+Object.defineProperty(exports, "processItemizadoJob", { enumerable: true, get: function () { return processItemizadoJob_1.processItemizadoJob; } });
+// --- Funciones Programadas (Scheduler) ---
+var scheduler_1 = require("./mclp/scheduler");
+Object.defineProperty(exports, "mclpDailyScheduler", { enumerable: true, get: function () { return scheduler_1.mclpDailyScheduler; } });

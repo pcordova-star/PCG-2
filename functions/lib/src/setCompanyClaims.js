@@ -33,39 +33,42 @@ var __importStar = (this && this.__importStar) || (function () {
     };
 })();
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.setSuperAdminClaim = void 0;
-// src/functions/src/setSuperAdmin.ts
+exports.setCompanyClaims = void 0;
+// src/functions/src/setCompanyClaims.ts
 const functions = __importStar(require("firebase-functions"));
+const logger = __importStar(require("firebase-functions/logger"));
 const firebaseAdmin_1 = require("./firebaseAdmin");
 const admin = (0, firebaseAdmin_1.getAdminApp)();
-exports.setSuperAdminClaim = functions.region("us-central1").https.onCall(async (data, context) => {
+/**
+ * Función de utilidad para asignar custom claims (rol y companyId) a un usuario específico.
+ * Debe ser invocada por un superadmin.
+ */
+exports.setCompanyClaims = functions.region("us-central1").https.onCall(async (data, context) => {
     if (!context.auth) {
         throw new functions.https.HttpsError("unauthenticated", "La función debe ser llamada por un usuario autenticado.");
     }
-    const email = data.email;
-    if (!email || typeof email !== "string") {
-        throw new functions.https.HttpsError("invalid-argument", "Se requiere un 'email' en el cuerpo de la solicitud.");
+    // Validar que el invocador sea superadmin
+    const requesterClaims = await admin.auth().getUser(context.auth.uid);
+    if (requesterClaims.customClaims?.role !== "superadmin") {
+        throw new functions.https.HttpsError("permission-denied", "Solo un superadministrador puede ejecutar esta función.");
     }
-    if (email.toLowerCase() !== "pauloandrescordova@gmail.com") {
-        throw new functions.https.HttpsError("permission-denied", "Esta función solo puede asignar el rol de superadmin al usuario predefinido.");
+    const { uid, role, companyId } = data;
+    if (!uid || !role || !companyId) {
+        throw new functions.https.HttpsError("invalid-argument", "Se requieren 'uid', 'role' y 'companyId'.");
     }
     try {
-        const auth = admin.auth();
-        const db = admin.firestore();
-        const userRecord = await auth.getUserByEmail(email);
-        const uid = userRecord.uid;
-        await auth.setCustomUserClaims(uid, { role: "superadmin" });
-        const userRef = db.collection("users").doc(uid);
-        await userRef.set({ role: "superadmin" }, { merge: true });
+        await admin.auth().setCustomUserClaims(uid, { role, companyId });
+        // Opcional: Para consistencia, también actualizamos el documento del usuario en Firestore.
+        const userRef = admin.firestore().collection("users").doc(uid);
+        await userRef.set({ role, empresaId: companyId }, { merge: true });
+        logger.info(`Claims actualizados para UID: ${uid}`, { role, companyId });
         return {
-            message: `Éxito: El usuario ${email} (UID: ${uid}) ahora es superadmin.`,
+            success: true,
+            message: `Éxito: Se asignaron los claims al usuario ${uid}. Por favor, pídale que cierre sesión y vuelva a iniciarla.`,
         };
     }
     catch (error) {
-        if (error.code === "auth/user-not-found") {
-            throw new functions.https.HttpsError("not-found", `No se encontró usuario con el email: ${email}`);
-        }
-        console.error("Error al asignar superadmin:", error);
-        throw new functions.https.HttpsError("internal", "Ocurrió un error inesperado.", error.message);
+        logger.error(`Error al asignar claims para UID ${uid}:`, error);
+        throw new functions.https.HttpsError("internal", "Ocurrió un error inesperado al asignar los claims.", error.message);
     }
 });
