@@ -270,7 +270,7 @@ function PresupuestosTab() {
             return;
         }
         const data = presupuestoOriginal.data();
-        // Defensively remove the id field from the copied data
+        // eslint-disable-next-line @typescript-eslint/no-unused-vars
         const { id, ...dataToCopy } = data;
         const nuevoNombre = `Copia de ${data.nombre}`;
         
