@@ -1,6 +1,6 @@
 // src/app/api/mclp/submissions/route.ts
 import { NextRequest, NextResponse } from "next/server";
-import { getAdminApp } from "@/server/firebaseAdmin";
+import admin from "@/server/firebaseAdmin";
 import { Timestamp } from "firebase-admin/firestore";
 
 export const runtime = "nodejs";
@@ -19,7 +19,6 @@ export async function GET(req: NextRequest) {
         const companyId = req.nextUrl.searchParams.get("companyId");
         const periodId = req.nextUrl.searchParams.get("periodId");
         const subcontractorId = req.nextUrl.searchParams.get("subcontractorId");
-        const admin = getAdminApp();
         const db = admin.firestore();
 
         if (!companyId || !periodId) {

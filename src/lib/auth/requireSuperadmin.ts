@@ -1,5 +1,5 @@
 // src/lib/auth/requireSuperadmin.ts
-import { getAdminApp } from "@/server/firebaseAdmin";
+import admin from "@/server/firebaseAdmin";
 import { NextRequest, NextResponse } from "next/server";
 import { headers } from "next/headers";
 
@@ -9,7 +9,7 @@ import { headers } from "next/headers";
  * @param req The NextRequest object.
  */
 export async function requireSuperadmin(req?: NextRequest): Promise<void> {
-  const auth = getAdminApp().auth();
+  const auth = admin.auth();
   const authorization = headers().get("Authorization");
 
   if (!authorization || !authorization.startsWith("Bearer ")) {

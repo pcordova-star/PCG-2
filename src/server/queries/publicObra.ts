@@ -1,7 +1,7 @@
 // src/server/queries/publicObra.ts
-import { getAdminApp } from "@/server/firebaseAdmin";
+import admin from "@/server/firebaseAdmin";
 
-const db = getAdminApp().firestore();
+const db = admin.firestore();
 
 /**
  * Obtiene los datos públicos de una obra por su ID.
