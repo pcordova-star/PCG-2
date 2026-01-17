@@ -1,54 +1,15 @@
-// src/lib/comparacion-planos/permissions.ts
 import admin from "@/server/firebaseAdmin";
 import { AppUser, Company } from "@/types/pcg";
 
 const db = admin.firestore();
 
-const ALLOWED_ROLES = ["admin_empresa", "superadmin", "jefe_obra"];
+export async function canUserAccessCompany(user: AppUser | null, companyId: string) {
+  if (!user) return false;
+  if (user.role === "superadmin") return true;
+  return user.companyId === companyId;
+}
 
-export async function canUseComparacionPlanos(userId: string): Promise<boolean> {
-  if (!userId) {
-    return false;
-  }
-
-  try {
-    const userDocRef = db.collection("users").doc(userId);
-    const userDocSnap = await userDocRef.get();
-
-    if (!userDocSnap.exists) {
-      console.warn(`[Permissions] User document not found for userId: ${userId}`);
-      return false;
-    }
-
-    const userData = userDocSnap.data() as AppUser;
-
-    if (userData.role === "superadmin") {
-      return true; // Superadmin always has access.
-    }
-    
-    if (!userData.empresaId) {
-      console.warn(`[Permissions] No companyId associated with userId: ${userId}`);
-      return false;
-    }
-
-    if (!ALLOWED_ROLES.includes(userData.role)) {
-      return false;
-    }
-
-    const companyDocRef = db.collection("companies").doc(userData.empresaId);
-    const companyDocSnap = await companyDocRef.get();
-
-    if (!companyDocSnap.exists) {
-      console.warn(`[Permissions] Company document not found for companyId: ${userData.empresaId}`);
-      return false;
-    }
-
-    const companyData = companyDocSnap.data() as Company;
-
-    return companyData.feature_plan_comparison_enabled === true;
-
-  } catch (error) {
-    console.error("[Permissions] Error checking permissions for canUseComparacionPlanos:", error);
-    return false;
-  }
+export async function getCompany(companyId: string): Promise<Company | null> {
+  const snap = await db.collection("companies").doc(companyId).get();
+  return snap.exists ? (snap.data() as Company) : null;
 }
