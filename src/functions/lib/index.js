@@ -1,12 +1,12 @@
 "use strict";
 // src/functions/src/index.ts
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.mclpDailyScheduler = exports.processItemizadoJob = exports.convertHeicToJpg = exports.requestModuleActivation = exports.deactivateCompanyUser = exports.testGoogleAi = exports.checkUserExistsByEmail = exports.setSuperAdminClaim = exports.notifyDocumentDistribution = exports.registrarAvanceRapido = exports.createCompanyUser = void 0;
+exports.mclpDailyScheduler = exports.processItemizadoJob = exports.convertHeicToJpg = exports.analizarPlano = exports.setCompanyClaims = exports.requestModuleActivation = exports.deactivateCompanyUser = exports.testGoogleAi = exports.checkUserExistsByEmail = exports.setSuperAdminClaim = exports.notifyDocumentDistribution = exports.registrarAvanceRapido = exports.createCompanyUser = void 0;
 /**
  * Este archivo es el punto de entrada para todas las Cloud Functions.
  * Cada función se importa desde su propio archivo y se exporta para que Firebase la despliegue.
  */
-// --- Funciones v1 (onCall, onRequest) ---
+// --- Exportación de funciones v1 y v2 ---
 var createCompanyUser_1 = require("./createCompanyUser");
 Object.defineProperty(exports, "createCompanyUser", { enumerable: true, get: function () { return createCompanyUser_1.createCompanyUser; } });
 var registrarAvanceRapido_1 = require("./registrarAvanceRapido");
@@ -23,6 +23,10 @@ var deactivateCompanyUser_1 = require("./deactivateCompanyUser");
 Object.defineProperty(exports, "deactivateCompanyUser", { enumerable: true, get: function () { return deactivateCompanyUser_1.deactivateCompanyUser; } });
 var requestModuleActivation_1 = require("./requestModuleActivation");
 Object.defineProperty(exports, "requestModuleActivation", { enumerable: true, get: function () { return requestModuleActivation_1.requestModuleActivation; } });
+var setCompanyClaims_1 = require("./setCompanyClaims");
+Object.defineProperty(exports, "setCompanyClaims", { enumerable: true, get: function () { return setCompanyClaims_1.setCompanyClaims; } });
+var analizarPlano_1 = require("./analizarPlano");
+Object.defineProperty(exports, "analizarPlano", { enumerable: true, get: function () { return analizarPlano_1.analizarPlano; } });
 // --- Triggers (Storage, Firestore) ---
 var convertHeic_1 = require("./convertHeic");
 Object.defineProperty(exports, "convertHeicToJpg", { enumerable: true, get: function () { return convertHeic_1.convertHeicToJpg; } });
