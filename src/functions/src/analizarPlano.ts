@@ -1,7 +1,9 @@
-import * as functions from "firebase-functions";
+// src/functions/src/analizarPlano.ts
+import { onCall, HttpsError } from "firebase-functions/v2/https";
 import * as logger from "firebase-functions/logger";
 import { getInitializedGenkitAi } from "./genkit-config"; 
 import { z } from "zod";
+import { GEMINI_API_KEY_SECRET } from "./params";
 
 // --- Schemas (copiados desde /types/analisis-planos.ts para desacoplar) ---
 const OpcionesAnalisisSchema = z.object({
@@ -35,32 +37,40 @@ const AnalisisPlanoInputWithOpcionesStringSchema = AnalisisPlanoInputSchema.exte
   opcionesString: z.string(),
 });
 
-// --- Cloud Function v1 onCall ---
-export const analizarPlano = functions.region("us-central1")
-  .runWith({
+// --- Cloud Function v2 onCall ---
+export const analizarPlano = onCall(
+  {
+    region: "us-central1",
     timeoutSeconds: 300,
-    memory: '1GB',
-    secrets: ["GEMINI_API_KEY"] // Usando el secreto
-  })
-  .https.onCall(async (data, context): Promise<{ result: AnalisisPlanoOutput }> => {
+    memory: '1GiB',
+    secrets: [GEMINI_API_KEY_SECRET],
+    cors: [
+        /https:\/\/.*\.firebase-studio\.app$/,
+        "https://pcgoperacion.com",
+        "https://www.pcgoperacion.com",
+        "https://pcg-2-8bf1b.web.app",
+        "http://localhost:3000",
+    ],
+  },
+  async (request): Promise<{ result: AnalisisPlanoOutput }> => {
     
     // Autenticación básica
-    if (!context.auth) {
-      throw new functions.https.HttpsError("unauthenticated", "El usuario debe estar autenticado.");
+    if (!request.auth) {
+      throw new HttpsError("unauthenticated", "El usuario debe estar autenticado.");
     }
 
     // Validación de entrada con Zod
-    const validationResult = AnalisisPlanoInputSchema.safeParse(data);
+    const validationResult = AnalisisPlanoInputSchema.safeParse(request.data);
     if (!validationResult.success) {
       logger.error("Invalid input for analizarPlano", validationResult.error.flatten());
-      throw new functions.https.HttpsError("invalid-argument", "Los datos proporcionados son inválidos.");
+      throw new HttpsError("invalid-argument", "Los datos proporcionados son inválidos.");
     }
     const input: AnalisisPlanoInput = validationResult.data;
 
     try {
       // Se inicializa genkit dentro para asegurar que process.env.GEMINI_API_KEY esté disponible
       const ai = getInitializedGenkitAi();
-      logger.info(`[analizarPlano - ${context.auth.uid}] Iniciando análisis para obra: ${input.obraNombre}`);
+      logger.info(`[analizarPlano - ${request.auth.uid}] Iniciando análisis para obra: ${input.obraNombre}`);
 
       const analizarPlanoPrompt = ai.definePrompt(
         {
@@ -89,11 +99,12 @@ export const analizarPlano = functions.region("us-central1")
         throw new Error("La IA no devolvió una respuesta válida.");
       }
 
-      logger.info(`[analizarPlano - ${context.auth.uid}] Análisis completado con éxito.`);
+      logger.info(`[analizarPlano - ${request.auth.uid}] Análisis completado con éxito.`);
       return { result: output };
 
     } catch (error: any) {
-      logger.error(`[analizarPlano - ${context.auth.uid}] Error en Genkit o en la lógica de la función:`, error);
-      throw new functions.https.HttpsError("internal", "Ocurrió un error al procesar el análisis con IA.", error.message);
+      logger.error(`[analizarPlano - ${request.auth.uid}] Error en Genkit o en la lógica de la función:`, error);
+      throw new HttpsError("internal", "Ocurrió un error al procesar el análisis con IA.", error.message);
     }
-});
+  }
+);
