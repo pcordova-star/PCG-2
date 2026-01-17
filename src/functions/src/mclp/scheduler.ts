@@ -1,34 +1,31 @@
 // src/functions/src/mclp/scheduler.ts
-import * as functions from 'firebase-functions';
+import * as functions from "firebase-functions/v2/scheduler";
+import * as admin from "firebase-admin";
 import * as logger from "firebase-functions/logger";
 import { getAdminApp } from "../firebaseAdmin";
-import * as admin from "firebase-admin";
 
 const adminApp = getAdminApp();
 
 export const mclpDailyScheduler = functions
-    .region("us-central1") // Región compatible con Cloud Scheduler
-    .pubsub.schedule("every day 01:00")
-    .timeZone("UTC")
-    .onRun(async (context) => {
-        const db = adminApp.firestore();
-        const now = new Date();
-        logger.info("Running MCLP Daily Scheduler", { timestamp: now.toISOString() });
+  .onSchedule({ schedule: "every day 01:00", timeZone: "UTC" }, async (context) => {
+    const db = adminApp.firestore();
+    const now = new Date();
+    logger.info("Running MCLP Daily Scheduler", { timestamp: now.toISOString() });
 
-        const companiesSnap = await db
-        .collection("companies")
-        .where("feature_compliance_module_enabled", "==", true)
-        .get();
+    const companiesSnap = await db
+      .collection("companies")
+      .where("feature_compliance_module_enabled", "==", true)
+      .get();
 
-        for (const c of companiesSnap.docs) {
-            logger.info(`Processing company: ${c.id}`);
-            await processCompanyMclp(db, c.id, now);
-        }
-        
-        logger.info("MCLP Daily Scheduler finished.");
-});
+    for (const c of companiesSnap.docs) {
+      logger.info(`Processing company: ${c.id}`);
+      await processCompanyMclp(db, c.id, now);
+    }
+    
+    logger.info("MCLP Daily Scheduler finished.");
+  });
 
-async function processCompanyMclp(db: FirebaseFirestore.Firestore, companyId: string, now: Date) {
+async function processCompanyMclp(db: admin.firestore.Firestore, companyId: string, now: Date) {
     const periodKey = getPeriodKeyUTC(now);
     const periodRef = await ensurePeriodExists(db, companyId, periodKey);
     if (!periodRef) return;
@@ -61,7 +58,7 @@ function getPeriodKeyUTC(date: Date) {
     return `${y}-${m}`; // YYYY-MM
 }
 
-async function closeAndFinalizePeriod(db: FirebaseFirestore.Firestore, companyId: string, periodId: string) {
+async function closeAndFinalizePeriod(db: admin.firestore.Firestore, companyId: string, periodId: string) {
     const statusRef = db.collection("compliancePeriods").doc(periodId).collection("status");
     const snap = await statusRef.get();
 
@@ -82,7 +79,7 @@ async function closeAndFinalizePeriod(db: FirebaseFirestore.Firestore, companyId
     }, { merge: true });
 }
 
-async function ensurePeriodExists(db: FirebaseFirestore.Firestore, companyId: string, periodKey: string) {
+async function ensurePeriodExists(db: admin.firestore.Firestore, companyId: string, periodKey: string) {
     const periodId = `${companyId}_${periodKey}`;
     const periodRef = db.collection("compliancePeriods").doc(periodId);
     const periodSnap = await periodRef.get();

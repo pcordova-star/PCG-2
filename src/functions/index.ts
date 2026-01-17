@@ -1,4 +1,3 @@
-
 // src/functions/index.ts
 
 /**
@@ -6,7 +5,7 @@
  * Cada función se importa desde su propio archivo y se exporta para que Firebase la despliegue.
  */
 
-// --- Exportación de funciones v1 ---
+// --- Exportación de funciones v1 y v2 ---
 export { createCompanyUser } from "./src/createCompanyUser";
 export { registrarAvanceRapido } from "./src/registrarAvanceRapido";
 export { notifyDocumentDistribution } from "./src/notifyDocumentDistribution";
@@ -15,7 +14,7 @@ export { checkUserExistsByEmail } from "./src/checkUserExistsByEmail";
 export { testGoogleAi } from "./src/test-google-ai";
 export { deactivateCompanyUser } from "./src/deactivateCompanyUser";
 export { requestModuleActivation } from "./src/requestModuleActivation";
-export { setCompanyClaims } from "./src/setCompanyClaims"; 
+export { setCompanyClaims } from "./src/setCompanyClaims";
 export { analizarPlano } from "./src/analizarPlano";
 
 // --- Triggers (Storage, Firestore) ---
