@@ -11,6 +11,7 @@ const ApiInputSchema = z.object({
   obraId: z.string().min(1, "El campo obraId es requerido."),
   obraNombre: z.string().min(1, "El campo obraNombre es requerido."),
   notas: z.string().optional(),
+  sourceFileName: z.string().optional(), // Nuevo campo para el nombre de archivo
 });
 
 /**
@@ -35,7 +36,7 @@ export async function POST(req: Request) {
       );
     }
     
-    const { pdfDataUri, obraId, obraNombre, notas } = validationResult.data;
+    const { pdfDataUri, obraId, obraNombre, notas, sourceFileName } = validationResult.data;
 
     // 2. Crear un nuevo documento de trabajo en Firestore
     const jobsCollection = db.collection("itemizadoImportJobs");
@@ -46,8 +47,8 @@ export async function POST(req: Request) {
       obraId,
       obraNombre,
       notas: notas || "",
-      // El PDF se guarda directamente aquí. Para archivos más grandes, se usaría Storage.
       pdfDataUri,
+      sourceFileName: sourceFileName || null, // Guardar el nombre del archivo
     };
 
     const docRef = await jobsCollection.add(newJobDoc);

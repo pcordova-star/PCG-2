@@ -10,6 +10,7 @@ type ProcessItemizadoJobPayload = {
   obraId: string;
   obraNombre: string;
   notas?: string;
+  sourceFileName?: string;
 };
 
 export const processItemizadoJob = functions
@@ -57,12 +58,13 @@ export const processItemizadoJob = functions
         obraId: z.string(),
         obraNombre: z.string(),
         notas: z.string().optional(),
+        sourceFileName: z.string().optional(),
       });
       
       const importarItemizadoPrompt = ai.definePrompt(
         {
           name: 'importarItemizadoPrompt',
-          model: 'googleai/gemini-2.5-flash',
+          model: 'googleai/gemini-1.5-flash',
           input: { schema: ImportarItemizadoInputSchema as any },
           prompt: `Eres un asistente experto en análisis de presupuestos de construcción. Tu tarea es interpretar un presupuesto (en formato PDF) y extraer los capítulos y todas las partidas/subpartidas en una estructura plana.
 
@@ -70,15 +72,20 @@ Debes seguir estas reglas estrictamente:
 
 1.  Analiza el documento PDF que se te entrega.
 2.  Primero, identifica los capítulos principales y llena el array 'chapters'.
-3.  Luego, procesa CADA LÍNEA del itemizado (capítulos, partidas, sub-partidas) y conviértela en un objeto para el array 'rows'.
+3.  Luego, procesa CADA LÍNEA del itemizado y conviértela en un objeto para el array 'rows'.
+    - Si la línea es un título principal, asigna type: "chapter".
+    - Si es un subtítulo o una actividad general bajo un capítulo, asigna type: "subchapter".
+    - Si es una partida de trabajo con cantidad y precio, asigna type: "item".
 4.  Para cada fila en 'rows', genera un 'id' estable y único (ej: "1", "1.1", "1.2.3").
 5.  Para representar la jerarquía, asigna el 'id' del elemento padre al campo 'parentId'. Si un ítem es de primer nivel (dentro de un capítulo), su 'parentId' debe ser 'null'.
 6.  Asigna el 'chapterIndex' correcto a cada fila, correspondiendo a su capítulo en el array 'chapters'.
 7.  Extrae códigos, descripciones, unidades, cantidades, precios unitarios y totales para cada partida.
 8.  NO inventes cantidades, precios ni unidades si no están explícitamente en el documento. Si un valor no existe para un ítem, déjalo como 'null'.
-9.  Tu respuesta DEBE SER EXCLUSIVAMENTE un objeto JSON válido, sin texto adicional, explicaciones ni formato markdown.
+9.  En el campo 'meta.sourceFileName', incluye el nombre del archivo original que se te proporciona.
+10. Tu respuesta DEBE SER EXCLUSIVAMENTE un objeto JSON válido, sin texto adicional, explicaciones ni formato markdown.
 
 Aquí está la información proporcionada por el usuario:
+- Nombre del archivo: {{{sourceFileName}}}
 - Itemizado PDF: {{media url=pdfDataUri}}
 - Notas adicionales: {{{notas}}}
 
@@ -113,6 +120,7 @@ Genera ahora el JSON de salida.`
               obraId: parsedInput.obraId,
               obraNombre: parsedInput.obraNombre,
               notas: parsedInput.notas || "Analizar el itemizado completo.",
+              sourceFileName: parsedInput.sourceFileName || 'documento.pdf'
           });
       } catch(flowError: any) {
           logger.error(`[${jobId}] Genkit flow execution failed.`, flowError);
