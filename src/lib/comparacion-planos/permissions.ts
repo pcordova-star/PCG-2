@@ -1,8 +1,8 @@
 // src/lib/comparacion-planos/permissions.ts
-import { getAdminApp } from "@/server/firebaseAdmin";
+import admin from "@/server/firebaseAdmin";
 import { AppUser, Company } from "@/types/pcg";
 
-const db = getAdminApp().firestore();
+const db = admin.firestore();
 
 const ALLOWED_ROLES = ["admin_empresa", "superadmin", "jefe_obra"];
 
