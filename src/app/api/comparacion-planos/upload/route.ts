@@ -1,14 +1,12 @@
 // src/app/api/comparacion-planos/upload/route.ts
 import { NextResponse } from 'next/server';
-import { getAdminApp } from '@/server/firebaseAdmin';
-import { getAuth } from 'firebase-admin/auth';
+import admin, { bucket } from '@/server/firebaseAdmin';
 import { ComparacionJobStatus } from '@/types/comparacion-planos';
 import * as crypto from 'crypto';
 import { canUseComparacionPlanos } from '@/lib/comparacion-planos/permissions';
 
-const adminApp = getAdminApp();
-const db = adminApp.firestore();
-const storage = adminApp.storage().bucket();
+const db = admin.firestore();
+const storage = bucket;
 
 const MAX_FILE_SIZE_MB = 15;
 
@@ -20,7 +18,7 @@ export async function POST(req: Request) {
             return NextResponse.json({ error: 'No autorizado: Token no proporcionado.' }, { status: 401 });
         }
         const token = authorization.split("Bearer ")[1];
-        const decodedToken = await getAuth().verifyIdToken(token);
+        const decodedToken = await admin.auth().verifyIdToken(token);
         const userId = decodedToken.uid;
         const empresaId = (decodedToken as any).companyId || 'default_company';
 

@@ -1,13 +1,12 @@
 // src/app/api/comparacion-planos/reanalizar/route.ts
 import { NextResponse } from 'next/server';
-import { getAdminApp } from '@/server/firebaseAdmin';
-import { getAuth } from 'firebase-admin/auth';
+import admin from '@/server/firebaseAdmin';
 import * as crypto from 'crypto';
 import { canUseComparacionPlanos } from '@/lib/comparacion-planos/permissions';
 import { copyPlanoFiles } from '@/lib/comparacion-planos/storage';
 import { FieldValue } from 'firebase-admin/firestore';
 
-const db = getAdminApp().firestore();
+const db = admin.firestore();
 
 export async function POST(req: Request) {
   let newJobId: string | null = null;
@@ -17,7 +16,7 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'No autorizado: Token no proporcionado.' }, { status: 401 });
     }
     const token = authorization.split("Bearer ")[1];
-    const decodedToken = await getAuth().verifyIdToken(token);
+    const decodedToken = await admin.auth().verifyIdToken(token);
     const userId = decodedToken.uid;
 
     const hasAccess = await canUseComparacionPlanos(userId);

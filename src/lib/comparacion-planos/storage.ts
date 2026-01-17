@@ -1,8 +1,5 @@
 // src/lib/comparacion-planos/storage.ts
-import { getAdminApp } from "@/server/firebaseAdmin";
-
-const storage = getAdminApp().storage();
-const bucket = storage.bucket();
+import { bucket } from "@/server/firebaseAdmin";
 
 /**
  * Downloads a file from Firebase Storage and converts it to a Data URI.
