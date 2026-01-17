@@ -156,7 +156,32 @@ export default function PresupuestoEditPage() {
                 if (docSnap.exists()) {
                     const data = docSnap.data() as Presupuesto;
                     setPresupuesto({ ...data, id: docSnap.id, gastosGeneralesPorcentaje: data.gastosGeneralesPorcentaje ?? 25 });
-                    setItems(data.items.map(item => ({ ...item, id: crypto.randomUUID() })));
+                    
+                    const oldIdToNewIdMap = new Map<string, string>();
+                    
+                    const itemsWithNewIds = (data.items || []).map(item => {
+                        const newUuid = crypto.randomUUID();
+                        if (item.id) {
+                            oldIdToNewIdMap.set(item.id, newUuid);
+                        }
+                        return {
+                            ...item,
+                            id: newUuid,
+                        };
+                    });
+
+                    const remappedItems = itemsWithNewIds.map(item => {
+                        if (item.parentId && oldIdToNewIdMap.has(item.parentId)) {
+                            return {
+                                ...item,
+                                parentId: oldIdToNewIdMap.get(item.parentId)!,
+                            };
+                        }
+                        return item;
+                    });
+
+                    setItems(remappedItems);
+
                 } else {
                     toast({ variant: "destructive", title: "Error", description: "Itemizado no encontrado." });
                     router.push('/operaciones/presupuestos');
@@ -339,14 +364,12 @@ export default function PresupuestoEditPage() {
         }
         setIsSaving(true);
         
-        // Create a mutable copy to modify before saving
         const dataToSave: any = {
             ...presupuesto,
-            items: items.map(({ id, ...rest }) => rest), // Strip client-side UUIDs from items
+            items: items, // Preservar los IDs
             updatedAt: serverTimestamp()
         };
 
-        // Remove the 'id' field from the object to be saved, as it's the document key.
         delete dataToSave.id;
 
         try {
@@ -360,18 +383,16 @@ export default function PresupuestoEditPage() {
                 itemizadoId = docRef.id;
             }
             
-            // Si el itemizado viene de una RDI, actualizar la RDI
             if (rdiIdFromQuery && presupuesto.obraId) {
                 const rdiRef = doc(firebaseDb, "obras", presupuesto.obraId, "rdi", rdiIdFromQuery);
                 await updateDoc(rdiRef, {
                     tieneAdicional: true,
                     adicionalId: itemizadoId,
-                    adicionalEstado: 'borrador', // O el estado inicial que corresponda
+                    adicionalEstado: 'borrador',
                     adicionalMontoTotal: totalPresupuesto,
                 });
             }
 
-            // Lógica para actualizar el catálogo después de guardar
             await actualizarCatalogoDesdePresupuesto(items);
 
             toast({ title: "Éxito", description: "Itemizado guardado correctamente." });
