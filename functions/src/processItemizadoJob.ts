@@ -1,72 +1,55 @@
 // functions/src/processItemizadoJob.ts
 import * as functions from 'firebase-functions';
 import * as logger from "firebase-functions/logger";
-import { FieldValue } from "firebase-admin/firestore";
-import { z } from "zod";
-import { getInitializedGenkitAi } from "./genkit-config"; 
+import { getAdminApp } from "./firebaseAdmin";
 
-type ProcessItemizadoJobPayload = {
-  pdfDataUri: string;
-  obraId: string;
-  obraNombre: string;
-  notas?: string;
-  sourceFileName?: string;
-};
+const admin = getAdminApp();
 
 export const processItemizadoJob = functions
-  .region("us-central1") // Región compatible con secretos y Genkit
-  .runWith({
-    timeoutSeconds: 540,
-    memory: '1GB',
-    secrets: ["GEMINI_API_KEY"]
-  })
-  .firestore
-  .document("itemizadoImportJobs/{jobId}")
-  .onCreate(async (snapshot, context) => {
-    const { jobId } = context.params;
-    const jobData = snapshot.data();
-    const jobRef = snapshot.ref;
-    
-    logger.info(`[${jobId}] Job triggered.`, {
-        path: snapshot.ref.path,
-        currentStatus: jobData.status,
-    });
+    .region("us-central1")
+    .runWith({ timeoutSeconds: 540, memory: "1GB" })
+    .firestore
+    .document("itemizadoImportJobs/{jobId}")
+    .onCreate(async (snapshot, context) => {
+        const { jobId } = context.params;
+        const jobData = snapshot.data();
+        const jobRef = snapshot.ref;
+        
+        logger.info(`[${jobId}] Job triggered.`, { path: snapshot.ref.path });
 
-    if (jobData.status !== 'queued') {
-      logger.info(`[${jobId}] Job is not in 'queued' state (current: ${jobData.status}). Ignoring.`);
-      return;
-    }
-    
-    try {
-        await jobRef.update({ 
-            status: "processing",
-            startedAt: FieldValue.serverTimestamp()
-        });
-        logger.info(`[${jobId}] Job status updated to 'processing'.`);
-    } catch (updateError) {
-        logger.error(`[${jobId}] FATAL: Could not update job status to 'processing'. Aborting.`, updateError);
-        return;
-    }
+        if (jobData.status !== 'queued') {
+            logger.warn(`[${jobId}] Job is not 'queued'. Ignoring.`);
+            return;
+        }
 
+        try {
+            await jobRef.update({ status: "processing", startedAt: admin.firestore.FieldValue.serverTimestamp() });
+        } catch (updateError) {
+            logger.error(`[${jobId}] FATAL: Could not update job status.`, updateError);
+            return;
+        }
+        
+        const apiKey = process.env.GEMINI_API_KEY;
+        if (!apiKey) {
+          logger.error(`[${jobId}] GEMINI_API_KEY not configured.`);
+          await jobRef.update({ status: 'error', errorMessage: 'API Key no configurada en el servidor.' });
+          return;
+        }
 
-    try {
-      const ai = getInitializedGenkitAi();
-      logger.info(`[${jobId}] Genkit module initialized successfully.`);
-      
-      const ImportarItemizadoInputSchema = z.object({
-        pdfDataUri: z.string(),
-        obraId: z.string(),
-        obraNombre: z.string(),
-        notas: z.string().optional(),
-        sourceFileName: z.string().optional(),
-      });
-      
-      const importarItemizadoPrompt = ai.definePrompt(
-        {
-          name: 'importarItemizadoPrompt',
-          model: 'googleai/gemini-1.5-flash',
-          input: { schema: ImportarItemizadoInputSchema as any },
-          prompt: `Eres un asistente experto en análisis de presupuestos de construcción. Tu tarea es interpretar un presupuesto (en formato PDF) y extraer los capítulos y todas las partidas/subpartidas en una estructura plana.
+        const geminiEndpoint = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
+
+        try {
+            const { pdfDataUri, obraNombre, notas, sourceFileName } = jobData;
+            
+            if (!pdfDataUri) throw new Error("pdfDataUri no encontrado en el job.");
+            
+            const match = pdfDataUri.match(/^data:(application\/pdf);base64,(.*)$/);
+            if (!match) throw new Error("El formato de pdfDataUri es inválido. Se esperaba 'data:application/pdf;base64,...'.");
+            
+            const mimeType = match[1];
+            const base64Data = match[2];
+            
+            const prompt = `Eres un asistente experto en análisis de presupuestos de construcción. Tu tarea es interpretar un presupuesto (en formato PDF) y extraer los capítulos y todas las partidas/subpartidas en una estructura plana.
 
 Debes seguir estas reglas estrictamente:
 
@@ -85,71 +68,47 @@ Debes seguir estas reglas estrictamente:
 10. Tu respuesta DEBE SER EXCLUSIVAMENTE un objeto JSON válido, sin texto adicional, explicaciones ni formato markdown.
 
 Aquí está la información proporcionada por el usuario:
-- Nombre del archivo: {{{sourceFileName}}}
-- Itemizado PDF: {{media url=pdfDataUri}}
-- Notas adicionales: {{{notas}}}
+- Nombre del archivo: ${sourceFileName || 'N/A'}
+- Notas adicionales: ${notas || 'Sin notas.'}
 
-Genera ahora el JSON de salida.`
+Genera ahora el JSON de salida.`;
+            
+            const requestBody = {
+              contents: [{
+                parts: [{ text: prompt }, { inline_data: { mime_type: mimeType, data: base64Data }}]
+              }],
+              generationConfig: { response_mime_type: "application/json" }
+            };
+
+            const response = await fetch(geminiEndpoint, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(requestBody),
+            });
+
+            if (!response.ok) {
+                const errorBody = await response.json();
+                throw new Error(`API Error: ${errorBody.error?.message || response.statusText}`);
+            }
+
+            const responseData = await response.json();
+            const textResponse = responseData.candidates[0].content.parts[0].text;
+            const parsedResult = JSON.parse(textResponse);
+
+            await jobRef.update({
+                status: 'done',
+                result: parsedResult,
+                processedAt: admin.firestore.FieldValue.serverTimestamp(),
+            });
+
+            logger.info(`[${jobId}] Job completado exitosamente.`);
+
+        } catch (error: any) {
+            logger.error(`[${jobId}] Error durante el procesamiento:`, error);
+            await jobRef.update({
+                status: 'error',
+                errorMessage: error.message,
+                processedAt: admin.firestore.FieldValue.serverTimestamp(),
+            });
         }
-      );
-
-      const importarItemizadoFlow = ai.defineFlow(
-        {
-          name: 'importarItemizadoCloudFunctionFlow',
-          inputSchema: ImportarItemizadoInputSchema as any,
-        },
-        async (input: any) => {
-          logger.info("[Genkit Flow] Iniciando análisis de itemizado...");
-          const res = await (importarItemizadoPrompt as any)(input);
-          const output = res?.output ?? res;
-          if (!output) {
-            throw new Error("La IA no devolvió una respuesta válida para el itemizado.");
-          }
-          logger.info("[Genkit Flow] Análisis completado con éxito.");
-          return output;
-        }
-      );
-
-      const parsedInput = ImportarItemizadoInputSchema.parse(jobData) as ProcessItemizadoJobPayload;
-      
-      let analisisResult;
-      try {
-          logger.info(`[${jobId}] Calling Genkit flow for obra ${parsedInput.obraNombre}...`);
-          analisisResult = await (importarItemizadoFlow as any)({
-              pdfDataUri: parsedInput.pdfDataUri,
-              obraId: parsedInput.obraId,
-              obraNombre: parsedInput.obraNombre,
-              notas: parsedInput.notas || "Analizar el itemizado completo.",
-              sourceFileName: parsedInput.sourceFileName || 'documento.pdf'
-          });
-      } catch(flowError: any) {
-          logger.error(`[${jobId}] Genkit flow execution failed.`, flowError);
-          await jobRef.update({
-              status: "error",
-              errorMessage: `FLOW_FAILED: ${flowError.message}`,
-              processedAt: FieldValue.serverTimestamp(),
-          });
-          return;
-      }
-
-      logger.info(`[${jobId}] AI analysis successful. Saving results...`);
-      await jobRef.update({
-        status: "done",
-        result: analisisResult,
-        processedAt: FieldValue.serverTimestamp(),
-      });
-      logger.info(`[${jobId}] Job completed and saved.`);
-
-    } catch (error: any) {
-      logger.error(`[${jobId}] Catastrophic error during processing:`, error);
-      try {
-        await jobRef.update({
-          status: "error",
-          errorMessage: error.message || "Ocurrió un error desconocido durante el análisis.",
-          processedAt: FieldValue.serverTimestamp(),
-        });
-      } catch (finalError) {
-          logger.error(`[${jobId}] CRITICAL: Failed to even update a final error state.`, finalError);
-      }
-    }
-});
+    });

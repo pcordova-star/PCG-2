@@ -17,3 +17,11 @@ export { notifyDocumentDistribution } from "./notifyDocumentDistribution";
 
 // --- Triggers (Storage, Firestore) v1 ---
 export { convertHeicToJpg } from "./convertHeic";
+export { processItemizadoJob } from "./processItemizadoJob";
+
+// --- Funciones de IA ---
+export { analizarPlano } from "./analizarPlano";
+export { testGoogleAi } from "./test-google-ai";
+
+// --- Funciones Programadas (Scheduler) v1 ---
+export { mclpDailyScheduler } from "./mclp/scheduler";
