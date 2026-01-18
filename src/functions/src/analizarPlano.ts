@@ -1,102 +1,84 @@
-// src/functions/src/analizarPlano.ts
+// functions/src/analizarPlano.ts
+
 import * as functions from "firebase-functions";
-import * as logger from "firebase-functions/logger";
-import { getInitializedGenkitAi } from "./genkit-config"; 
-import { z } from "zod";
+import * as admin from "firebase-admin";
 
-// --- Schemas (copiados desde /types/analisis-planos.ts para desacoplar) ---
-const OpcionesAnalisisSchema = z.object({
-  superficieUtil: z.boolean(), m2Muros: z.boolean(), m2Losas: z.boolean(),
-  m2Revestimientos: z.boolean(), instalacionesHidraulicas: z.boolean(), instalacionesElectricas: z.boolean(),
-});
+// IMPORTACIÓN CORRECTA PARA NODE 20 + GEN1
+const fetch = require("node-fetch");
 
-const AnalisisPlanoInputSchema = z.object({
-  photoDataUri: z.string(),
-  opciones: OpcionesAnalisisSchema,
-  notas: z.string().optional(),
-  obraId: z.string(),
-  obraNombre: z.string(),
-  companyId: z.string(),
-  planType: z.string(),
-});
-type AnalisisPlanoInput = z.infer<typeof AnalisisPlanoInputSchema>;
-
-const ElementoAnalizadoSchema = z.object({
-    type: z.string(), name: z.string(), unit: z.string(),
-    estimatedQuantity: z.number(), confidence: z.number(), notes: z.string(),
-});
-
-const AnalisisPlanoOutputSchema = z.object({
-  summary: z.string(),
-  elements: z.array(ElementoAnalizadoSchema),
-});
-type AnalisisPlanoOutput = z.infer<typeof AnalisisPlanoOutputSchema>;
-
-const AnalisisPlanoInputWithOpcionesStringSchema = AnalisisPlanoInputSchema.extend({
-  opcionesString: z.string(),
-});
-
-// --- Cloud Function v1 onCall ---
 export const analizarPlano = functions
   .region("us-central1")
-  .runWith({ 
-    timeoutSeconds: 300, 
-    memory: '1GB',
-    secrets: ["GEMINI_API_KEY"] 
-  })
+  .runWith({ timeoutSeconds: 540, memory: "1GB" })
   .https.onCall(async (data, context) => {
-    
-    // Autenticación básica
+
     if (!context.auth) {
-      throw new functions.https.HttpsError("unauthenticated", "El usuario debe estar autenticado.");
+      throw new functions.https.HttpsError(
+        "unauthenticated",
+        "Debe estar autenticado."
+      );
     }
 
-    // Validación de entrada con Zod
-    const validationResult = AnalisisPlanoInputSchema.safeParse(data);
-    if (!validationResult.success) {
-      logger.error("Invalid input for analizarPlano", validationResult.error.flatten());
-      throw new functions.https.HttpsError("invalid-argument", "Los datos proporcionados son inválidos.");
+    // Validación simple (sin Zod)
+    if (
+      !data ||
+      typeof data.photoDataUri !== "string" ||
+      !data.photoDataUri.startsWith("data:image/jpeg;base64,")
+    ) {
+      throw new functions.https.HttpsError(
+        "invalid-argument",
+        "Debe enviar photoDataUri en formato JPEG base64."
+      );
     }
-    const input: AnalisisPlanoInput = validationResult.data;
+
+    const apiKey = process.env.GEMINI_API_KEY;
+    if (!apiKey) {
+      throw new functions.https.HttpsError(
+        "internal",
+        "GEMINI_API_KEY no configurada."
+      );
+    }
+
+    const base64 = data.photoDataUri.split(",")[1];
+
+    const requestBody = {
+      contents: [
+        {
+          parts: [
+            {
+              inlineData: {
+                mimeType: "image/jpeg",
+                data: base64,
+              },
+            },
+          ],
+        },
+      ],
+    };
+
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
 
     try {
-      // Se inicializa genkit dentro para asegurar que process.env.GEMINI_API_KEY esté disponible
-      const ai = getInitializedGenkitAi();
-      logger.info(`[analizarPlano - ${context.auth.uid}] Iniciando análisis para obra: ${input.obraNombre}`);
-
-      const analizarPlanoPrompt = ai.definePrompt(
-        {
-          name: 'analizarPlanoPromptFunction',
-          model: 'googleai/gemini-1.5-flash',
-          input: { schema: AnalisisPlanoInputWithOpcionesStringSchema as any },
-          output: { schema: AnalisisPlanoOutputSchema as any },
-          prompt: `Eres un asistente experto en análisis de planos. Tu respuesta DEBE SER EXCLUSIVAMENTE un objeto JSON válido.
-          
-          Información:
-          - Plano: {{media url=photoDataUri}}
-          - Opciones de análisis: {{{opcionesString}}}
-          - Notas del usuario: {{{notas}}}
-          - Obra: {{{obraNombre}}} (ID: {{{obraId}}})
-
-          Genera el JSON de salida.`
-        },
-      );
-      
-      const { output } = await (analizarPlanoPrompt as any)({
-        ...input,
-        opcionesString: JSON.stringify(input.opciones),
+      const response = await fetch(url, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(requestBody),
       });
-      
-      if (!output) {
-        throw new Error("La IA no devolvió una respuesta válida.");
-      }
 
-      logger.info(`[analizarPlano - ${context.auth.uid}] Análisis completado con éxito.`);
-      return { result: output };
+      const json = await response.json();
 
-    } catch (error: any) {
-      logger.error(`[analizarPlano - ${context.auth.uid}] Error en Genkit o en la lógica de la función:`, error);
-      throw new functions.https.HttpsError("internal", "Ocurrió un error al procesar el análisis con IA.", error.message);
+      const output =
+        json?.candidates?.[0]?.content?.parts?.[0]?.text ||
+        "No se obtuvo respuesta de análisis.";
+
+      return {
+        status: "ok",
+        analysis: output,
+      };
+    } catch (err) {
+      console.error("Error llamar a Gemini:", err);
+      throw new functions.https.HttpsError(
+        "internal",
+        "Error llamando a Gemini."
+      );
     }
-  }
-);
+  });
