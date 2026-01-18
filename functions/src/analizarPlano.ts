@@ -1,91 +1,73 @@
 // functions/src/analizarPlano.ts
 import * as functions from "firebase-functions";
+import * as admin from "firebase-admin";
 import * as logger from "firebase-functions/logger";
+import { getAdminApp } from "./firebaseAdmin";
 import { z } from "zod";
 
-// Schemas
-const OpcionesAnalisisSchema = z.object({
-  superficieUtil: z.boolean(), m2Muros: z.boolean(), m2Losas: z.boolean(),
-  m2Revestimientos: z.boolean(), instalacionesHidraulicas: z.boolean(), instalacionesElectricas: z.boolean(),
-});
-const AnalisisPlanoInputSchema = z.object({
-  photoDataUri: z.string(),
-  opciones: OpcionesAnalisisSchema,
-  notas: z.string().optional(),
-  obraId: z.string(),
-  obraNombre: z.string(),
-  companyId: z.string(),
-  planType: z.string(),
-});
+const adminApp = getAdminApp();
 
-const ElementoAnalizadoSchema = z.object({
-    type: z.string(), name: z.string(), unit: z.string(),
-    estimatedQuantity: z.number(), confidence: z.number(), notes: z.string(),
-});
-const AnalisisPlanoOutputSchema = z.object({
-  summary: z.string(),
-  elements: z.array(ElementoAnalizadoSchema),
+// Esquema para validar la entrada de la función
+const AnalisisPlanoSchema = z.object({
+  photoDataUri: z.string().startsWith("data:image/jpeg;base64,", {
+    message: "El archivo debe ser una imagen JPEG en formato Data URI.",
+  }),
 });
 
 export const analizarPlano = functions
   .region("us-central1")
-  .runWith({ timeoutSeconds: 300, memory: "1GB" })
+  .runWith({ timeoutSeconds: 540, memory: "1GB" })
   .https.onCall(async (data, context) => {
+    // 1. Autenticación
     if (!context.auth) {
-      throw new functions.https.HttpsError("unauthenticated", "El usuario debe estar autenticado.");
+      throw new functions.https.HttpsError(
+        "unauthenticated",
+        "El usuario debe estar autenticado para realizar un análisis."
+      );
     }
 
-    const validationResult = AnalisisPlanoInputSchema.safeParse(data);
+    // 2. Validación del input
+    const validationResult = AnalisisPlanoSchema.safeParse(data);
     if (!validationResult.success) {
       logger.error("Invalid input for analizarPlano", validationResult.error.flatten());
-      throw new functions.https.HttpsError("invalid-argument", "Los datos proporcionados son inválidos.");
+      throw new functions.https.HttpsError(
+        "invalid-argument",
+        "Los datos proporcionados son inválidos.",
+        validationResult.error.flatten().fieldErrors
+      );
     }
-    
-    const input = validationResult.data;
+
+    // 3. Obtener la clave de API desde las variables de entorno
     const apiKey = process.env.GEMINI_API_KEY;
     if (!apiKey) {
-      throw new functions.https.HttpsError("internal", "La clave de API de Gemini no está configurada en el servidor.");
+      logger.error("GEMINI_API_KEY no está configurada en el servidor.");
+      throw new functions.https.HttpsError(
+        "internal",
+        "La configuración del servidor de IA es incorrecta."
+      );
     }
 
     const geminiEndpoint = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
 
-    const prompt = `Eres un asistente experto en análisis de planos. Tu tarea es interpretar la imagen de un plano de construcción y generar una cubicación de referencia en formato JSON. Tu respuesta DEBE SER EXCLUSIVAMENTE un objeto JSON válido, sin texto adicional, explicaciones ni formato markdown.
-    
-    Información:
-    - Opciones de análisis: ${JSON.stringify(input.opciones)}
-    - Notas del usuario: ${input.notas || 'Sin notas.'}
-    - Obra: ${input.obraNombre}
-
-    Genera el JSON de salida con la siguiente estructura: ${JSON.stringify(AnalisisPlanoOutputSchema)}`;
-
-    const match = input.photoDataUri.match(/^data:(image\/jpeg);base64,(.*)$/);
-    if (!match) {
-        throw new functions.https.HttpsError("invalid-argument", "El formato de photoDataUri debe ser 'data:image/jpeg;base64,...'.");
-    }
-    const mimeType = match[1];
-    const base64Data = match[2];
-
-    const requestBody = {
-      contents: [
-        {
-          parts: [
-            { text: prompt },
-            {
-              inline_data: {
-                mime_type: mimeType,
-                data: base64Data,
-              },
-            },
-          ],
-        },
-      ],
-      generationConfig: {
-        response_mime_type: "application/json",
-      },
-    };
-
+    // 4. Extraer datos de la imagen y preparar el cuerpo de la solicitud
     try {
-      logger.info(`[analizarPlano] Llamando a Gemini API para obra ${input.obraId}`);
+      const base64Data = validationResult.data.photoDataUri.split(",")[1];
+      const requestBody = {
+        contents: [
+          {
+            parts: [
+              {
+                inline_data: {
+                  mime_type: "image/jpeg",
+                  data: base64Data,
+                },
+              },
+            ],
+          },
+        ],
+      };
+      
+      // 5. Llamar a la API de Gemini
       const response = await fetch(geminiEndpoint, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -95,20 +77,27 @@ export const analizarPlano = functions
       if (!response.ok) {
         const errorBody = await response.json();
         logger.error("Error desde la API de Gemini:", errorBody);
-        throw new functions.https.HttpsError("internal", `Error de la API de Gemini: ${errorBody.error?.message || response.statusText}`);
+        throw new functions.https.HttpsError(
+          "internal",
+          `Error de la API de Gemini: ${errorBody.error?.message || response.statusText}`
+        );
       }
-      
-      const responseData = await response.json();
-      const textResponse = responseData.candidates[0].content.parts[0].text;
-      const parsedResult = JSON.parse(textResponse);
-      
-      AnalisisPlanoOutputSchema.parse(parsedResult);
 
-      logger.info(`[analizarPlano] Análisis completado con éxito para obra ${input.obraId}.`);
-      return { result: parsedResult };
+      const responseData = await response.json();
+      const analysisText = responseData.candidates[0]?.content?.parts[0]?.text || "No se pudo obtener un análisis.";
+      
+      // 6. Retornar el resultado
+      return { status: "ok", analysis: analysisText };
 
     } catch (error: any) {
-      logger.error(`[analizarPlano] Error en la llamada a la IA:`, error);
-      throw new functions.https.HttpsError("internal", "Ocurrió un error al procesar el análisis con IA.", error.message);
+      logger.error("Error catastrófico en analizarPlano:", error);
+      if (error instanceof functions.https.HttpsError) {
+        throw error;
+      }
+      throw new functions.https.HttpsError(
+        "internal",
+        "Ocurrió un error inesperado al procesar el plano.",
+        error.message
+      );
     }
   });

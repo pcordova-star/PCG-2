@@ -1,4 +1,7 @@
 // src/functions/src/index.ts
+import * as admin from "firebase-admin";
+
+admin.initializeApp();
 
 /**
  * Este archivo es el punto de entrada para todas las Cloud Functions.

@@ -1,9 +1,12 @@
 // functions/src/processItemizadoJob.ts
 import * as functions from 'firebase-functions';
 import * as logger from "firebase-functions/logger";
-import { getAdminApp } from "./firebaseAdmin";
+import * as admin from 'firebase-admin';
+import { getAdminApp } from './firebaseAdmin';
 
-const admin = getAdminApp();
+const adminApp = getAdminApp();
+const db = adminApp.firestore();
+const storage = adminApp.storage();
 
 export const processItemizadoJob = functions
     .region("us-central1")

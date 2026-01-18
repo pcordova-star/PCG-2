@@ -13,6 +13,7 @@ export const testGoogleAi = functions
 
     const apiKey = process.env.GEMINI_API_KEY;
     if (!apiKey) {
+      logger.error("GEMINI_API_KEY no está configurada en el servidor.");
       throw new functions.https.HttpsError("internal", "La clave de API de Gemini no está configurada en el servidor.");
     }
     
@@ -37,10 +38,10 @@ export const testGoogleAi = functions
       }
       
       const responseData = await response.json();
-      const text = responseData.candidates[0].content.parts[0].text;
+      const text = responseData.candidates[0]?.content?.parts[0]?.text;
 
       logger.info("[testGoogleAi] Solicitud exitosa.");
-      return { ok: true, text: text };
+      return { ok: true, text: text || "Respuesta vacía del modelo." };
 
     } catch (e: any) {
       logger.error("Llamada a la API de Gemini falló:", e);
