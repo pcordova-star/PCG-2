@@ -1,5 +1,5 @@
 // src/functions/src/mclp/scheduler.ts
-import * as functions from "firebase-functions/v2/scheduler";
+import * as functions from "firebase-functions";
 import * as admin from "firebase-admin";
 import * as logger from "firebase-functions/logger";
 import { getAdminApp } from "../firebaseAdmin";
@@ -7,7 +7,10 @@ import { getAdminApp } from "../firebaseAdmin";
 const adminApp = getAdminApp();
 
 export const mclpDailyScheduler = functions
-  .onSchedule({ schedule: "every day 01:00", timeZone: "UTC" }, async (context) => {
+  .region("us-central1")
+  .pubsub.schedule("every day 01:00")
+  .timeZone("UTC")
+  .onRun(async (context) => {
     const db = adminApp.firestore();
     const now = new Date();
     logger.info("Running MCLP Daily Scheduler", { timestamp: now.toISOString() });
