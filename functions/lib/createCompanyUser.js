@@ -34,9 +34,11 @@ var __importStar = (this && this.__importStar) || (function () {
 })();
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.createCompanyUser = void 0;
+// src/functions/src/createCompanyUser.ts
 const functions = __importStar(require("firebase-functions"));
 const logger = __importStar(require("firebase-functions/logger"));
 const firebaseAdmin_1 = require("./firebaseAdmin");
+const firestore_1 = require("firebase-admin/firestore");
 const admin = (0, firebaseAdmin_1.getAdminApp)();
 function buildAcceptInviteUrl(invId, email) {
     const rawBaseUrl = functions.config().app?.base_url || "http://localhost:3000";
@@ -90,7 +92,7 @@ exports.createCompanyUser = functions
         role: data.role,
         companyId: data.companyId,
     });
-    const now = admin.firestore.FieldValue.serverTimestamp();
+    const now = firestore_1.FieldValue.serverTimestamp();
     await db.collection("users").doc(uid).set({
         nombre: data.nombre,
         email: data.email,
