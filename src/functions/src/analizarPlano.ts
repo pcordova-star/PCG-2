@@ -68,8 +68,8 @@ export const analizarPlano = functions
         {
           name: 'analizarPlanoPromptFunction',
           model: 'googleai/gemini-1.5-flash',
-          input: { schema: AnalisisPlanoInputWithOpcionesStringSchema },
-          output: { schema: AnalisisPlanoOutputSchema },
+          input: { schema: AnalisisPlanoInputWithOpcionesStringSchema as any },
+          output: { schema: AnalisisPlanoOutputSchema as any },
           prompt: `Eres un asistente experto en análisis de planos. Tu respuesta DEBE SER EXCLUSIVAMENTE un objeto JSON válido.
           
           Información:
@@ -82,7 +82,7 @@ export const analizarPlano = functions
         },
       );
       
-      const { output } = await analizarPlanoPrompt({
+      const { output } = await (analizarPlanoPrompt as any)({
         ...input,
         opcionesString: JSON.stringify(input.opciones),
       });

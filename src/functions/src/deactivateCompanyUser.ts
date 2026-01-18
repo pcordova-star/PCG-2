@@ -2,78 +2,76 @@
 import * as functions from 'firebase-functions';
 import * as logger from "firebase-functions/logger";
 import { getAuth } from "firebase-admin/auth";
-import cors from "cors";
+import * as admin from "firebase-admin";
 import { getAdminApp } from "./firebaseAdmin";
 
-const admin = getAdminApp();
+const cors = require('cors')({origin: true});
 
-// Configuración de CORS más flexible para desarrollo y producción
-const allowedOrigins = [
-  "https://pcgoperacion.com",
-  "https://www.pcgoperacion.com",
-  "http://localhost:3000",
-  /https:\/\/.*\.google\.com/,
-  /https:\/\/.*\.firebaseapp\.com/,
-  /https:\/\/.*\.web\.app/,
-];
-
-const corsHandler = cors({ origin: allowedOrigins });
-
-
-export const deactivateCompanyUser = functions.region("us-central1").https.onRequest((req, res) => {
-    corsHandler(req, res, async () => {
-        if (req.method !== 'POST') {
-            res.status(405).send('Method Not Allowed');
+export const deactivateCompanyUser = functions.region("us-central1").runWith({ memory: "256MB", timeoutSeconds: 30 }).https.onRequest((req, res) => {
+    // La inicialización se mueve DENTRO del handler.
+    if (!admin.apps.length) {
+      admin.initializeApp();
+    }
+    
+    cors(req, res, async () => {
+        if (req.method !== "POST") {
+            res.status(405).json({ success: false, error: "Method Not Allowed" });
             return;
         }
 
         try {
-            const authHeader = req.headers.authorization;
-            if (!authHeader || !authHeader.startsWith("Bearer ")) {
-                throw new functions.https.HttpsError("unauthenticated", "Unauthorized: No token provided.");
-            }
-            const token = authHeader.split(" ")[1];
-            const decodedToken = await getAuth().verifyIdToken(token);
-            const userClaims = (decodedToken as any).role;
-            
-            if (userClaims !== "superadmin") {
-                throw new functions.https.HttpsError("permission-denied", "Permission Denied: Caller is not a superadmin.");
-            }
+          // 1. Autenticación y Autorización
+          const authHeader = req.headers.authorization;
+          if (!authHeader || !authHeader.startsWith("Bearer ")) {
+            res.status(401).json({ success: false, error: "Unauthorized: No token provided." });
+            return;
+          }
+          const token = authHeader.split(" ")[1];
+          const decodedToken = await getAuth().verifyIdToken(token);
+          
+          const userClaims = (decodedToken as any).role; // Acceder a custom claims
+          if (userClaims !== "superadmin") {
+            res.status(403).json({ success: false, error: "Permission Denied: Caller is not a superadmin." });
+            return;
+          }
 
-            const { userId, motivo } = req.body;
-            if (!userId) {
-                throw new functions.https.HttpsError("invalid-argument", "Bad Request: userId is required.");
-            }
+          // 2. Validación de Datos
+          const { userId, motivo } = req.body;
+          if (!userId) {
+            res.status(400).json({ success: false, error: "Bad Request: userId is required." });
+            return;
+          }
 
-            const auth = admin.auth();
-            const db = admin.firestore();
+          const auth = admin.auth();
+          const db = admin.firestore();
 
-            logger.info(`Iniciando desactivación para usuario ${userId} por ${decodedToken.uid}`);
+          // 3. Lógica de Desactivación
+          logger.info(`Iniciando desactivación para usuario ${userId} por ${decodedToken.uid}`);
 
-            await auth.updateUser(userId, { disabled: true });
-            logger.info(`Usuario ${userId} deshabilitado en Firebase Auth.`);
+          // a) Deshabilitar en Firebase Auth
+          await auth.updateUser(userId, { disabled: true });
+          logger.info(`Usuario ${userId} deshabilitado en Firebase Auth.`);
 
-            const userDocRef = db.collection("users").doc(userId);
-            await userDocRef.update({
-                activo: false,
-                fechaBaja: admin.firestore.FieldValue.serverTimestamp(),
-                motivoBaja: motivo || "Desactivado por administrador.",
-                bajaPorUid: decodedToken.uid,
-            });
-            logger.info(`Documento de usuario ${userId} marcado como inactivo en Firestore.`);
+          // b) Marcar como inactivo en Firestore y añadir auditoría
+          const userDocRef = db.collection("users").doc(userId);
+          await userDocRef.update({
+            activo: false,
+            fechaBaja: admin.firestore.FieldValue.serverTimestamp(),
+            motivoBaja: motivo || "Desactivado por administrador.",
+            bajaPorUid: decodedToken.uid,
+          });
+          logger.info(`Documento de usuario ${userId} marcado como inactivo en Firestore.`);
 
-            await auth.revokeRefreshTokens(userId);
-            logger.info(`Tokens de sesión para ${userId} revocados.`);
-            
-            res.status(200).json({ success: true, message: `Usuario ${userId} ha sido desactivado.` });
+          // 4. Revocar tokens de sesión (seguridad adicional)
+          await auth.revokeRefreshTokens(userId);
+          logger.info(`Tokens de sesión para ${userId} revocados.`);
+
+          // 5. Respuesta Exitosa
+          res.status(200).json({ success: true, message: `Usuario ${userId} ha sido desactivado.` });
 
         } catch (error: any) {
-            logger.error(`Error al desactivar usuario:`, error);
-            if (error.code) {
-                 res.status(400).json({ success: false, error: error.message, code: error.code });
-            } else {
-                 res.status(500).json({ success: false, error: "Internal Server Error", details: error.message });
-            }
+          logger.error(`Error al desactivar usuario:`, error);
+          res.status(500).json({ success: false, error: "Internal Server Error", details: error.message });
         }
     });
 });
