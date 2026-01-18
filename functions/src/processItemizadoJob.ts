@@ -1,117 +1,128 @@
 // functions/src/processItemizadoJob.ts
-import * as functions from 'firebase-functions';
+import * as functions from "firebase-functions";
 import * as logger from "firebase-functions/logger";
-import * as admin from 'firebase-admin';
-import { getAdminApp } from './firebaseAdmin';
+import { getAdminApp } from "./firebaseAdmin";
+import fetch from "node-fetch";
 
 const adminApp = getAdminApp();
 const db = adminApp.firestore();
-const storage = adminApp.storage();
 
 export const processItemizadoJob = functions
-    .region("us-central1")
-    .runWith({ timeoutSeconds: 540, memory: "1GB" })
-    .firestore
-    .document("itemizadoImportJobs/{jobId}")
-    .onCreate(async (snapshot, context) => {
-        const { jobId } = context.params;
-        const jobData = snapshot.data();
-        const jobRef = snapshot.ref;
-        
-        logger.info(`[${jobId}] Job triggered.`, { path: snapshot.ref.path });
+  .region("us-central1")
+  .runWith({ timeoutSeconds: 540, memory: "1GB" })
+  .firestore.document("itemizadoImportJobs/{jobId}")
+  .onCreate(async (snapshot, context) => {
+    const { jobId } = context.params;
+    const jobData = snapshot.data();
+    const jobRef = snapshot.ref;
 
-        if (jobData.status !== 'queued') {
-            logger.warn(`[${jobId}] Job is not 'queued'. Ignoring.`);
-            return;
-        }
+    logger.info(`[${jobId}] Job triggered`, { path: snapshot.ref.path });
 
-        try {
-            await jobRef.update({ status: "processing", startedAt: admin.firestore.FieldValue.serverTimestamp() });
-        } catch (updateError) {
-            logger.error(`[${jobId}] FATAL: Could not update job status.`, updateError);
-            return;
-        }
-        
-        const apiKey = process.env.GEMINI_API_KEY;
-        if (!apiKey) {
-          logger.error(`[${jobId}] GEMINI_API_KEY not configured.`);
-          await jobRef.update({ status: 'error', errorMessage: 'API Key no configurada en el servidor.' });
-          return;
-        }
+    if (jobData.status !== "queued") {
+      logger.warn(`[${jobId}] Job not queued. Ignoring.`);
+      return;
+    }
 
-        const geminiEndpoint = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
-
-        try {
-            const { pdfDataUri, obraNombre, notas, sourceFileName } = jobData;
-            
-            if (!pdfDataUri) throw new Error("pdfDataUri no encontrado en el job.");
-            
-            const match = pdfDataUri.match(/^data:(application\/pdf);base64,(.*)$/);
-            if (!match) throw new Error("El formato de pdfDataUri es inválido. Se esperaba 'data:application/pdf;base64,...'.");
-            
-            const mimeType = match[1];
-            const base64Data = match[2];
-            
-            const prompt = `Eres un asistente experto en análisis de presupuestos de construcción. Tu tarea es interpretar un presupuesto (en formato PDF) y extraer los capítulos y todas las partidas/subpartidas en una estructura plana.
-
-Debes seguir estas reglas estrictamente:
-
-1.  Analiza el documento PDF que se te entrega.
-2.  Primero, identifica los capítulos principales y llena el array 'chapters'.
-3.  Luego, procesa CADA LÍNEA del itemizado y conviértela en un objeto para el array 'rows'.
-    - Si la línea es un título principal, asigna type: "chapter".
-    - Si es un subtítulo o una actividad general bajo un capítulo, asigna type: "subchapter".
-    - Si es una partida de trabajo con cantidad y precio, asigna type: "item".
-4.  Para cada fila en 'rows', genera un 'id' estable y único (ej: "1", "1.1", "1.2.3").
-5.  Para representar la jerarquía, asigna el 'id' del elemento padre al campo 'parentId'. Si un ítem es de primer nivel (dentro de un capítulo), su 'parentId' debe ser 'null'.
-6.  Asigna el 'chapterIndex' correcto a cada fila, correspondiendo a su capítulo en el array 'chapters'.
-7.  Extrae códigos, descripciones, unidades, cantidades, precios unitarios y totales para cada partida.
-8.  NO inventes cantidades, precios ni unidades si no están explícitamente en el documento. Si un valor no existe para un ítem, déjalo como 'null'.
-9.  En el campo 'meta.sourceFileName', incluye el nombre del archivo original que se te proporciona.
-10. Tu respuesta DEBE SER EXCLUSIVAMENTE un objeto JSON válido, sin texto adicional, explicaciones ni formato markdown.
-
-Aquí está la información proporcionada por el usuario:
-- Nombre del archivo: ${sourceFileName || 'N/A'}
-- Notas adicionales: ${notas || 'Sin notas.'}
-
-Genera ahora el JSON de salida.`;
-            
-            const requestBody = {
-              contents: [{
-                parts: [{ text: prompt }, { inline_data: { mime_type: mimeType, data: base64Data }}]
-              }],
-              generationConfig: { response_mime_type: "application/json" }
-            };
-
-            const response = await fetch(geminiEndpoint, {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify(requestBody),
-            });
-
-            if (!response.ok) {
-                const errorBody = await response.json();
-                throw new Error(`API Error: ${errorBody.error?.message || response.statusText}`);
-            }
-
-            const responseData = await response.json();
-            const textResponse = responseData.candidates[0].content.parts[0].text;
-            const parsedResult = JSON.parse(textResponse);
-
-            await jobRef.update({
-                status: 'done',
-                result: parsedResult,
-                processedAt: admin.firestore.FieldValue.serverTimestamp(),
-            });
-
-            logger.info(`[${jobId}] Job completado exitosamente.`);
-
-        } catch (error: any) {
-            logger.error(`[${jobId}] Error durante el procesamiento:`, error);
-            await jobRef.update({
-                status: 'error',
-                errorMessage: error.message,
-                processedAt: admin.firestore.FieldValue.serverTimestamp(),
-            });
-        }
+    // Cambiar estado a processing
+    await jobRef.update({
+      status: "processing",
+      startedAt: adminApp.firestore.FieldValue.serverTimestamp(),
     });
+
+    const apiKey = process.env.GEMINI_API_KEY;
+    if (!apiKey) {
+      logger.error(`[${jobId}] Missing GEMINI_API_KEY`);
+      await jobRef.update({
+        status: "error",
+        errorMessage: "GEMINI_API_KEY no configurada en el servidor.",
+      });
+      return;
+    }
+
+    try {
+      const { pdfDataUri, notas, sourceFileName } = jobData;
+
+      if (!pdfDataUri) throw new Error("pdfDataUri no encontrado.");
+
+      const match = pdfDataUri.match(/^data:(application\/pdf);base64,(.*)$/);
+      if (!match) {
+        throw new Error("Formato pdfDataUri inválido. Se esperaba data:application/pdf;base64,...");
+      }
+
+      const mimeType = match[1];
+      const base64Data = match[2];
+
+      // PROMPT optimizado
+      const prompt = `
+Eres un experto analista de itemizados de construcción.
+Analiza el PDF entregado y genera un JSON válido siguiendo estas reglas:
+
+- chapters[]: lista de capítulos principales detectados.
+- rows[]:
+  * type: "chapter" | "subchapter" | "item"
+  * id: "1", "1.1", "1.1.1", etc.
+  * parentId: id del contenedor superior o null.
+  * chapterIndex: índice del capítulo.
+  * codigo, descripcion, unidad, cantidad, precioUnitario, total: si no existe → null.
+- meta.sourceFileName = "${sourceFileName || "N/A"}"
+- No inventes valores.
+
+Notas:
+${notas || "Sin notas."}
+
+Entrega SOLO un JSON válido, sin texto adicional.
+`;
+
+      const geminiEndpoint = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
+
+      const requestBody = {
+        contents: [
+          {
+            parts: [
+              { text: prompt },
+              {
+                inline_data: {
+                  mime_type: mimeType,
+                  data: base64Data,
+                },
+              },
+            ],
+          },
+        ],
+        generationConfig: { response_mime_type: "application/json" },
+      };
+
+      const response = await fetch(geminiEndpoint, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(requestBody),
+      });
+
+      if (!response.ok) {
+        const errorBody = await response.json();
+        throw new Error(`API Error: ${errorBody.error?.message || response.statusText}`);
+      }
+
+      const responseData: any = await response.json();
+      const jsonText = responseData.candidates[0].content.parts[0].text;
+
+      const parsed = JSON.parse(jsonText);
+
+      await jobRef.update({
+        status: "done",
+        result: parsed,
+        processedAt: adminApp.firestore.FieldValue.serverTimestamp(),
+      });
+
+      logger.info(`[${jobId}] Job procesado correctamente.`);
+
+    } catch (err: any) {
+      logger.error(`[${jobId}] ERROR:`, err);
+
+      await jobRef.update({
+        status: "error",
+        errorMessage: err.message,
+        processedAt: adminApp.firestore.FieldValue.serverTimestamp(),
+      });
+    }
+  });
