@@ -34,7 +34,6 @@ var __importStar = (this && this.__importStar) || (function () {
 })();
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.createCompanyUser = void 0;
-// src/functions/src/createCompanyUser.ts
 const functions = __importStar(require("firebase-functions"));
 const logger = __importStar(require("firebase-functions/logger"));
 const firebaseAdmin_1 = require("./firebaseAdmin");
@@ -44,7 +43,9 @@ function buildAcceptInviteUrl(invId, email) {
     const appBaseUrl = rawBaseUrl.replace(/\/+$/, "");
     return `${appBaseUrl}/accept-invite?invId=${encodeURIComponent(invId)}&email=${encodeURIComponent(email)}`;
 }
-exports.createCompanyUser = functions.region("us-central1").https.onCall(async (data, context) => {
+exports.createCompanyUser = functions
+    .region("us-central1")
+    .https.onCall(async (data, context) => {
     if (!context.auth) {
         throw new functions.https.HttpsError("unauthenticated", "No autenticado.");
     }
@@ -78,7 +79,7 @@ exports.createCompanyUser = functions.region("us-central1").https.onCall(async (
         logger.info(`Usuario creado con éxito para ${data.email} con UID: ${userRecord.uid}`);
     }
     catch (error) {
-        if (error.code === 'auth/email-already-exists') {
+        if (error.code === "auth/email-already-exists") {
             throw new functions.https.HttpsError("already-exists", "Ya existe un usuario con este correo electrónico.");
         }
         logger.error("Error creando usuario en Firebase Auth:", error);
@@ -90,8 +91,7 @@ exports.createCompanyUser = functions.region("us-central1").https.onCall(async (
         companyId: data.companyId,
     });
     const now = admin.firestore.FieldValue.serverTimestamp();
-    const userProfileRef = db.collection("users").doc(uid);
-    await userProfileRef.set({
+    await db.collection("users").doc(uid).set({
         nombre: data.nombre,
         email: data.email,
         role: data.role,
@@ -105,10 +105,10 @@ exports.createCompanyUser = functions.region("us-central1").https.onCall(async (
     await invitationRef.set({
         email: data.email,
         empresaId: data.companyId,
-        empresaNombre: companyData.nombreFantasia || companyData.razonSocial || '',
+        empresaNombre: companyData.nombreFantasia || companyData.razonSocial || "",
         roleDeseado: data.role,
-        estado: 'pendiente_auth',
-        uid: uid,
+        estado: "pendiente_auth",
+        uid,
         createdAt: now,
         creadoPorUid: context.auth.uid,
     });
@@ -119,70 +119,10 @@ exports.createCompanyUser = functions.region("us-central1").https.onCall(async (
             from: "PCG Operación <control@pcgoperacion.com>",
             subject: `Invitación a Plataforma de Control de Gestión – ${companyData.nombreFantasia}`,
             html: `
-        <!DOCTYPE html>
-        <html lang="es">
-          <body style="margin:0; padding:0; background:#f5f7fa; font-family:Arial, sans-serif;">
-            <table width="100%" cellspacing="0" cellpadding="0" bgcolor="#f5f7fa">
-              <tr>
-                <td align="center" style="padding:30px 20px;">
-                  <table width="600" cellspacing="0" cellpadding="0" bgcolor="#ffffff" style="border-radius:8px; overflow:hidden; border:1px solid #e2e6eb;">
-
-                    <tr>
-                      <td align="center" style="background:#1a73e8; padding:24px 20px;">
-                        <h1 style="color:white; margin:0; font-size:24px; font-weight:600;">
-                          Plataforma de Control de Gestión
-                        </h1>
-                      </td>
-                    </tr>
-
-                    <tr>
-                      <td style="padding:32px 40px; color:#333333; font-size:16px; line-height:24px;">
-
-                        <p style="margin-top:0;">
-                          Hola ${data.nombre},
-                        </p>
-
-                        <p>
-                          Has sido invitado a unirte a la plataforma
-                          <strong>${companyData.nombreFantasia}</strong> en PCG.
-                        </p>
-
-                        <p>
-                          Para completar tu registro, haz clic en el siguiente botón:
-                        </p>
-
-                        <p style="text-align:center; margin:32px 0;">
-                          <a href="${acceptInviteUrl}"
-                             style="background:#1a73e8; color:white; text-decoration:none; padding:14px 28px; border-radius:6px; font-weight:600; display:inline-block;">
-                             Aceptar Invitación
-                          </a>
-                        </p>
-
-                        <p>Si el botón no funciona, copia y pega este enlace:</p>
-
-                        <p style="word-break:break-all; color:#1a73e8;">
-                          ${acceptInviteUrl}
-                        </p>
-
-                        <p>
-                          Este correo fue enviado a <strong>${data.email}</strong>.
-                        </p>
-
-                      </td>
-                    </tr>
-
-                    <tr>
-                      <td align="center" style="background:#f0f2f5; padding:18px 20px; font-size:12px; color:#666;">
-                        © 2026 PCG Operación · Todos los derechos reservados
-                      </td>
-                    </tr>
-
-                  </table>
-                </td>
-              </tr>
-            </table>
-          </body>
-        </html>
+          <p>Hola ${data.nombre},</p>
+          <p>Has sido invitado a unirte a <strong>${companyData.nombreFantasia}</strong>.</p>
+          <p><a href="${acceptInviteUrl}">Aceptar invitación</a></p>
+          <p>${acceptInviteUrl}</p>
         `,
         },
     });
@@ -192,7 +132,7 @@ exports.createCompanyUser = functions.region("us-central1").https.onCall(async (
         nombre: data.nombre,
         role: data.role,
         companyId: data.companyId,
-        message: 'Usuario creado directamente y con éxito.'
+        message: "Usuario creado exitosamente.",
     };
 });
 //# sourceMappingURL=createCompanyUser.js.map

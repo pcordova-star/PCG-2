@@ -1,6 +1,8 @@
+// src/functions/src/createCompanyUser.ts
 import * as functions from "firebase-functions";
 import * as logger from "firebase-functions/logger";
 import { getAdminApp } from "./firebaseAdmin";
+import { FieldValue } from "firebase-admin/firestore";
 
 const admin = getAdminApp();
 
@@ -93,7 +95,7 @@ export const createCompanyUser = functions
       companyId: data.companyId,
     });
 
-    const now = admin.firestore.FieldValue.serverTimestamp();
+    const now = FieldValue.serverTimestamp();
 
     await db.collection("users").doc(uid).set(
       {
