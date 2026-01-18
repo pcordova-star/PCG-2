@@ -4,6 +4,7 @@ import * as admin from "firebase-admin";
 import * as logger from "firebase-functions/logger";
 import { getAdminApp } from "./firebaseAdmin";
 import { z } from "zod";
+import fetch from "node-fetch";
 
 const adminApp = getAdminApp();
 
@@ -83,7 +84,7 @@ export const analizarPlano = functions
         );
       }
 
-      const responseData = await response.json();
+      const responseData: any = await response.json();
       const analysisText = responseData.candidates[0]?.content?.parts[0]?.text || "No se pudo obtener un análisis.";
       
       // 6. Retornar el resultado
