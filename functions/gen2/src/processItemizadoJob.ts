@@ -4,6 +4,8 @@ import * as logger from "firebase-functions/logger";
 import { FieldValue } from "firebase-admin/firestore";
 import { initializeApp, getApps } from "firebase-admin/app";
 import { z } from "zod";
+import { getInitializedGenkitAi } from "./genkit-config";
+import { GEMINI_API_KEY_SECRET } from "./params";
 
 // Inicializar Firebase Admin SDK si no se ha hecho
 if (getApps().length === 0) {
@@ -15,17 +17,17 @@ type ProcessItemizadoJobPayload = {
   obraId: string;
   obraNombre: string;
   notas?: string;
+  sourceFileName?: string;
 };
 
 export const processItemizadoJob = onDocumentCreated(
   {
     document: "itemizadoImportJobs/{jobId}",
-    // ⚠️ CORRECCIÓN: Se especifica la ruta completa del secreto, incluyendo el ID del proyecto "pcg-ia"
-    secrets: [{ secret: "GEMINI_API_KEY", projectId: "pcg-ia" }], 
+    secrets: [GEMINI_API_KEY_SECRET], 
     cpu: 1,
     memory: "512MiB",
     timeoutSeconds: 540,
-    region: "us-central1" // Manteniendo región original
+    region: "us-central1"
   },
   async (event) => {
     const { jobId } = event.params;
@@ -67,7 +69,7 @@ export const processItemizadoJob = onDocumentCreated(
 
 
     try {
-      const { ai } = await import("./genkit-config");
+      const ai = getInitializedGenkitAi();
       logger.info(`[${jobId}] Genkit module imported successfully.`);
       
       const ImportarItemizadoInputSchema = z.object({
@@ -75,28 +77,34 @@ export const processItemizadoJob = onDocumentCreated(
         obraId: z.string(),
         obraNombre: z.string(),
         notas: z.string().optional(),
+        sourceFileName: z.string().optional(),
       });
       
       const importarItemizadoPrompt = ai.definePrompt(
         {
           name: 'importarItemizadoPrompt',
-          model: 'googleai/gemini-2.5-flash',
-          input: { schema: ImportarItemizadoInputSchema as any },
+          model: 'googleai/gemini-1.5-flash',
+          input: { schema: ImportarItemizadoInputSchema },
           prompt: `Eres un asistente experto en análisis de presupuestos de construcción. Tu tarea es interpretar un presupuesto (en formato PDF) y extraer los capítulos y todas las partidas/subpartidas en una estructura plana.
 
 Debes seguir estas reglas estrictamente:
 
 1.  Analiza el documento PDF que se te entrega.
 2.  Primero, identifica los capítulos principales y llena el array 'chapters'.
-3.  Luego, procesa CADA LÍNEA del itemizado (capítulos, partidas, sub-partidas) y conviértela en un objeto para el array 'rows'.
+3.  Luego, procesa CADA LÍNEA del itemizado y conviértela en un objeto para el array 'rows'.
+    - Si la línea es un título principal, asigna type: "chapter".
+    - Si es un subtítulo o una actividad general bajo un capítulo, asigna type: "subchapter".
+    - Si es una partida de trabajo con cantidad y precio, asigna type: "item".
 4.  Para cada fila en 'rows', genera un 'id' estable y único (ej: "1", "1.1", "1.2.3").
 5.  Para representar la jerarquía, asigna el 'id' del elemento padre al campo 'parentId'. Si un ítem es de primer nivel (dentro de un capítulo), su 'parentId' debe ser 'null'.
 6.  Asigna el 'chapterIndex' correcto a cada fila, correspondiendo a su capítulo en el array 'chapters'.
 7.  Extrae códigos, descripciones, unidades, cantidades, precios unitarios y totales para cada partida.
 8.  NO inventes cantidades, precios ni unidades si no están explícitamente en el documento. Si un valor no existe para un ítem, déjalo como 'null'.
-9.  Tu respuesta DEBE SER EXCLUSIVAMENTE un objeto JSON válido, sin texto adicional, explicaciones ni formato markdown.
+9.  En el campo 'meta.sourceFileName', incluye el nombre del archivo original que se te proporciona.
+10. Tu respuesta DEBE SER EXCLUSIVAMENTE un objeto JSON válido, sin texto adicional, explicaciones ni formato markdown.
 
 Aquí está la información proporcionada por el usuario:
+- Nombre del archivo: {{{sourceFileName}}}
 - Itemizado PDF: {{media url=pdfDataUri}}
 - Notas adicionales: {{{notas}}}
 
@@ -107,11 +115,11 @@ Genera ahora el JSON de salida.`
       const importarItemizadoFlow = ai.defineFlow(
         {
           name: 'importarItemizadoCloudFunctionFlow',
-          inputSchema: ImportarItemizadoInputSchema as any,
+          inputSchema: ImportarItemizadoInputSchema,
         },
-        async (input: any) => {
+        async (input) => {
           logger.info("[Genkit Flow] Iniciando análisis de itemizado...");
-          const res = await (importarItemizadoPrompt as any)(input);
+          const res = await importarItemizadoPrompt(input);
           const output = res?.output ?? res;
           if (!output) {
             throw new Error("La IA no devolvió una respuesta válida para el itemizado.");
@@ -126,11 +134,12 @@ Genera ahora el JSON de salida.`
       let analisisResult;
       try {
           logger.info(`[${jobId}] Calling Genkit flow for obra ${parsedInput.obraNombre}...`);
-          analisisResult = await (importarItemizadoFlow as any)({
+          analisisResult = await importarItemizadoFlow({
               pdfDataUri: parsedInput.pdfDataUri,
               obraId: parsedInput.obraId,
               obraNombre: parsedInput.obraNombre,
               notas: parsedInput.notas || "Analizar el itemizado completo.",
+              sourceFileName: parsedInput.sourceFileName || 'documento.pdf'
           });
       } catch(flowError: any) {
           logger.error(`[${jobId}] Genkit flow execution failed.`, flowError);

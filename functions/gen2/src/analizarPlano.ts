@@ -3,6 +3,7 @@ import { onCall, HttpsError } from "firebase-functions/v2/https";
 import * as logger from "firebase-functions/logger";
 import { getInitializedGenkitAi } from "./genkit-config";
 import { z } from "zod";
+import { GEMINI_API_KEY_SECRET } from "./params";
 
 // Schemas (iguales que antes)
 const OpcionesAnalisisSchema = z.object({
@@ -36,7 +37,7 @@ export const analizarPlano = onCall(
     region: "southamerica-west1",
     timeoutSeconds: 300,
     memory: "1GiB",
-    secrets: ["GEMINI_API_KEY"],
+    secrets: [GEMINI_API_KEY_SECRET],
     cpu: 1,
     cors: true
   },

@@ -52,8 +52,9 @@ exports.testGoogleAi = functions.region("southamerica-west1")
         uid: context.auth?.uid ?? null,
     });
     try {
-        const resp = await genkit_config_1.ai.generate({
-            model: "googleai/gemini-2.5-flash",
+        const ai = (0, genkit_config_1.getInitializedGenkitAi)();
+        const resp = await ai.generate({
+            model: "googleai/gemini-1.5-flash",
             prompt,
         });
         const text = typeof resp.text === "function"

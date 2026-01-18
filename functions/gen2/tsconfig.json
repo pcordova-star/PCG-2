@@ -10,7 +10,6 @@
     "skipLibCheck": true
   },
   "include": [
-    "src/index.ts",
-    "src/deactivateCompanyUser.ts"
+    "src/**/*.ts"
   ]
 }
