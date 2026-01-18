@@ -3,7 +3,7 @@
 
 import "./globals.css";
 import { AuthProvider } from "@/context/AuthContext";
-import { Suspense } from "react";
+import { Suspense, useState, useEffect } from "react";
 import { cn } from "@/lib/utils";
 import { inter } from "@/lib/layoutTheme";
 import { Toaster } from "@/components/ui/toaster";
@@ -18,10 +18,15 @@ function AppContent({ children }: { children: React.ReactNode }) {
   const { isCollapsed, toggleSidebar } = useSidebarStore();
   const { user, loading } = useAuth();
   const pathname = usePathname();
+  const [isClient, setIsClient] = useState(false);
+
+  useEffect(() => {
+    setIsClient(true);
+  }, []);
   
   const isPublicPage = ['/', '/login/usuario', '/login/cliente', '/accept-invite', '/terminos', '/sin-acceso'].includes(pathname) || pathname.startsWith('/public/');
 
-  if (isPublicPage || loading) {
+  if (!isClient || isPublicPage || loading) {
     return <>{children}</>;
   }
 
@@ -53,7 +58,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     <html lang="es" suppressHydrationWarning>
       <body className={cn("font-body antialiased", inter.variable)}>
         <AuthProvider>
-          <Suspense fallback={<div className="flex items-center justify-center h-screen">Cargando...</div>}>
+          <Suspense fallback={<div>Cargando...</div>}>
             <AppContent>{children}</AppContent>
           </Suspense>
         </AuthProvider>
