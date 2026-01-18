@@ -1,12 +1,10 @@
 {
   "compilerOptions": {
+    "strict": false,
     "module": "commonjs",
-    "noImplicitReturns": false,
-    "noUnusedLocals": false,
+    "target": "es2020",
     "outDir": "lib",
     "sourceMap": true,
-    "strict": false,
-    "target": "es2020",
     "types": ["node"]
   },
   "include": [
@@ -14,5 +12,19 @@
     "src/createCompanyUser.ts",
     "src/analizarPlano.ts",
     "src/firebaseAdmin.ts"
+  ],
+  "exclude": [
+    "**/*.spec.ts",
+    "src/checkUserExistsByEmail.ts",
+    "src/convertHeic.ts",
+    "src/deactivateCompanyUser.ts",
+    "src/notifyDocumentDistribution.ts",
+    "src/processItemizadoJob.ts",
+    "src/registrarAvanceRapido.ts",
+    "src/requestModuleActivation.ts",
+    "src/setCompanyClaims.ts",
+    "src/setSuperAdmin.ts",
+    "src/test-google-ai.ts",
+    "src/mclp/**"
   ]
 }
