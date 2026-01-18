@@ -1,9 +1,10 @@
-// src/functions/src/firebaseAdmin.ts
 import * as admin from "firebase-admin";
 
+let app: admin.app.App;
+
 export function getAdminApp() {
-  if (!admin.apps.length) {
-    admin.initializeApp();
+  if (!app) {
+    app = admin.initializeApp();
   }
-  return admin;
+  return app;
 }
