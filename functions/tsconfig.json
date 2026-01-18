@@ -11,7 +11,8 @@
     "src/index.ts",
     "src/createCompanyUser.ts",
     "src/analizarPlano.ts",
-    "src/firebaseAdmin.ts"
+    "src/firebaseAdmin.ts",
+    "src/processItemizadoJob.ts"
   ],
   "exclude": [
     "**/*.spec.ts",
@@ -19,7 +20,6 @@
     "src/convertHeic.ts",
     "src/deactivateCompanyUser.ts",
     "src/notifyDocumentDistribution.ts",
-    "src/processItemizadoJob.ts",
     "src/registrarAvanceRapido.ts",
     "src/requestModuleActivation.ts",
     "src/setCompanyClaims.ts",

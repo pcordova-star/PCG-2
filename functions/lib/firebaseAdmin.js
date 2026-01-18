@@ -1,6 +1,7 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.getAdminApp = getAdminApp;
+// functions/src/firebaseAdmin.ts
 const admin = require("firebase-admin");
 let app;
 function getAdminApp() {
