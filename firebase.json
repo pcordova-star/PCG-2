@@ -1,13 +1,15 @@
 {
   "functions": [
     {
-      "source": "functions/gen1",
+      "source": "functions",
       "codebase": "default",
       "ignore": [
         "node_modules",
         ".git",
         "firebase-debug.log",
-        "firebase-debug.*.log"
+        "firebase-debug.*.log",
+        "gen1/**",
+        "gen2/**"
       ],
       "predeploy": [
         "npm --prefix \"$RESOURCE_DIR\" install",
