@@ -70,10 +70,11 @@ exports.analizarPlano = (0, https_1.onCall)({
     region: "us-central1",
     timeoutSeconds: 300,
     memory: '1GiB',
-    secrets: [params_1.GEMINI_API_KEY_SECRET],
+    secrets: [params_1.PPCG_GEMINI_API_KEY_SECRET],
     cors: [
         "https://pcgoperacion.com",
         /https:\/\/.*\.firebase-studio\.app$/,
+        /https:\/\/.*\.cloudworkstations\.dev$/,
         "http://localhost:3000",
     ],
 }, async (request) => {
@@ -94,7 +95,7 @@ exports.analizarPlano = (0, https_1.onCall)({
         logger.info(`[analizarPlano - ${request.auth.uid}] Iniciando análisis para obra: ${input.obraNombre}`);
         const analizarPlanoPrompt = ai.definePrompt({
             name: 'analizarPlanoPromptFunction',
-            model: 'googleai/gemini-1.5-flash-latest',
+            model: 'googleai/gemini-1.5-flash',
             input: { schema: AnalisisPlanoInputWithOpcionesStringSchema },
             output: { schema: AnalisisPlanoOutputSchema },
             prompt: `Eres un asistente experto en análisis de planos. Tu respuesta DEBE SER EXCLUSIVAMENTE un objeto JSON válido.
