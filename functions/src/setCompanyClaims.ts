@@ -1,4 +1,3 @@
-
 // src/functions/src/setCompanyClaims.ts
 import * as functions from "firebase-functions";
 import * as logger from "firebase-functions/logger";
@@ -45,4 +44,3 @@ export const setCompanyClaims = functions.region("us-central1").https.onCall(asy
         throw new functions.https.HttpsError("internal", "Ocurrió un error inesperado al asignar los claims.", error.message);
     }
 });
-

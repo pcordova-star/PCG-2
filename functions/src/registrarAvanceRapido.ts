@@ -1,7 +1,7 @@
 // functions/src/registrarAvanceRapido.ts
 import * as functions from 'firebase-functions';
 import * as logger from "firebase-functions/logger";
-import { getFirestore, FieldValue } from "firebase-admin/firestore";
+import { FieldValue } from "firebase-admin/firestore";
 import { z } from "zod";
 import { getAuth } from "firebase-admin/auth";
 import cors from "cors";

@@ -2,15 +2,14 @@
 import * as functions from 'firebase-functions';
 import * as logger from "firebase-functions/logger";
 import { getAuth } from "firebase-admin/auth";
-import * as admin from "firebase-admin";
 import { getAdminApp } from "./firebaseAdmin";
+import * as admin from "firebase-admin";
 
 const cors = require('cors')({origin: true});
 const adminApp = getAdminApp();
 
 export const deactivateCompanyUser = functions
   .region("us-central1")
-  .runWith({ memory: "256MB", timeoutSeconds: 30 })
   .https.onRequest((req, res) => {
     
     cors(req, res, async () => {
