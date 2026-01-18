@@ -38,13 +38,12 @@ exports.deactivateCompanyUser = void 0;
 const functions = __importStar(require("firebase-functions"));
 const logger = __importStar(require("firebase-functions/logger"));
 const auth_1 = require("firebase-admin/auth");
-const admin = __importStar(require("firebase-admin"));
 const firebaseAdmin_1 = require("./firebaseAdmin");
+const admin = __importStar(require("firebase-admin"));
 const cors = require('cors')({ origin: true });
 const adminApp = (0, firebaseAdmin_1.getAdminApp)();
 exports.deactivateCompanyUser = functions
     .region("us-central1")
-    .runWith({ memory: "256MB", timeoutSeconds: 30 })
     .https.onRequest((req, res) => {
     cors(req, res, async () => {
         if (req.method !== "POST") {

@@ -1,7 +1,74 @@
 "use strict";
+var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    var desc = Object.getOwnPropertyDescriptor(m, k);
+    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
+      desc = { enumerable: true, get: function() { return m[k]; } };
+    }
+    Object.defineProperty(o, k2, desc);
+}) : (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    o[k2] = m[k];
+}));
+var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
+    Object.defineProperty(o, "default", { enumerable: true, value: v });
+}) : function(o, v) {
+    o["default"] = v;
+});
+var __importStar = (this && this.__importStar) || (function () {
+    var ownKeys = function(o) {
+        ownKeys = Object.getOwnPropertyNames || function (o) {
+            var ar = [];
+            for (var k in o) if (Object.prototype.hasOwnProperty.call(o, k)) ar[ar.length] = k;
+            return ar;
+        };
+        return ownKeys(o);
+    };
+    return function (mod) {
+        if (mod && mod.__esModule) return mod;
+        var result = {};
+        if (mod != null) for (var k = ownKeys(mod), i = 0; i < k.length; i++) if (k[i] !== "default") __createBinding(result, mod, k[i]);
+        __setModuleDefault(result, mod);
+        return result;
+    };
+})();
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.createCompanyUser = void 0;
+exports.mclpDailyScheduler = exports.testGoogleAi = exports.analizarPlano = exports.processItemizadoJob = exports.convertHeicToJpg = exports.notifyDocumentDistribution = exports.requestModuleActivation = exports.registrarAvanceRapido = exports.deactivateCompanyUser = exports.setCompanyClaims = exports.setSuperAdminClaim = exports.checkUserExistsByEmail = exports.createCompanyUser = void 0;
 // src/functions/src/index.ts
+const admin = __importStar(require("firebase-admin"));
+admin.initializeApp();
+/**
+ * Este archivo es el punto de entrada para todas las Cloud Functions.
+ * Cada función se importa desde su propio archivo y se exporta para que Firebase la despliegue.
+ */
+// --- Exportación de funciones v1 ---
 var createCompanyUser_1 = require("./createCompanyUser");
 Object.defineProperty(exports, "createCompanyUser", { enumerable: true, get: function () { return createCompanyUser_1.createCompanyUser; } });
+var checkUserExistsByEmail_1 = require("./checkUserExistsByEmail");
+Object.defineProperty(exports, "checkUserExistsByEmail", { enumerable: true, get: function () { return checkUserExistsByEmail_1.checkUserExistsByEmail; } });
+var setSuperAdmin_1 = require("./setSuperAdmin");
+Object.defineProperty(exports, "setSuperAdminClaim", { enumerable: true, get: function () { return setSuperAdmin_1.setSuperAdminClaim; } });
+var setCompanyClaims_1 = require("./setCompanyClaims");
+Object.defineProperty(exports, "setCompanyClaims", { enumerable: true, get: function () { return setCompanyClaims_1.setCompanyClaims; } });
+var deactivateCompanyUser_1 = require("./deactivateCompanyUser");
+Object.defineProperty(exports, "deactivateCompanyUser", { enumerable: true, get: function () { return deactivateCompanyUser_1.deactivateCompanyUser; } });
+var registrarAvanceRapido_1 = require("./registrarAvanceRapido");
+Object.defineProperty(exports, "registrarAvanceRapido", { enumerable: true, get: function () { return registrarAvanceRapido_1.registrarAvanceRapido; } });
+var requestModuleActivation_1 = require("./requestModuleActivation");
+Object.defineProperty(exports, "requestModuleActivation", { enumerable: true, get: function () { return requestModuleActivation_1.requestModuleActivation; } });
+var notifyDocumentDistribution_1 = require("./notifyDocumentDistribution");
+Object.defineProperty(exports, "notifyDocumentDistribution", { enumerable: true, get: function () { return notifyDocumentDistribution_1.notifyDocumentDistribution; } });
+// --- Triggers (Storage, Firestore) v1 ---
+var convertHeic_1 = require("./convertHeic");
+Object.defineProperty(exports, "convertHeicToJpg", { enumerable: true, get: function () { return convertHeic_1.convertHeicToJpg; } });
+var processItemizadoJob_1 = require("./processItemizadoJob");
+Object.defineProperty(exports, "processItemizadoJob", { enumerable: true, get: function () { return processItemizadoJob_1.processItemizadoJob; } });
+// --- Funciones de IA ---
+var analizarPlano_1 = require("./analizarPlano");
+Object.defineProperty(exports, "analizarPlano", { enumerable: true, get: function () { return analizarPlano_1.analizarPlano; } });
+var test_google_ai_1 = require("./test-google-ai");
+Object.defineProperty(exports, "testGoogleAi", { enumerable: true, get: function () { return test_google_ai_1.testGoogleAi; } });
+// --- Funciones Programadas (Scheduler) v1 ---
+var scheduler_1 = require("./mclp/scheduler");
+Object.defineProperty(exports, "mclpDailyScheduler", { enumerable: true, get: function () { return scheduler_1.mclpDailyScheduler; } });
 //# sourceMappingURL=index.js.map
