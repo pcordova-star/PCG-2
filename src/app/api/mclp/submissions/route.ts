@@ -1,11 +1,11 @@
 // src/app/api/mclp/submissions/route.ts
 import { NextRequest, NextResponse } from "next/server";
-import admin from "@/server/firebaseAdmin";
-import { Timestamp } from "firebase-admin/firestore";
+import { adminDb } from "@/server/firebaseAdmin";
+import { Timestamp, Firestore } from "firebase-admin/firestore";
 
 export const runtime = "nodejs";
 
-async function ensureMclpEnabled(db: FirebaseFirestore.Firestore, companyId: string) {
+async function ensureMclpEnabled(db: Firestore, companyId: string) {
   const companyRef = db.collection("companies").doc(companyId);
   const snap = await companyRef.get();
   if (!snap.exists() || !snap.data()?.feature_compliance_module_enabled) {
@@ -19,15 +19,14 @@ export async function GET(req: NextRequest) {
         const companyId = req.nextUrl.searchParams.get("companyId");
         const periodId = req.nextUrl.searchParams.get("periodId");
         const subcontractorId = req.nextUrl.searchParams.get("subcontractorId");
-        const db = admin.firestore();
-
+        
         if (!companyId || !periodId) {
             return NextResponse.json({ error: "companyId y periodId son requeridos" }, { status: 400 });
         }
-        await ensureMclpEnabled(db, companyId);
+        await ensureMclpEnabled(adminDb, companyId);
         
         
-        let q = db
+        let q = adminDb
             .collection("compliancePeriods")
             .doc(periodId)
             .collection("submissions") as FirebaseFirestore.Query;

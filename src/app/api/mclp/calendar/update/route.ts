@@ -1,11 +1,11 @@
 // src/app/api/mclp/calendar/update/route.ts
 import { NextRequest, NextResponse } from "next/server";
-import admin from "@/server/firebaseAdmin";
-import { Timestamp, FieldValue } from "firebase-admin/firestore";
+import { adminDb } from "@/server/firebaseAdmin";
+import { Timestamp, FieldValue, Firestore } from "firebase-admin/firestore";
 
 export const runtime = "nodejs";
 
-async function ensureMclpEnabled(db: FirebaseFirestore.Firestore, companyId: string) {
+async function ensureMclpEnabled(db: Firestore, companyId: string) {
   const companyRef = db.collection("companies").doc(companyId);
   const snap = await companyRef.get();
   if (!snap.exists || !snap.data()?.feature_compliance_module_enabled) {
@@ -17,16 +17,15 @@ async function ensureMclpEnabled(db: FirebaseFirestore.Firestore, companyId: str
 export async function POST(req: NextRequest) {
     try {
         const { companyId, year, monthId, data } = await req.json();
-        const db = admin.firestore();
 
         if (!companyId || !year || !monthId || !data) {
             return NextResponse.json({ error: "Faltan parámetros requeridos" }, { status: 400 });
         }
-        await ensureMclpEnabled(db, companyId);
+        await ensureMclpEnabled(adminDb, companyId);
 
         
         const calendarId = `${companyId}_${year}`;
-        const ref = db.collection("complianceCalendars").doc(calendarId).collection("months").doc(monthId);
+        const ref = adminDb.collection("complianceCalendars").doc(calendarId).collection("months").doc(monthId);
 
         const snap = await ref.get();
         if (!snap.exists || snap.data()?.editable === false) {

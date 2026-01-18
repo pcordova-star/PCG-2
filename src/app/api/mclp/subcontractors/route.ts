@@ -1,6 +1,6 @@
 // src/app/api/mclp/subcontractors/route.ts
 import { NextRequest, NextResponse } from "next/server";
-import admin from "@/server/firebaseAdmin";
+import { adminDb } from "@/server/firebaseAdmin";
 import { ensureMclpEnabled } from "@/server/lib/mclp/ensureMclpEnabled";
 import { Timestamp } from "firebase-admin/firestore";
 
@@ -14,10 +14,9 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ error: "companyId es requerido" }, { status: 400 });
     }
     
-    const db = admin.firestore();
-    await ensureMclpEnabled(db, companyId);
+    await ensureMclpEnabled(adminDb, companyId);
     
-    const snap = await db
+    const snap = await adminDb
       .collection("subcontractors")
       .where("companyId", "==", companyId)
       .where("activo", "==", true)
@@ -38,9 +37,8 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Faltan parámetros requeridos" }, { status: 400 });
     }
     
-    const db = admin.firestore();
-    await ensureMclpEnabled(db, companyId);
-    const ref = db.collection("subcontractors").doc();
+    await ensureMclpEnabled(adminDb, companyId);
+    const ref = adminDb.collection("subcontractors").doc();
     
     await ref.set({
       companyId,
@@ -71,10 +69,9 @@ export async function DELETE(req: NextRequest) {
             return NextResponse.json({ error: "companyId y subcontractorId son requeridos" }, { status: 400 });
         }
         
-        const db = admin.firestore();
-        await ensureMclpEnabled(db, companyId);
+        await ensureMclpEnabled(adminDb, companyId);
         
-        await db.collection("subcontractors").doc(subcontractorId).update({
+        await adminDb.collection("subcontractors").doc(subcontractorId).update({
             activo: false,
             updatedAt: Timestamp.now(),
         });

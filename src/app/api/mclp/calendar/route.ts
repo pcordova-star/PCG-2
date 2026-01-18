@@ -1,11 +1,11 @@
 // src/app/api/mclp/calendar/route.ts
 import { NextRequest, NextResponse } from "next/server";
-import admin from "@/server/firebaseAdmin";
-import { Timestamp, FieldValue } from "firebase-admin/firestore";
+import { adminDb } from "@/server/firebaseAdmin";
+import { Timestamp, FieldValue, DocumentReference, Firestore } from "firebase-admin/firestore";
 
 export const runtime = "nodejs";
 
-async function ensureMclpEnabled(db: FirebaseFirestore.Firestore, companyId: string) {
+async function ensureMclpEnabled(db: Firestore, companyId: string) {
   const companyRef = db.collection("companies").doc(companyId);
   const snap = await companyRef.get();
   if (!snap.exists || !snap.data()?.feature_compliance_module_enabled) {
@@ -13,11 +13,10 @@ async function ensureMclpEnabled(db: FirebaseFirestore.Firestore, companyId: str
   }
 }
 
-async function createDefaultMonths(calendarRef: FirebaseFirestore.DocumentReference, year: number) {
-    const db = admin.firestore();
-    const batch = db.batch();
+async function createDefaultMonths(calendarRef: DocumentReference, year: number) {
+    const batch = adminDb.batch();
     
-    const programRef = db.collection("compliancePrograms").doc(calendarRef.id.split('_')[0]);
+    const programRef = adminDb.collection("compliancePrograms").doc(calendarRef.id.split('_')[0]);
     const programSnap = await programRef.get();
     const { diaCorteCarga = 25, diaLimiteRevision = 5, diaPago = 10 } = programSnap.data() || {};
   
@@ -48,17 +47,16 @@ export async function GET(req: NextRequest) {
     try {
         const companyId = req.nextUrl.searchParams.get("companyId");
         const yearStr = req.nextUrl.searchParams.get("year");
-        const db = admin.firestore();
 
         if (!companyId || !yearStr) {
             return NextResponse.json({ error: "companyId y year son requeridos" }, { status: 400 });
         }
         const year = parseInt(yearStr, 10);
-        await ensureMclpEnabled(db, companyId);
+        await ensureMclpEnabled(adminDb, companyId);
 
         
         const calendarId = `${companyId}_${year}`;
-        const ref = db.collection("complianceCalendars").doc(calendarId);
+        const ref = adminDb.collection("complianceCalendars").doc(calendarId);
         let snap = await ref.get();
 
         if (!snap.exists) {

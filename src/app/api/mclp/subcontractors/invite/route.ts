@@ -1,6 +1,6 @@
 // src/app/api/mclp/subcontractors/invite/route.ts
 import { NextRequest, NextResponse } from "next/server";
-import admin from "@/server/firebaseAdmin";
+import admin, { adminDb } from "@/server/firebaseAdmin";
 import { ensureMclpEnabled } from "@/server/lib/mclp/ensureMclpEnabled";
 import { Timestamp } from "firebase-admin/firestore";
 
@@ -14,9 +14,8 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Faltan parámetros requeridos" }, { status: 400 });
     }
     
-    const db = admin.firestore();
     const auth = admin.auth();
-    await ensureMclpEnabled(db, companyId);
+    await ensureMclpEnabled(adminDb, companyId);
 
     let user;
     try {
@@ -25,12 +24,12 @@ export async function POST(req: NextRequest) {
       user = await auth.createUser({ email, displayName: nombre, emailVerified: false });
     }
 
-    await db.collection("users").doc(user.uid).set({
+    await adminDb.collection("users").doc(user.uid).set({
       uid: user.uid, email, nombre, role: "contratista", companyId, subcontractorId,
       updatedAt: Timestamp.now(),
     }, { merge: true });
 
-    const subcontractorRef = db.collection("subcontractors").doc(subcontractorId);
+    const subcontractorRef = adminDb.collection("subcontractors").doc(subcontractorId);
     const subcontractorSnap = await subcontractorRef.get();
     const existingUserIds = subcontractorSnap.data()?.userIds || [];
     
@@ -42,7 +41,7 @@ export async function POST(req: NextRequest) {
     const loginUrl = `${process.env.APP_BASE_URL || 'http://localhost:3000'}/login/usuario`;
     const oob = await auth.generatePasswordResetLink(email, { url: loginUrl });
 
-    await db.collection("mail").add({
+    await adminDb.collection("mail").add({
         to: email,
         message: {
             subject: `Invitación al Portal de Cumplimiento`,
