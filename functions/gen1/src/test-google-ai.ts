@@ -1,7 +1,7 @@
 // functions/src/test-google-ai.ts
 import * as functions from "firebase-functions";
 import * as logger from "firebase-functions/logger";
-import { ai } from "./genkit-config";
+import { getInitializedGenkitAi } from "./genkit-config";
 
 export const testGoogleAi = functions.region("southamerica-west1")
   .runWith({ secrets: ["GEMINI_API_KEY"] })
@@ -23,8 +23,9 @@ export const testGoogleAi = functions.region("southamerica-west1")
     });
 
     try {
+      const ai = getInitializedGenkitAi();
       const resp = await ai.generate({
-        model: "googleai/gemini-2.5-flash",
+        model: "googleai/gemini-1.5-flash",
         prompt,
       });
 
