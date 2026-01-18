@@ -3,6 +3,7 @@ import * as functions from "firebase-functions";
 import * as admin from "firebase-admin";
 import * as logger from "firebase-functions/logger";
 import { getAdminApp } from "../firebaseAdmin";
+import { Timestamp } from "firebase-admin/firestore";
 
 const adminApp = getAdminApp();
 
@@ -44,7 +45,7 @@ async function processCompanyMclp(db: admin.firestore.Firestore, companyId: stri
     if (now > corteCargaDate && estado === "Abierto para Carga") {
         await periodRef.update({
         estado: "En Revisión",
-        updatedAt: adminApp.firestore.Timestamp.now(),
+        updatedAt: Timestamp.now(),
         });
         logger.info(`[${companyId}] Period ${periodKey} marked as 'En Revisión'.`);
     }
@@ -69,7 +70,7 @@ async function closeAndFinalizePeriod(db: admin.firestore.Firestore, companyId: 
         if (d.get("estado") !== "Cumple") {
         await d.ref.set({
             estado: "No Cumple",
-            fechaAsignacion: adminApp.firestore.Timestamp.now(),
+            fechaAsignacion: Timestamp.now(),
             asignadoPorUid: "system",
         }, { merge: true });
         }
@@ -77,8 +78,8 @@ async function closeAndFinalizePeriod(db: admin.firestore.Firestore, companyId: 
 
     await db.collection("compliancePeriods").doc(periodId).set({
         estado: "Cerrado",
-        closedAt: adminApp.firestore.Timestamp.now(),
-        updatedAt: adminApp.firestore.Timestamp.now(),
+        closedAt: Timestamp.now(),
+        updatedAt: Timestamp.now(),
     }, { merge: true });
 }
 
@@ -111,11 +112,11 @@ async function ensurePeriodExists(db: admin.firestore.Firestore, companyId: stri
         limiteRevision: monthData.limiteRevision,
         fechaPago: monthData.fechaPago,
         estado: "Abierto para Carga",
-        createdAt: adminApp.firestore.Timestamp.now(),
-        updatedAt: adminApp.firestore.Timestamp.now(),
+        createdAt: Timestamp.now(),
+        updatedAt: Timestamp.now(),
     });
 
-    await monthRef.update({ editable: false, updatedAt: adminApp.firestore.Timestamp.now() });
+    await monthRef.update({ editable: false, updatedAt: Timestamp.now() });
     
     logger.info(`[${companyId}] Period ${periodKey} created successfully.`);
     return periodRef;
