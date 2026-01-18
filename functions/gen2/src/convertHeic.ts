@@ -8,7 +8,7 @@ import * as logger from "firebase-functions/logger";
 
 export const convertHeicToJpg = onObjectFinalized(
   {
-    region: "southamerica-west1",
+    region: "us-central1",
     cpu: 1,
     memory: "512MiB",
   },

@@ -32,29 +32,28 @@ var __importStar = (this && this.__importStar) || (function () {
         return result;
     };
 })();
-var __importDefault = (this && this.__importDefault) || function (mod) {
-    return (mod && mod.__esModule) ? mod : { "default": mod };
-};
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.convertHeicToJpg = void 0;
-// functions/src/convertHeic.ts
+// functions/gen2/src/convertHeic.ts
 const storage_1 = require("firebase-functions/v2/storage");
 const admin = __importStar(require("firebase-admin"));
 const path = __importStar(require("path"));
 const os = __importStar(require("os"));
 const fs = __importStar(require("fs"));
-const heicConvert = require('heic-convert');
-const sharp_1 = __importDefault(require("sharp"));
 const logger = __importStar(require("firebase-functions/logger"));
-if (!admin.apps.length) {
-    admin.initializeApp();
-}
-const storage = admin.storage();
 exports.convertHeicToJpg = (0, storage_1.onObjectFinalized)({
     region: "southamerica-west1",
     cpu: 1,
     memory: "512MiB",
 }, async (event) => {
+    // Lazy load dependencies and initialize admin inside the handler
+    if (!admin.apps.length) {
+        admin.initializeApp();
+    }
+    // eslint-disable-next-line @typescript-eslint/no-var-requires
+    const heicConvert = require('heic-convert');
+    const { default: sharp } = await Promise.resolve().then(() => __importStar(require('sharp')));
+    const storage = admin.storage();
     const { bucket, name: filePath, contentType } = event.data;
     const storageBucket = storage.bucket(bucket);
     if (!filePath) {
@@ -89,7 +88,7 @@ exports.convertHeicToJpg = (0, storage_1.onObjectFinalized)({
             format: 'JPEG',
             quality: 1,
         });
-        await (0, sharp_1.default)(outputBuffer)
+        await sharp(outputBuffer)
             .jpeg({ quality: 90 })
             .toFile(tempJpgPath);
         logger.log(`Converted HEIC to JPG at: ${tempJpgPath}`);

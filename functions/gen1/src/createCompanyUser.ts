@@ -8,7 +8,7 @@ if (!admin.apps.length) {
 }
 
 export const createCompanyUser = functions
-  .region("southamerica-west1")
+  .region("us-central1")
   .https.onCall(async (data, context) => {
     
     if (!context.auth) {

@@ -12,7 +12,7 @@ const SUPERADMIN_EMAIL = "pauloandrescordova@gmail.com";
 
 export const requestModuleActivation = onRequest(
   {
-    region: "southamerica-west1",
+    region: "us-central1",
     cors: true,
   },
   async (req, res) => {

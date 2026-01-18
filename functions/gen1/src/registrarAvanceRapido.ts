@@ -23,7 +23,7 @@ function escapeHtml(s: string): string {
 }
 
 // Convertido a Cloud Function v1 para mantener compatibilidad con onRequest y auth manual
-export const registrarAvanceRapido = functions.region("southamerica-west1")
+export const registrarAvanceRapido = functions.region("us-central1")
     .runWith({ memory: "256MB", timeoutSeconds: 60 })
     .https.onRequest((req, res) => {
     

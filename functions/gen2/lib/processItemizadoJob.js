@@ -42,10 +42,6 @@ const app_1 = require("firebase-admin/app");
 const zod_1 = require("zod");
 const genkit_config_1 = require("./genkit-config");
 const params_1 = require("./params");
-// Inicializar Firebase Admin SDK si no se ha hecho
-if ((0, app_1.getApps)().length === 0) {
-    (0, app_1.initializeApp)();
-}
 exports.processItemizadoJob = (0, firestore_1.onDocumentCreated)({
     document: "itemizadoImportJobs/{jobId}",
     secrets: [params_1.GEMINI_API_KEY_SECRET],
@@ -54,6 +50,10 @@ exports.processItemizadoJob = (0, firestore_1.onDocumentCreated)({
     timeoutSeconds: 540,
     region: "us-central1"
 }, async (event) => {
+    // Inicializar Firebase Admin SDK DENTRO del handler
+    if ((0, app_1.getApps)().length === 0) {
+        (0, app_1.initializeApp)();
+    }
     const { jobId } = event.params;
     const apiKeyExists = !!process.env.GEMINI_API_KEY;
     logger.info(`[${jobId}] Verificación de API Key en handler: Existe=${apiKeyExists}, Longitud=${process.env.GEMINI_API_KEY?.length || 0}`);

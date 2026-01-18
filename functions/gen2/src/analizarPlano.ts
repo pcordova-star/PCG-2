@@ -34,7 +34,7 @@ const AnalisisPlanoInputWithOpcionesStringSchema = AnalisisPlanoInputSchema.exte
 
 export const analizarPlano = onCall(
   {
-    region: "southamerica-west1",
+    region: "us-central1",
     timeoutSeconds: 300,
     memory: "1GiB",
     secrets: [GEMINI_API_KEY_SECRET],

@@ -6,7 +6,7 @@ import { getAuth } from "firebase-admin/auth";
 
 export const deactivateCompanyUser = onRequest(
   {
-    region: "southamerica-west1",
+    region: "us-central1",
     cpu: 1,
     memory: "256MiB",
     timeoutSeconds: 30,

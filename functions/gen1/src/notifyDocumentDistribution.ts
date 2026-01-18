@@ -22,7 +22,7 @@ const NotifyDocumentSchema = z.object({
   email: z.string().email(),
 });
 
-export const notifyDocumentDistribution = functions.region("southamerica-west1").https.onCall(
+export const notifyDocumentDistribution = functions.region("us-central1").https.onCall(
   async (data, context) => {
     // 1. Autenticación y autorización (básica)
     if (!context.auth) {
