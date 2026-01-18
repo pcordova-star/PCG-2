@@ -45,9 +45,10 @@ export const analizarPlano = onCall(
     memory: '1GiB',
     secrets: [PPCG_GEMINI_API_KEY_SECRET],
     cors: [
-        "https://pcgoperacion.com",
-        /https:\/\/.*\.firebase-studio\.app$/,
-        "http://localhost:3000",
+      "https://pcgoperacion.com",
+      /https:\/\/.*\.firebase-studio\.app$/,
+      /https:\/\/.*\.cloudworkstations\.dev$/,
+      "http://localhost:3000",
     ],
   },
   async (request): Promise<{ result: AnalisisPlanoOutput }> => {
