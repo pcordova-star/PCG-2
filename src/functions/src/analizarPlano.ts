@@ -41,7 +41,7 @@ export const analizarPlano = functions
   .region("us-central1")
   .runWith({ 
     timeoutSeconds: 300, 
-    memory: '1GiB',
+    memory: '1GB',
     secrets: ["GEMINI_API_KEY"] 
   })
   .https.onCall(async (data, context) => {
