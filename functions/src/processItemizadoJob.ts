@@ -3,6 +3,7 @@ import * as functions from "firebase-functions";
 import * as logger from "firebase-functions/logger";
 import { getAdminApp } from "./firebaseAdmin";
 import fetch from "node-fetch";
+import * as admin from "firebase-admin";
 
 const adminApp = getAdminApp();
 const db = adminApp.firestore();
@@ -26,7 +27,7 @@ export const processItemizadoJob = functions
     // Cambiar estado a processing
     await jobRef.update({
       status: "processing",
-      startedAt: adminApp.firestore.FieldValue.serverTimestamp(),
+      startedAt: admin.firestore.FieldValue.serverTimestamp(),
     });
 
     const apiKey = process.env.GEMINI_API_KEY;
@@ -111,7 +112,7 @@ Entrega SOLO un JSON válido, sin texto adicional.
       await jobRef.update({
         status: "done",
         result: parsed,
-        processedAt: adminApp.firestore.FieldValue.serverTimestamp(),
+        processedAt: admin.firestore.FieldValue.serverTimestamp(),
       });
 
       logger.info(`[${jobId}] Job procesado correctamente.`);
@@ -122,7 +123,7 @@ Entrega SOLO un JSON válido, sin texto adicional.
       await jobRef.update({
         status: "error",
         errorMessage: err.message,
-        processedAt: adminApp.firestore.FieldValue.serverTimestamp(),
+        processedAt: admin.firestore.FieldValue.serverTimestamp(),
       });
     }
   });
