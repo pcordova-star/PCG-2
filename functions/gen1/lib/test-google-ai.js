@@ -38,7 +38,7 @@ exports.testGoogleAi = void 0;
 const functions = __importStar(require("firebase-functions"));
 const logger = __importStar(require("firebase-functions/logger"));
 const genkit_config_1 = require("./genkit-config");
-exports.testGoogleAi = functions.region("southamerica-west1")
+exports.testGoogleAi = functions.region("us-central1")
     .runWith({ secrets: ["GEMINI_API_KEY"] })
     .https.onCall(async (data, context) => {
     const prompt = data?.prompt;

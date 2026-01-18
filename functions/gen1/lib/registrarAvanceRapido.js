@@ -58,7 +58,7 @@ function escapeHtml(s) {
     return s.replace(/[&<>"']/g, (m) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[m]));
 }
 // Convertido a Cloud Function v1 para mantener compatibilidad con onRequest y auth manual
-exports.registrarAvanceRapido = functions.region("southamerica-west1")
+exports.registrarAvanceRapido = functions.region("us-central1")
     .runWith({ memory: "256MB", timeoutSeconds: 60 })
     .https.onRequest((req, res) => {
     // Inicialización de Admin SDK dentro del handler

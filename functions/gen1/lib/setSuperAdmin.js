@@ -40,7 +40,7 @@ const admin = __importStar(require("firebase-admin"));
 if (!admin.apps.length) {
     admin.initializeApp();
 }
-exports.setSuperAdminClaim = functions.region("southamerica-west1").https.onCall(async (data, context) => {
+exports.setSuperAdminClaim = functions.region("us-central1").https.onCall(async (data, context) => {
     if (!context.auth) {
         throw new functions.https.HttpsError("unauthenticated", "La función debe ser llamada por un usuario autenticado.");
     }

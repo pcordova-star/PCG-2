@@ -54,7 +54,7 @@ const NotifyDocumentSchema = zod_1.z.object({
     notifiedUserId: zod_1.z.string().min(1),
     email: zod_1.z.string().email(),
 });
-exports.notifyDocumentDistribution = functions.region("southamerica-west1").https.onCall(async (data, context) => {
+exports.notifyDocumentDistribution = functions.region("us-central1").https.onCall(async (data, context) => {
     // 1. Autenticación y autorización (básica)
     if (!context.auth) {
         throw new functions.https.HttpsError("unauthenticated", "El usuario no está autenticado.");

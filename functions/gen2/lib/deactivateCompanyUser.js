@@ -40,7 +40,7 @@ const admin = __importStar(require("firebase-admin"));
 const logger = __importStar(require("firebase-functions/logger"));
 const auth_1 = require("firebase-admin/auth");
 exports.deactivateCompanyUser = (0, https_1.onRequest)({
-    region: "southamerica-west1",
+    region: "us-central1",
     cpu: 1,
     memory: "256MiB",
     timeoutSeconds: 30,

@@ -42,7 +42,7 @@ const os = __importStar(require("os"));
 const fs = __importStar(require("fs"));
 const logger = __importStar(require("firebase-functions/logger"));
 exports.convertHeicToJpg = (0, storage_1.onObjectFinalized)({
-    region: "southamerica-west1",
+    region: "us-central1",
     cpu: 1,
     memory: "512MiB",
 }, async (event) => {

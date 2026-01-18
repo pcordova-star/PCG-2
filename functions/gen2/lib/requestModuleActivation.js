@@ -44,7 +44,7 @@ if (!admin.apps.length) {
 }
 const SUPERADMIN_EMAIL = "pauloandrescordova@gmail.com";
 exports.requestModuleActivation = (0, https_1.onRequest)({
-    region: "southamerica-west1",
+    region: "us-central1",
     cors: true,
 }, async (req, res) => {
     // El manejo de OPTIONS y encabezados CORS ahora es gestionado por Firebase

@@ -66,7 +66,7 @@ const AnalisisPlanoInputWithOpcionesStringSchema = AnalisisPlanoInputSchema.exte
     opcionesString: zod_1.z.string(),
 });
 exports.analizarPlano = (0, https_1.onCall)({
-    region: "southamerica-west1",
+    region: "us-central1",
     timeoutSeconds: 300,
     memory: "1GiB",
     secrets: [params_1.GEMINI_API_KEY_SECRET],
