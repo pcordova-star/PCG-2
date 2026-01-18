@@ -39,6 +39,7 @@ const https_1 = require("firebase-functions/v2/https");
 const logger = __importStar(require("firebase-functions/logger"));
 const genkit_config_1 = require("./genkit-config");
 const zod_1 = require("zod");
+const params_1 = require("./params");
 // Schemas (iguales que antes)
 const OpcionesAnalisisSchema = zod_1.z.object({
     superficieUtil: zod_1.z.boolean(), m2Muros: zod_1.z.boolean(), m2Losas: zod_1.z.boolean(),
@@ -68,7 +69,7 @@ exports.analizarPlano = (0, https_1.onCall)({
     region: "southamerica-west1",
     timeoutSeconds: 300,
     memory: "1GiB",
-    secrets: ["GEMINI_API_KEY"],
+    secrets: [params_1.GEMINI_API_KEY_SECRET],
     cpu: 1,
     cors: true
 }, async (request) => {

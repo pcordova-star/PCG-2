@@ -7,10 +7,7 @@ import { z } from "zod";
 import { getInitializedGenkitAi } from "./genkit-config";
 import { GEMINI_API_KEY_SECRET } from "./params";
 
-// Inicializar Firebase Admin SDK si no se ha hecho
-if (getApps().length === 0) {
-  initializeApp();
-}
+// NO inicializar Firebase Admin en el scope global
 
 type ProcessItemizadoJobPayload = {
   pdfDataUri: string;
@@ -30,6 +27,11 @@ export const processItemizadoJob = onDocumentCreated(
     region: "us-central1"
   },
   async (event) => {
+    // Inicializar Firebase Admin SDK DENTRO del handler
+    if (getApps().length === 0) {
+      initializeApp();
+    }
+
     const { jobId } = event.params;
     
     const apiKeyExists = !!process.env.GEMINI_API_KEY;

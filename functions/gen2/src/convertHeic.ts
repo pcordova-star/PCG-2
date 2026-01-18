@@ -1,18 +1,10 @@
-// functions/src/convertHeic.ts
+// functions/gen2/src/convertHeic.ts
 import { onObjectFinalized } from "firebase-functions/v2/storage";
 import * as admin from 'firebase-admin';
 import * as path from 'path';
 import * as os from 'os';
 import * as fs from 'fs';
-const heicConvert = require('heic-convert');
-import sharp from 'sharp';
 import * as logger from "firebase-functions/logger";
-
-if (!admin.apps.length) {
-  admin.initializeApp();
-}
-
-const storage = admin.storage();
 
 export const convertHeicToJpg = onObjectFinalized(
   {
@@ -21,6 +13,15 @@ export const convertHeicToJpg = onObjectFinalized(
     memory: "512MiB",
   },
   async (event) => {
+    // Lazy load dependencies and initialize admin inside the handler
+    if (!admin.apps.length) {
+      admin.initializeApp();
+    }
+    // eslint-disable-next-line @typescript-eslint/no-var-requires
+    const heicConvert = require('heic-convert');
+    const { default: sharp } = await import('sharp');
+    const storage = admin.storage();
+
     const { bucket, name: filePath, contentType } = event.data;
     const storageBucket = storage.bucket(bucket);
 
