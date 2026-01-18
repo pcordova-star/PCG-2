@@ -47,7 +47,7 @@ if (typeof window !== 'undefined') {
   firebaseAuth = getAuth(app);
   firebaseDb = getFirestore(app);
   firebaseStorage = getStorage(app);
-  firebaseFunctions = getFunctions(app, "southamerica-west1");
+  firebaseFunctions = getFunctions(app, "us-central1");
 }
 
 // Exporta las instancias que serán undefined en el servidor pero estarán disponibles en el cliente.

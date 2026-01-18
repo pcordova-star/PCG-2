@@ -74,7 +74,7 @@ export const analizarPlano = onCall(
       const analizarPlanoPrompt = ai.definePrompt(
         {
           name: 'analizarPlanoPromptFunction',
-          model: 'googleai/gemini-1.5-flash-latest',
+          model: 'googleai/gemini-1.5-flash',
           input: { schema: AnalisisPlanoInputWithOpcionesStringSchema },
           output: { schema: AnalisisPlanoOutputSchema },
           prompt: `Eres un asistente experto en análisis de planos. Tu respuesta DEBE SER EXCLUSIVAMENTE un objeto JSON válido.
