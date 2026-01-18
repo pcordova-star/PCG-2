@@ -3,8 +3,10 @@
 import * as functions from "firebase-functions";
 import * as logger from "firebase-functions/logger";
 import { getAdminApp } from "./firebaseAdmin";
+import * as admin from "firebase-admin";
 
-const admin = getAdminApp();
+// Correct way is to get the initialized app instance once.
+const adminApp = getAdminApp();
 
 function buildAcceptInviteUrl(invId: string, email: string): string {
   const rawBaseUrl = functions.config().app?.base_url || "http://localhost:3000";
@@ -17,8 +19,9 @@ export const createCompanyUser = functions.region("us-central1").https.onCall(as
       throw new functions.https.HttpsError("unauthenticated", "No autenticado.");
     }
     
-    const auth = admin.auth();
-    const db = admin.firestore();
+    // Use the initialized admin app instance
+    const auth = adminApp.auth();
+    const db = adminApp.firestore();
 
     const requesterClaims = await auth.getUser(context.auth.uid);
     if (requesterClaims.customClaims?.role !== "superadmin") {
