@@ -13,7 +13,7 @@ import type { ComparacionPlanosInput, ComparacionPlanosOutput } from '@/types/co
 const comparacionPrompt = ai.definePrompt(
   {
     name: 'comparacionPlanosPrompt',
-    model: 'googleai/gemini-1.5-pro-latest',
+    model: 'googleai/gemini-1.5-pro',
     input: { schema: ComparacionPlanosInputSchema },
     output: { schema: ComparacionPlanosOutputSchema },
     prompt: `Eres un arquitecto experto y jefe de proyectos con 20 años de experiencia en revisión de planos y control de cambios en obras de construcción complejas. Tu tarea es realizar un análisis diferencial exhaustivo entre dos planos: el Plano A (versión original) y el Plano B (versión nueva).
