@@ -1,3 +1,4 @@
+// functions/src/firebaseAdmin.ts
 import * as admin from "firebase-admin";
 
 let app: admin.app.App;

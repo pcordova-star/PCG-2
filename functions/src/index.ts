@@ -1,6 +1,9 @@
-import * as admin from "firebase-admin";
-admin.initializeApp();
+// src/functions/src/index.ts
+/**
+ * Punto de entrada. No inicialices admin aquí.
+ * Todas las funciones usarán getAdminApp() centralizado.
+ */
 
-// Funciones activas
 export { createCompanyUser } from "./createCompanyUser";
 export { analizarPlano } from "./analizarPlano";
+export { processItemizadoJob } from "./processItemizadoJob";
