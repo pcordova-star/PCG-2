@@ -1,21 +1,42 @@
 // functions/src/genkit-config.ts
-import { genkit } from "@genkit-ai/core";
-import { googleAI } from "@genkit-ai/google-ai";
+import { genkit, Genkit } from "genkit";
+import { googleAI } from "@genkit-ai/google-genai";
 import * as logger from "firebase-functions/logger";
 import { PPCG_GEMINI_API_KEY_SECRET } from "./params";
 
-export function getInitializedGenkitAi() {
-  const apiKey = PPCG_GEMINI_API_KEY_SECRET.value();
+let aiInstance: Genkit | null = null;
 
-  if (!apiKey) {
-    throw new Error("PPCG_GEMINI_API_KEY no está disponible en runtime.");
+/**
+ * Obtiene una instancia inicializada de Genkit AI.
+ * La inicialización es diferida (lazy) para asegurar que las variables de entorno (secretos)
+ * estén disponibles en el momento de la ejecución de la función, no durante la carga del módulo.
+ * 
+ * @returns Una instancia de Genkit configurada.
+ */
+export function getInitializedGenkitAi(): Genkit {
+  // Memoization simple para evitar reinicializar en una instancia "caliente" (warm instance).
+  if (aiInstance) {
+    return aiInstance;
   }
 
-  logger.info("[genkit-config] API Key cargada correctamente.");
+  const apiKey = PPCG_GEMINI_API_KEY_SECRET.value();
+  
+  // Log de diagnóstico en tiempo de ejecución para verificar la presencia de la clave.
+  const apiKeyExists = !!apiKey;
+  logger.info(`[getInitializedGenkitAi] Verificación de API Key en runtime: Existe=${apiKeyExists}, Longitud=${apiKey?.length || 0}`);
 
-  return genkit({
+  if (!apiKeyExists) {
+    // Es crucial lanzar un error si la clave no está, para que la función falle explícitamente.
+    throw new Error("PPCG_GEMINI_API_KEY no está disponible en el entorno de ejecución de la función.");
+  }
+  
+  aiInstance = genkit({
     plugins: [
       googleAI({ apiKey })
     ]
   });
+
+  logger.info("[getInitializedGenkitAi] Instancia de Genkit creada.");
+  
+  return aiInstance;
 }
