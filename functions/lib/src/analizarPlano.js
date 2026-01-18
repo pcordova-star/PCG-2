@@ -35,11 +35,10 @@ var __importStar = (this && this.__importStar) || (function () {
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.analizarPlano = void 0;
 // src/functions/src/analizarPlano.ts
-const https_1 = require("firebase-functions/v2/https");
+const functions = __importStar(require("firebase-functions"));
 const logger = __importStar(require("firebase-functions/logger"));
 const genkit_config_1 = require("./genkit-config");
 const zod_1 = require("zod");
-const params_1 = require("./params");
 // --- Schemas (copiados desde /types/analisis-planos.ts para desacoplar) ---
 const OpcionesAnalisisSchema = zod_1.z.object({
     superficieUtil: zod_1.z.boolean(), m2Muros: zod_1.z.boolean(), m2Losas: zod_1.z.boolean(),
@@ -65,34 +64,30 @@ const AnalisisPlanoOutputSchema = zod_1.z.object({
 const AnalisisPlanoInputWithOpcionesStringSchema = AnalisisPlanoInputSchema.extend({
     opcionesString: zod_1.z.string(),
 });
-// --- Cloud Function v2 onCall ---
-exports.analizarPlano = (0, https_1.onCall)({
-    region: "us-central1",
+// --- Cloud Function v1 onCall ---
+exports.analizarPlano = functions
+    .region("us-central1")
+    .runWith({
     timeoutSeconds: 300,
-    memory: '1GiB',
-    secrets: [params_1.PPCG_GEMINI_API_KEY_SECRET],
-    cors: [
-        "https://pcgoperacion.com",
-        /https:\/\/.*\.firebase-studio\.app$/,
-        /https:\/\/.*\.cloudworkstations\.dev$/,
-        "http://localhost:3000",
-    ],
-}, async (request) => {
+    memory: '1GB',
+    secrets: ["GEMINI_API_KEY"]
+})
+    .https.onCall(async (data, context) => {
     // Autenticación básica
-    if (!request.auth) {
-        throw new https_1.HttpsError("unauthenticated", "El usuario debe estar autenticado.");
+    if (!context.auth) {
+        throw new functions.https.HttpsError("unauthenticated", "El usuario debe estar autenticado.");
     }
     // Validación de entrada con Zod
-    const validationResult = AnalisisPlanoInputSchema.safeParse(request.data);
+    const validationResult = AnalisisPlanoInputSchema.safeParse(data);
     if (!validationResult.success) {
         logger.error("Invalid input for analizarPlano", validationResult.error.flatten());
-        throw new https_1.HttpsError("invalid-argument", "Los datos proporcionados son inválidos.");
+        throw new functions.https.HttpsError("invalid-argument", "Los datos proporcionados son inválidos.");
     }
     const input = validationResult.data;
     try {
         // Se inicializa genkit dentro para asegurar que process.env.GEMINI_API_KEY esté disponible
         const ai = (0, genkit_config_1.getInitializedGenkitAi)();
-        logger.info(`[analizarPlano - ${request.auth.uid}] Iniciando análisis para obra: ${input.obraNombre}`);
+        logger.info(`[analizarPlano - ${context.auth.uid}] Iniciando análisis para obra: ${input.obraNombre}`);
         const analizarPlanoPrompt = ai.definePrompt({
             name: 'analizarPlanoPromptFunction',
             model: 'googleai/gemini-1.5-flash',
@@ -115,11 +110,11 @@ exports.analizarPlano = (0, https_1.onCall)({
         if (!output) {
             throw new Error("La IA no devolvió una respuesta válida.");
         }
-        logger.info(`[analizarPlano - ${request.auth.uid}] Análisis completado con éxito.`);
+        logger.info(`[analizarPlano - ${context.auth.uid}] Análisis completado con éxito.`);
         return { result: output };
     }
     catch (error) {
-        logger.error(`[analizarPlano - ${request.auth.uid}] Error en Genkit o en la lógica de la función:`, error);
-        throw new https_1.HttpsError("internal", "Ocurrió un error al procesar el análisis con IA.", error.message);
+        logger.error(`[analizarPlano - ${context.auth.uid}] Error en Genkit o en la lógica de la función:`, error);
+        throw new functions.https.HttpsError("internal", "Ocurrió un error al procesar el análisis con IA.", error.message);
     }
 });

@@ -35,12 +35,15 @@ var __importStar = (this && this.__importStar) || (function () {
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.mclpDailyScheduler = void 0;
 // src/functions/src/mclp/scheduler.ts
-const functions = __importStar(require("firebase-functions/v2/scheduler"));
+const functions = __importStar(require("firebase-functions"));
 const logger = __importStar(require("firebase-functions/logger"));
 const firebaseAdmin_1 = require("../firebaseAdmin");
 const adminApp = (0, firebaseAdmin_1.getAdminApp)();
 exports.mclpDailyScheduler = functions
-    .onSchedule({ schedule: "every day 01:00", timeZone: "UTC" }, async (context) => {
+    .region("us-central1")
+    .pubsub.schedule("every day 01:00")
+    .timeZone("UTC")
+    .onRun(async (context) => {
     const db = adminApp.firestore();
     const now = new Date();
     logger.info("Running MCLP Daily Scheduler", { timestamp: now.toISOString() });

@@ -6,7 +6,7 @@ exports.mclpDailyScheduler = exports.processItemizadoJob = exports.convertHeicTo
  * Este archivo es el punto de entrada para todas las Cloud Functions.
  * Cada función se importa desde su propio archivo y se exporta para que Firebase la despliegue.
  */
-// --- Exportación de funciones v1 y v2 ---
+// --- Exportación de funciones v1 ---
 var createCompanyUser_1 = require("./createCompanyUser");
 Object.defineProperty(exports, "createCompanyUser", { enumerable: true, get: function () { return createCompanyUser_1.createCompanyUser; } });
 var registrarAvanceRapido_1 = require("./registrarAvanceRapido");
@@ -27,11 +27,11 @@ var setCompanyClaims_1 = require("./setCompanyClaims");
 Object.defineProperty(exports, "setCompanyClaims", { enumerable: true, get: function () { return setCompanyClaims_1.setCompanyClaims; } });
 var analizarPlano_1 = require("./analizarPlano");
 Object.defineProperty(exports, "analizarPlano", { enumerable: true, get: function () { return analizarPlano_1.analizarPlano; } });
-// --- Triggers (Storage, Firestore) ---
+// --- Triggers (Storage, Firestore) v1 ---
 var convertHeic_1 = require("./convertHeic");
 Object.defineProperty(exports, "convertHeicToJpg", { enumerable: true, get: function () { return convertHeic_1.convertHeicToJpg; } });
 var processItemizadoJob_1 = require("./processItemizadoJob");
 Object.defineProperty(exports, "processItemizadoJob", { enumerable: true, get: function () { return processItemizadoJob_1.processItemizadoJob; } });
-// --- Funciones Programadas (Scheduler) ---
+// --- Funciones Programadas (Scheduler) v1 ---
 var scheduler_1 = require("./mclp/scheduler");
 Object.defineProperty(exports, "mclpDailyScheduler", { enumerable: true, get: function () { return scheduler_1.mclpDailyScheduler; } });
