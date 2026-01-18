@@ -5,7 +5,7 @@
  * Cada función se importa desde su propio archivo y se exporta para que Firebase la despliegue.
  */
 
-// --- Exportación de funciones v1 y v2 ---
+// --- Exportación de funciones v1 ---
 export { createCompanyUser } from "./createCompanyUser";
 export { registrarAvanceRapido } from "./registrarAvanceRapido";
 export { notifyDocumentDistribution } from "./notifyDocumentDistribution";
@@ -17,9 +17,9 @@ export { requestModuleActivation } from "./requestModuleActivation";
 export { setCompanyClaims } from "./setCompanyClaims";
 export { analizarPlano } from "./analizarPlano";
 
-// --- Triggers (Storage, Firestore) ---
+// --- Triggers (Storage, Firestore) v1 ---
 export { convertHeicToJpg } from "./convertHeic";
 export { processItemizadoJob } from "./processItemizadoJob";
 
-// --- Funciones Programadas (Scheduler) ---
+// --- Funciones Programadas (Scheduler) v1 ---
 export { mclpDailyScheduler } from "./mclp/scheduler";

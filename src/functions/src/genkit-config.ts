@@ -2,7 +2,6 @@
 import { genkit, Genkit } from "genkit";
 import { googleAI } from "@genkit-ai/google-genai";
 import * as logger from "firebase-functions/logger";
-import { PPCG_GEMINI_API_KEY_SECRET } from "./params";
 
 let aiInstance: Genkit | null = null;
 
@@ -19,7 +18,8 @@ export function getInitializedGenkitAi(): Genkit {
     return aiInstance;
   }
 
-  const apiKey = PPCG_GEMINI_API_KEY_SECRET.value();
+  // Para funciones de 1ª Gen, las claves secretas están directamente en process.env
+  const apiKey = process.env.GEMINI_API_KEY;
   
   // Log de diagnóstico en tiempo de ejecución para verificar la presencia de la clave.
   const apiKeyExists = !!apiKey;
@@ -27,7 +27,7 @@ export function getInitializedGenkitAi(): Genkit {
 
   if (!apiKeyExists) {
     // Es crucial lanzar un error si la clave no está, para que la función falle explícitamente.
-    throw new Error("PPCG_GEMINI_API_KEY no está disponible en el entorno de ejecución de la función.");
+    throw new Error("GEMINI_API_KEY no está disponible en el entorno de ejecución de la función.");
   }
   
   aiInstance = genkit({
