@@ -1,6 +1,3 @@
-import * as admin from "firebase-admin";
-admin.initializeApp();
-
-// Funciones activas
+// functions/src/index.ts
 export { createCompanyUser } from "./createCompanyUser";
 export { analizarPlano } from "./analizarPlano";
