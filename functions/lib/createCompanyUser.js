@@ -1,2 +1,0 @@
-// This file is obsolete. The logic has been moved to /workspace/functions/src/createCompanyUser.ts
-//# sourceMappingURL=createCompanyUser.js.map
