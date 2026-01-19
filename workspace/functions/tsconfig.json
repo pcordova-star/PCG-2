@@ -13,8 +13,7 @@
     "skipLibCheck": true,
     "noImplicitAny": false,
     "types": [
-      "node",
-      "handlebars"
+      "node"
     ],
     "typeRoots": [
       "./node_modules/@types"
