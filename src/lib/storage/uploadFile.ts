@@ -1,4 +1,3 @@
-// src/lib/storage/uploadFile.ts
 "use client";
 import { firebaseStorage } from "@/lib/firebaseClient";
 import { ref, uploadBytes, getDownloadURL } from "firebase/storage";

@@ -129,7 +129,7 @@ export default function RegistrarAvanceForm({ obraId: initialObraId, obras = [],
       let guardadas = 0;
 
       for (const [actividadId, cantidadHoy] of avancesParaGuardar) {
-        const actividad = actividadesAMostrar.find(a => a.id ===ividadId);
+        const actividad = actividadesAMostrar.find(a => a.id === actividadId);
         if (!actividad) continue;
 
         const urlsFotos: string[] = [];

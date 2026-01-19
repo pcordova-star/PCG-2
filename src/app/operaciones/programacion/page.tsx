@@ -410,35 +410,28 @@ function ProgramacionPageInner() {
     cargarObras();
   }, [user, loadingAuth, role, companyId, searchParams]);
 
-  const cargarDatosDeObra = async (obraId: string) => {
-    if (!obraId || !user) {
+  useEffect(() => {
+    if (!obraSeleccionadaId || !user) {
         setActividades([]);
         return;
     };
-    
-    setError(null);
+
     setCargandoActividades(true);
-    try {
-        const actColRef = collection(firebaseDb, "obras", obraId, "actividades");
-        const qAct = query(actColRef, orderBy("fechaInicio", "asc"));
-        const snapshotAct = await getDocs(qAct);
-        const dataAct: ActividadProgramada[] = snapshotAct.docs.map((d) => ({ ...d.data(), id: d.id } as ActividadProgramada));
+    const actColRef = collection(firebaseDb, "obras", obraSeleccionadaId, "actividades");
+    const qAct = query(actColRef, orderBy("fechaInicio", "asc"));
+    const unsub = onSnapshot(qAct, (snapshot) => {
+        const dataAct: ActividadProgramada[] = snapshot.docs.map((d) => ({ ...d.data(), id: d.id } as ActividadProgramada));
         setActividades(dataAct);
-    } catch (err) {
+        setCargandoActividades(false);
+    }, (err) => {
         console.error("Error cargando actividades:", err);
         setError("No se pudieron cargar las actividades de la obra.");
-    } finally {
         setCargandoActividades(false);
-    }
-    
-    refetchAvances();
-  }
+    });
 
-  useEffect(() => {
-    if (obraSeleccionadaId) {
-        cargarDatosDeObra(obraSeleccionadaId);
-    }
-  }, [obraSeleccionadaId, user]);
+    return () => unsub();
+}, [obraSeleccionadaId, user]);
+
 
   const handleOpenDialog = (actividad: Partial<ActividadProgramada> | null = null) => {
     setCurrentActividad(actividad || { 
@@ -787,7 +780,7 @@ function ProgramacionPageInner() {
             <div>
                 <h1 className="text-4xl font-bold font-headline tracking-tight">Programación de Obras</h1>
                 <p className="mt-2 text-lg text-muted-foreground">
-                Gestiona actividades por cantidad y precio, registre avances diarios por cantidad ejecutada y genere estados de pago.
+                Gestiona actividades por cantidad y precio, registre avances diarios y genere estados de pago.
                 </p>
             </div>
         </div>
@@ -933,7 +926,7 @@ function ProgramacionPageInner() {
                                     </AlertDialogTrigger>
                                     <AlertDialogContent>
                                       <AlertDialogHeader>
-                                        <AlertDialogTitle>¿Estás seguro de que deseas eliminar esta actividad?</AlertDialogTitle>
+                                        <AlertDialogTitle>¿Está seguro de que desea eliminar esta actividad?</AlertDialogTitle>
                                         <AlertDialogDescription>
                                           Esta acción no se puede deshacer. Se eliminará permanentemente la actividad "{act.nombreActividad}" y todos sus avances asociados.
                                         </AlertDialogDescription>
@@ -1206,4 +1199,5 @@ export default function ProgramacionPage() {
     </Suspense>
   );
 }
+
 
