@@ -11,7 +11,8 @@
       "POST",
       "PUT",
       "HEAD",
-      "DELETE"
+      "DELETE",
+      "OPTIONS"
     ],
     "responseHeader": [
       "Content-Type",
