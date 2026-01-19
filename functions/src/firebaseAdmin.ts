@@ -1,11 +1,1 @@
-// functions/src/firebaseAdmin.ts
-import * as admin from "firebase-admin";
-
-let app: admin.app.App;
-
-export function getAdminApp() {
-  if (!app) {
-    app = admin.initializeApp();
-  }
-  return app;
-}
+// This file is obsolete. The logic has been moved to /workspace/functions/src/firebaseAdmin.ts

@@ -1,27 +1,4 @@
-// src/functions/src/index.ts
-/**
- * Punto de entrada de Cloud Functions para PCG.
- * No inicialices admin aquí — se hace dentro de firebaseAdmin.ts
- */
-
-// --- Funciones principales ---
-export { createCompanyUser } from "./createCompanyUser";
-export { analizarPlano } from "./analizarPlano";
-export { processItemizadoJob } from "./processItemizadoJob";
-
-// --- Funciones de autenticación / claims ---
-export { setCompanyClaims } from "./setCompanyClaims";
-export { setSuperAdminClaim } from "./setSuperAdmin";
-export { checkUserExistsByEmail } from "./checkUserExistsByEmail";
-export { deactivateCompanyUser } from "./deactivateCompanyUser";
-
-// --- Funciones operacionales ---
-export { registrarAvanceRapido } from "./registrarAvanceRapido";
-export { requestModuleActivation } from "./requestModuleActivation";
-export { notifyDocumentDistribution } from "./notifyDocumentDistribution";
-
-// --- Triggers ---
-export { convertHeicToJpg } from "./convertHeic";
-
-// --- Scheduler (cron) ---
-export { mclpDailyScheduler } from "./mclp/scheduler";
+// Este es un archivo marcador de posición.
+// La lógica de las funciones ha sido migrada a la carpeta /workspace/functions/src
+// que es la utilizada por el sistema de despliegue de Firebase Studio.
+// Este directorio (/functions) ya no es utilizado y puede ser eliminado.
