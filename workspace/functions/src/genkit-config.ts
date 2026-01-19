@@ -3,7 +3,6 @@
 import { genkit, Genkit } from "genkit";
 import { googleAI } from "@genkit-ai/google-genai";
 import * as logger from "firebase-functions/logger";
-import { GEMINI_API_KEY_SECRET } from "./params";
 
 let aiInstance: Genkit | null = null;
 
@@ -20,7 +19,7 @@ export function getInitializedGenkitAi(): Genkit {
     return aiInstance;
   }
 
-  const apiKey = GEMINI_API_KEY_SECRET.value();
+  const apiKey = process.env.GEMINI_API_KEY;
   
   // Log de diagnóstico en tiempo de ejecución para verificar la presencia de la clave.
   const apiKeyExists = !!apiKey;

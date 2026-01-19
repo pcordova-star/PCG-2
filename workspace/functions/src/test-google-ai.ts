@@ -1,18 +1,15 @@
+
 // src/functions/src/test-google-ai.ts
 import { onCall, HttpsError } from "firebase-functions/v2/https";
 import * as logger from "firebase-functions/logger";
 import { getInitializedGenkitAi } from "./genkit-config"; // Importar la función inicializadora
-import { GEMINI_API_KEY_SECRET } from "./params";
 
 /**
  * Función "smoke test" para validar que Genkit y la API de Gemini
  * están funcionando correctamente desde el entorno de Cloud Functions.
  */
 export const testGoogleAi = onCall(
-  {
-    // Esta función necesita acceso al mismo secreto, vinculado con el nuevo patrón.
-    secrets: [GEMINI_API_KEY_SECRET],
-  },
+  {}, // El secreto ahora se maneja en getInitializedGenkitAi a través de process.env
   async (request) => {
     
     try {
@@ -26,7 +23,7 @@ export const testGoogleAi = onCall(
         prompt: "Confirma que estás funcionando. Responde solo con: 'OK'",
       });
 
-      const textResult = response.text();
+      const textResult = response.text;
       logger.info(`[testGoogleAi] Respuesta del modelo: ${textResult}`);
 
       if (textResult.includes('OK')) {
