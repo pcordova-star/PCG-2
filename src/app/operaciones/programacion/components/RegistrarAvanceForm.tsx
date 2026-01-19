@@ -4,7 +4,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { firebaseDb, firebaseStorage } from '@/lib/firebaseClient';
-import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -16,6 +15,7 @@ import { ActividadProgramada, Obra } from '../page';
 import { useActividadAvance } from '../hooks/useActividadAvance';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { doc, runTransaction, collection, serverTimestamp, getDocs } from 'firebase/firestore';
+import { uploadFileToStorage } from '@/lib/storage/uploadFile';
 
 type RegistrarAvanceFormProps = {
   obraId?: string;
@@ -136,9 +136,8 @@ export default function RegistrarAvanceForm({ obraId: initialObraId, obras = [],
         if (fotos[actividadId] && fotos[actividadId].length > 0) {
           for (const file of fotos[actividadId]) {
             const nombreArchivo = `${Date.now()}-${file.name}`;
-            const storageRef = ref(firebaseStorage, `avances/${selectedObraId}/${nombreArchivo}`);
-            await uploadBytes(storageRef, file);
-            const url = await getDownloadURL(storageRef);
+            const storagePath = `avances/${selectedObraId}/${nombreArchivo}`;
+            const url = await uploadFileToStorage(file, storagePath);
             urlsFotos.push(url);
           }
         }

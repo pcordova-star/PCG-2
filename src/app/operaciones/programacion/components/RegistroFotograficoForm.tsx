@@ -4,8 +4,7 @@
 import React, { useState, useMemo } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
-import { firebaseDb, firebaseStorage } from '@/lib/firebaseClient';
-import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
+import { firebaseDb } from '@/lib/firebaseClient';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -16,6 +15,7 @@ import { useToast } from '@/hooks/use-toast';
 import { ActividadProgramada, Obra } from '../page';
 import { Textarea } from '@/components/ui/textarea';
 import { useRouter } from 'next/navigation';
+import { uploadFileToStorage } from '@/lib/storage/uploadFile';
 
 type RegistroFotograficoFormProps = {
   obras: Obra[]; 
@@ -110,13 +110,10 @@ export default function RegistroFotograficoForm({ obras, actividades, onRegistro
         const urlsFotos: string[] = [];
         if (fotosSolo.length > 0) {
             for(const file of fotosSolo){
-                console.log("Subiendo imagen...", file.name);
                 const nombreArchivo = `${Date.now()}-${file.name}`;
-                const storageRef = ref(firebaseStorage, `avances/${selectedObraId}/${nombreArchivo}`);
-                const uploadTask = await uploadBytes(storageRef, file);
-                const url = await getDownloadURL(uploadTask.ref);
+                const storagePath = `avances/${selectedObraId}/${nombreArchivo}`;
+                const url = await uploadFileToStorage(file, storagePath);
                 urlsFotos.push(url);
-                console.log("Imagen subida, URL:", url);
             }
         }
         
