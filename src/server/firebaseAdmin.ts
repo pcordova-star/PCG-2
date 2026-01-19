@@ -10,4 +10,6 @@ if (!admin.apps.length) {
 
 export const bucket = admin.storage().bucket();
 export const adminDb = admin.firestore();
+export const FieldValue = admin.firestore.FieldValue;
+export const Timestamp = admin.firestore.Timestamp;
 export default admin;

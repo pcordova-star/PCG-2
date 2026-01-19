@@ -1,7 +1,7 @@
 // src/app/api/mclp/calendar/route.ts
 import { NextRequest, NextResponse } from "next/server";
-import admin, { adminDb } from "@/server/firebaseAdmin";
-import type { DocumentReference, Firestore, Timestamp } from "firebase-admin/firestore";
+import { adminDb, Timestamp as AdminTimestamp } from "@/server/firebaseAdmin";
+import type { DocumentReference, Firestore } from "firebase-admin/firestore";
 
 export const runtime = "nodejs";
 
@@ -30,12 +30,12 @@ async function createDefaultMonths(calendarRef: DocumentReference, year: number)
 
       batch.set(monthRef, {
         month: monthId,
-        corteCarga: admin.firestore.Timestamp.fromDate(fechaCorte),
-        limiteRevision: admin.firestore.Timestamp.fromDate(fechaRevision),
-        fechaPago: admin.firestore.Timestamp.fromDate(fechaDePago),
+        corteCarga: AdminTimestamp.fromDate(fechaCorte),
+        limiteRevision: AdminTimestamp.fromDate(fechaRevision),
+        fechaPago: AdminTimestamp.fromDate(fechaDePago),
         editable: true,
-        createdAt: admin.firestore.FieldValue.serverTimestamp(),
-        updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+        createdAt: adminDb.FieldValue.serverTimestamp(),
+        updatedAt: adminDb.FieldValue.serverTimestamp(),
       });
     }
   
@@ -62,8 +62,8 @@ export async function GET(req: NextRequest) {
         if (!snap.exists) {
             await ref.set({
                 companyId, year, locked: false,
-                createdAt: admin.firestore.FieldValue.serverTimestamp(),
-                updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+                createdAt: adminDb.FieldValue.serverTimestamp(),
+                updatedAt: adminDb.FieldValue.serverTimestamp(),
             });
             await createDefaultMonths(ref, year);
             snap = await ref.get();
@@ -74,11 +74,11 @@ export async function GET(req: NextRequest) {
             const data = d.data();
             return {
                 id: d.id, ...data,
-                corteCarga: (data.corteCarga as Timestamp)?.toDate().toISOString(),
-                limiteRevision: (data.limiteRevision as Timestamp)?.toDate().toISOString(),
-                fechaPago: (data.fechaPago as Timestamp)?.toDate().toISOString(),
-                createdAt: (data.createdAt as Timestamp)?.toDate().toISOString(),
-                updatedAt: (data.updatedAt as Timestamp)?.toDate().toISOString(),
+                corteCarga: (data.corteCarga as AdminTimestamp)?.toDate().toISOString(),
+                limiteRevision: (data.limiteRevision as AdminTimestamp)?.toDate().toISOString(),
+                fechaPago: (data.fechaPago as AdminTimestamp)?.toDate().toISOString(),
+                createdAt: (data.createdAt as AdminTimestamp)?.toDate().toISOString(),
+                updatedAt: (data.updatedAt as AdminTimestamp)?.toDate().toISOString(),
             };
         });
 

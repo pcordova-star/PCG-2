@@ -1,7 +1,7 @@
 // src/app/api/mclp/requirements/route.ts
 import { NextRequest, NextResponse } from "next/server";
 import { RequisitoDocumento } from "@/types/pcg";
-import admin, { adminDb } from "@/server/firebaseAdmin";
+import { adminDb, FieldValue } from "@/server/firebaseAdmin";
 import type { Firestore, Timestamp } from "firebase-admin/firestore";
 
 export const runtime = "nodejs";
@@ -62,8 +62,8 @@ export async function POST(req: NextRequest) {
         await ref.set({
             ...requirement,
             activo: true,
-            createdAt: admin.firestore.FieldValue.serverTimestamp(),
-            updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+            createdAt: FieldValue.serverTimestamp(),
+            updatedAt: FieldValue.serverTimestamp(),
         });
 
         return NextResponse.json({ id: ref.id });
@@ -88,7 +88,7 @@ export async function PUT(req: NextRequest) {
         const ref = adminDb.collection("compliancePrograms").doc(companyId).collection("requirements").doc(id);
         await ref.update({
             ...dataToUpdate,
-            updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+            updatedAt: FieldValue.serverTimestamp(),
         });
 
         return NextResponse.json({ id });
