@@ -8,23 +8,9 @@
     "types": ["node"]
   },
   "include": [
-    "src/index.ts",
-    "src/createCompanyUser.ts",
-    "src/analizarPlano.ts",
-    "src/firebaseAdmin.ts",
-    "src/processItemizadoJob.ts"
+    "src/**/*.ts"
   ],
   "exclude": [
-    "**/*.spec.ts",
-    "src/checkUserExistsByEmail.ts",
-    "src/convertHeic.ts",
-    "src/deactivateCompanyUser.ts",
-    "src/notifyDocumentDistribution.ts",
-    "src/registrarAvanceRapido.ts",
-    "src/requestModuleActivation.ts",
-    "src/setCompanyClaims.ts",
-    "src/setSuperAdmin.ts",
-    "src/test-google-ai.ts",
-    "src/mclp/**"
+    "**/*.spec.ts"
   ]
 }
