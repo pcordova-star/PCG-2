@@ -3,7 +3,7 @@
 
 import React, { useState, useEffect, useMemo } from 'react';
 import { useAuth } from '@/context/AuthContext';
-import { firebaseDb, firebaseStorage } from '@/lib/firebaseClient';
+import { firebaseDb } from '@/lib/firebaseClient';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -129,7 +129,7 @@ export default function RegistrarAvanceForm({ obraId: initialObraId, obras = [],
       let guardadas = 0;
 
       for (const [actividadId, cantidadHoy] of avancesParaGuardar) {
-        const actividad = actividadesAMostrar.find(a => a.id === actividadId);
+        const actividad = actividadesAMostrar.find(a => a.id ===ividadId);
         if (!actividad) continue;
 
         const urlsFotos: string[] = [];
