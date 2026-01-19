@@ -20,7 +20,8 @@ import {
   Timestamp,
   serverTimestamp,
   writeBatch,
-  runTransaction
+  runTransaction,
+  onSnapshot
 } from "firebase/firestore";
 import { firebaseDb, firebaseStorage } from "../../../lib/firebaseClient";
 import { ref, deleteObject } from "firebase/storage";
@@ -419,7 +420,7 @@ function ProgramacionPageInner() {
     setCargandoActividades(true);
     const actColRef = collection(firebaseDb, "obras", obraSeleccionadaId, "actividades");
     const qAct = query(actColRef, orderBy("fechaInicio", "asc"));
-    const unsub = onSnapshot(qAct, (snapshot) => {
+    const unsubActividades = onSnapshot(qAct, (snapshot) => {
         const dataAct: ActividadProgramada[] = snapshot.docs.map((d) => ({ ...d.data(), id: d.id } as ActividadProgramada));
         setActividades(dataAct);
         setCargandoActividades(false);
@@ -429,7 +430,7 @@ function ProgramacionPageInner() {
         setCargandoActividades(false);
     });
 
-    return () => unsub();
+    return () => unsubActividades();
 }, [obraSeleccionadaId, user]);
 
 
@@ -700,7 +701,7 @@ function ProgramacionPageInner() {
                             nombreActividad: item.descripcion,
                             unidad: item.unidad,
                             cantidad: item.cantidad,
-                            precioContrato: item.precioUnitario,
+                            precioContrato: item.precioContrato,
                             fechaInicio: new Date().toISOString().slice(0, 10), // Fecha por defecto
                             fechaFin: new Date().toISOString().slice(0, 10), // Fecha por defecto
                         };
@@ -1199,5 +1200,6 @@ export default function ProgramacionPage() {
     </Suspense>
   );
 }
+
 
 
