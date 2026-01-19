@@ -2,7 +2,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import admin, { adminDb } from "@/server/firebaseAdmin";
 import { ensureMclpEnabled } from "@/server/lib/mclp/ensureMclpEnabled";
-import { Timestamp } from "firebase-admin/firestore";
 
 export const runtime = "nodejs";
 
@@ -26,7 +25,7 @@ export async function POST(req: NextRequest) {
 
     await adminDb.collection("users").doc(user.uid).set({
       uid: user.uid, email, nombre, role: "contratista", companyId, subcontractorId,
-      updatedAt: Timestamp.now(),
+      updatedAt: admin.firestore.Timestamp.now(),
     }, { merge: true });
 
     const subcontractorRef = adminDb.collection("subcontractors").doc(subcontractorId);
@@ -35,7 +34,7 @@ export async function POST(req: NextRequest) {
     
     await subcontractorRef.update({
         userIds: Array.from(new Set([...existingUserIds, user.uid])),
-        updatedAt: Timestamp.now(),
+        updatedAt: admin.firestore.Timestamp.now(),
     });
 
     const loginUrl = `${process.env.APP_BASE_URL || 'http://localhost:3000'}/login/usuario`;

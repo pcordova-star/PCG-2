@@ -1,8 +1,7 @@
 // src/app/api/mclp/subcontractors/route.ts
 import { NextRequest, NextResponse } from "next/server";
-import { adminDb } from "@/server/firebaseAdmin";
+import admin, { adminDb } from "@/server/firebaseAdmin";
 import { ensureMclpEnabled } from "@/server/lib/mclp/ensureMclpEnabled";
-import { Timestamp } from "firebase-admin/firestore";
 
 export const runtime = "nodejs";
 
@@ -49,8 +48,8 @@ export async function POST(req: NextRequest) {
         email: contactoEmail,
       },
       activo: true,
-      createdAt: Timestamp.now(),
-      updatedAt: Timestamp.now(),
+      createdAt: admin.firestore.Timestamp.now(),
+      updatedAt: admin.firestore.Timestamp.now(),
     });
     
     return NextResponse.json({ success: true, id: ref.id });
@@ -73,7 +72,7 @@ export async function DELETE(req: NextRequest) {
         
         await adminDb.collection("subcontractors").doc(subcontractorId).update({
             activo: false,
-            updatedAt: Timestamp.now(),
+            updatedAt: admin.firestore.Timestamp.now(),
         });
         
         return NextResponse.json({ success: true });

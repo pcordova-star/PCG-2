@@ -1,12 +1,12 @@
 // src/app/api/mclp/requirements/route.ts
 import { NextRequest, NextResponse } from "next/server";
-import type { firestore } from "firebase-admin";
 import { RequisitoDocumento } from "@/types/pcg";
 import admin, { adminDb } from "@/server/firebaseAdmin";
+import type { Firestore, Timestamp } from "firebase-admin/firestore";
 
 export const runtime = "nodejs";
 
-async function ensureMclpEnabled(db: firestore.Firestore, companyId: string) {
+async function ensureMclpEnabled(db: Firestore, companyId: string) {
   const companyRef = db.collection("companies").doc(companyId);
   const snap = await companyRef.get();
   if (!snap.exists || !snap.data()?.feature_compliance_module_enabled) {
@@ -30,8 +30,8 @@ export async function GET(req: NextRequest) {
             
         const requirements = snap.docs.map(d => {
             const data = d.data();
-            const createdAt = data.createdAt as firestore.Timestamp | undefined;
-            const updatedAt = data.updatedAt as firestore.Timestamp | undefined;
+            const createdAt = data.createdAt as Timestamp | undefined;
+            const updatedAt = data.updatedAt as Timestamp | undefined;
             return {
                 id: d.id,
                 ...data,

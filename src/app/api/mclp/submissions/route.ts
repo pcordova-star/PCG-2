@@ -1,14 +1,13 @@
 // src/app/api/mclp/submissions/route.ts
 import { NextRequest, NextResponse } from "next/server";
-import { adminDb } from "@/server/firebaseAdmin";
-import { Timestamp, Firestore } from "firebase-admin/firestore";
+import admin, { adminDb } from "@/server/firebaseAdmin";
 
 export const runtime = "nodejs";
 
-async function ensureMclpEnabled(db: Firestore, companyId: string) {
+async function ensureMclpEnabled(db: admin.firestore.Firestore, companyId: string) {
   const companyRef = db.collection("companies").doc(companyId);
   const snap = await companyRef.get();
-  if (!snap.exists() || !snap.data()?.feature_compliance_module_enabled) {
+  if (!snap.exists || !snap.data()?.feature_compliance_module_enabled) {
     throw new Error("MCLP_DISABLED");
   }
 }
@@ -26,10 +25,10 @@ export async function GET(req: NextRequest) {
         await ensureMclpEnabled(adminDb, companyId);
         
         
-        let q = adminDb
+        let q: admin.firestore.Query = adminDb
             .collection("compliancePeriods")
             .doc(periodId)
-            .collection("submissions") as FirebaseFirestore.Query;
+            .collection("submissions");
 
         if (subcontractorId) {
             q = q.where("subcontractorId", "==", subcontractorId);
@@ -41,7 +40,7 @@ export async function GET(req: NextRequest) {
             return { 
                 id: d.id, 
                 ...docData,
-                fechaCarga: (docData.fechaCarga as Timestamp)?.toDate().toISOString(),
+                fechaCarga: (docData.fechaCarga as admin.firestore.Timestamp)?.toDate().toISOString(),
                 // Serializa otros Timestamps si los hay
             };
         });

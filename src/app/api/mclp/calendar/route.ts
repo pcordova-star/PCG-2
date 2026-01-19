@@ -1,7 +1,7 @@
 // src/app/api/mclp/calendar/route.ts
 import { NextRequest, NextResponse } from "next/server";
-import { adminDb } from "@/server/firebaseAdmin";
-import { Timestamp, FieldValue, DocumentReference, Firestore } from "firebase-admin/firestore";
+import admin, { adminDb } from "@/server/firebaseAdmin";
+import type { DocumentReference, Firestore, Timestamp } from "firebase-admin/firestore";
 
 export const runtime = "nodejs";
 
@@ -30,12 +30,12 @@ async function createDefaultMonths(calendarRef: DocumentReference, year: number)
 
       batch.set(monthRef, {
         month: monthId,
-        corteCarga: Timestamp.fromDate(fechaCorte),
-        limiteRevision: Timestamp.fromDate(fechaRevision),
-        fechaPago: Timestamp.fromDate(fechaDePago),
+        corteCarga: admin.firestore.Timestamp.fromDate(fechaCorte),
+        limiteRevision: admin.firestore.Timestamp.fromDate(fechaRevision),
+        fechaPago: admin.firestore.Timestamp.fromDate(fechaDePago),
         editable: true,
-        createdAt: FieldValue.serverTimestamp(),
-        updatedAt: FieldValue.serverTimestamp(),
+        createdAt: admin.firestore.FieldValue.serverTimestamp(),
+        updatedAt: admin.firestore.FieldValue.serverTimestamp(),
       });
     }
   
@@ -62,8 +62,8 @@ export async function GET(req: NextRequest) {
         if (!snap.exists) {
             await ref.set({
                 companyId, year, locked: false,
-                createdAt: FieldValue.serverTimestamp(),
-                updatedAt: FieldValue.serverTimestamp(),
+                createdAt: admin.firestore.FieldValue.serverTimestamp(),
+                updatedAt: admin.firestore.FieldValue.serverTimestamp(),
             });
             await createDefaultMonths(ref, year);
             snap = await ref.get();
