@@ -3,7 +3,6 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.processItemizadoJob = void 0;
 // functions/src/processItemizadoJob.ts
 const functions = require("firebase-functions");
-const admin = require("firebase-admin");
 const logger = require("firebase-functions/logger");
 const firebaseAdmin_1 = require("./firebaseAdmin");
 const node_fetch_1 = require("node-fetch");
@@ -25,7 +24,7 @@ exports.processItemizadoJob = functions
     // Cambiar estado a processing
     await jobRef.update({
         status: "processing",
-        startedAt: admin.firestore.FieldValue.serverTimestamp(),
+        startedAt: adminApp.firestore.FieldValue.serverTimestamp(),
     });
     const apiKey = process.env.GEMINI_API_KEY;
     if (!apiKey) {
@@ -98,7 +97,7 @@ Entrega SOLO un JSON válido, sin texto adicional.
         await jobRef.update({
             status: "done",
             result: parsed,
-            processedAt: admin.firestore.FieldValue.serverTimestamp(),
+            processedAt: adminApp.firestore.FieldValue.serverTimestamp(),
         });
         logger.info(`[${jobId}] Job procesado correctamente.`);
     }
@@ -107,7 +106,7 @@ Entrega SOLO un JSON válido, sin texto adicional.
         await jobRef.update({
             status: "error",
             errorMessage: err.message,
-            processedAt: admin.firestore.FieldValue.serverTimestamp(),
+            processedAt: adminApp.firestore.FieldValue.serverTimestamp(),
         });
     }
 });
