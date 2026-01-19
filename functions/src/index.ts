@@ -1,11 +1,27 @@
 // src/functions/src/index.ts
 /**
- * Punto de entrada para todas las Cloud Functions.
- * NO inicializar Firebase Admin aquí. La inicialización se centraliza
- * en la función getAdminApp() para evitar errores en el runtime.
+ * Punto de entrada de Cloud Functions para PCG.
+ * No inicialices admin aquí — se hace dentro de firebaseAdmin.ts
  */
 
-// Funciones activas
+// --- Funciones principales ---
 export { createCompanyUser } from "./createCompanyUser";
 export { analizarPlano } from "./analizarPlano";
 export { processItemizadoJob } from "./processItemizadoJob";
+
+// --- Funciones de autenticación / claims ---
+export { setCompanyClaims } from "./setCompanyClaims";
+export { setSuperAdminClaim } from "./setSuperAdmin";
+export { checkUserExistsByEmail } from "./checkUserExistsByEmail";
+export { deactivateCompanyUser } from "./deactivateCompanyUser";
+
+// --- Funciones operacionales ---
+export { registrarAvanceRapido } from "./registrarAvanceRapido";
+export { requestModuleActivation } from "./requestModuleActivation";
+export { notifyDocumentDistribution } from "./notifyDocumentDistribution";
+
+// --- Triggers ---
+export { convertHeicToJpg } from "./convertHeic";
+
+// --- Scheduler (cron) ---
+export { mclpDailyScheduler } from "./mclp/scheduler";
