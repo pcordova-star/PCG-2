@@ -1,7 +1,6 @@
 // src/app/api/mclp/submissions/route.ts
 import { NextRequest, NextResponse } from "next/server";
 import { adminDb, Timestamp } from "@/server/firebaseAdmin";
-import type { Query } from "firebase-admin/firestore";
 import { ensureMclpEnabled } from "@/server/lib/mclp/ensureMclpEnabled";
 
 export const runtime = "nodejs";
@@ -19,7 +18,7 @@ export async function GET(req: NextRequest) {
         await ensureMclpEnabled(companyId);
         
         
-        let q: Query = adminDb
+        let q = adminDb
             .collection("compliancePeriods")
             .doc(periodId)
             .collection("submissions");

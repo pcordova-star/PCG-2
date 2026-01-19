@@ -1,12 +1,11 @@
 // src/app/api/mclp/calendar/route.ts
 import { NextRequest, NextResponse } from "next/server";
 import { adminDb, Timestamp as AdminTimestamp } from "@/server/firebaseAdmin";
-import type { DocumentReference } from "firebase-admin/firestore";
 import { ensureMclpEnabled } from "@/server/lib/mclp/ensureMclpEnabled";
 
 export const runtime = "nodejs";
 
-async function createDefaultMonths(calendarRef: DocumentReference, year: number) {
+async function createDefaultMonths(calendarRef: any, year: number) {
     const batch = adminDb.batch();
     
     const programRef = adminDb.collection("compliancePrograms").doc(calendarRef.id.split('_')[0]);
