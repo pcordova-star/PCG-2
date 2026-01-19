@@ -38,15 +38,12 @@ exports.testGoogleAi = void 0;
 const https_1 = require("firebase-functions/v2/https");
 const logger = __importStar(require("firebase-functions/logger"));
 const genkit_config_1 = require("./genkit-config"); // Importar la función inicializadora
-const params_1 = require("./params");
 /**
  * Función "smoke test" para validar que Genkit y la API de Gemini
  * están funcionando correctamente desde el entorno de Cloud Functions.
  */
-exports.testGoogleAi = (0, https_1.onCall)({
-    // Esta función necesita acceso al mismo secreto, vinculado con el nuevo patrón.
-    secrets: [params_1.GEMINI_API_KEY_SECRET],
-}, async (request) => {
+exports.testGoogleAi = (0, https_1.onCall)({}, // El secreto ahora se maneja en getInitializedGenkitAi a través de process.env
+async (request) => {
     try {
         // 1. Inicializar Genkit dentro del handler
         const ai = (0, genkit_config_1.getInitializedGenkitAi)();
@@ -56,7 +53,7 @@ exports.testGoogleAi = (0, https_1.onCall)({
             model: 'googleai/gemini-1.5-flash-latest',
             prompt: "Confirma que estás funcionando. Responde solo con: 'OK'",
         });
-        const textResult = response.text();
+        const textResult = response.text;
         logger.info(`[testGoogleAi] Respuesta del modelo: ${textResult}`);
         if (textResult.includes('OK')) {
             return {

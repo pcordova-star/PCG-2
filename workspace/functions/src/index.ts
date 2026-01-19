@@ -7,6 +7,7 @@
 export { createCompanyUser } from "./createCompanyUser";
 export { analizarPlano } from "./analizarPlano";
 export { processItemizadoJob } from "./processItemizadoJob";
+export { testGoogleAi } from "./test-google-ai";
 
 // --- Funciones de autenticación / claims ---
 export { setCompanyClaims } from "./setCompanyClaims";
@@ -24,3 +25,7 @@ export { convertHeicToJpg } from "./convertHeic";
 
 // --- Scheduler (cron) ---
 export { mclpDailyScheduler } from "./mclp/scheduler";
+
+// --- Helpers / Configs ---
+// NOTA: Generalmente no se exportan helpers, pero se hace si es necesario para tests o dependencias.
+export { getInitializedGenkitAi } from "./genkit-config";

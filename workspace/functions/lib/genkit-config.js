@@ -38,7 +38,6 @@ exports.getInitializedGenkitAi = getInitializedGenkitAi;
 const genkit_1 = require("genkit");
 const google_genai_1 = require("@genkit-ai/google-genai");
 const logger = __importStar(require("firebase-functions/logger"));
-const params_1 = require("./params");
 let aiInstance = null;
 /**
  * Obtiene una instancia inicializada de Genkit AI.
@@ -52,7 +51,7 @@ function getInitializedGenkitAi() {
     if (aiInstance) {
         return aiInstance;
     }
-    const apiKey = params_1.GEMINI_API_KEY_SECRET.value();
+    const apiKey = process.env.GEMINI_API_KEY;
     // Log de diagnóstico en tiempo de ejecución para verificar la presencia de la clave.
     const apiKeyExists = !!apiKey;
     logger.info(`[getInitializedGenkitAi] Verificación de API Key en runtime: Existe=${apiKeyExists}, Longitud=${apiKey?.length || 0}`);
