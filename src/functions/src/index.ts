@@ -7,3 +7,4 @@ export { createCompanyUser } from "./createCompanyUser";
 export { analizarPlano } from "./analizarPlano";
 export { processItemizadoJob } from "./processItemizadoJob";
 export { checkUserExistsByEmail } from "./checkUserExistsByEmail";
+export { setSuperAdminClaim } from "./setSuperAdmin";

@@ -1,46 +1,55 @@
-// src/functions/src/setSuperAdmin.ts
+// functions/src/setSuperAdmin.ts
 import * as functions from "firebase-functions";
 import { getAdminApp } from "./firebaseAdmin";
 
-const admin = getAdminApp();
+const adminApp = getAdminApp();
+const auth = adminApp.auth();
 
-export const setSuperAdminClaim = functions.region("us-central1").https.onCall(async (data, context) => {
+/**
+ * Asigna el rol SUPER_ADMIN a un usuario por UID.
+ * Solo otro SUPER_ADMIN puede ejecutarlo.
+ */
+export const setSuperAdminClaim = functions
+  .region("us-central1")
+  .https.onCall(async (data, context) => {
+    // Validación de autenticación
     if (!context.auth) {
-      throw new functions.https.HttpsError("unauthenticated", "La función debe ser llamada por un usuario autenticado.");
-    }
-    
-    const email = data.email;
-    if (!email || typeof email !== "string") {
-      throw new functions.https.HttpsError("invalid-argument", "Se requiere un 'email' en el cuerpo de la solicitud.");
+      throw new functions.https.HttpsError(
+        "unauthenticated",
+        "Debes estar autenticado."
+      );
     }
 
-    if (email.toLowerCase() !== "pauloandrescordova@gmail.com") {
-        throw new functions.https.HttpsError(
-            "permission-denied",
-            "Esta función solo puede asignar el rol de superadmin al usuario predefinido."
-        );
+    // Validación de permisos del solicitante
+    const requester = await auth.getUser(context.auth.uid);
+    if (requester.customClaims?.role !== "superadmin") {
+      throw new functions.https.HttpsError(
+        "permission-denied",
+        "Solo SUPER_ADMIN puede asignar este rol."
+      );
+    }
+
+    // Validación de input
+    const targetUid = data?.uid;
+    if (!targetUid) {
+      throw new functions.https.HttpsError(
+        "invalid-argument",
+        "Debes proporcionar un UID."
+      );
     }
 
     try {
-      const auth = admin.auth();
-      const db = admin.firestore();
-
-      const userRecord = await auth.getUserByEmail(email);
-      const uid = userRecord.uid;
-
-      await auth.setCustomUserClaims(uid, { role: "superadmin" });
-
-      const userRef = db.collection("users").doc(uid);
-      await userRef.set({ role: "superadmin" }, { merge: true });
+      await auth.setCustomUserClaims(targetUid, { role: "superadmin" });
 
       return {
-        message: `Éxito: El usuario ${email} (UID: ${uid}) ahora es superadmin.`,
+        status: "ok",
+        message: `Usuario ${targetUid} ahora es SUPER_ADMIN.`,
       };
     } catch (error: any) {
-      if (error.code === "auth/user-not-found") {
-        throw new functions.https.HttpsError("not-found", `No se encontró usuario con el email: ${email}`);
-      }
-      console.error("Error al asignar superadmin:", error);
-      throw new functions.https.HttpsError("internal", "Ocurrió un error inesperado.", error.message);
+      throw new functions.https.HttpsError(
+        "internal",
+        "No se pudo asignar el rol.",
+        error.message
+      );
     }
-});
+  });
