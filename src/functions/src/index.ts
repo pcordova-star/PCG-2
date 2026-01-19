@@ -5,3 +5,5 @@ admin.initializeApp();
 // Funciones activas
 export { createCompanyUser } from "./createCompanyUser";
 export { analizarPlano } from "./analizarPlano";
+export { processItemizadoJob } from "./processItemizadoJob";
+export { checkUserExistsByEmail } from "./checkUserExistsByEmail";
