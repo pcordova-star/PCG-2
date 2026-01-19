@@ -1,17 +1,10 @@
 // src/app/api/mclp/calendar/route.ts
 import { NextRequest, NextResponse } from "next/server";
 import { adminDb, Timestamp as AdminTimestamp } from "@/server/firebaseAdmin";
-import type { DocumentReference, Firestore } from "firebase-admin/firestore";
+import type { DocumentReference } from "firebase-admin/firestore";
+import { ensureMclpEnabled } from "@/server/lib/mclp/ensureMclpEnabled";
 
 export const runtime = "nodejs";
-
-async function ensureMclpEnabled(db: Firestore, companyId: string) {
-  const companyRef = db.collection("companies").doc(companyId);
-  const snap = await companyRef.get();
-  if (!snap.exists || !snap.data()?.feature_compliance_module_enabled) {
-    throw new Error("MCLP_DISABLED");
-  }
-}
 
 async function createDefaultMonths(calendarRef: DocumentReference, year: number) {
     const batch = adminDb.batch();
@@ -52,7 +45,7 @@ export async function GET(req: NextRequest) {
             return NextResponse.json({ error: "companyId y year son requeridos" }, { status: 400 });
         }
         const year = parseInt(yearStr, 10);
-        await ensureMclpEnabled(adminDb, companyId);
+        await ensureMclpEnabled(companyId);
 
         
         const calendarId = `${companyId}_${year}`;

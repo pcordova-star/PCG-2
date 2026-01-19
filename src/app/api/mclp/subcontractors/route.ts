@@ -13,7 +13,7 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ error: "companyId es requerido" }, { status: 400 });
     }
     
-    await ensureMclpEnabled(adminDb, companyId);
+    await ensureMclpEnabled(companyId);
     
     const snap = await adminDb
       .collection("subcontractors")
@@ -36,7 +36,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Faltan parámetros requeridos" }, { status: 400 });
     }
     
-    await ensureMclpEnabled(adminDb, companyId);
+    await ensureMclpEnabled(companyId);
     const ref = adminDb.collection("subcontractors").doc();
     
     await ref.set({
@@ -68,7 +68,7 @@ export async function DELETE(req: NextRequest) {
             return NextResponse.json({ error: "companyId y subcontractorId son requeridos" }, { status: 400 });
         }
         
-        await ensureMclpEnabled(adminDb, companyId);
+        await ensureMclpEnabled(companyId);
         
         await adminDb.collection("subcontractors").doc(subcontractorId).update({
             activo: false,

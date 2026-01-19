@@ -1,18 +1,11 @@
 // src/app/api/mclp/requirements/route.ts
 import { NextRequest, NextResponse } from "next/server";
 import { RequisitoDocumento } from "@/types/pcg";
-import { adminDb, FieldValue } from "@/server/firebaseAdmin";
-import type { Firestore, Timestamp } from "firebase-admin/firestore";
+import { adminDb, FieldValue, Timestamp } from "@/server/firebaseAdmin";
+import { ensureMclpEnabled } from "@/server/lib/mclp/ensureMclpEnabled";
 
 export const runtime = "nodejs";
 
-async function ensureMclpEnabled(db: Firestore, companyId: string) {
-  const companyRef = db.collection("companies").doc(companyId);
-  const snap = await companyRef.get();
-  if (!snap.exists || !snap.data()?.feature_compliance_module_enabled) {
-    throw new Error("MCLP_DISABLED");
-  }
-}
 
 // GET /api/mclp/requirements?companyId=[ID]
 export async function GET(req: NextRequest) {
@@ -22,7 +15,7 @@ export async function GET(req: NextRequest) {
         if (!companyId) {
             return NextResponse.json({ error: "companyId es requerido" }, { status: 400 });
         }
-        await ensureMclpEnabled(adminDb, companyId);
+        await ensureMclpEnabled(companyId);
 
         const snap = await adminDb
             .collection("compliancePrograms").doc(companyId)
@@ -55,7 +48,7 @@ export async function POST(req: NextRequest) {
         if (!companyId || !requirement) {
             return NextResponse.json({ error: "companyId y requirement son requeridos" }, { status: 400 });
         }
-        await ensureMclpEnabled(adminDb, companyId);
+        await ensureMclpEnabled(companyId);
 
         
         const ref = adminDb.collection("compliancePrograms").doc(companyId).collection("requirements").doc();
@@ -81,7 +74,7 @@ export async function PUT(req: NextRequest) {
         if (!companyId || !requirement || !requirement.id) {
             return NextResponse.json({ error: "companyId y requirement con ID son requeridos" }, { status: 400 });
         }
-        await ensureMclpEnabled(adminDb, companyId);
+        await ensureMclpEnabled(companyId);
         
         const { id, ...dataToUpdate } = requirement;
 

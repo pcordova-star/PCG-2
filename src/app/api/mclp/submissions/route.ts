@@ -1,17 +1,10 @@
 // src/app/api/mclp/submissions/route.ts
 import { NextRequest, NextResponse } from "next/server";
-import { adminDb } from "@/server/firebaseAdmin";
-import type { Firestore, Query, Timestamp } from "firebase-admin/firestore";
+import { adminDb, Timestamp } from "@/server/firebaseAdmin";
+import type { Query } from "firebase-admin/firestore";
+import { ensureMclpEnabled } from "@/server/lib/mclp/ensureMclpEnabled";
 
 export const runtime = "nodejs";
-
-async function ensureMclpEnabled(db: Firestore, companyId: string) {
-  const companyRef = db.collection("companies").doc(companyId);
-  const snap = await companyRef.get();
-  if (!snap.exists || !snap.data()?.feature_compliance_module_enabled) {
-    throw new Error("MCLP_DISABLED");
-  }
-}
 
 // GET /api/mclp/submissions?companyId=[ID]&periodId=[ID]&subcontractorId=[ID]
 export async function GET(req: NextRequest) {
@@ -23,7 +16,7 @@ export async function GET(req: NextRequest) {
         if (!companyId || !periodId) {
             return NextResponse.json({ error: "companyId y periodId son requeridos" }, { status: 400 });
         }
-        await ensureMclpEnabled(adminDb, companyId);
+        await ensureMclpEnabled(companyId);
         
         
         let q: Query = adminDb
@@ -49,7 +42,7 @@ export async function GET(req: NextRequest) {
         return NextResponse.json(data);
 
     } catch (error: any) {
-        if (error.message === 'MCLP_DISABLED') {
+        if (error.message.includes('MCLP_DISABLED')) {
             return NextResponse.json({ error: "El módulo de cumplimiento no está habilitado para esta empresa." }, { status: 403 });
         }
         return NextResponse.json({ error: error.message }, { status: 500 });

@@ -14,7 +14,7 @@ export async function POST(req: NextRequest) {
     }
     
     const auth = admin.auth();
-    await ensureMclpEnabled(adminDb, companyId);
+    await ensureMclpEnabled(companyId);
 
     let user;
     try {
