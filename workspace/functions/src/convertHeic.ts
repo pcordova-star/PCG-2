@@ -1,31 +1,22 @@
-// functions/src/convertHeic.ts
-
-import { onObjectFinalized } from "firebase-functions/v2/storage";
-import * as admin from 'firebase-admin';
+// workspace/functions/src/convertHeic.ts
+import * as functions from 'firebase-functions';
 import * as path from 'path';
 import * as os from 'os';
 import * as fs from 'fs';
 import heicConvert from 'heic-convert';
 import sharp from 'sharp';
 import * as logger from "firebase-functions/logger";
+import { getAdminApp } from "./firebaseAdmin";
 
+const admin = getAdminApp();
 
-// Asegurarse de que Firebase Admin esté inicializado
-if (!admin.apps.length) {
-  admin.initializeApp();
-}
-
-const storage = admin.storage();
-
-export const convertHeicToJpg = onObjectFinalized(
-  {
-    // La región y SA se heredan de setGlobalOptions
-    cpu: 1,
-    memory: "512MiB",
-  },
-  async (event) => {
-    const { bucket, name: filePath, contentType } = event.data;
-    const storageBucket = storage.bucket(bucket);
+export const convertHeicToJpg = functions
+  .region("us-central1")
+  .runWith({ memory: "512MB" })
+  .storage.object()
+  .onFinalize(async (object) => {
+    const { bucket, name: filePath, contentType } = object;
+    const storageBucket = admin.storage().bucket(bucket);
 
     if (!filePath) {
       logger.warn('File path is undefined.');
@@ -78,7 +69,7 @@ export const convertHeicToJpg = onObjectFinalized(
         destination: finalJpgPath,
         metadata: {
           contentType: 'image/jpeg',
-          metadata: event.data.metadata,
+          metadata: object.metadata,
         },
       });
       logger.log(`Uploaded JPG file to: ${finalJpgPath}`);
@@ -97,5 +88,4 @@ export const convertHeicToJpg = onObjectFinalized(
       if (fs.existsSync(tempJpgPath)) fs.unlinkSync(tempJpgPath);
       return null;
     }
-  }
-);
+  });

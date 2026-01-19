@@ -1,13 +1,15 @@
-// functions/src/registrarAvanceRapido.ts
-import { HttpsError } from "firebase-functions/v2/https";
+// workspace/functions/src/registrarAvanceRapido.ts
 import * as functions from 'firebase-functions';
 import * as logger from "firebase-functions/logger";
 import { getFirestore, FieldValue } from "firebase-admin/firestore";
 import { z } from "zod";
 import { getAuth } from "firebase-admin/auth";
 import cors from "cors";
+import { getAdminApp } from './firebaseAdmin';
 
-// Definición para v1 onRequest
+const adminApp = getAdminApp();
+const db = adminApp.firestore();
+
 const corsHandler = cors({ origin: true });
 
 const AvanceSchema = z.object({
@@ -23,8 +25,7 @@ function escapeHtml(s: string): string {
   return s.replace(/[&<>"']/g, (m: string) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[m]!));
 }
 
-// Convertir a Cloud Function v1 para mantener compatibilidad con onRequest y auth manual
-export const registrarAvanceRapido = functions.region("southamerica-west1").https.onRequest((req, res) => {
+export const registrarAvanceRapido = functions.region("us-central1").https.onRequest((req, res) => {
     corsHandler(req, res, async () => {
         if (req.method === 'OPTIONS') {
             res.status(204).send('');
@@ -38,7 +39,7 @@ export const registrarAvanceRapido = functions.region("southamerica-west1").http
         try {
             const authHeader = req.headers.authorization;
             if (!authHeader || !authHeader.startsWith('Bearer ')) {
-                throw new HttpsError('unauthenticated', 'El usuario no está autenticado.');
+                throw new functions.https.HttpsError('unauthenticated', 'El usuario no está autenticado.');
             }
             const token = authHeader.split(' ')[1];
             const decodedToken = await getAuth().verifyIdToken(token);
@@ -47,18 +48,17 @@ export const registrarAvanceRapido = functions.region("southamerica-west1").http
 
             const parsed = AvanceSchema.safeParse(req.body);
             if (!parsed.success) {
-                throw new HttpsError("invalid-argument", "Los datos proporcionados son inválidos.", parsed.error.flatten());
+                throw new functions.https.HttpsError("invalid-argument", "Los datos proporcionados son inválidos.", parsed.error.flatten());
             }
 
             const { obraId, actividadId, porcentaje, comentario, fotos, visibleCliente } = parsed.data;
 
-            const db = getFirestore();
             const obraRef = db.collection("obras").doc(obraId);
 
             const avanceId = await db.runTransaction(async (tx) => {
                 const obraSnap = await tx.get(obraRef);
                 if (!obraSnap.exists) {
-                    throw new HttpsError("not-found", `La obra con ID ${obraId} no fue encontrada.`);
+                    throw new functions.https.HttpsError("not-found", `La obra con ID ${obraId} no fue encontrada.`);
                 }
 
                 const avancesRef = obraRef.collection("avancesDiarios");

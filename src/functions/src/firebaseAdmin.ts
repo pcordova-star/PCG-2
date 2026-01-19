@@ -1,3 +1,1 @@
-// THIS FILE IS NO LONGER NEEDED AND CAN BE DELETED
-// The logic has been centralized in `src/functions/src/index.ts`
-// by calling `admin.initializeApp()` directly.
+// This file is obsolete. The logic has been moved to /workspace/functions/src/firebaseAdmin.ts

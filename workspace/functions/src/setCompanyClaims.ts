@@ -1,11 +1,11 @@
-// workspace/functions/src/setSuperAdmin.ts
+// workspace/functions/src/setCompanyClaims.ts
 import * as functions from "firebase-functions";
 import { getAdminApp } from "./firebaseAdmin";
 
 const adminApp = getAdminApp();
 const auth = adminApp.auth();
 
-export const setSuperAdminClaim = functions
+export const setCompanyClaims = functions
   .region("us-central1")
   .https.onCall(async (data, context) => {
     if (!context.auth) {
@@ -18,26 +18,31 @@ export const setSuperAdminClaim = functions
     if (requester.customClaims?.role !== "superadmin") {
       throw new functions.https.HttpsError(
         "permission-denied",
-        "Solo SUPER_ADMIN puede asignar este rol."
+        "Solo SUPER_ADMIN puede asignar empresa a un usuario."
       );
     }
-    const targetUid = data?.uid;
-    if (!targetUid) {
+    const { uid, companyId } = data || {};
+    if (!uid || !companyId) {
       throw new functions.https.HttpsError(
         "invalid-argument",
-        "Debes proporcionar un UID."
+        "Debes proporcionar uid y companyId."
       );
     }
+
     try {
-      await auth.setCustomUserClaims(targetUid, { role: "superadmin" });
+      await auth.setCustomUserClaims(uid, {
+        role: "company_user",
+        companyId,
+      });
+
       return {
         status: "ok",
-        message: `Usuario ${targetUid} ahora es SUPER_ADMIN.`,
+        message: `Claims asignados correctamente al usuario ${uid}.`,
       };
     } catch (error: any) {
       throw new functions.https.HttpsError(
         "internal",
-        "No se pudo asignar el rol.",
+        "Error al asignar company claims.",
         error.message
       );
     }

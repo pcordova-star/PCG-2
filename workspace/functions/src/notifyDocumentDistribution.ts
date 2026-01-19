@@ -1,17 +1,13 @@
-// functions/src/notifyDocumentDistribution.ts
+// workspace/functions/src/notifyDocumentDistribution.ts
 import * as functions from "firebase-functions";
-import * as admin from "firebase-admin";
 import { z } from "zod";
 import * as logger from "firebase-functions/logger";
-import { getFirestore } from "firebase-admin/firestore";
+import { getAdminApp } from "./firebaseAdmin";
+import * as admin from "firebase-admin";
 
-if (!admin.apps.length) {
-  admin.initializeApp();
-}
+const adminApp = getAdminApp();
+const db = adminApp.firestore();
 
-const db = getFirestore();
-
-// Esquema de validación para los datos de entrada de la función
 const NotifyDocumentSchema = z.object({
   projectDocumentId: z.string().min(1),
   projectId: z.string().min(1),
@@ -22,14 +18,10 @@ const NotifyDocumentSchema = z.object({
   email: z.string().email(),
 });
 
-// Se convierte a GCFv1 para compatibilidad con setGlobalOptions, y para evitar el problema de herencia de SA en v2 onCall
-export const notifyDocumentDistribution = functions.region("southamerica-west1").https.onCall(async (data, context) => {
-    // 1. Autenticación y autorización (básica)
+export const notifyDocumentDistribution = functions.region("us-central1").https.onCall(async (data, context) => {
     if (!context.auth) {
       throw new functions.https.HttpsError("unauthenticated", "El usuario no está autenticado.");
     }
-
-    // 2. Validación de datos de entrada
     const parsed = NotifyDocumentSchema.safeParse(data);
     if (!parsed.success) {
       throw new functions.https.HttpsError(
@@ -49,7 +41,6 @@ export const notifyDocumentDistribution = functions.region("southamerica-west1")
     } = parsed.data;
 
     try {
-      // 3. Obtener el nombre del documento desde projectDocuments
       const projectDocRef = db.collection("projectDocuments").doc(projectDocumentId);
       const projectDocSnap = await projectDocRef.get();
 
@@ -61,7 +52,6 @@ export const notifyDocumentDistribution = functions.region("southamerica-west1")
       const now = admin.firestore.Timestamp.now();
       const sentAtDate = now.toDate();
 
-      // 4. Registrar la distribución en Firestore
       await db.collection("documentDistribution").add({
         companyId,
         projectId,
@@ -74,7 +64,6 @@ export const notifyDocumentDistribution = functions.region("southamerica-west1")
         sentAt: now,
       });
 
-      // 5. Enviar el correo electrónico a través de la extensión "Trigger Email"
       await db.collection("mail").add({
         to: [email],
         message: {
