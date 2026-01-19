@@ -1,13 +1,2 @@
-"use strict";
-Object.defineProperty(exports, "__esModule", { value: true });
-exports.getAdminApp = getAdminApp;
-// functions/src/firebaseAdmin.ts
-const admin = require("firebase-admin");
-let app;
-function getAdminApp() {
-    if (!app) {
-        app = admin.initializeApp();
-    }
-    return app;
-}
+// This file is obsolete. The logic has been moved to /workspace/functions/src/firebaseAdmin.ts
 //# sourceMappingURL=firebaseAdmin.js.map

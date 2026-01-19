@@ -1,1 +1,1 @@
-{"version":3,"file":"firebaseAdmin.js","sourceRoot":"","sources":["../src/firebaseAdmin.ts"],"names":[],"mappings":";;AAKA,kCAKC;AAVD,iCAAiC;AACjC,wCAAwC;AAExC,IAAI,GAAkB,CAAC;AAEvB,SAAgB,WAAW;IACzB,IAAI,CAAC,GAAG,EAAE,CAAC;QACT,GAAG,GAAG,KAAK,CAAC,aAAa,EAAE,CAAC;IAC9B,CAAC;IACD,OAAO,GAAG,CAAC;AACb,CAAC"}
+{"version":3,"file":"firebaseAdmin.js","sourceRoot":"","sources":["../src/firebaseAdmin.ts"],"names":[],"mappings":"AAAA,+FAA+F"}
