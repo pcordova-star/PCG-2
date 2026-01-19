@@ -1,13 +1,12 @@
 // src/app/api/mclp/requirements/route.ts
 import { NextRequest, NextResponse } from "next/server";
-import type { Firestore, Timestamp } from "firebase-admin/firestore";
+import type { firestore } from "firebase-admin";
 import { RequisitoDocumento } from "@/types/pcg";
-import { adminDb } from "@/server/firebaseAdmin";
-import { Timestamp as AdminTimestamp } from "firebase-admin/firestore";
+import admin, { adminDb } from "@/server/firebaseAdmin";
 
 export const runtime = "nodejs";
 
-async function ensureMclpEnabled(db: Firestore, companyId: string) {
+async function ensureMclpEnabled(db: firestore.Firestore, companyId: string) {
   const companyRef = db.collection("companies").doc(companyId);
   const snap = await companyRef.get();
   if (!snap.exists || !snap.data()?.feature_compliance_module_enabled) {
@@ -31,8 +30,8 @@ export async function GET(req: NextRequest) {
             
         const requirements = snap.docs.map(d => {
             const data = d.data();
-            const createdAt = data.createdAt as Timestamp | undefined;
-            const updatedAt = data.updatedAt as Timestamp | undefined;
+            const createdAt = data.createdAt as firestore.Timestamp | undefined;
+            const updatedAt = data.updatedAt as firestore.Timestamp | undefined;
             return {
                 id: d.id,
                 ...data,
@@ -63,8 +62,8 @@ export async function POST(req: NextRequest) {
         await ref.set({
             ...requirement,
             activo: true,
-            createdAt: AdminTimestamp.now(),
-            updatedAt: AdminTimestamp.now(),
+            createdAt: admin.firestore.FieldValue.serverTimestamp(),
+            updatedAt: admin.firestore.FieldValue.serverTimestamp(),
         });
 
         return NextResponse.json({ id: ref.id });
@@ -89,7 +88,7 @@ export async function PUT(req: NextRequest) {
         const ref = adminDb.collection("compliancePrograms").doc(companyId).collection("requirements").doc(id);
         await ref.update({
             ...dataToUpdate,
-            updatedAt: AdminTimestamp.now(),
+            updatedAt: admin.firestore.FieldValue.serverTimestamp(),
         });
 
         return NextResponse.json({ id });
