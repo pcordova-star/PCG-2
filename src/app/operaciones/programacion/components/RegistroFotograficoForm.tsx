@@ -134,7 +134,7 @@ export default function RegistroFotograficoForm({ obras, actividades, onRegistro
 
         toast({ title: 'Registro guardado', description: 'El registro fotográfico se ha guardado con éxito.' });
         onRegistroGuardado?.();
-        resetFormStates();
+        resetForm();
 
     } catch(err: any) {
       console.error("Error guardando registro fotográfico:", err);
