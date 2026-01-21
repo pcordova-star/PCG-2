@@ -1,0 +1,2864 @@
+
+
+```
+- src/components/ui/slider.tsx:
+```tsx
+"use client"
+
+import * as React from "react"
+import * as SliderPrimitive from "@radix-ui/react-slider"
+
+import { cn } from "@/lib/utils"
+
+const Slider = React.forwardRef<
+  React.ElementRef<typeof SliderPrimitive.Root>,
+  React.ComponentPropsWithoutRef<typeof SliderPrimitive.Root>
+>(({ className, ...props }, ref) => (
+  <SliderPrimitive.Root
+    ref={ref}
+    className={cn(
+      "relative flex w-full touch-none select-none items-center",
+      className
+    )}
+    {...props}
+  >
+    <SliderPrimitive.Track className="relative h-2 w-full grow overflow-hidden rounded-full bg-secondary">
+      <SliderPrimitive.Range className="absolute h-full bg-primary" />
+    </SliderPrimitive.Track>
+    <SliderPrimitive.Thumb className="block h-5 w-5 rounded-full border-2 border-primary bg-background ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50" />
+  </SliderPrimitive.Root>
+))
+Slider.displayName = SliderPrimitive.Root.displayName
+
+export { Slider }
+
+```
+- src/components/ui/switch.tsx:
+```tsx
+"use client"
+
+import * as React from "react"
+import * as SwitchPrimitives from "@radix-ui/react-switch"
+
+import { cn } from "@/lib/utils"
+
+const Switch = React.forwardRef<
+  React.ElementRef<typeof SwitchPrimitives.Root>,
+  React.ComponentPropsWithoutRef<typeof SwitchPrimitives.Root>
+>(({ className, ...props }, ref) => (
+  <SwitchPrimitives.Root
+    className={cn(
+      "peer inline-flex h-6 w-11 shrink-0 cursor-pointer items-center rounded-full border-2 border-transparent transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background disabled:cursor-not-allowed disabled:opacity-50 data-[state=checked]:bg-primary data-[state=unchecked]:bg-input",
+      className
+    )}
+    {...props}
+    ref={ref}
+  >
+    <SwitchPrimitives.Thumb
+      className={cn(
+        "pointer-events-none block h-5 w-5 rounded-full bg-background shadow-lg ring-0 transition-transform data-[state=checked]:translate-x-5 data-[state=unchecked]:translate-x-0"
+      )}
+    />
+  </SwitchPrimitives.Root>
+))
+Switch.displayName = SwitchPrimitives.Root.displayName
+
+export { Switch }
+
+```
+- src/components/ui/table.tsx:
+```tsx
+import * as React from "react"
+
+import { cn } from "@/lib/utils"
+
+const Table = React.forwardRef<
+  HTMLTableElement,
+  React.HTMLAttributes<HTMLTableElement>
+>(({ className, ...props }, ref) => (
+  <div className="relative w-full overflow-auto">
+    <table
+      ref={ref}
+      className={cn("w-full caption-bottom text-sm", className)}
+      {...props}
+    />
+  </div>
+))
+Table.displayName = "Table"
+
+const TableHeader = React.forwardRef<
+  HTMLTableSectionElement,
+  React.HTMLAttributes<HTMLTableSectionElement>
+>(({ className, ...props }, ref) => (
+  <thead ref={ref} className={cn("[&_tr]:border-b", className)} {...props} />
+))
+TableHeader.displayName = "TableHeader"
+
+const TableBody = React.forwardRef<
+  HTMLTableSectionElement,
+  React.HTMLAttributes<HTMLTableSectionElement>
+>(({ className, ...props }, ref) => (
+  <tbody
+    ref={ref}
+    className={cn("[&_tr:last-child]:border-0", className)}
+    {...props}
+  />
+))
+TableBody.displayName = "TableBody"
+
+const TableFooter = React.forwardRef<
+  HTMLTableSectionElement,
+  React.HTMLAttributes<HTMLTableSectionElement>
+>(({ className, ...props }, ref) => (
+  <tfoot
+    ref={ref}
+    className={cn(
+      "border-t bg-muted/50 font-medium [&>tr]:last:border-b-0",
+      className
+    )}
+    {...props}
+  />
+))
+TableFooter.displayName = "TableFooter"
+
+const TableRow = React.forwardRef<
+  HTMLTableRowElement,
+  React.HTMLAttributes<HTMLTableRowElement>
+>(({ className, ...props }, ref) => (
+  <tr
+    ref={ref}
+    className={cn(
+      "border-b transition-colors hover:bg-muted/50 data-[state=selected]:bg-muted",
+      className
+    )}
+    {...props}
+  />
+))
+TableRow.displayName = "TableRow"
+
+const TableHead = React.forwardRef<
+  HTMLTableCellElement,
+  React.ThHTMLAttributes<HTMLTableCellElement>
+>(({ className, ...props }, ref) => (
+  <th
+    ref={ref}
+    className={cn(
+      "h-12 px-4 text-left align-middle font-medium text-muted-foreground [&:has([role=checkbox])]:pr-0",
+      className
+    )}
+    {...props}
+  />
+))
+TableHead.displayName = "TableHead"
+
+const TableCell = React.forwardRef<
+  HTMLTableCellElement,
+  React.TdHTMLAttributes<HTMLTableCellElement>
+>(({ className, ...props }, ref) => (
+  <td
+    ref={ref}
+    className={cn("p-4 align-middle [&:has([role=checkbox])]:pr-0", className)}
+    {...props}
+  />
+))
+TableCell.displayName = "TableCell"
+
+const TableCaption = React.forwardRef<
+  HTMLTableCaptionElement,
+  React.HTMLAttributes<HTMLTableCaptionElement>
+>(({ className, ...props }, ref) => (
+  <caption
+    ref={ref}
+    className={cn("mt-4 text-sm text-muted-foreground", className)}
+    {...props}
+  />
+))
+TableCaption.displayName = "TableCaption"
+
+export {
+  Table,
+  TableHeader,
+  TableBody,
+  TableFooter,
+  TableHead,
+  TableRow,
+  TableCell,
+  TableCaption,
+}
+
+```
+- src/components/ui/tabs.tsx:
+```tsx
+"use client"
+
+import * as React from "react"
+import * as TabsPrimitive from "@radix-ui/react-tabs"
+
+import { cn } from "@/lib/utils"
+
+const Tabs = TabsPrimitive.Root
+
+const TabsList = React.forwardRef<
+  React.ElementRef<typeof TabsPrimitive.List>,
+  React.ComponentPropsWithoutRef<typeof TabsPrimitive.List>
+>(({ className, ...props }, ref) => (
+  <TabsPrimitive.List
+    ref={ref}
+    className={cn(
+      "inline-flex h-10 items-center justify-center rounded-md bg-muted p-1 text-muted-foreground",
+      className
+    )}
+    {...props}
+  />
+))
+TabsList.displayName = TabsPrimitive.List.displayName
+
+const TabsTrigger = React.forwardRef<
+  React.ElementRef<typeof TabsPrimitive.Trigger>,
+  React.ComponentPropsWithoutRef<typeof TabsPrimitive.Trigger>
+>(({ className, ...props }, ref) => (
+  <TabsPrimitive.Trigger
+    ref={ref}
+    className={cn(
+      "inline-flex items-center justify-center whitespace-nowrap rounded-sm px-3 py-1.5 text-sm font-medium ring-offset-background transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-sm",
+      className
+    )}
+    {...props}
+  />
+))
+TabsTrigger.displayName = TabsPrimitive.Trigger.displayName
+
+const TabsContent = React.forwardRef<
+  React.ElementRef<typeof TabsPrimitive.Content>,
+  React.ComponentPropsWithoutRef<typeof TabsPrimitive.Content>
+>(({ className, ...props }, ref) => (
+  <TabsPrimitive.Content
+    ref={ref}
+    className={cn(
+      "mt-2 ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
+      className
+    )}
+    {...props}
+  />
+))
+TabsContent.displayName = TabsPrimitive.Content.displayName
+
+export { Tabs, TabsList, TabsTrigger, TabsContent }
+
+```
+- src/components/ui/textarea.tsx:
+```tsx
+import * as React from "react"
+
+import { cn } from "@/lib/utils"
+
+export interface TextareaProps
+  extends React.TextareaHTMLAttributes<HTMLTextAreaElement> {}
+
+const Textarea = React.forwardRef<HTMLTextAreaElement, TextareaProps>(
+  ({ className, ...props }, ref) => {
+    return (
+      <textarea
+        className={cn(
+          "flex min-h-[80px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50",
+          className
+        )}
+        ref={ref}
+        {...props}
+      />
+    )
+  }
+)
+Textarea.displayName = "Textarea"
+
+export { Textarea }
+
+```
+- src/components/ui/toast.tsx:
+```tsx
+"use client"
+
+import * as React from "react"
+import * as ToastPrimitives from "@radix-ui/react-toast"
+import { cva, type VariantProps } from "class-variance-authority"
+import { X } from "lucide-react"
+
+import { cn } from "@/lib/utils"
+
+const ToastProvider = ToastPrimitives.Provider
+
+const ToastViewport = React.forwardRef<
+  React.ElementRef<typeof ToastPrimitives.Viewport>,
+  React.ComponentPropsWithoutRef<typeof ToastPrimitives.Viewport>
+>(({ className, ...props }, ref) => (
+  <ToastPrimitives.Viewport
+    ref={ref}
+    className={cn(
+      "fixed top-0 z-[100] flex max-h-screen w-full flex-col-reverse p-4 sm:bottom-0 sm:right-0 sm:top-auto sm:flex-col md:max-w-[420px]",
+      className
+    )}
+    {...props}
+  />
+))
+ToastViewport.displayName = ToastPrimitives.Viewport.displayName
+
+const toastVariants = cva(
+  "group pointer-events-auto relative flex w-full items-center justify-between space-x-4 overflow-hidden rounded-md border p-6 pr-8 shadow-lg transition-all data-[swipe=cancel]:translate-x-0 data-[swipe=end]:translate-x-[var(--radix-toast-swipe-end-x)] data-[swipe=move]:translate-x-[var(--radix-toast-swipe-move-x)] data-[swipe=move]:transition-none data-[state=open]:animate-in data-[state=closed]:animate-out data-[swipe=end]:animate-out data-[state=closed]:fade-out-80 data-[state=closed]:slide-out-to-right-full data-[state=open]:slide-in-from-top-full data-[state=open]:sm:slide-in-from-bottom-full",
+  {
+    variants: {
+      variant: {
+        default: "border bg-background text-foreground",
+        destructive:
+          "destructive group border-destructive bg-destructive text-destructive-foreground",
+      },
+    },
+    defaultVariants: {
+      variant: "default",
+    },
+  }
+)
+
+const Toast = React.forwardRef<
+  React.ElementRef<typeof ToastPrimitives.Root>,
+  React.ComponentPropsWithoutRef<typeof ToastPrimitives.Root> &
+    VariantProps<typeof toastVariants>
+>(({ className, variant, ...props }, ref) => {
+  return (
+    <ToastPrimitives.Root
+      ref={ref}
+      className={cn(toastVariants({ variant }), className)}
+      {...props}
+    />
+  )
+})
+Toast.displayName = ToastPrimitives.Root.displayName
+
+const ToastAction = React.forwardRef<
+  React.ElementRef<typeof ToastPrimitives.Action>,
+  React.ComponentPropsWithoutRef<typeof ToastPrimitives.Action>
+>(({ className, ...props }, ref) => (
+  <ToastPrimitives.Action
+    ref={ref}
+    className={cn(
+      "inline-flex h-8 shrink-0 items-center justify-center rounded-md border bg-transparent px-3 text-sm font-medium ring-offset-background transition-colors hover:bg-secondary focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 group-[.destructive]:border-muted/40 group-[.destructive]:hover:border-destructive/30 group-[.destructive]:hover:bg-destructive group-[.destructive]:hover:text-destructive-foreground group-[.destructive]:focus:ring-destructive",
+      className
+    )}
+    {...props}
+  />
+))
+ToastAction.displayName = ToastPrimitives.Action.displayName
+
+const ToastClose = React.forwardRef<
+  React.ElementRef<typeof ToastPrimitives.Close>,
+  React.ComponentPropsWithoutRef<typeof ToastPrimitives.Close>
+>(({ className, ...props }, ref) => (
+  <ToastPrimitives.Close
+    ref={ref}
+    className={cn(
+      "absolute right-2 top-2 rounded-md p-1 text-foreground/50 opacity-0 transition-opacity hover:text-foreground focus:opacity-100 focus:outline-none focus:ring-2 group-hover:opacity-100 group-[.destructive]:text-red-300 group-[.destructive]:hover:text-red-50 group-[.destructive]:focus:ring-red-400 group-[.destructive]:focus:ring-offset-red-600",
+      className
+    )}
+    toast-close=""
+    {...props}
+  >
+    <X className="h-4 w-4" />
+  </ToastPrimitives.Close>
+))
+ToastClose.displayName = ToastPrimitives.Close.displayName
+
+const ToastTitle = React.forwardRef<
+  React.ElementRef<typeof ToastPrimitives.Title>,
+  React.ComponentPropsWithoutRef<typeof ToastPrimitives.Title>
+>(({ className, ...props }, ref) => (
+  <ToastPrimitives.Title
+    ref={ref}
+    className={cn("text-sm font-semibold", className)}
+    {...props}
+  />
+))
+ToastTitle.displayName = ToastPrimitives.Title.displayName
+
+const ToastDescription = React.forwardRef<
+  React.ElementRef<typeof ToastPrimitives.Description>,
+  React.ComponentPropsWithoutRef<typeof ToastPrimitives.Description>
+>(({ className, ...props }, ref) => (
+  <ToastPrimitives.Description
+    ref={ref}
+    className={cn("text-sm opacity-90", className)}
+    {...props}
+  />
+))
+ToastDescription.displayName = ToastPrimitives.Description.displayName
+
+type ToastProps = React.ComponentPropsWithoutRef<typeof Toast>
+
+type ToastActionElement = React.ReactElement<typeof ToastAction>
+
+export {
+  type ToastProps,
+  type ToastActionElement,
+  ToastProvider,
+  ToastViewport,
+  Toast,
+  ToastTitle,
+  ToastDescription,
+  ToastClose,
+  ToastAction,
+}
+
+```
+- src/components/ui/toaster.tsx:
+```tsx
+"use client"
+
+import { useToast } from "@/hooks/use-toast"
+import {
+  Toast,
+  ToastClose,
+  ToastDescription,
+  ToastProvider,
+  ToastTitle,
+  ToastViewport,
+} from "@/components/ui/toast"
+
+export function Toaster() {
+  const { toasts } = useToast()
+
+  return (
+    <ToastProvider>
+      {toasts.map(function ({ id, title, description, action, ...props }) {
+        return (
+          <Toast key={id} {...props}>
+            <div className="grid gap-1">
+              {title && <ToastTitle>{title}</ToastTitle>}
+              {description && (
+                <ToastDescription>{description}</ToastDescription>
+              )}
+            </div>
+            {action}
+            <ToastClose />
+          </Toast>
+        )
+      })}
+      <ToastViewport />
+    </ToastProvider>
+  )
+}
+
+```
+- src/components/ui/tooltip.tsx:
+```tsx
+"use client"
+
+import * as React from "react"
+import * as TooltipPrimitive from "@radix-ui/react-tooltip"
+
+import { cn } from "@/lib/utils"
+
+const TooltipProvider = TooltipPrimitive.Provider
+
+const Tooltip = TooltipPrimitive.Root
+
+const TooltipTrigger = TooltipPrimitive.Trigger
+
+const TooltipContent = React.forwardRef<
+  React.ElementRef<typeof TooltipPrimitive.Content>,
+  React.ComponentPropsWithoutRef<typeof TooltipPrimitive.Content>
+>(({ className, sideOffset = 4, ...props }, ref) => (
+  <TooltipPrimitive.Content
+    ref={ref}
+    sideOffset={sideOffset}
+    className={cn(
+      "z-50 overflow-hidden rounded-md border bg-popover px-3 py-1.5 text-sm text-popover-foreground shadow-md animate-in fade-in-0 zoom-in-95 data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=closed]:zoom-out-95 data-[side=bottom]:slide-in-from-top-2 data-[side=left]:slide-in-from-right-2 data-[side=right]:slide-in-from-left-2 data-[side=top]:slide-in-from-bottom-2",
+      className
+    )}
+    {...props}
+  />
+))
+TooltipContent.displayName = TooltipPrimitive.Content.displayName
+
+export { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider }
+
+```
+- src/context/AuthContext.tsx:
+```tsx
+// src/context/AuthContext.tsx
+"use client";
+
+import {
+  onAuthStateChanged,
+  signInWithEmailAndPassword,
+  signOut,
+  User,
+} from "firebase/auth";
+import {
+  createContext,
+  useContext,
+  useEffect,
+  useState,
+  ReactNode,
+} from "react";
+import { firebaseAuth, firebaseDb } from "@/lib/firebaseClient"; // Se importa firebaseAuth directamente
+import { useRouter } from "next/navigation";
+import { doc, getDoc, setDoc, serverTimestamp, collection, query, where, getDocs, writeBatch } from "firebase/firestore";
+import { resolveRole, UserRole } from "@/lib/roles";
+import { AppUser, UserInvitation } from "@/types/pcg";
+
+
+type AuthContextValue = {
+  user: User | null;
+  role: UserRole;
+  companyId: string | null;
+  loading: boolean;
+  login: (email: string, password: string) => Promise<void>;
+  logout: () => Promise<void>;
+};
+
+const AuthContext = createContext<AuthContextValue | undefined>(undefined);
+
+async function ensureUserDocForAuthUser(user: User): Promise<AppUser | null> {
+    const userDocRef = doc(firebaseDb, "users", user.uid);
+    let userDocSnap = await getDoc(userDocRef);
+    
+    // Si ya existe un perfil con empresaId, no hacemos nada más.
+    if (userDocSnap.exists() && userDocSnap.data().empresaId) {
+        return { id: userDocSnap.id, ...userDocSnap.data() } as AppUser;
+    }
+
+    const emailLower = user.email!.toLowerCase().trim();
+
+    // Buscamos si hay una invitación aceptada (no pendiente) para este correo.
+    const invitationsRef = collection(firebaseDb, "invitacionesUsuarios");
+    const q = query(
+        invitationsRef,
+        where("email", "==", emailLower),
+        where("estado", "==", "aceptada") // Importante: solo las aceptadas
+    );
+    const invitationSnapshot = await getDocs(q);
+
+    if (!invitationSnapshot.empty) {
+        const firstInvitation = invitationSnapshot.docs[0];
+        const invitationData = firstInvitation.data() as UserInvitation;
+        
+        const newUserProfile: Omit<AppUser, 'id'> = {
+            email: emailLower,
+            nombre: user.displayName || user.email!.split('@')[0],
+            empresaId: invitationData.empresaId,
+            role: invitationData.roleDeseado,
+            createdAt: serverTimestamp(),
+            activo: true,
+        };
+
+        const batch = writeBatch(firebaseDb);
+        batch.set(userDocRef, newUserProfile, { merge: true });
+        
+        // Opcional: podríamos cambiar la invitación a 'completada' o borrarla
+        // batch.update(firstInvitation.ref, { estado: "completada" });
+        
+        await batch.commit();
+
+        // Volvemos a leer el doc para tener los datos frescos con el serverTimestamp
+        userDocSnap = await getDoc(userDocRef);
+        return { id: user.uid, ...userDocSnap.data() } as AppUser;
+    }
+
+    // Si no hay invitación y el documento no existe, creamos uno básico.
+    if (!userDocSnap.exists()) {
+        const newUserProfile: Omit<AppUser, 'id'> = {
+            email: emailLower,
+            nombre: user.displayName || user.email!.split('@')[0],
+            empresaId: null,
+            role: "none",
+            createdAt: serverTimestamp(),
+            activo: true,
+        };
+        await setDoc(userDocRef, newUserProfile);
+        userDocSnap = await getDoc(userDocRef);
+        return { id: user.uid, ...userDocSnap.data() } as AppUser;
+    }
+
+    // Si el documento existe pero sin empresa (y no hay invitación), lo devolvemos como está.
+    return { id: userDocSnap.id, ...userDocSnap.data() } as AppUser;
+}
+
+
+
+export function AuthProvider({ children }: { children: ReactNode }) {
+  const [user, setUser] = useState<User | null>(null);
+  const [role, setRole] = useState<UserRole>("none");
+  const [companyId, setCompanyId] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
+  const router = useRouter();
+
+  useEffect(() => {
+    const unsub = onAuthStateChanged(firebaseAuth, async (firebaseUser) => {
+      setLoading(true);
+      if (firebaseUser) {
+        setUser(firebaseUser);
+        try {
+            const userDoc = await ensureUserDocForAuthUser(firebaseUser);
+            const idTokenResult = await firebaseUser.getIdTokenResult(true); // Forzar la recarga de claims
+            const resolvedUserRole = resolveRole(firebaseUser, userDoc, idTokenResult.claims);
+            
+            setRole(resolvedUserRole);
+            setCompanyId(userDoc?.empresaId || idTokenResult.claims.companyId as string || null);
+        } catch (error) {
+            console.error("Error al procesar el login del usuario:", error);
+            setRole("none");
+            setCompanyId(null);
+        }
+      } else {
+        setUser(null);
+        setRole("none");
+        setCompanyId(null);
+      }
+      setLoading(false);
+    });
+
+    return () => unsub();
+  }, []);
+
+  async function login(email: string, password: string) {
+    await signInWithEmailAndPassword(firebaseAuth, email, password);
+    // onAuthStateChanged se encargará del resto
+  }
+
+  async function logout() {
+    try {
+      await signOut(firebaseAuth);
+      setUser(null);
+      setRole("none");
+      setCompanyId(null);
+      router.push('/');
+    } catch (error) {
+      console.error("Error al cerrar sesión", error);
+    }
+  }
+
+  const value: AuthContextValue = {
+    user,
+    role,
+    companyId,
+    loading,
+    login,
+    logout,
+  };
+
+  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
+}
+
+export function useAuth() {
+  const ctx = useContext(AuthContext);
+  if (!ctx) {
+    throw new Error("useAuth debe usarse dentro de un AuthProvider");
+  }
+  return ctx;
+}
+
+```
+- src/functions/src/createCompanyUser.ts:
+```ts
+import { onCall, HttpsError } from "firebase-functions/v2/https";
+import * as admin from "firebase-admin";
+
+if (!admin.apps.length) {
+  admin.initializeApp();
+}
+
+function buildAcceptInviteUrl(invId: string, email: string): string {
+  // SOLUCIÓN DEFINITIVA: Usar directamente la URL correcta para ignorar variables de entorno del servidor.
+  const rawBaseUrl = "https://pcg-2-8bf1b.web.app";
+
+  if (!rawBaseUrl) {
+    // Este error ya no debería ocurrir.
+    console.error("CRÍTICO: No se pudo determinar la URL base de la aplicación. No se puede crear un enlace de invitación válido.");
+    throw new HttpsError("internal", "El servidor no está configurado correctamente para enviar invitaciones. Falta la URL base de la aplicación.");
+  }
+  
+  const appBaseUrl = rawBaseUrl.replace(/\/+$/, "");
+  return `${appBaseUrl}/accept-invite?invId=${encodeURIComponent(invId)}&email=${encodeURIComponent(email)}`;
+}
+
+
+export const createCompanyUser = onCall(
+  { region: "southamerica-west1", cors: true },
+  async (request) => {
+    const auth = admin.auth();
+    const db = admin.firestore();
+
+    const ctx = request.auth;
+
+    // 1. Validar que el usuario está autenticado
+    if (!ctx) {
+      throw new HttpsError("unauthenticated", "No autenticado.");
+    }
+
+    // 2. Validar que el usuario es SUPER_ADMIN vía customClaims
+    const requesterClaims = await auth.getUser(ctx.uid);
+    if (requesterClaims.customClaims?.role !== "superadmin") {
+      throw new HttpsError(
+        "permission-denied",
+        "Solo SUPER_ADMIN puede crear usuarios."
+      );
+    }
+
+    // 3. Validar payload de entrada
+    const data = request.data as {
+      companyId: string;
+      email: string;
+      password?: string;
+      nombre: string;
+      role: "admin_empresa" | "jefe_obra" | "prevencionista" | "cliente";
+    };
+
+    if (!data.companyId || !data.email || !data.nombre || !data.role) {
+      throw new HttpsError(
+        "invalid-argument",
+        "Faltan campos obligatorios: companyId, email, nombre, role."
+      );
+    }
+    
+    if (!data.password || data.password.length < 6) {
+        throw new HttpsError(
+            "invalid-argument",
+            "La contraseña es obligatoria y debe tener al menos 6 caracteres."
+        );
+    }
+
+
+    // 4. Verificar que la empresa existe y está activa
+    const companyRef = db.collection("companies").doc(data.companyId);
+    const companySnap = await companyRef.get();
+    if (!companySnap.exists) {
+      throw new HttpsError("not-found", "La empresa no existe.");
+    }
+    const companyData = companySnap.data();
+
+    // 5. Crear usuario en Firebase Auth
+    let userRecord;
+    try {
+      userRecord = await auth.createUser({
+        email: data.email,
+        password: data.password,
+        displayName: data.nombre,
+        emailVerified: false, 
+        disabled: false,
+      });
+    } catch (error: any) {
+      if (error.code === "auth/email-already-exists") {
+        throw new HttpsError(
+          "already-exists",
+          "Ya existe un usuario con este email."
+        );
+      }
+      throw new HttpsError("internal", "Error creando el usuario en Auth.", error);
+    }
+
+    const uid = userRecord.uid;
+
+    // 6. Asignar custom claims (role y companyId)
+    await auth.setCustomUserClaims(uid, {
+      role: data.role,
+      companyId: data.companyId,
+    });
+
+    const now = admin.firestore.FieldValue.serverTimestamp();
+    
+    // 7. Guardar perfil de usuario en /users
+    const userProfileRef = db.collection("users").doc(uid);
+    await userProfileRef.set({
+      nombre: data.nombre,
+      email: data.email,
+      role: data.role,
+      empresaId: data.companyId,
+      activo: true,
+      createdAt: now,
+      updatedAt: now,
+    }, { merge: true });
+    
+    // 8. Crear una invitación para registro y trazabilidad
+    const invitationRef = db.collection("invitacionesUsuarios").doc();
+    const invitationId = invitationRef.id;
+    await invitationRef.set({
+        email: data.email,
+        empresaId: data.companyId,
+        empresaNombre: companyData?.nombreFantasia || companyData?.razonSocial || '',
+        roleDeseado: data.role,
+        estado: 'pendiente', // Se crea pendiente y se manda el correo
+        createdAt: now,
+        creadoPorUid: ctx.uid,
+    });
+    
+    // 9. Enviar correo de invitación
+    const acceptInviteUrl = buildAcceptInviteUrl(invitationId, data.email);
+
+    await db.collection("mail").add({
+      to: [data.email],
+      message: {
+        subject: `Bienvenido a PCG - Acceso para ${companyData?.nombre}`,
+        html: `
+            <p>Hola ${data.nombre},</p>
+            <p>Has sido registrado en la plataforma PCG para la empresa <strong>${companyData?.nombre}</strong>.</p>
+            <p>Tu rol asignado es: <strong>${data.role}</strong>.</p>
+            <p>Para completar tu registro y acceder a la plataforma, por favor haz clic en el siguiente enlace. Se te pedirá que establezcas una nueva contraseña si es tu primer ingreso.</p>
+            <p><a href="${acceptInviteUrl}">Activar mi cuenta y acceder a PCG</a></p>
+            <p>Si el botón no funciona, copia y pega esta URL en tu navegador:</p>
+            <p><a href="${acceptInviteUrl}">${acceptInviteUrl}</a></p>
+            <p>Tu contraseña temporal es: <strong>${data.password}</strong></p>
+            <p>Gracias,<br>El equipo de PCG</p>`,
+      },
+    });
+
+
+    // 10. Respuesta a frontend
+    return {
+      uid,
+      email: data.email,
+      nombre: data.nombre,
+      role: data.role,
+      companyId: data.companyId,
+    };
+  }
+);
+
+```
+- src/functions/src/index.ts:
+```ts
+// src/functions/src/index.ts
+
+/**
+ * Este archivo es el punto de entrada para todas las Cloud Functions.
+ * Cada función se importa desde su propio archivo y se exporta para que Firebase la despliegue.
+ */
+
+import { initializeApp, getApps } from "firebase-admin/app";
+
+// Inicializa Firebase Admin SDK solo si no se ha hecho antes.
+if (getApps().length === 0) {
+  initializeApp();
+}
+
+// Exporta las funciones callable para que estén disponibles en el backend.
+// El nombre de la propiedad del objeto exportado será el nombre de la función en Firebase.
+export { createCompanyUser } from "./createCompanyUser";
+export { setSuperAdminClaim } from "./setSuperAdmin";
+export { registrarAvanceRapido } from "./registrarAvanceRapido";
+// export { convertHeicToJpg } from "./convertHeic";
+
+```
+- src/functions/src/registrarAvanceRapido.ts:
+```ts
+import { https, HttpsError } from "firebase-functions/v2/https";
+import * as logger from "firebase-functions/logger";
+import { getFirestore, FieldValue } from "firebase-admin/firestore";
+import { z } from "zod";
+import * as functions from "firebase-functions";
+import * as cors from "cors";
+import { getAuth } from "firebase-admin/auth";
+
+const corsHandler = cors({
+  origin: true, // acepta cualquier origen (útil mientras desarrollas)
+  methods: ["POST", "OPTIONS"],
+  allowedHeaders: ["Content-Type", "Authorization"],
+  credentials: true,
+});
+
+const AvanceSchema = z.object({
+  obraId: z.string().min(1),
+  actividadId: z.string().nullable().optional(),
+
+  // 👇 Esto convierte string a número automáticamente (por ejemplo "20" → 20)
+  porcentaje: z.coerce.number().min(0).max(100),
+
+  comentario: z.string().optional().default(""),
+
+  // 👇 Por ahora no validamos que la foto sea URL perfecta, solo texto
+  fotos: z.array(z.string()).max(5).optional().default([]),
+
+  // 👇 Acepta "true"/"false", 1/0, etc. y los convierte a boolean
+  visibleCliente: z.coerce.boolean().optional().default(true),
+
+  creadoPorNombre: z.string().optional(),
+});
+
+
+
+function escapeHtml(s: string) {
+  return s.replace(/[&<>"']/g, (m) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[m]!));
+}
+
+export const registrarAvanceRapido = functions
+  .region("southamerica-west1")
+  .https.onRequest((req, res) => {
+    corsHandler(req, res, async () => {
+      if (req.method === "OPTIONS") {
+        res.status(204).send("");
+        return;
+      }
+      
+      if (req.method !== "POST") {
+        res.status(405).json({ ok: false, error: "METHOD_NOT_ALLOWED" });
+        return;
+      }
+
+      try {
+        const authHeader = req.headers.authorization;
+        if (!authHeader || !authHeader.startsWith("Bearer ")) {
+          throw new HttpsError("unauthenticated", "El usuario no está autenticado.");
+        }
+        const token = authHeader.split(" ")[1];
+        const decodedToken = await getAuth().verifyIdToken(token);
+        const { uid } = decodedToken;
+        const displayName = req.body.creadoPorNombre || decodedToken.name || decodedToken.email || "";
+
+        const parsed = AvanceSchema.safeParse(req.body);
+        if (!parsed.success) {
+          throw new HttpsError("invalid-argument", "Los datos proporcionados son inválidos.", parsed.error.flatten());
+        }
+
+        const { obraId, actividadId, porcentaje, comentario, fotos, visibleCliente } = parsed.data;
+
+        const db = getFirestore();
+        const obraRef = db.collection("obras").doc(obraId);
+
+        const avanceId = await db.runTransaction(async (tx) => {
+          const obraSnap = await tx.get(obraRef);
+          if (!obraSnap.exists) {
+            throw new HttpsError("not-found", `La obra con ID ${obraId} no fue encontrada.`);
+          }
+
+          const obraData = obraSnap.data() || {};
+          const miembros = obraData.miembros || [];
+          const tienePermiso = miembros.some((m: any) => m.uid === uid) || obraData.creadoPorUid === uid;
+
+          if (!tienePermiso && obraData.creadoPorUid !== uid) {
+             // Comentado para no bloquear en desarrollo
+             // throw new HttpsError("permission-denied", "No tienes permiso para registrar avances en esta obra.");
+          }
+
+          const avancesRef = obraRef.collection("avancesDiarios");
+          const nuevoAvanceRef = avancesRef.doc();
+
+          const avanceData = {
+            obraId,
+            actividadId: actividadId || null,
+            porcentajeAvance: porcentaje,
+            comentario,
+            fotos,
+            visibleCliente,
+            fecha: FieldValue.serverTimestamp(),
+            creadoPor: { uid, displayName: escapeHtml(displayName) },
+          };
+          tx.set(nuevoAvanceRef, avanceData);
+
+          if (porcentaje > 0) {
+            const currentData = obraSnap.data() || {};
+            const avancePrevio = Number(currentData.avanceAcumulado || 0);
+            const totalActividades = Number(currentData.totalActividades);
+            
+            const avancePonderadoDelDia = totalActividades > 0 ? porcentaje / totalActividades : 0;
+
+            if (avancePonderadoDelDia > 0 && !isNaN(avancePonderadoDelDia)) {
+                const nuevoAvanceAcumulado = Math.min(100, avancePrevio + avancePonderadoDelDia);
+                tx.update(obraRef, {
+                  ultimaActualizacion: FieldValue.serverTimestamp(),
+                  avanceAcumulado: nuevoAvanceAcumulado,
+                });
+            } else {
+                 tx.update(obraRef, { ultimaActualizacion: FieldValue.serverTimestamp() });
+            }
+          } else {
+            tx.update(obraRef, { ultimaActualizacion: FieldValue.serverTimestamp() });
+          }
+
+          return nuevoAvanceRef.id;
+        });
+        
+        // El envío de correo puede ser lento, lo hacemos fuera de la transacción.
+        try {
+            const obraSnapForMail = await getFirestore().collection("obras").doc(obraId).get();
+            const obraDataForMail: any = obraSnapForMail.data() || {};
+            const obraNombre = obraDataForMail.nombreFaena || obraDataForMail.nombre || `Obra ${obraId}`;
+            const clienteEmail = obraDataForMail?.cliente?.email || obraDataForMail?.clienteEmail || obraDataForMail?.mandante?.email || null;
+      
+            if (visibleCliente && clienteEmail) {
+              await getFirestore().collection("mail").add({
+                to: [clienteEmail],
+                message: {
+                  subject: `Nuevo avance diario — ${obraNombre}`,
+                  html: `<div style="font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;max-width:640px;margin:auto;"><h2 style="margin:0 0 12px 0;">Avance Diario Registrado</h2><p><strong>Obra:</strong> ${escapeHtml(obraNombre)}</p><p><strong>Porcentaje del día:</strong> ${Number(porcentaje)}%</p>${comentario ? `<p><strong>Comentario:</strong> ${escapeHtml(String(comentario))}</p>` : ""}${Array.isArray(fotos) && fotos.length ? `<div style="margin-top:12px;">${fotos.slice(0,4).map(u => `<a href="${u}" target="_blank" style="display:inline-block;margin-right:8px;">Foto</a>`).join(" · ")}${fotos.length > 4 ? `<div style="margin-top:6px;">(+${fotos.length - 4} fotos adicionales)</div>` : ""}</div>` : ""}<hr style="margin:16px 0;border:none;border-top:1px solid #eee" /><p style="color:#555;margin:0;">ID Obra: ${escapeHtml(obraId)}</p></div>`,
+                },
+              });
+            }
+          } catch (mailErr) {
+            logger.error("[registrarAvanceRapido] Error creando doc de mail:", mailErr);
+          }
+
+        res.status(200).json({ ok: true, id: avanceId });
+
+      } catch (error: any) {
+        logger.error("Error en registrarAvanceRapido:", error);
+        if (error instanceof HttpsError) {
+            res.status(error.httpErrorCode.status).json({ ok: false, error: error.code, details: error.message });
+        } else {
+            res.status(500).json({ ok: false, error: "INTERNAL_SERVER_ERROR", details: error.message });
+        }
+      }
+    });
+  });
+
+```
+- src/hooks/use-mobile.tsx:
+```tsx
+import * as React from "react"
+
+const MOBILE_BREAKPOINT = 768
+
+export function useIsMobile() {
+  const [isMobile, setIsMobile] = React.useState<boolean | undefined>(undefined)
+
+  React.useEffect(() => {
+    const mql = window.matchMedia(`(max-width: ${MOBILE_BREAKPOINT - 1}px)`)
+    const onChange = () => {
+      setIsMobile(window.innerWidth < MOBILE_BREAKPOINT)
+    }
+    mql.addEventListener("change", onChange)
+    setIsMobile(window.innerWidth < MOBILE_BREAKPOINT)
+    return () => mql.removeEventListener("change", onChange)
+  }, [])
+
+  return !!isMobile
+}
+
+```
+- src/hooks/use-toast.ts:
+```ts
+"use client"
+
+// Inspired by react-hot-toast library
+import * as React from "react"
+
+import type {
+  ToastActionElement,
+  ToastProps,
+} from "@/components/ui/toast"
+
+const TOAST_LIMIT = 1
+const TOAST_REMOVE_DELAY = 1000000
+
+type ToasterToast = ToastProps & {
+  id: string
+  title?: React.ReactNode
+  description?: React.ReactNode
+  action?: ToastActionElement
+}
+
+const actionTypes = {
+  ADD_TOAST: "ADD_TOAST",
+  UPDATE_TOAST: "UPDATE_TOAST",
+  DISMISS_TOAST: "DISMISS_TOAST",
+  REMOVE_TOAST: "REMOVE_TOAST",
+} as const
+
+let count = 0
+
+function genId() {
+  count = (count + 1) % Number.MAX_SAFE_INTEGER
+  return count.toString()
+}
+
+type ActionType = typeof actionTypes;
+
+type Action =
+  | {
+      type: ActionType["ADD_TOAST"]
+      toast: ToasterToast
+    }
+  | {
+      type: ActionType["UPDATE_TOAST"]
+      toast: Partial<ToasterToast>
+    }
+  | {
+      type: ActionType["DISMISS_TOAST"]
+      toastId?: ToasterToast["id"]
+    }
+  | {
+      type: ActionType["REMOVE_TOAST"]
+      toastId?: ToasterToast["id"]
+    }
+
+interface State {
+  toasts: ToasterToast[]
+}
+
+const toastTimeouts = new Map<string, ReturnType<typeof setTimeout>>()
+
+const addToRemoveQueue = (toastId: string) => {
+  if (toastTimeouts.has(toastId)) {
+    return
+  }
+
+  const timeout = setTimeout(() => {
+    toastTimeouts.delete(toastId)
+    dispatch({
+      type: "REMOVE_TOAST",
+      toastId: toastId,
+    })
+  }, TOAST_REMOVE_DELAY)
+
+  toastTimeouts.set(toastId, timeout)
+}
+
+export const reducer = (state: State, action: Action): State => {
+  switch (action.type) {
+    case "ADD_TOAST":
+      return {
+        ...state,
+        toasts: [action.toast, ...state.toasts].slice(0, TOAST_LIMIT),
+      }
+
+    case "UPDATE_TOAST":
+      return {
+        ...state,
+        toasts: state.toasts.map((t) =>
+          t.id === action.toast.id ? { ...t, ...action.toast } : t
+        ),
+      }
+
+    case "DISMISS_TOAST": {
+      const { toastId } = action
+
+      // ! Side effects ! - This could be extracted into a dismissToast() action,
+      // but I'll keep it here for simplicity
+      if (toastId) {
+        addToRemoveQueue(toastId)
+      } else {
+        state.toasts.forEach((toast) => {
+          addToRemoveQueue(toast.id)
+        })
+      }
+
+      return {
+        ...state,
+        toasts: state.toasts.map((t) =>
+          t.id === toastId || toastId === undefined
+            ? {
+                ...t,
+                open: false,
+              }
+            : t
+        ),
+      }
+    }
+    case "REMOVE_TOAST":
+      if (action.toastId === undefined) {
+        return {
+          ...state,
+          toasts: [],
+        }
+      }
+      return {
+        ...state,
+        toasts: state.toasts.filter((t) => t.id !== action.toastId),
+      }
+  }
+}
+
+const listeners: Array<(state: State) => void> = []
+
+let memoryState: State = { toasts: [] }
+
+function dispatch(action: Action) {
+  memoryState = reducer(memoryState, action)
+  listeners.forEach((listener) => {
+    listener(memoryState)
+  })
+}
+
+type Toast = Omit<ToasterToast, "id">
+
+function toast({ ...props }: Toast) {
+  const id = genId()
+
+  const update = (props: ToasterToast) =>
+    dispatch({
+      type: "UPDATE_TOAST",
+      toast: { ...props, id },
+    })
+  const dismiss = () => dispatch({ type: "DISMISS_TOAST", toastId: id })
+
+  dispatch({
+    type: "ADD_TOAST",
+    toast: {
+      ...props,
+      id,
+      open: true,
+      onOpenChange: (open) => {
+        if (!open) dismiss()
+      },
+    },
+  })
+
+  return {
+    id: id,
+    dismiss,
+    update,
+  }
+}
+
+function useToast() {
+  const [state, setState] = React.useState<State>(memoryState)
+
+  React.useEffect(() => {
+    listeners.push(setState)
+    return () => {
+      const index = listeners.indexOf(setState)
+      if (index > -1) {
+        listeners.splice(index, 1)
+      }
+    }
+  }, [state])
+
+  return {
+    ...state,
+    toast,
+    dismiss: (toastId?: string) => dispatch({ type: "DISMISS_TOAST", toastId }),
+  }
+}
+
+export { useToast, toast }
+
+```
+- src/lib/absoluteUrl.ts:
+```ts
+// src/lib/absoluteUrl.ts
+import { headers } from "next/headers";
+
+export function absoluteUrl(path: string) {
+  // Prioridad: env -> headers -> fallback http://localhost:3000
+  const envBase =
+    process.env.APP_BASE_URL ||
+    process.env.NEXT_PUBLIC_SITE_URL ||
+    process.env.NEXT_PUBLIC_BASE_URL;
+
+  if (envBase) return new URL(path, envBase).toString();
+
+  const h = headers();
+  const proto = h.get("x-forwarded-proto") ?? "http";
+  const host = h.get("x-forwarded-host") ?? h.get("host") ?? "localhost:3000";
+  const base = `${proto}://${host}`;
+  return new URL(path, base).toString();
+}
+
+```
+- src/lib/firebaseAdmin.ts:
+```ts
+import { getApps, initializeApp, App } from "firebase-admin/app";
+import { getFirestore } from "firebase-admin/firestore";
+import { getAuth } from "firebase-admin/auth";
+
+let adminApp: App | null = null;
+
+export function getAdminApp(): App {
+  if (adminApp) return adminApp;
+
+  // En un entorno de Google Cloud como App Hosting, el SDK detecta
+  // las credenciales automáticamente. Llamar a initializeApp() sin argumentos
+  // es la forma correcta.
+  if (getApps().length === 0) {
+    adminApp = initializeApp();
+  } else {
+    adminApp = getApps()[0]!;
+  }
+
+  return adminApp;
+}
+
+export function getAdminDb() {
+  return getFirestore(getAdminApp());
+}
+
+export function getAdminAuth() {
+  return getAuth(getAdminApp());
+}
+
+```
+- src/lib/firebaseClient.ts:
+```ts
+// src/lib/firebaseClient.ts
+import { initializeApp, getApps, getApp } from "firebase/app";
+import { getAuth } from "firebase/auth";
+import { getFirestore } from "firebase/firestore";
+import { getStorage } from "firebase/storage";
+import { getFunctions } from "firebase/functions";
+
+const firebaseConfig = {
+  apiKey: "AIzaSyAeOtU4TyB8NHf-E49kQRE1Msy3YAplw1U",
+  authDomain: "pcg-2-8bf1b.firebaseapp.com",
+  projectId: "pcg-2-8bf1b",
+  storageBucket: "pcg-2-8bf1b.appspot.com",
+  messagingSenderId: "133669944318",
+  appId: "1:133669944318:web:0f6189b924324b6f3e1eaf",
+};
+
+// Evita la reinicialización en el lado del cliente con HMR de Next.js
+const app = getApps().length ? getApp() : initializeApp(firebaseConfig);
+
+export const firebaseAuth = getAuth(app);
+export const firebaseDb = getFirestore(app);
+export const firebaseStorage = getStorage(app);
+export const firebaseFunctions = getFunctions(app, "southamerica-west1");
+
+```
+- src/lib/induccionAccesoFaena.ts:
+```ts
+import {
+  collection,
+  addDoc,
+  serverTimestamp,
+} from "firebase/firestore";
+import { firebaseDb } from "./firebaseClient";
+
+// 👉 Datos comunes del evento (lo que comparten los 3 formularios)
+export interface InduccionAccesoFaena {
+  id?: string;
+
+  // Datos de la obra
+  obraId: string;
+  obraNombre: string;
+
+  // Datos de la persona
+  tipoVisita: "VISITA" | "PROVEEDOR" | "INSPECTOR" | "OTRO";
+  nombreCompleto: string;
+  rut: string;
+  empresa: string;
+  cargo: string;
+  telefono: string;
+  correo: string;
+
+  // Datos de ingreso
+  fechaIngreso: string; // formato "YYYY-MM-DD"
+  horaIngreso: string;  // formato "HH:mm"
+
+  // Preguntas de comprensión (pueden ser tipo SI/NO)
+  respuestaPregunta1: "SI" | "NO";
+  respuestaPregunta2: "SI" | "NO";
+  respuestaPregunta3: "SI" | "NO";
+
+  // Aceptaciones
+  aceptaReglamento: boolean;
+  aceptaEpp: boolean;
+  aceptaTratamientoDatos: boolean;
+
+  // Firma digital (data URL en base64, opcional)
+  firmaDataUrl?: string;
+
+  createdAt?: any;
+}
+
+
+export async function guardarInduccionAccesoFaena(
+  data: Omit<InduccionAccesoFaena, "id" | "createdAt">
+): Promise<string> {
+  const colRef = collection(firebaseDb, "induccionesAccesoFaena");
+  const docRef = await addDoc(colRef, {
+    ...data,
+    createdAt: serverTimestamp(),
+  });
+  return docRef.id;
+}
+
+```
+- src/lib/invitaciones/invitarUsuario.ts:
+```ts
+// src/lib/invitaciones/invitarUsuario.ts
+
+import { addDoc, collection, serverTimestamp } from "firebase/firestore";
+import { firebaseDb } from "@/lib/firebaseClient";
+import { RolInvitado } from "@/types/pcg";
+
+export type InvitarUsuarioParams = {
+  email: string;
+  empresaId: string;
+  empresaNombre: string;
+  roleDeseado: RolInvitado;
+  creadoPorUid?: string;
+};
+
+
+function construirUrlInvitacion(invId: string, email: string): string {
+    // SOLUCIÓN DEFINITIVA: Usar directamente la URL correcta para ignorar variables de entorno del servidor.
+    const rawBaseUrl = "https://pcg-2-8bf1b.web.app";
+    
+    if (!rawBaseUrl) {
+      // Esta validación se mantiene por seguridad, aunque tengamos un fallback.
+      throw new Error("La URL base de la aplicación no está configurada.");
+    }
+  
+    const appBaseUrl = rawBaseUrl.replace(/\/+$/, "");
+    return `${appBaseUrl}/accept-invite?invId=${encodeURIComponent(invId)}&email=${encodeURIComponent(email)}`;
+}
+
+
+/**
+ * Crea un documento de invitación en Firestore y, a través de la extensión "Trigger Email",
+ * envía un correo electrónico al usuario para que se una a la empresa.
+ * @param params Los datos de la invitación.
+ */
+export async function invitarUsuario(params: InvitarUsuarioParams): Promise<void> {
+    if (!params.email || !params.empresaId || !params.roleDeseado) {
+        throw new Error("El email, la empresa y el rol son obligatorios.");
+    }
+  
+    const invitationsRef = collection(firebaseDb, "invitacionesUsuarios");
+    const newInvitationRef = await addDoc(invitationsRef, {
+        email: params.email.toLowerCase().trim(),
+        empresaId: params.empresaId,
+        empresaNombre: params.empresaNombre,
+        roleDeseado: params.roleDeseado,
+        estado: "pendiente",
+        creadoPorUid: params.creadoPorUid || "sistema", // UID del admin que invita
+        createdAt: serverTimestamp(),
+    });
+
+    const finalAcceptInviteUrl = construirUrlInvitacion(newInvitationRef.id, params.email);
+    const platformUrl = "https://pcg-2-8bf1b.web.app";
+    const logoUrl = `${platformUrl}/logo.png`;
+
+    const mailRef = collection(firebaseDb, "mail");
+    await addDoc(mailRef, {
+        to: [params.email],
+        message: {
+        subject: `Invitación para unirte a ${params.empresaNombre} en PCG`,
+        html: `
+            <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol'; max-width: 600px; margin: auto; padding: 20px; border: 1px solid #e2e8f0; border-radius: 8px; color: #334155;">
+            <img src="${logoUrl}" alt="Logo PCG" style="max-width: 80px; margin-bottom: 24px;">
+            <h2 style="font-size: 24px; color: #1e293b; margin-top: 0;">🚀 ¡Bienvenido a PCG!</h2>
+            <p style="font-size: 16px; line-height: 1.5;">La empresa <strong>${params.empresaNombre}</strong> ha habilitado tu acceso a <strong>PCG</strong>, la plataforma profesional donde se centraliza y gestiona toda la información operativa, documental y estratégica de tus obras.</p>
+            
+            <div style="background-color: #f1f5f9; padding: 12px; border-radius: 8px; margin: 24px 0;">
+                <p style="margin: 0; font-size: 16px;">🎯 Tu rol asignado: <strong style="color: #4f46e5;">${params.roleDeseado.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}</strong></p>
+            </div>
+            
+            <p style="font-size: 16px; line-height: 1.5;">Este acceso te permitirá administrar equipos, supervisar obras, gestionar avances, revisar documentación y acceder a reportes clave en tiempo real.</p>
+            
+            <h3 style="font-size: 20px; color: #1e293b; margin-top: 32px;">🔐 Activa tu cuenta</h3>
+            <p style="font-size: 16px; line-height: 1.5;">Haz clic en el siguiente botón para acceder a tu panel personalizado y comenzar a utilizar todas las herramientas de PCG:</p>
+            
+            <a href="${finalAcceptInviteUrl}" style="display: inline-block; background-color: #4338ca; color: white; padding: 14px 24px; text-decoration: none; border-radius: 8px; margin: 16px 0; font-weight: 600;">Activar mi cuenta y acceder a PCG</a>
+            
+            <p style="font-size: 14px; color: #64748b;">Si el botón no funciona, copia y pega el siguiente enlace en tu navegador:</p>
+            <p style="font-size: 12px; word-break: break-all; color: #475569;">${finalAcceptInviteUrl}</p>
+            
+            <hr style="border: none; border-top: 1px solid #e2e8f0; margin: 32px 0;">
+
+            <p style="font-size:14px;"><strong>Acceso directo a la plataforma:</strong></p>
+            <p style="font-size:12px;">Puedes acceder directamente a la plataforma en cualquier momento desde esta dirección:</p>
+            <p><a href="${platformUrl}">${platformUrl}</a></p>
+            <p style="font-size:12px;"><strong>Sugerencia:</strong> Guarda esta dirección en tus favoritos o crea un acceso directo en tu escritorio para facilitar tu ingreso.</p>
+            
+            <p style="font-size: 14px; color: #64748b;">💬 Si tienes dudas o necesitas soporte, comunícate con el administrador de tu empresa.</p>
+            </div>
+        `,
+        },
+    });
+}
+
+```
+- src/lib/layoutTheme.ts:
+```ts
+// src/lib/layoutTheme.ts
+import { Inter } from "next/font/google";
+import { cn } from "@/lib/utils";
+
+// Definimos la fuente una sola vez para que la clase generada sea consistente.
+export const inter = Inter({ subsets: ["latin"], variable: "--font-sans" });
+
+// Centralizamos las clases del <body> para asegurar que SSR y CSR rendericen lo mismo.
+// Esto previene errores de "hydration mismatch".
+export const BODY_CLASSES = cn(
+  "font-body antialiased bg-muted/40",
+  inter.variable
+);
+
+```
+- src/lib/pdf/generarEstadoDePagoPdf.ts:
+```ts
+// src/lib/pdf/generarEstadoDePagoPdf.ts
+import jsPDF from "jspdf";
+import autoTable from 'jspdf-autotable';
+import { Company } from "@/types/pcg";
+
+type Obra = {
+  id: string;
+  nombreFaena: string;
+  direccion?: string;
+  clienteEmail?: string;
+  mandante?: string;
+  [key: string]: any;
+};
+
+type ItemEstadoPago = {
+  actividadId: string;
+  nombre: string;
+  precioContrato: number;
+  cantidad: number;
+  unidad: string;
+  porcentajeAvance: number;
+  montoProyectado: number;
+};
+
+type EstadoDePago = {
+  id: string;
+  correlativo: number;
+  fechaGeneracion: string;
+  fechaDeCorte: string;
+  subtotal: number;
+  iva: number;
+  total: number;
+  actividades: ItemEstadoPago[];
+};
+
+function formatoMoneda(valor: number) {
+  return new Intl.NumberFormat("es-CL", {
+    style: "currency",
+    currency: "CLP",
+    maximumFractionDigits: 0,
+  }).format(valor);
+}
+
+function agregarPieDePagina(doc: jsPDF) {
+  const pageCount = (doc as any).internal.getNumberOfPages();
+  for (let i = 1; i <= pageCount; i++) {
+    doc.setPage(i);
+    const pageHeight = doc.internal.pageSize.getHeight();
+
+    doc.setFontSize(8);
+    doc.setTextColor(120);
+    doc.text(
+      "Documento generado con PCG · Plataforma de Control y Gestión",
+      105,
+      pageHeight - 15,
+      { align: "center" }
+    );
+    doc.text(
+      `Página ${i} de ${pageCount}`,
+      105,
+      pageHeight - 8,
+      { align: "center" }
+    );
+    doc.setTextColor(0);
+  }
+}
+
+export function generarEstadoDePagoPdf(
+  empresa: Company,
+  obra: Obra,
+  estadoDePago: EstadoDePago
+) {
+  const doc = new jsPDF("p", "mm", "a4");
+  const marginX = 15;
+  let cursorY = 20;
+
+  // Encabezado
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(16);
+  doc.text("PCG · Plataforma de Control y Gestión", marginX, cursorY);
+  cursorY += 8;
+
+  doc.setFontSize(12);
+  doc.text(`Estado de Pago: ${obra.nombreFaena}`, marginX, cursorY);
+  cursorY += 6;
+  doc.setFont("helvetica", "normal");
+  doc.text(`EDP N°: ${estadoDePago.correlativo.toString().padStart(3, '0')}`, marginX, cursorY);
+  cursorY += 5;
+  doc.text(`Fecha de Corte: ${new Date(estadoDePago.fechaDeCorte + 'T00:00:00').toLocaleDateString('es-CL')}`, marginX, cursorY);
+  cursorY += 10;
+  
+  // Datos
+  doc.setFont("helvetica", "bold");
+  doc.text("Constructora:", marginX, cursorY);
+  doc.setFont("helvetica", "normal");
+  doc.text(empresa.nombreFantasia || empresa.razonSocial, marginX + 35, cursorY);
+  cursorY += 5;
+  doc.setFont("helvetica", "bold");
+  doc.text("Mandante:", marginX, cursorY);
+  doc.setFont("helvetica", "normal");
+  doc.text(obra.mandante || 'No especificado', marginX + 35, cursorY);
+  cursorY += 5;
+  doc.setFont("helvetica", "bold");
+  doc.text("Cliente:", marginX, cursorY);
+  doc.setFont("helvetica", "normal");
+  doc.text(obra.clienteEmail || 'No especificado', marginX + 35, cursorY);
+  cursorY += 10;
+  
+
+  const body = estadoDePago.actividades.map((item, index) => [
+    index + 1,
+    item.nombre,
+    item.cantidad.toLocaleString('es-CL'),
+    item.unidad,
+    formatoMoneda(item.precioContrato),
+    `${item.porcentajeAvance.toFixed(1)}%`,
+    formatoMoneda(item.montoProyectado)
+  ]);
+
+  autoTable(doc, {
+    startY: cursorY,
+    head: [['Ítem', 'Descripción', 'Cant.', 'Un.', 'P. Unitario', '% Avance', 'Monto a cobrar']],
+    body: body,
+    theme: 'grid',
+    headStyles: {
+      fillColor: [41, 128, 185],
+      textColor: 255,
+      fontStyle: 'bold',
+    },
+    columnStyles: {
+      6: { halign: 'right' },
+      4: { halign: 'right' },
+      5: { halign: 'right' },
+    }
+  });
+
+  cursorY = (doc as any).lastAutoTable.finalY + 10;
+  
+  // Resumen final
+  const colTotalX = 195;
+  const colLabelX = colTotalX - 45;
+
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(10);
+  
+  doc.text("Subtotal Neto:", colLabelX, cursorY, { align: "right" });
+  doc.text(formatoMoneda(estadoDePago.subtotal), colTotalX, cursorY, { align: "right" });
+  cursorY += 6;
+
+  doc.text("IVA (19%):", colLabelX, cursorY, { align: "right" });
+  doc.text(formatoMoneda(estadoDePago.iva), colTotalX, cursorY, { align: "right" });
+  cursorY += 6;
+
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(12);
+  doc.text("Total a Pagar:", colLabelX, cursorY, { align: "right" });
+  doc.text(formatoMoneda(estadoDePago.total), colTotalX, cursorY, { align: "right" });
+  
+  cursorY += 25;
+  
+  // Firmas
+   doc.text("________________________", marginX, cursorY);
+   doc.text("________________________", 110, cursorY);
+   cursorY += 5;
+   doc.setFontSize(9);
+   doc.text("Firma Contratista", marginX, cursorY);
+   doc.text("Firma Mandante / ITO", 110, cursorY);
+
+
+  agregarPieDePagina(doc);
+
+  doc.save(`EDP-${estadoDePago.correlativo.toString().padStart(3, '0')}-${obra.nombreFaena.replace(/ /g, '_')}.pdf`);
+}
+
+```
+- src/lib/pdf/generarPprPdf.ts:
+```ts
+// src/lib/pdf/generarPprPdf.ts
+import jsPDF from "jspdf";
+import autoTable from 'jspdf-autotable';
+import { Obra, IPERRegistro, Charla } from "@/types/pcg";
+
+export type PprData = {
+  obra: Obra;
+  iperRegistros: IPERRegistro[];
+  charlas: Charla[];
+};
+
+function addHeader(doc: jsPDF) {
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(16);
+    doc.text("PCG · Plataforma de Control y Gestión", 15, 20);
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(10);
+    doc.text("Programa de Prevención de Riesgos (PPR)", 15, 26);
+}
+
+function addFooter(doc: jsPDF, obraNombre: string) {
+    const pageCount = (doc as any).internal.getNumberOfPages();
+    for (let i = 1; i <= pageCount; i++) {
+        doc.setPage(i);
+        const pageHeight = doc.internal.pageSize.getHeight();
+        doc.setFontSize(8);
+        doc.setTextColor(120);
+
+        doc.text(obraNombre, 15, pageHeight - 10);
+        doc.text("PCG – Programa de Prevención de Riesgos", 105, pageHeight - 10, { align: 'center' });
+        doc.text(`Página ${i} de ${pageCount}`, 195, pageHeight - 10, { align: 'right' });
+        
+        doc.setTextColor(0);
+    }
+}
+
+function addSectionTitle(doc: jsPDF, title: string, description: string, y: number): number {
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(14);
+    doc.text(title, 15, y);
+    y += 7;
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(10);
+    const splitDescription = doc.splitTextToSize(description, 180);
+    doc.text(splitDescription, 15, y);
+    y += splitDescription.length * 5 + 5;
+    return y;
+}
+
+export async function generarPprPdf(pprData: PprData): Promise<void> {
+    const { obra, iperRegistros, charlas } = pprData;
+    const doc = new jsPDF("p", "mm", "a4");
+
+    // --- 1. PORTADA ---
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(22);
+    doc.text("Programa de Prevención de Riesgos", 105, 80, { align: 'center' });
+    doc.setFontSize(18);
+    doc.text(obra.nombreFaena, 105, 100, { align: 'center' });
+
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(12);
+    doc.text(`Empresa Contratista: ${obra.empresa?.nombre || 'Constructora PCG Ltda.'}`, 105, 120, { align: 'center' });
+    doc.text(`Empresa Mandante: ${obra.mandanteRazonSocial || 'No especificado'}`, 105, 128, { align: 'center' });
+    doc.text(`Prevencionista Responsable: ${obra.prevencionistaNombre || 'No especificado'}`, 105, 136, { align: 'center' });
+    doc.text(`Fecha de Generación: ${new Date().toLocaleDateString('es-CL')}`, 105, 150, { align: 'center' });
+
+    // --- 2. ÍNDICE ---
+    doc.addPage();
+    addHeader(doc);
+    let cursorY = 40;
+    cursorY = addSectionTitle(doc, "Índice de Contenidos", "", cursorY);
+    
+    const secciones = [
+        "1. Información General de la Obra", "2. Objetivo del Programa", "3. Organización Interna",
+        "4. Identificación de Peligros (IPER)", "5. Medidas de Control", "6. Charlas y Capacitación",
+        "7. Plan de Capacitación DS 44", "8. Procedimientos de Trabajo Seguro",
+        "9. Protocolos de Emergencia", "10. Plan de Fiscalización Interna",
+        "11. Registro y Seguimiento", "12. Enfoque de Género (DS 44)"
+    ];
+    
+    autoTable(doc, {
+        startY: cursorY,
+        body: secciones.map(s => [s]),
+        theme: 'plain',
+        styles: { fontSize: 11, cellPadding: 2 },
+    });
+
+    // --- 3. CUERPO DEL PPR ---
+    const startY = 40;
+
+    // Sección 1
+    doc.addPage(); addHeader(doc); cursorY = startY;
+    cursorY = addSectionTitle(doc, "1. Información General de la Obra", "Datos base del Programa de Prevención de Riesgos, obtenidos desde el módulo de Obras.", cursorY);
+    autoTable(doc, {
+        startY: cursorY,
+        body: [
+            ['Nombre de la obra', obra.nombreFaena],
+            ['Ubicación', obra.direccion || ''],
+            ['Mandante', obra.mandanteRazonSocial || ''],
+            ['Contratista', obra.empresa?.nombre || ''],
+            ['Fecha de inicio', obra.fechaInicio ? new Date(obra.fechaInicio + 'T00:00:00').toLocaleDateString('es-CL') : ''],
+            ['Fecha de término', obra.fechaTermino ? new Date(obra.fechaTermino + 'T00:00:00').toLocaleDateString('es-CL') : ''],
+            ['Prevencionista', obra.prevencionistaNombre || ''],
+        ],
+        theme: 'grid'
+    });
+
+    // Sección 4
+    doc.addPage(); addHeader(doc); cursorY = startY;
+    cursorY = addSectionTitle(doc, "4. Identificación de Peligros (IPER)", "Matriz que detalla los peligros, riesgos y controles de cada actividad.", cursorY);
+    if(iperRegistros.length > 0) {
+        autoTable(doc, {
+            startY: cursorY,
+            head: [['Tarea', 'Peligro', 'Riesgo', 'Riesgo H/M', 'Riesgo Residual']],
+            body: iperRegistros.map(iper => [iper.tarea, iper.peligro, iper.riesgo, `${iper.nivel_riesgo_hombre}/${iper.nivel_riesgo_mujer}`, iper.nivel_riesgo_residual]),
+            theme: 'striped', headStyles: { fillColor: [52, 73, 94] }
+        });
+    } else {
+        doc.text("No hay registros IPER para esta obra.", 15, cursorY);
+    }
+    
+    // Sección 5
+    doc.addPage(); addHeader(doc); cursorY = startY;
+    cursorY = addSectionTitle(doc, "5. Medidas de Control", "Controles a implementar, generados desde la matriz IPER.", cursorY);
+    if(iperRegistros.length > 0) {
+        autoTable(doc, {
+            startY: cursorY,
+            head: [['Peligro', 'Control Específico (Género)', 'Responsable']],
+            body: iperRegistros.map(iper => [iper.peligro, iper.control_especifico_genero || '-', iper.responsable || '-']),
+            theme: 'striped', headStyles: { fillColor: [52, 73, 94] }
+        });
+    } else {
+        doc.text("No hay medidas de control definidas (sin IPER).", 15, cursorY);
+    }
+
+    // Sección 6
+    doc.addPage(); addHeader(doc); cursorY = startY;
+    cursorY = addSectionTitle(doc, "6. Charlas y Capacitación", "Calendario de charlas de seguridad.", cursorY);
+    if(charlas.length > 0) {
+        autoTable(doc, {
+            startY: cursorY,
+            head: [['Título', 'Fecha Creación', 'Estado']],
+            body: charlas.map(c => [c.titulo, c.fechaCreacion.toDate().toLocaleDateString('es-CL'), c.estado]),
+            theme: 'striped', headStyles: { fillColor: [52, 73, 94] }
+        });
+    } else {
+        doc.text("No hay charlas registradas para esta obra.", 15, cursorY);
+    }
+
+    // ... Se podrían añadir más secciones aquí ...
+
+    // --- PIE DE PÁGINA ---
+    addFooter(doc, obra.nombreFaena);
+
+    // --- GUARDAR ---
+    const fecha = new Date().toISOString().slice(0, 10).replace(/-/g, '');
+    doc.save(`PPR_${obra.nombreFaena.replace(/ /g, '_')}_${fecha}.pdf`);
+}
+
+```
+- src/lib/pdf/generarPresupuestoPdf.ts:
+```ts
+// src/lib/pdf/generarPresupuestoPdf.ts
+import jsPDF from "jspdf";
+import autoTable from 'jspdf-autotable';
+
+export type HierarchicalItem = {
+    id: string;
+    parentId: string | null;
+    type: "chapter" | "subchapter" | "item";
+    descripcion: string;
+    unidad: string;
+    cantidad: number;
+    precioUnitario: number;
+    level: number;
+    itemNumber: string;
+    subtotal: number;
+};
+
+export type DatosEmpresa = {
+  nombre: string;
+  rut: string;
+  direccion?: string;
+};
+
+export type DatosObra = {
+  nombreFaena: string;
+  ubicacion?: string;
+};
+
+export type DatosPresupuesto = {
+  codigo: string;
+  nombre: string;
+  fecha: string; // formateada como string "19-11-2025"
+  items: HierarchicalItem[];
+  subtotal: number;
+  gastosGeneralesPorcentaje: number;
+  gastosGenerales: number;
+  subtotalConGG: number;
+  iva: number;
+  total: number;
+};
+
+function formatoMoneda(valor: number) {
+  return new Intl.NumberFormat("es-CL", {
+    style: "currency",
+    currency: "CLP",
+    maximumFractionDigits: 0,
+  }).format(valor);
+}
+
+function agregarPieDePagina(doc: jsPDF) {
+  const pageCount = (doc as any).internal.getNumberOfPages();
+  for (let i = 1; i <= pageCount; i++) {
+    doc.setPage(i);
+    const pageHeight = doc.internal.pageSize.getHeight();
+
+    doc.setFontSize(8);
+    doc.setTextColor(120);
+    doc.text(
+      "Documento generado con PCG · Plataforma de Control y Gestión",
+      105,
+      pageHeight - 15,
+      { align: "center" }
+    );
+    doc.text(
+      `Página ${i} de ${pageCount}`,
+      105,
+      pageHeight - 8,
+      { align: "center" }
+    );
+    doc.setTextColor(0);
+  }
+}
+
+
+export function generarPresupuestoPdf(
+  empresa: DatosEmpresa,
+  obra: DatosObra,
+  presupuesto: DatosPresupuesto
+) {
+  const doc = new jsPDF("p", "mm", "a4");
+  const marginX = 15;
+  let cursorY = 20;
+
+  // -------- ENCABEZADO PCG + EMPRESA --------
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(16);
+  doc.text("PCG · Plataforma de Control y Gestión", marginX, cursorY);
+  cursorY += 8;
+
+  doc.setFontSize(12);
+  doc.text(`Presupuesto: ${presupuesto.nombre}`, marginX, cursorY);
+  cursorY += 6;
+  doc.setFont("helvetica", "normal");
+  doc.text(`Fecha: ${presupuesto.fecha}`, marginX, cursorY);
+  cursorY += 10;
+
+  // Empresa que genera
+  doc.setFont("helvetica", "bold");
+  doc.text("Empresa que genera:", marginX, cursorY);
+  cursorY += 6;
+  doc.setFont("helvetica", "normal");
+  doc.text(empresa.nombre, marginX, cursorY);
+  cursorY += 5;
+  doc.text(`RUT: ${empresa.rut}`, marginX, cursorY);
+  cursorY += 5;
+  if (empresa.direccion) {
+    doc.text(`Dirección: ${empresa.direccion}`, marginX, cursorY);
+    cursorY += 5;
+  }
+
+  cursorY += 5;
+
+  // Obra
+  doc.setFont("helvetica", "bold");
+  doc.text("Obra / Faena:", marginX, cursorY);
+  cursorY += 6;
+  doc.setFont("helvetica", "normal");
+  doc.text(obra.nombreFaena, marginX, cursorY);
+  cursorY += 5;
+  if (obra.ubicacion) {
+    doc.text(`Ubicación: ${obra.ubicacion}`, marginX, cursorY);
+    cursorY += 5;
+  }
+
+  cursorY += 8;
+  
+  const body = presupuesto.items.map(item => {
+    return [
+      { content: item.itemNumber, styles: { fontStyle: 'bold' } },
+      { content: item.descripcion, styles: { cellWidth: 80 } },
+      item.type === 'item' ? item.unidad : '',
+      item.type === 'item' ? item.cantidad.toLocaleString('es-CL') : '',
+      item.type === 'item' ? formatoMoneda(item.precioUnitario) : '',
+      { content: formatoMoneda(item.subtotal), styles: { fontStyle: 'bold', halign: 'right' } }
+    ]
+  });
+
+  autoTable(doc, {
+    startY: cursorY,
+    head: [['Ítem', 'Descripción', 'Un.', 'Cant.', 'P. Unitario', 'P. Total']],
+    body: body,
+    theme: 'grid', // 'striped' o 'grid' o 'plain'
+    headStyles: {
+      fillColor: [41, 128, 185], // Azul oscuro
+      textColor: 255,
+      fontStyle: 'bold',
+    },
+    didParseCell: (data) => {
+        const item = presupuesto.items[data.row.index];
+        if (!item) return;
+
+        if (item.type === 'chapter') {
+            data.cell.styles.fillColor = '#cae8ff'; // Azul claro
+            data.cell.styles.fontStyle = 'bold';
+        }
+        if (item.type === 'subchapter') {
+            data.cell.styles.fillColor = '#f0f0f0'; // Gris claro
+            data.cell.styles.fontStyle = 'bold';
+        }
+        if (item.level > 0 && data.column.index === 1) { // Columna "Descripción"
+            data.cell.styles.cellPadding = { ...(data.cell.styles.cellPadding as any), left: 5 + item.level * 5 };
+        }
+    }
+  });
+
+  cursorY = (doc as any).lastAutoTable.finalY + 10;
+  
+  // -------- RESUMEN --------
+  const colTotalX = 195; // Alineado al margen derecho de la tabla
+  const colLabelX = colTotalX - 55;
+
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(10);
+  
+  doc.text("Subtotal Neto:", colLabelX, cursorY, { align: "right" });
+  doc.text(formatoMoneda(presupuesto.subtotal), colTotalX, cursorY, { align: "right" });
+  cursorY += 6;
+
+  doc.text(`Gastos Generales y Utilidades (${presupuesto.gastosGeneralesPorcentaje}%):`, colLabelX, cursorY, { align: "right" });
+  doc.text(formatoMoneda(presupuesto.gastosGenerales), colTotalX, cursorY, { align: "right" });
+  cursorY += 6;
+
+  doc.setFont("helvetica", "bold");
+  doc.text("Subtotal + GGyU:", colLabelX, cursorY, { align: "right" });
+  doc.text(formatoMoneda(presupuesto.subtotalConGG), colTotalX, cursorY, { align: "right" });
+  cursorY += 6;
+
+  doc.setFont("helvetica", "normal");
+  doc.text("IVA (19%):", colLabelX, cursorY, { align: "right" });
+  doc.text(formatoMoneda(presupuesto.iva), colTotalX, cursorY, { align: "right" });
+  cursorY += 6;
+
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(12);
+  doc.text("Total General:", colLabelX, cursorY, { align: "right" });
+  doc.text(formatoMoneda(presupuesto.total), colTotalX, cursorY, { align: "right" });
+
+  // -------- PIE DE PÁGINA --------
+  agregarPieDePagina(doc);
+
+  // Disparar la descarga
+  doc.save(`presupuesto-${presupuesto.codigo}.pdf`);
+}
+
+```
+- src/lib/placeholder-images.json:
+```json
+{
+  "placeholderImages": []
+}
+```
+- src/lib/placeholder-images.ts:
+```ts
+import data from './placeholder-images.json';
+
+export type ImagePlaceholder = {
+  id: string;
+  description: string;
+  imageUrl: string;
+  imageHint: string;
+};
+
+export const PlaceHolderImages: ImagePlaceholder[] = data.placeholderImages;
+
+```
+- src/lib/prevencionEventos.ts:
+```ts
+import {
+  doc,
+  setDoc,
+  getDoc,
+  serverTimestamp,
+  addDoc,
+  collection
+} from "firebase/firestore";
+import { firebaseDb } from "./firebaseClient";
+
+// 👉 Datos comunes del evento (lo que comparten los 3 formularios)
+export interface EventoBaseData {
+  obraId: string;
+  eventoId: string;
+  fechaEvento?: string;
+  lugar?: string;
+  tipoEvento?: string; // accidente, incidente, cuasi, etc.
+  descripcionBreve?: string;
+  trabajadorInvolucrado?: string;
+  creadoPor?: string;
+}
+
+// 👉 Datos específicos de cada formulario
+export interface IERData {
+  fechaInforme?: string;
+  horaInforme?: string;
+  descripcionDetallada?: string;
+  claseEvento?: string;
+  consecuenciasPotenciales?: string;
+  medidasInmediatas?: string;
+}
+
+export interface InvestigacionData {
+  investigador?: string;
+  fechaInvestigacion?: string;
+  causasInmediatas?: string;
+  causasBasales?: string;
+  condicionesSubestandar?: string;
+  actosSubestandar?: string;
+  conclusiones?: string;
+}
+
+export interface PlanAccionData {
+  objetivoGeneral?: string;
+  acciones?: {
+    accion: string;
+    responsable: string;
+    plazo: string;
+    estado?: string;
+  }[];
+  fechaCompromisoCierre?: string;
+  responsableSeguimiento?: string;
+  observacionesSeguimiento?: string;
+}
+
+// Interfaz para la inducción
+export interface InduccionAccesoFaena {
+  id?: string;
+  obraId: string;
+  obraNombre?: string;
+
+  tipoVisita: "VISITA" | "PROVEEDOR" | "INSPECTOR" | "OTRO";
+  nombreCompleto: string;
+  rut: string;
+  empresa: string;
+  cargo: string;
+  telefono: string;
+  correo: string;
+
+  fechaIngreso: string; // yyyy-mm-dd
+  horaIngreso: string;   // hh:mm
+
+  respuestaPregunta1?: "SI" | "NO";
+  respuestaPregunta2?: "SI" | "NO";
+  respuestaPregunta3?: "SI" | "NO";
+
+  aceptaReglamento: boolean;
+  aceptaEpp: boolean;
+  aceptaTratamientoDatos: boolean;
+
+  firmaDataUrl?: string; // imagen de la firma en base64 (opcional)
+  origenRegistro?: "panel" | "qr";
+  createdAt?: any;
+}
+
+
+function eventoDocRef(obraId: string, eventoId: string) {
+  return doc(firebaseDb, "obras", obraId, "eventosRiesgosos", eventoId);
+}
+
+// 🔹 Guardar / actualizar la parte IER (sin pisar lo demás)
+export async function guardarIER(
+  base: EventoBaseData,
+  ier: IERData
+) {
+  const ref = eventoDocRef(base.obraId, base.eventoId);
+  await setDoc(
+    ref,
+    {
+      ...base,
+      updatedAt: serverTimestamp(),
+      ier: {
+        ...ier,
+        updatedAt: serverTimestamp(),
+      },
+      createdAt: serverTimestamp(),
+    },
+    { merge: true }
+  );
+}
+
+// 🔹 Guardar / actualizar la parte de Investigación
+export async function guardarInvestigacion(
+  obraId: string,
+  eventoId: string,
+  data: InvestigacionData
+) {
+  const ref = eventoDocRef(obraId, eventoId);
+  await setDoc(
+    ref,
+    {
+      updatedAt: serverTimestamp(),
+      investigacion: {
+        ...data,
+        updatedAt: serverTimestamp(),
+      },
+    },
+    { merge: true }
+  );
+}
+
+// 🔹 Guardar / actualizar la parte de Plan de Acción
+export async function guardarPlanAccion(
+  obraId: string,
+  eventoId: string,
+  data: PlanAccionData
+) {
+  const ref = eventoDocRef(obraId, eventoId);
+  await setDoc(
+    ref,
+    {
+      updatedAt: serverTimestamp(),
+      planAccion: {
+        ...data,
+        updatedAt: serverTimestamp(),
+      },
+    },
+    { merge: true }
+  );
+}
+
+// 🔹 Leer todo el evento (con las 3 partes si existen)
+export async function cargarEventoCompleto(
+  obraId: string,
+  eventoId: string
+) {
+  const ref = eventoDocRef(obraId, eventoId);
+  const snap = await getDoc(ref);
+  if (!snap.exists()) return null;
+  return snap.data();
+}
+
+// 🔹 Guardar inducción desde el panel de administrador
+export async function guardarInduccionAccesoFaena(
+  data: Omit<InduccionAccesoFaena, "id" | "createdAt" | "origenRegistro">
+): Promise<string> {
+  const colRef = collection(firebaseDb, "induccionesAccesoFaena");
+  const docRef = await addDoc(colRef, {
+    ...data,
+    origenRegistro: "panel",
+    createdAt: serverTimestamp(),
+  });
+  return docRef.id;
+}
+
+// 🔹 Guardar inducción desde el QR público
+export async function guardarInduccionQR(
+  data: Omit<InduccionAccesoFaena, "id" | "createdAt" | "origenRegistro">
+): Promise<string> {
+  const colRef = collection(firebaseDb, "induccionesAccesoFaena");
+  const docRef = await addDoc(colRef, {
+    ...data,
+    origenRegistro: "qr",
+    createdAt: serverTimestamp(),
+  });
+  return docRef.id;
+}
+
+```
+- src/lib/roles.ts:
+```ts
+import { User } from "firebase/auth";
+
+// Definimos los posibles roles de usuario en el sistema.
+export type UserRole = "superadmin" | "admin_empresa" | "jefe_obra" | "prevencionista" | "cliente" | "none";
+
+// Correos electrónicos que SIEMPRE tendrán el rol de superadministrador,
+// independientemente de su configuración en Firestore o Custom Claims.
+// Esta es la máxima prioridad.
+export const SUPERADMIN_EMAILS = ["pauloandrescordova@gmail.com"];
+
+/**
+ * Determina el rol de un usuario basándose en un orden de prioridad:
+ * 1. Correo electrónico maestro (SUPERADMIN_EMAILS).
+ * 2. Custom Claims en el token de autenticación.
+ * 3. Campo 'role' en el documento del usuario en Firestore.
+ *
+ * @param user - El objeto de usuario de Firebase Auth.
+ * @param userDoc - El documento del usuario desde la colección 'users' de Firestore.
+ * @param tokenClaims - Los custom claims del token de ID del usuario.
+ * @returns El rol del usuario como un string `UserRole`.
+ */
+export function resolveRole(user: User | null, userDoc?: any, tokenClaims?: { [key: string]: any }): UserRole {
+  if (!user) {
+    return "none";
+  }
+
+  const email = user.email?.toLowerCase().trim() || "";
+
+  // 1. Prioridad máxima: correos maestros definidos en el código.
+  if (SUPERADMIN_EMAILS.includes(email)) {
+    return "superadmin";
+  }
+
+  // 2. Segunda prioridad: Custom Claims en el token de autenticación.
+  if (tokenClaims?.role === "SUPER_ADMIN") return "superadmin";
+
+  // 3. Tercera prioridad: campo 'role' en el documento de Firestore.
+  if (userDoc?.role === "superadmin") return "superadmin";
+  if (userDoc?.role === "admin_empresa") return "admin_empresa";
+  if (userDoc?.role === "jefe_obra") return "jefe_obra";
+  if (userDoc?.role === "prevencionista") return "prevencionista";
+  if (userDoc?.role === "cliente") return "cliente";
+  
+  // Si no se encuentra ningún rol, se devuelve 'none'.
+  return "none";
+}
+
+```
+- src/lib/utils.ts:
+```ts
+import { clsx, type ClassValue } from "clsx"
+import { twMerge } from "tailwind-merge"
+
+export function cn(...inputs: ClassValue[]) {
+  return twMerge(clsx(inputs))
+}
+
+```
+- src/next.config.ts:
+```ts
+import type {NextConfig} from 'next';
+
+const nextConfig: NextConfig = {
+  typescript: {
+    ignoreBuildErrors: true,
+  },
+  eslint: {
+    ignoreDuringBuilds: true,
+  },
+  images: {
+    unoptimized: false,
+    remotePatterns: [
+      {
+        protocol: 'https',
+        hostname: 'placehold.co',
+        port: '',
+        pathname: '/**',
+      },
+      {
+        protocol: 'https',
+        hostname: 'images.unsplash.com',
+        port: '',
+        pathname: '/**',
+      },
+      {
+        protocol: 'https',
+        hostname: 'picsum.photos',
+        port: '',
+        pathname: '/**',
+      },
+      {
+        protocol: 'https',
+        hostname: 'i.imgur.com',
+        port: '',
+        pathname: '/**',
+      },
+      {
+        protocol: "https",
+        hostname: "firebasestorage.googleapis.com",
+      },
+      {
+        protocol: "https",
+        hostname: "storage.googleapis.com",
+      },
+      {
+        protocol: "https",
+        hostname: "lh3.googleusercontent.com",
+      },
+    ],
+  },
+  output: "export"
+};
+
+export default nextConfig;
+
+```
+- src/server/queries/publicObra.ts:
+```ts
+// src/server/queries/publicObra.ts
+import { firebaseDb } from "@/lib/firebaseClient";
+import { doc, getDoc } from "firebase/firestore";
+
+/**
+ * Obtiene los datos públicos de una obra por su ID.
+ * @param shareId El ID del documento de la obra en Firestore.
+ * @returns Los datos de la obra o null si no se encuentra.
+ */
+export async function getPublicObraByShareId(shareId: string) {
+  if (!shareId) return null;
+
+  try {
+    const ref = doc(firebaseDb, "obras", shareId);
+    const snap = await getDoc(ref);
+
+    if (!snap.exists()) {
+      console.warn(`[publicObra] Obra no encontrada con shareId: ${shareId}`);
+      return null;
+    }
+
+    return {
+      id: snap.id,
+      ...snap.data(),
+    };
+  } catch (error) {
+    console.error(`[publicObra] Error al obtener la obra con shareId ${shareId}:`, error);
+    return null;
+  }
+}
+
+```
+- src/types/pcg.ts:
+```ts
+// src/types/pcg.ts
+
+import { Timestamp } from "firebase/firestore";
+
+/**
+ * Representa una empresa en la plataforma.
+ * Almacenada en la colección `companies`.
+ */
+export interface Company {
+  id: string;
+  nombreFantasia: string;
+  razonSocial: string;
+  rut: string;
+  giro?: string;
+  direccion?: string;
+  comuna?: string;
+  ciudad?: string;
+  telefonoContacto?: string;
+  emailContacto?: string;
+  baseMensual: number;
+  valorPorUsuario: number;
+  activa: boolean;
+  createdAt: Date | Timestamp;
+  updatedAt?: Date | Timestamp;
+}
+
+
+/**
+ * Representa un usuario dentro del contexto de una empresa específica.
+ * Este tipo se usa principalmente para mostrar datos, el 'role' se obtiene de 'AppUser'.
+ */
+export interface CompanyUser {
+  id?: string;
+  uid: string;
+  email: string;
+  nombre: string;
+  role: RolInvitado;
+  obrasAsignadas: string[];
+  activo: boolean;
+}
+
+/**
+ * Representa un usuario a nivel global en la plataforma.
+ * Almacenado en la colección `users`. Esta es la fuente de verdad para los roles.
+ */
+export interface AppUser {
+  id?: string; // El ID del documento es el UID de Firebase Auth
+  nombre: string;
+  email: string;
+  phone?: string;
+  role: RolInvitado | 'superadmin' | 'none';
+  empresaId: string | null;
+  createdAt: Date | Timestamp;
+  activo?: boolean;
+  eliminado?: boolean;
+  eliminadoAt?: Date | Timestamp;
+}
+
+
+export type RolInvitado = "admin_empresa" | "jefe_obra" | "prevencionista" | "cliente";
+/**
+ * Representa una invitación para unirse a una empresa.
+ * Almacenada en la colección `invitacionesUsuarios`.
+ */
+export interface UserInvitation {
+    id?: string;
+    email: string;
+    empresaId: string;
+    empresaNombre: string;
+    roleDeseado: RolInvitado;
+    estado: "pendiente" | "aceptada" | "revocada";
+    creadoPorUid: string;
+    createdAt: Date | Timestamp;
+}
+
+export interface Obra {
+  id: string;
+  nombreFaena: string;
+  direccion?: string;
+  clienteEmail?: string;
+  mandanteRazonSocial?: string;
+  mandanteRut?: string;
+  jefeObraNombre?: string;
+  prevencionistaNombre?: string;
+  mutualidad?: string;
+  empresaId: string;
+  empresa?: {
+    nombre: string;
+  };
+  fechaInicio?: string;
+  fechaTermino?: string;
+  dotacionProyectada?: number;
+  adminContratoNombre?: string;
+}
+
+export interface IPERRegistro {
+  id: string;
+  correlativo?: number;
+  obraId: string;
+  obraNombre?: string;
+  tarea: string;
+  zona: string;
+  peligro: string;
+  riesgo: string;
+  categoriaPeligro: string;
+  probabilidad_hombre: number;
+  consecuencia_hombre: number;
+  nivel_riesgo_hombre: number;
+  probabilidad_mujer: number;
+  consecuencia_mujer: number;
+  nivel_riesgo_mujer: number;
+  jerarquiaControl: string; 
+  control_especifico_genero: string;
+  responsable: string; plazo: string; 
+  estadoControl: string; 
+  probabilidad_residual: number; 
+  consecuencia_residual: number; 
+  nivel_riesgo_residual: number; 
+  usa_componente_genero?: boolean;
+  medidasControlExistentes: string;
+  medidasControlPropuestas: string;
+  responsableImplementacion: string;
+  plazoImplementacion: string;
+  fecha?: string;
+  createdAt?: any;
+};
+
+export type CharlaEstado = "borrador" | "realizada" | "programada" | "cancelada";
+
+export type Charla = {
+    id: string;
+    obraId: string;
+    obraNombre: string;
+    iperId: string;
+    titulo: string;
+    tipo: "charla_iper" | "charla_induccion";
+    fechaCreacion: Timestamp;
+    creadaPorUid: string;
+    generadaAutomaticamente: boolean;
+    tarea: string;
+    zonaSector?: string;
+    peligro: string;
+    riesgo: string;
+    probHombres: number;
+    consHombres: number;
+    nivelHombres: number;
+    probMujeres: number;
+    consMujeres: number;
+    nivelMujeres: number;
+    controlGenero: string;
+    estado: CharlaEstado;
+    contenido: string;
+    fechaRealizacion?: Timestamp;
+    duracionMinutos?: number;
+    participantesTexto?: string;
+    observaciones?: string;
+};
+
+export type Criticidad = 'baja' | 'media' | 'alta';
+
+export interface Hallazgo {
+  id?: string;
+  obraId: string;
+  createdAt: Timestamp;
+  createdBy: string;
+  tipoRiesgo: string;
+  descripcion: string;
+  tipoHallazgoDetalle?: string;
+  descripcionLibre?: string;
+  accionesInmediatas: string[];
+  responsableId: string;
+  plazo: string;
+  evidenciaUrl: string;
+  criticidad: Criticidad;
+  estado: 'abierto' | 'en_progreso' | 'cerrado';
+  iperActividadId?: string;
+  iperRiesgoId?: string;
+  planAccionId?: string;
+  investigacionId?: string; // Nuevo campo
+  fichaFirmadaUrl?: string;
+  fechaFichaFirmada?: Timestamp;
+}
+
+export interface EquipoResponsable {
+    jefeObra: string;
+    capataz: string;
+    supervisores: string[];
+    especialidades: {
+        electrico: string;
+        izaje: string;
+        excavacion: string;
+        maquinaria: string;
+    };
+    contratistas: string[];
+}
+
+export type OrigenAccion =
+  | "IPER"
+  | "INCIDENTE"
+  | "OBSERVACION"
+  | "hallazgo"
+  | "OTRO";
+
+export type EstadoAccion = "Pendiente" | "En progreso" | "Cerrada";
+
+export type RegistroPlanAccion = {
+  id: string;
+  obraId: string;
+  obraNombre?: string;
+  origen: OrigenAccion;
+  referencia: string; 
+  descripcionAccion: string;
+  responsable: string;
+  plazo: string;
+  estado: EstadoAccion;
+  avance: string;
+  observacionesCierre: string;
+  fechaCreacion: string;
+  creadoPor: string;
+  createdAt?: any;
+  hallazgoId?: string;
+};
+
+export type TipoIncidente =
+  | "Accidente con tiempo perdido"
+  | "Accidente sin tiempo perdido"
+  | "Casi accidente"
+  | "Daño a la propiedad";
+
+export type GravedadIncidente = "Leve" | "Grave" | "Fatal potencial";
+
+export type RegistroIncidente = {
+  id: string;
+  obraId: string;
+  obraNombre?: string;
+  fecha: string; 
+  lugar: string;
+  tipoIncidente: TipoIncidente;
+  gravedad: GravedadIncidente;
+  descripcionHecho: string;
+  lesionPersona: string;
+  actoInseguro: string;
+  condicionInsegura: string;
+  causasInmediatas: string;
+  causasBasicas: string;
+  analisisIshikawa: string;
+  analisis5Porques: string;
+  medidasCorrectivas: string;
+  responsableSeguimiento: string;
+  plazoCierre: string;
+  estadoCierre: "Abierto" | "En seguimiento" | "Cerrado";
+  createdAt?: any;
+  // Campos para vincular
+  origen?: string;
+  hallazgoId?: string;
+};
+
+```
+- storage.cors.json:
+```json
+
+[
+  {
+    "origin": ["https://*.google.com"],
+    "method": ["GET", "PUT", "POST", "DELETE"],
+    "maxAgeSeconds": 3600
+  }
+]
+
+```
+- storage.rules:
+```rules
+rules_version = '2';
+
+service firebase.storage {
+  match /b/{bucket}/o {
+    // Allow read, write and delete access for all users
+    match /{allPaths=**} {
+      allow read, write, delete;
+    }
+  }
+}
+
+```
+- tailwind.config.ts:
+```ts
+import type {Config} from 'tailwindcss';
+
+export default {
+  darkMode: ['class'],
+  content: [
+    './src/pages/**/*.{js,ts,jsx,tsx,mdx}',
+    './src/components/**/*.{js,ts,jsx,tsx,mdx}',
+    './src/app/**/*.{js,ts,jsx,tsx,mdx}',
+  ],
+  theme: {
+    extend: {
+      fontFamily: {
+        body: ['Inter', 'sans-serif'],
+        headline: ['Inter', 'sans-serif'],
+        code: ['monospace'],
+      },
+      colors: {
+        background: 'hsl(var(--background))',
+        foreground: 'hsl(var(--foreground))',
+        card: {
+          DEFAULT: 'hsl(var(--card))',
+          foreground: 'hsl(var(--card-foreground))',
+        },
+        popover: {
+          DEFAULT: 'hsl(var(--popover))',
+          foreground: 'hsl(var(--popover-foreground))',
+        },
+        primary: {
+          DEFAULT: 'hsl(var(--primary))',
+          foreground: 'hsl(var(--primary-foreground))',
+        },
+        secondary: {
+          DEFAULT: 'hsl(var(--secondary))',
+          foreground: 'hsl(var(--secondary-foreground))',
+        },
+        muted: {
+          DEFAULT: 'hsl(var(--muted))',
+          foreground: 'hsl(var(--muted-foreground))',
+        },
+        accent: {
+          DEFAULT: 'hsl(var(--accent))',
+          foreground: 'hsl(var(--accent-foreground))',
+        },
+        destructive: {
+          DEFAULT: 'hsl(var(--destructive))',
+          foreground: 'hsl(var(--destructive-foreground))',
+        },
+        border: 'hsl(var(--border))',
+        input: 'hsl(var(--input))',
+        ring: 'hsl(var(--ring))',
+        chart: {
+          '1': 'hsl(var(--chart-1))',
+          '2': 'hsl(var(--chart-2))',
+          '3': 'hsl(var(--chart-3))',
+          '4': 'hsl(var(--chart-4))',
+          '5': 'hsl(var(--chart-5))',
+        },
+        sidebar: {
+          DEFAULT: 'hsl(var(--sidebar-background))',
+          foreground: 'hsl(var(--sidebar-foreground))',
+          primary: 'hsl(var(--sidebar-primary))',
+          'primary-foreground': 'hsl(var(--sidebar-primary-foreground))',
+          accent: 'hsl(var(--sidebar-accent))',
+          'accent-foreground': 'hsl(var(--sidebar-accent-foreground))',
+          border: 'hsl(var(--sidebar-border))',
+          ring: 'hsl(var(--sidebar-ring))',
+        },
+      },
+      borderRadius: {
+        lg: 'var(--radius)',
+        md: 'calc(var(--radius) - 2px)',
+        sm: 'calc(var(--radius) - 4px)',
+      },
+      keyframes: {
+        'accordion-down': {
+          from: {
+            height: '0',
+          },
+          to: {
+            height: 'var(--radix-accordion-content-height)',
+          },
+        },
+        'accordion-up': {
+          from: {
+            height: 'var(--radix-accordion-content-height)',
+          },
+          to: {
+            height: '0',
+          },
+        },
+      },
+      animation: {
+        'accordion-down': 'accordion-down 0.2s ease-out',
+        'accordion-up': 'accordion-up 0.2s ease-out',
+      },
+    },
+  },
+  plugins: [require('tailwindcss-animate')],
+} satisfies Config;
+
+```
+- tsconfig.json:
+```json
+{
+  "compilerOptions": {
+    "target": "ES2017",
+    "lib": [
+      "dom",
+      "dom.iterable",
+      "esnext"
+    ],
+    "allowJs": true,
+    "skipLibCheck": true,
+    "strict": true,
+    "noEmit": true,
+    "esModuleInterop": true,
+    "module": "esnext",
+    "moduleResolution": "bundler",
+    "resolveJsonModule": true,
+    "isolatedModules": true,
+    "jsx": "preserve",
+    "incremental": true,
+    "plugins": [
+      {
+        "name": "next"
+      }
+    ],
+    "paths": {
+      "@/*": [
+        "./src/*"
+      ]
+    }
+  },
+  "include": [
+    "next-env.d.ts",
+    "**/*.ts",
+    "**/*.tsx",
+    ".next/types/**/*.ts",
+    ".next/dev/types/**/*.ts"
+  ],
+  "exclude": [
+    "node_modules"
+  ]
+}
+
+```
+- workspace/functions/package.json:
+```json
+{
+  "name": "functions",
+  "scripts": {
+    "build": "echo \"Skipping functions build...\"",
+    "serve": "npm run build && firebase emulators:start --only functions",
+    "shell": "npm run build && firebase functions:shell",
+    "start": "npm run shell",
+    "deploy": "firebase deploy --only functions",
+    "logs": "firebase functions:log"
+  },
+  "engines": {
+    "node": "22"
+  },
+  "main": "lib/index.js",
+  "dependencies": {
+    "firebase-admin": "^12.7.0",
+    "firebase-functions": "^5.1.1",
+    "zod": "^3.25.76"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "firebase-functions-test": "^3.1.0",
+    "typescript": "^5.9.3"
+  },
+  "private": true,
+  "version": "1.0.0",
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "description": ""
+}
+
+```
+'''

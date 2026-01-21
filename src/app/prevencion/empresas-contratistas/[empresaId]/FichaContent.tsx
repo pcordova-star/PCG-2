@@ -4,14 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import Link from "next/link";
-import { EmpresaContratista } from "@/types/pcg";
-
-type Obra = {
-    id: string;
-    nombreFaena: string;
-    mandanteRazonSocial: string;
-    direccion: string;
-};
+import { EmpresaContratista, Obra } from "@/types/pcg";
 
 // We use a slightly different type here to accept the serialized date string
 type SerializableEmpresaContratista = Omit<EmpresaContratista, 'fechaCreacion'> & {

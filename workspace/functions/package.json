@@ -13,19 +13,14 @@
   },
   "main": "lib/index.js",
   "dependencies": {
-    "@genkit-ai/google-genai": "^1.0.0",
     "cors": "^2.8.5",
     "firebase-admin": "^11.11.1",
     "firebase-functions": "^4.9.0",
-    "genkit": "^1.0.0",
-    "heic-convert": "^2.1.0",
     "node-fetch": "^2.7.0",
-    "sharp": "^0.33.4",
     "zod": "^3.23.8"
   },
   "devDependencies": {
     "@types/cors": "^2.8.17",
-    "@types/handlebars": "^4.1.0",
     "@types/node": "^20.12.12",
     "@types/node-fetch": "^2.6.11",
     "typescript": "^5.4.5"

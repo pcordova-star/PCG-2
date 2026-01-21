@@ -2,7 +2,6 @@
 "use client";
 
 import React, { useEffect, useState } from "react";
-import QRCode from "react-qr-code";
 import { useParams, useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
@@ -86,12 +85,12 @@ export default function QrInduccionPage() {
           inspector para que complete su inducción de acceso.
         </p>
 
-        <div className="bg-white p-4 inline-block rounded-lg border-4 border-primary mb-6 min-h-[288px] flex items-center justify-center">
-          {url ? (
-            <QRCode value={url} size={256} />
-          ) : (
-            <Loader2 className="animate-spin h-8 w-8 text-muted-foreground" />
-          )}
+        <div className="bg-white p-4 inline-block rounded-lg border-4 border-primary mb-6 min-h-[100px] flex items-center justify-center">
+           {url ? (
+             <p className="text-xs text-black break-all">{url}</p>
+           ) : (
+             <Loader2 className="animate-spin h-8 w-8 text-muted-foreground" />
+           )}
         </div>
 
         {url ? (

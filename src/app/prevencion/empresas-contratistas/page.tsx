@@ -1,7 +1,8 @@
+// src/app/prevencion/empresas-contratistas/page.tsx
 "use client";
 
 import React, { useState, useEffect, useMemo, FormEvent } from "react";
-import { Button } from "@/components/ui/button";
+import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -101,11 +102,6 @@ export default function EmpresasContratistasPage() {
     estadoEvaluacion: "POR_EVALUAR", observacionesGenerales: "",
     fechaEvaluacion: new Date().toISOString().slice(0, 10), evaluador: "",
   });
-
-  const empresaSeleccionada = useMemo(() => 
-    empresas.find((e) => e.id === empresaSeleccionadaId) ?? null,
-    [empresas, empresaSeleccionadaId]
-  );
   
   // Carga de Obras
   useEffect(() => {
@@ -166,16 +162,6 @@ export default function EmpresasContratistasPage() {
     return () => unsubscribe();
   }, [obraSeleccionadaId]);
 
-  // Sincronizar formulario con empresa seleccionada
-  useEffect(() => {
-    if (empresaSeleccionada) {
-        const { id, obraId, fechaCreacion, ...editableData } = empresaSeleccionada;
-        setFormState(editableData);
-    } else {
-        resetForm();
-    }
-  }, [empresaSeleccionada]);
-
   // Empresas filtradas para la tabla
   const empresasFiltradas = useMemo(() => {
     return empresas.filter(emp => {
@@ -219,21 +205,23 @@ export default function EmpresasContratistasPage() {
     }
 
     try {
-      if (empresaSeleccionadaId) {
-        const docRef = doc(firebaseDb, "empresasContratistas", empresaSeleccionadaId);
-        await updateDoc(docRef, { ...formState, updatedAt: serverTimestamp() });
-        setSuccessMessage("Ficha actualizada con éxito.");
-      } else {
-        const empresasRef = collection(firebaseDb, "empresasContratistas");
-        await addDoc(empresasRef, {
-          ...formState,
-          obraId: obraSeleccionadaId,
-          fechaCreacion: Timestamp.now(),
-        });
-        setSuccessMessage("Empresa registrada con éxito.");
-      }
-      setMostrarForm(false);
-      setEmpresaSeleccionadaId(null);
+        const empresaSeleccionada = empresas.find((e) => e.id === empresaSeleccionadaId);
+        if (empresaSeleccionada) {
+            const docRef = doc(firebaseDb, "empresasContratistas", empresaSeleccionada.id);
+            await updateDoc(docRef, { ...formState, updatedAt: serverTimestamp() });
+            setSuccessMessage("Ficha actualizada con éxito.");
+        } else {
+            const empresasRef = collection(firebaseDb, "empresasContratistas");
+            await addDoc(empresasRef, {
+                ...formState,
+                obraId: obraSeleccionadaId,
+                fechaCreacion: Timestamp.now(),
+            });
+            setSuccessMessage("Empresa registrada con éxito.");
+        }
+        setMostrarForm(false);
+        setEmpresaSeleccionadaId(null);
+        resetForm();
 
     } catch (err: any) {
       console.error("Error saving company:", err);
@@ -358,7 +346,7 @@ export default function EmpresasContratistasPage() {
                                 Ver Ficha
                               </Link>
                             </Button>
-                            <Button variant="ghost" size="icon" onClick={() => { setEmpresaSeleccionadaId(emp.id); setMostrarForm(true); }}>
+                            <Button variant="ghost" size="icon" onClick={() => { setFormState(emp); setEmpresaSeleccionadaId(emp.id); setMostrarForm(true); }}>
                               <Edit className="h-4 w-4" />
                               <span className="sr-only">Editar</span>
                             </Button>

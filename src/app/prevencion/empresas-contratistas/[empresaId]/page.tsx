@@ -1,19 +1,12 @@
 // Esta página muestra la ficha detallada de una empresa contratista.
 // Es una Server Component que carga los datos iniciales.
+export const dynamic = "force-dynamic"; // Evita que Next.js intente prerenderizarlo
 
 import admin from '@/server/firebaseAdmin';
 import { Timestamp } from 'firebase-admin/firestore';
 import FichaContent from './FichaContent';
-import { EmpresaContratista } from '@/types/pcg';
+import { EmpresaContratista, Obra } from '@/types/pcg';
 import { notFound } from 'next/navigation';
-
-type Obra = {
-    id: string;
-    nombreFaena: string;
-    mandanteRazonSocial: string;
-    direccion: string;
-    creadoEn?: string; // Change to string for serialization
-};
 
 // We need to adjust the type here to expect a string for fechaCreacion
 type SerializableEmpresaContratista = Omit<EmpresaContratista, 'fechaCreacion'> & {
@@ -48,7 +41,7 @@ async function getEmpresaData(empresaId: string): Promise<{ empresa: Serializabl
 
         // Cargar datos de la obra asociada
         const obraRef = db.collection('obras').doc(empresaData.obraId);
-        const obraSnap = await obraRef.get();
+        const obraSnap = await getDoc(obraRef);
 
         if (!obraSnap.exists()) {
             throw new Error(`La obra con ID ${empresaData.obraId} no fue encontrada.`);
