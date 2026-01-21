@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useMemo } from "react";
+import React, { useState, useEffect, useMemo, FormEvent } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -19,61 +19,11 @@ import { cn } from "@/lib/utils";
 import { FileDown, PlusCircle, Edit, Trash2, ArrowLeft } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/context/AuthContext";
+import { Obra, EmpresaContratista, TipoEmpresaPrevencion, EstadoEvaluacionEmpresa } from "@/types/pcg";
+import { useToast } from "@/hooks/use-toast";
 
 
-// --- Tipos de Datos ---
-
-type ObraPrevencion = {
-  id: string;
-  nombreFaena: string;
-};
-
-export type TipoEmpresaPrevencion =
-  | "MANDANTE"
-  | "CONTRATISTA_PRINCIPAL"
-  | "SUBCONTRATISTA"
-  | "SERVICIOS";
-
-export type EstadoEvaluacionEmpresa =
-  | "POR_EVALUAR"
-  | "APROBADA"
-  | "APROBADA_CON_OBSERVACIONES"
-  | "RECHAZADA";
-
-export type EmpresaContratista = {
-  id: string;
-  obraId: string;
-  razonSocial: string;
-  rut: string;
-  tipoEmpresa: TipoEmpresaPrevencion;
-  representanteLegal: string;
-  contactoNombre: string;
-  contactoTelefono: string;
-  contactoEmail: string;
-
-  contratoMarco: boolean;
-  certificadoMutual: boolean;
-  certificadoCotizaciones: boolean;
-  padronTrabajadores: boolean;
-  reglamentoInterno: boolean;
-
-  matrizRiesgos: boolean;
-  procedimientosTrabajoSeguro: boolean;
-  programaTrabajo: boolean;
-  planEmergenciaPropio: boolean;
-  registroCapacitacionInterna: boolean;
-
-  actaReunionInicial: boolean;
-  frecuenciaReuniones: string;
-  compromisosEspecificos: string;
-
-  estadoEvaluacion: EstadoEvaluacionEmpresa;
-  observacionesGenerales: string;
-
-  fechaEvaluacion: string;
-  evaluador: string;
-  fechaCreacion: Timestamp;
-};
+// --- Tipos de Datos (Movidos a src/types/pcg.ts) ---
 
 const estadoOptions: { value: EstadoEvaluacionEmpresa | 'TODOS', label: string }[] = [
     { value: 'TODOS', label: 'Todos los estados' },
@@ -122,7 +72,7 @@ export default function EmpresasContratistasPage() {
   const { user, companyId, role } = useAuth();
   
   // --- Estados de UI ---
-  const [obras, setObras] = useState<ObraPrevencion[]>([]);
+  const [obras, setObras] = useState<Obra[]>([]);
   const [loadingObras, setLoadingObras] = useState(true);
   const [obraSeleccionadaId, setObraSeleccionadaId] = useState<string>("");
 
@@ -138,6 +88,7 @@ export default function EmpresasContratistasPage() {
   // --- Estados para filtros ---
   const [filtroTexto, setFiltroTexto] = useState('');
   const [filtroEstado, setFiltroEstado] = useState<EstadoEvaluacionEmpresa | 'TODOS'>('TODOS');
+  const { toast } = useToast();
   
   // --- Estado del formulario ---
   const [formState, setFormState] = useState<Omit<EmpresaContratista, "id" | "obraId" | "fechaCreacion">>({
@@ -172,10 +123,11 @@ export default function EmpresasContratistasPage() {
         }
         
         const snapshot = await getDocs(q);
-        const data: ObraPrevencion[] = snapshot.docs.map(doc => ({
+        const data: Obra[] = snapshot.docs.map(doc => ({
           id: doc.id,
           nombreFaena: doc.data().nombreFaena ?? "",
-        }));
+          ...doc.data(),
+        } as Obra));
         setObras(data);
         if (data.length > 0 && !obraSeleccionadaId) {
           setObraSeleccionadaId(data[0].id);
@@ -420,7 +372,7 @@ export default function EmpresasContratistasPage() {
                                 <AlertDialogHeader>
                                   <AlertDialogTitle>¿Está seguro de que desea eliminar esta empresa?</AlertDialogTitle>
                                   <AlertDialogDescription>
-                                    Esta acción no se puede deshacer. Se eliminará permanentemente la empresa &quot;{emp.razonSocial}&quot; y todos sus datos asociados.
+                                    Esta acción no se puede deshacer. Se eliminará permanentemente la ficha de &quot;{emp.razonSocial}&quot; y todos sus datos asociados.
                                   </AlertDialogDescription>
                                 </AlertDialogHeader>
                                 <AlertDialogFooter>

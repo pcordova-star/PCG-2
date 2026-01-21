@@ -4,7 +4,7 @@
 import admin from '@/server/firebaseAdmin';
 import { Timestamp } from 'firebase-admin/firestore';
 import FichaContent from './FichaContent';
-import { EmpresaContratista } from '../page';
+import { EmpresaContratista } from '@/types/pcg';
 import { notFound } from 'next/navigation';
 
 type Obra = {

@@ -614,3 +614,52 @@ export interface RdiAdjunto {
     subidoPorUserId: string;
     fechaSubida: Timestamp;
 }
+
+// --- TIPOS PARA PREVENCIÓN / EMPRESAS CONTRATISTAS ---
+
+export type TipoEmpresaPrevencion =
+  | "MANDANTE"
+  | "CONTRATISTA_PRINCIPAL"
+  | "SUBCONTRATISTA"
+  | "SERVICIOS";
+
+export type EstadoEvaluacionEmpresa =
+  | "POR_EVALUAR"
+  | "APROBADA"
+  | "APROBADA_CON_OBSERVACIONES"
+  | "RECHAZADA";
+
+export interface EmpresaContratista {
+  id: string;
+  obraId: string;
+  razonSocial: string;
+  rut: string;
+  tipoEmpresa: TipoEmpresaPrevencion;
+  representanteLegal: string;
+  contactoNombre: string;
+  contactoTelefono: string;
+  contactoEmail: string;
+
+  contratoMarco: boolean;
+  certificadoMutual: boolean;
+  certificadoCotizaciones: boolean;
+  padronTrabajadores: boolean;
+  reglamentoInterno: boolean;
+
+  matrizRiesgos: boolean;
+  procedimientosTrabajoSeguro: boolean;
+  programaTrabajo: boolean;
+  planEmergenciaPropio: boolean;
+  registroCapacitacionInterna: boolean;
+
+  actaReunionInicial: boolean;
+  frecuenciaReuniones: string;
+  compromisosEspecificos: string;
+
+  estadoEvaluacion: EstadoEvaluacionEmpresa;
+  observacionesGenerales: string;
+
+  fechaEvaluacion: string;
+  evaluador: string;
+  fechaCreacion: Timestamp;
+}
