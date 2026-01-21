@@ -1,8 +1,5 @@
-"use server";
-
 import admin from "firebase-admin";
 import { Timestamp } from 'firebase-admin/firestore';
-
 
 // Esta verificación de seguridad es crucial.
 // Si la variable no está, el build fallará con un error claro aquí mismo.
@@ -27,9 +24,9 @@ try {
     throw new Error('FIREBASE_ADMIN_SERVICE_ACCOUNT no es un JSON válido.');
 }
 
+// Se exporta la instancia principal de 'admin' para que otros archivos inicialicen los servicios dentro de las funciones.
+export default admin;
+
 // Se mantienen estas que son seguras
 export const FieldValue = admin.firestore.FieldValue;
 export { Timestamp };
-
-// Se exporta la instancia principal de 'admin' para que otros archivos inicialicen los servicios dentro de las funciones.
-export default admin;

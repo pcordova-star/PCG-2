@@ -12,10 +12,10 @@ export const dynamic = "force-dynamic";
 const MAX_FILE_SIZE_MB = 15;
 
 export async function POST(req: Request) {
-    const db = admin.firestore();
-    const bucket = admin.storage().bucket();
     let jobId: string | null = null;
     try {
+        const db = admin.firestore();
+        const bucket = admin.storage().bucket();
         const authorization = req.headers.get("Authorization");
         if (!authorization?.startsWith("Bearer ")) {
             return NextResponse.json({ error: 'No autorizado: Token no proporcionado.' }, { status: 401 });
@@ -88,6 +88,7 @@ export async function POST(req: Request) {
     } catch (error: any) {
         if (jobId) {
             try {
+                const db = admin.firestore();
                 const jobRef = db.collection('comparacionPlanosJobs').doc(jobId);
                 await jobRef.update({
                     status: 'error',
