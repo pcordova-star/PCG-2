@@ -8,9 +8,8 @@ import { FieldValue } from 'firebase-admin/firestore';
 import { AppUser } from '@/types/pcg';
 import { getComparacionJob } from '@/lib/comparacion-planos/firestore';
 
-const db = admin.firestore();
-
 export async function POST(req: Request) {
+  const db = admin.firestore();
   let newJobId: string | null = null;
   try {
     const authorization = req.headers.get("Authorization");
