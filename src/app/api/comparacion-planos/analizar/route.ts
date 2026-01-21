@@ -10,6 +10,7 @@ import { canUserAccessCompany, getCompany } from '@/lib/comparacion-planos/permi
 import { AppUser } from '@/types/pcg';
 
 export const runtime = 'nodejs';
+export const dynamic = "force-dynamic";
 export const maxDuration = 300; // Aumentar timeout a 5 minutos para dar tiempo a los 3 análisis
 
 /**

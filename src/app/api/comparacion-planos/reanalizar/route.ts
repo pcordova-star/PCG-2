@@ -8,6 +8,9 @@ import { FieldValue } from 'firebase-admin/firestore';
 import { AppUser } from '@/types/pcg';
 import { getComparacionJob } from '@/lib/comparacion-planos/firestore';
 
+export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
+
 export async function POST(req: Request) {
   let newJobId: string | null = null;
   try {

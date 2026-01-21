@@ -6,6 +6,9 @@ import * as crypto from 'crypto';
 import { getCompany } from '@/lib/comparacion-planos/permissions';
 import { AppUser } from '@/types/pcg';
 
+export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
+
 const MAX_FILE_SIZE_MB = 15;
 
 export async function POST(req: Request) {
