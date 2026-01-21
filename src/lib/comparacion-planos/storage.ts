@@ -1,5 +1,5 @@
 // src/lib/comparacion-planos/storage.ts
-import { bucket } from "@/server/firebaseAdmin";
+import admin from "@/server/firebaseAdmin";
 
 /**
  * Downloads a file from Firebase Storage and converts it to a Data URI.
@@ -7,6 +7,7 @@ import { bucket } from "@/server/firebaseAdmin";
  * @returns A promise that resolves to the Data URI string.
  */
 export async function getPlanoAsDataUri(storagePath: string): Promise<string> {
+  const bucket = admin.storage().bucket();
   const file = bucket.file(storagePath);
 
   const [exists] = await file.exists();
@@ -30,6 +31,7 @@ export async function getPlanoAsDataUri(storagePath: string): Promise<string> {
  * @returns An object with the new storage paths.
  */
 export async function copyPlanoFiles(oldJobId: string, newJobId: string): Promise<{ newPathA: string; newPathB: string }> {
+    const bucket = admin.storage().bucket();
     const oldPathA = `comparacion-planos/${oldJobId}/A.jpg`;
     const oldPathB = `comparacion-planos/${oldJobId}/B.jpg`;
     const newPathA = `comparacion-planos/${newJobId}/A.jpg`;

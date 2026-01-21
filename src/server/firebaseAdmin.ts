@@ -1,27 +1,35 @@
 "use server";
 
 import admin from "firebase-admin";
+import { Timestamp } from 'firebase-admin/firestore';
 
-if (!admin.apps.length) {
-  if (!process.env.FIREBASE_ADMIN_SERVICE_ACCOUNT) {
-    // Esta verificación es crucial para evitar errores en entornos donde la variable no está configurada.
+
+// Esta verificación de seguridad es crucial.
+// Si la variable no está, el build fallará con un error claro aquí mismo.
+if (!process.env.FIREBASE_ADMIN_SERVICE_ACCOUNT) {
     throw new Error(
-      "La variable de entorno FIREBASE_ADMIN_SERVICE_ACCOUNT no está definida. No se puede inicializar el SDK de Admin."
+        "La variable de entorno FIREBASE_ADMIN_SERVICE_ACCOUNT no está definida."
     );
-  }
-
-  const serviceAccount = JSON.parse(
-    process.env.FIREBASE_ADMIN_SERVICE_ACCOUNT
-  );
-
-  admin.initializeApp({
-    credential: admin.credential.cert(serviceAccount),
-    storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET,
-  });
 }
 
-export const bucket = admin.storage().bucket();
-export const adminDb = admin.firestore();
+try {
+    const serviceAccount = JSON.parse(process.env.FIREBASE_ADMIN_SERVICE_ACCOUNT);
+    
+    if (!admin.apps.length) {
+      admin.initializeApp({
+        credential: admin.credential.cert(serviceAccount),
+        storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET,
+      });
+    }
+} catch (e: any) {
+    console.error('Error al parsear FIREBASE_ADMIN_SERVICE_ACCOUNT:', e.message);
+    // Lanzar un error si el JSON es inválido para detener el build
+    throw new Error('FIREBASE_ADMIN_SERVICE_ACCOUNT no es un JSON válido.');
+}
+
+// Se mantienen estas que son seguras
 export const FieldValue = admin.firestore.FieldValue;
-export const Timestamp = admin.firestore.Timestamp;
+export { Timestamp };
+
+// Se exporta la instancia principal de 'admin' para que otros archivos inicialicen los servicios dentro de las funciones.
 export default admin;

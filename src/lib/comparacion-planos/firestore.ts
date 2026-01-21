@@ -3,11 +3,9 @@ import admin from "@/server/firebaseAdmin";
 import { ComparacionJob, ComparacionJobStatus } from "@/types/comparacion-planos";
 import { FieldValue } from "firebase-admin/firestore";
 
-const db = admin.firestore();
-const jobsCollection = db.collection("comparacionPlanosJobs");
-
 export async function getComparacionJob(jobId: string): Promise<ComparacionJob | null> {
-  const docRef = jobsCollection.doc(jobId);
+  const db = admin.firestore();
+  const docRef = db.collection("comparacionPlanosJobs").doc(jobId);
   const snap = await docRef.get();
   if (!snap.exists) {
     return null;
@@ -16,8 +14,8 @@ export async function getComparacionJob(jobId: string): Promise<ComparacionJob |
 }
 
 export async function updateComparacionJob(jobId: string, data: object) {
-  const docRef = jobsCollection.doc(jobId);
-  // Usamos notación de puntos para actualizar campos anidados sin sobreescribir el objeto completo.
+  const db = admin.firestore();
+  const docRef = db.collection("comparacionPlanosJobs").doc(jobId);
   await docRef.update({
     ...data,
     updatedAt: FieldValue.serverTimestamp(),

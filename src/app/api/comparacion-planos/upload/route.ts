@@ -1,6 +1,6 @@
 // src/app/api/comparacion-planos/upload/route.ts
 import { NextResponse } from 'next/server';
-import admin, { bucket } from '@/server/firebaseAdmin';
+import admin from '@/server/firebaseAdmin';
 import { ComparacionJobStatus } from '@/types/comparacion-planos';
 import * as crypto from 'crypto';
 import { getCompany } from '@/lib/comparacion-planos/permissions';
@@ -10,6 +10,7 @@ const MAX_FILE_SIZE_MB = 15;
 
 export async function POST(req: Request) {
     const db = admin.firestore();
+    const bucket = admin.storage().bucket();
     let jobId: string | null = null;
     try {
         const authorization = req.headers.get("Authorization");

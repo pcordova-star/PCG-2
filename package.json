@@ -8,8 +8,7 @@
     "start": "next start",
     "lint": "next lint",
     "export": "next build",
-    "postinstall": "cp node_modules/pdfjs-dist/build/pdf.worker.min.mjs public/",
-    "deploy:functions": "npm run deploy --prefix functions"
+    "postinstall": "cp node_modules/pdfjs-dist/build/pdf.worker.min.mjs public/"
   },
   "dependencies": {
     "@genkit-ai/core": "^1.0.0",
@@ -43,7 +42,7 @@
     "date-fns": "^3.6.0",
     "embla-carousel-react": "^8.6.0",
     "firebase": "^11.9.1",
-    "firebase-admin": "^13.6.0",
+    "firebase-admin": "^12.2.0",
     "firebase-functions": "^7.0.1",
     "framer-motion": "^11.2.12",
     "jspdf": "^2.5.1",

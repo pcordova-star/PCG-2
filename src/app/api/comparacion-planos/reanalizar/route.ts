@@ -9,9 +9,9 @@ import { AppUser } from '@/types/pcg';
 import { getComparacionJob } from '@/lib/comparacion-planos/firestore';
 
 export async function POST(req: Request) {
-  const db = admin.firestore();
   let newJobId: string | null = null;
   try {
+    const db = admin.firestore();
     const authorization = req.headers.get("Authorization");
     if (!authorization?.startsWith("Bearer ")) {
       return NextResponse.json({ error: 'No autorizado: Token no proporcionado.' }, { status: 401 });
