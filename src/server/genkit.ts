@@ -1,17 +1,14 @@
 // src/server/genkit.ts
-
-import { genkit } from "@genkit-ai/core";
+import { Genkit } from "@genkit-ai/core";
 import { googleAI } from "@genkit-ai/googleai";
-
-// Server-only module for Genkit AI.
 
 const apiKey = process.env.GEMINI_API_KEY;
 
 if (!apiKey) {
-  console.warn("[Genkit] GEMINI_API_KEY is not set. AI features may fail.");
+  console.warn("[Genkit] GEMINI_API_KEY not set. AI may fail in production.");
 }
 
-export const ai = genkit({
+export const ai = new Genkit({
   plugins: [
     googleAI({
       apiKey,

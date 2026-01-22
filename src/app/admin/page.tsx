@@ -1,8 +1,2 @@
-import { redirect } from 'next/navigation';
-
-export default function AdminPage() {
-  // Redirige al dashboard del superadministrador
-  redirect('/admin/dashboard');
-}
-
-    
+// This page has been moved to the (pcg) route group to resolve a build issue. This file can be deleted.
+export {};

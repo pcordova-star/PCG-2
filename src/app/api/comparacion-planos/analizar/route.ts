@@ -1,182 +1,215 @@
-// src/app/api/comparacion-planos/analizar/route.ts
-
-// --- Runtime configuration (MUST COME FIRST) ---
-export const runtime = 'nodejs';
-export const dynamic = 'force-dynamic';
+// =======================================================
+//  Runtime configuration — MUST BE THE FIRST LINES
+// =======================================================
+export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
 export const revalidate = 0;
 export const maxDuration = 300;
 
-// --- Imports ---
-import { NextResponse } from 'next/server';
+// =======================================================
+//  Imports
+// =======================================================
+import { NextResponse } from "next/server";
+
 import {
   getComparacionJob,
   updateComparacionJob,
-  updateComparacionJobStatus
-} from '@/lib/comparacion-planos/firestore';
-import { getPlanoAsDataUri } from '@/lib/comparacion-planos/storage';
+  updateComparacionJobStatus,
+} from "@/lib/comparacion-planos/firestore";
 
-import { runDiffFlow } from '@/ai/comparacion-planos/flows/flowDiff';
-import { runCubicacionFlow } from '@/ai/comparacion-planos/flows/flowCubicacion';
-import { runImpactosFlow } from '@/ai/comparacion-planos/flows/flowImpactos';
+import { getPlanoAsDataUri } from "@/lib/comparacion-planos/storage";
 
-import { canUserAccessCompany, getCompany } from '@/lib/comparacion-planos/permissions';
-import { AppUser } from '@/types/pcg';
+import { runDiffFlow } from "@/ai/comparacion-planos/flows/flowDiff";
+import { runCubicacionFlow } from "@/ai/comparacion-planos/flows/flowCubicacion";
+import { runImpactosFlow } from "@/ai/comparacion-planos/flows/flowImpactos";
 
-// --- FIX: Load firebase-admin at runtime only ---
-let admin: any;
+import {
+  canUserAccessCompany,
+  getCompany,
+} from "@/lib/comparacion-planos/permissions";
+
+import { AppUser } from "@/types/pcg";
+
+// =======================================================
+//  Dynamic import for firebase-admin (BUILD SAFE)
+// =======================================================
+let adminInstance: any;
+
 async function getAdmin() {
-  if (!admin) {
-    admin = (await import('@/server/firebaseAdmin')).default;
+  if (!adminInstance) {
+    adminInstance = (await import("@/server/firebaseAdmin")).default;
   }
-  return admin;
+  return adminInstance;
 }
 
-// --- Helper for retries ---
+// =======================================================
+//  Retry helper
+// =======================================================
 async function withRetries<T>(
   fn: () => Promise<T>,
   retries = 1,
   delay = 300
 ): Promise<T> {
-  let lastError: Error | undefined;
+  let lastError: any;
   for (let i = 0; i <= retries; i++) {
     try {
       return await fn();
-    } catch (error) {
-      lastError = error as Error;
+    } catch (err) {
+      lastError = err;
       if (i < retries) {
-        await new Promise(res => setTimeout(res, delay));
+        await new Promise((res) => setTimeout(res, delay));
       }
     }
   }
   throw lastError;
 }
 
-// --- API Handler ---
+// =======================================================
+//  POST /api/comparacion-planos/analizar
+// =======================================================
 export async function POST(req: Request) {
   let jobId: string | null = null;
 
   try {
-    // --- Auth ---
-    const authorization = req.headers.get('Authorization');
-    if (!authorization?.startsWith('Bearer ')) {
-      return NextResponse.json({ error: 'No autorizado: Token no proporcionado.' }, { status: 401 });
+    // -------- AUTH --------
+    const authorization = req.headers.get("Authorization");
+    if (!authorization?.startsWith("Bearer ")) {
+      return NextResponse.json(
+        { error: "No autorizado: falta Bearer token" },
+        { status: 401 }
+      );
     }
 
-    const token = authorization.split('Bearer ')[1];
-    const adminSDK = await getAdmin();
-    const decodedToken = await adminSDK.auth().verifyIdToken(token);
+    const token = authorization.replace("Bearer ", "");
+    const admin = await getAdmin();
+    const decoded = await admin.auth().verifyIdToken(token);
 
-    const userRole = (decodedToken as any).role;
-    const userCompanyId = (decodedToken as any).companyId;
+    const userRole = (decoded as any).role;
+    const userCompanyId = (decoded as any).companyId;
 
     const userForPerms: AppUser = {
-      id: decodedToken.uid,
+      id: decoded.uid,
       role: userRole,
       companyId: userCompanyId,
-      email: decodedToken.email || '',
-      nombre: decodedToken.name || '',
-      createdAt: new Date()
+      email: decoded.email || "",
+      nombre: decoded.name || "",
+      createdAt: new Date(),
     };
 
-    // --- Parse request ---
+    // -------- REQUEST BODY --------
     const body = await req.json();
-    jobId = body.jobId;
+    jobId = body?.jobId;
 
     if (!jobId) {
-      return NextResponse.json({ error: 'Falta jobId.' }, { status: 400 });
+      return NextResponse.json({ error: "Falta jobId" }, { status: 400 });
     }
 
+    // -------- LOAD JOB --------
     const job = await getComparacionJob(jobId);
     if (!job) {
-      return NextResponse.json({ error: 'El trabajo no fue encontrado.' }, { status: 404 });
+      return NextResponse.json(
+        { error: "El trabajo no existe" },
+        { status: 404 }
+      );
     }
 
-    // --- Permission checks ---
-    const hasAccessToJobCompany = await canUserAccessCompany(userForPerms, job.empresaId);
-    if (!hasAccessToJobCompany) {
-      return NextResponse.json({ error: 'Acceso denegado.' }, { status: 403 });
+    // -------- PERMISSIONS --------
+    const okCompany = await canUserAccessCompany(userForPerms, job.empresaId);
+    if (!okCompany) {
+      return NextResponse.json({ error: "Acceso denegado" }, { status: 403 });
     }
 
-    if (userRole !== 'superadmin') {
+    if (userRole !== "superadmin") {
       const company = await getCompany(userCompanyId);
       if (!company?.feature_plan_comparison_enabled) {
-        return NextResponse.json({ error: 'Funcionalidad no habilitada.' }, { status: 403 });
+        return NextResponse.json(
+          { error: "Funcionalidad no habilitada para su empresa" },
+          { status: 403 }
+        );
       }
     }
 
-    if (job.status !== 'uploaded') {
+    if (job.status !== "uploaded") {
       return NextResponse.json(
-        { error: `El trabajo no está listo para analizar: estado ${job.status}` },
+        {
+          error: `El trabajo no está listo para analizar (estado: ${job.status})`,
+        },
         { status: 409 }
       );
     }
 
-    await updateComparacionJobStatus(jobId, 'processing');
+    await updateComparacionJobStatus(jobId, "processing");
 
-    // --- Load planos ---
+    // -------- LOAD PLANOS --------
     if (!job.planoA_storagePath || !job.planoB_storagePath) {
-      throw new Error('Rutas de planos faltantes en job.');
+      throw new Error("Rutas de plano A o B no definidas.");
     }
 
-    const [planoA_DataUri, planoB_DataUri] = await Promise.all([
+    const [imgA, imgB] = await Promise.all([
       getPlanoAsDataUri(job.planoA_storagePath),
-      getPlanoAsDataUri(job.planoB_storagePath)
+      getPlanoAsDataUri(job.planoB_storagePath),
     ]);
 
-    const flowInput = { planoA_DataUri, planoB_DataUri };
+    const flowInput = { planoA_DataUri: imgA, planoB_DataUri: imgB };
     const results: any = {};
 
-    // --- Step 1 ---
+    // -------- STEP 1: DIFF --------
     try {
-      await updateComparacionJobStatus(jobId, 'analyzing-diff');
-      results.diffTecnico = await withRetries(() => runDiffFlow(flowInput));
-    } catch (err) {
-      throw new Error(`IA_DIFF_FAILED: ${(err as Error).message}`);
+      await updateComparacionJobStatus(jobId, "analyzing-diff");
+      results.diffTecnico = await withRetries(() =>
+        runDiffFlow(flowInput)
+      );
+    } catch (err: any) {
+      throw new Error(`IA_DIFF_FAILED: ${err.message}`);
     }
 
-    // --- Step 2 ---
+    // -------- STEP 2: CUBICACIÓN --------
     try {
-      await updateComparacionJobStatus(jobId, 'analyzing-cubicacion');
+      await updateComparacionJobStatus(jobId, "analyzing-cubicacion");
       results.cubicacionDiferencial = await withRetries(() =>
         runCubicacionFlow(flowInput)
       );
-    } catch (err) {
-      throw new Error(`IA_CUBICACION_FAILED: ${(err as Error).message}`);
+    } catch (err: any) {
+      throw new Error(`IA_CUBICACION_FAILED: ${err.message}`);
     }
 
-    // --- Step 3 ---
+    // -------- STEP 3: IMPACTOS --------
     try {
-      await updateComparacionJobStatus(jobId, 'generating-impactos');
+      await updateComparacionJobStatus(jobId, "generating-impactos");
       results.arbolImpactos = await withRetries(() =>
         runImpactosFlow({
           ...flowInput,
           diffContext: results.diffTecnico,
-          cubicacionContext: results.cubicacionDiferencial
+          cubicacionContext: results.cubicacionDiferencial,
         })
       );
-    } catch (err) {
-      throw new Error(`IA_IMPACTOS_FAILED: ${(err as Error).message}`);
+    } catch (err: any) {
+      throw new Error(`IA_IMPACTOS_FAILED: ${err.message}`);
     }
 
-    // --- Save ---
+    // -------- SAVE RESULT --------
     await updateComparacionJob(jobId, {
-      status: 'completed',
-      results
+      status: "completed",
+      results,
     });
 
-    return NextResponse.json({ jobId, status: 'completed' });
-
+    return NextResponse.json({ jobId, status: "completed" });
   } catch (error: any) {
-    console.error(`[API /analizar] Error:`, error);
+    console.error(`[API /analizar] ERROR EN JOB ${jobId}:`, error);
 
     if (jobId) {
-      const errorCode = error.message.split(':')[0].trim();
       await updateComparacionJob(jobId, {
-        status: 'error',
-        errorMessage: { code: errorCode, message: error.message }
+        status: "error",
+        errorMessage: {
+          code: error.message?.split(":")[0] || "ERROR",
+          message: error.message || "Error desconocido",
+        },
       });
     }
 
-    return NextResponse.json({ error: error.message || 'Error interno' }, { status: 500 });
+    return NextResponse.json(
+      { error: error.message || "Error interno" },
+      { status: 500 }
+    );
   }
 }

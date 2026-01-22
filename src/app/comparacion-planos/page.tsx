@@ -1,7 +1,2 @@
-// src/app/comparacion-planos/page.tsx
-import { redirect } from 'next/navigation';
-
-// Redirige a la página de subida de planos, que actúa como la página principal del módulo.
-export default function ComparacionPlanosPage() {
-  redirect('/comparacion-planos/upload');
-}
+// This page has been moved to the (pcg) route group to resolve a build issue. This file can be deleted.
+export {};
