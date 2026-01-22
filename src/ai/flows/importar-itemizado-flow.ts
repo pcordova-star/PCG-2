@@ -8,7 +8,7 @@
  * - ItemizadoImportOutput: Tipo de salida (definido en src/types/itemizados-import.ts).
  */
 
-import { ai } from '@/ai/genkit';
+import { ai } from '@/server/genkit';
 import { ItemizadoImportOutput, ItemizadoImportOutputSchema } from '@/types/itemizados-import';
 import { z } from 'zod';
 
