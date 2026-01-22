@@ -1,7 +1,7 @@
 "use client";
 
-import AppContent from "../layoutClient";
+import ClientLayoutShell from "../layoutClient";
 
 export default function PCGLayout({ children }: { children: React.ReactNode }) {
-  return <AppContent>{children}</AppContent>;
+  return <ClientLayoutShell>{children}</ClientLayoutShell>;
 }
