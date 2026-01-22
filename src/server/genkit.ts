@@ -1,23 +1,20 @@
 // src/server/genkit.ts
-import { genkit as genkitCore } from "genkit";
+
+import { genkit } from "@genkit-ai/core";
 import { googleAI } from "@genkit-ai/googleai";
 
-// This is a server-only module and must not be imported into any client-side code.
+// Server-only module for Genkit AI.
 
 const apiKey = process.env.GEMINI_API_KEY;
 
 if (!apiKey) {
-    console.warn(
-      `[Genkit] The GEMINI_API_KEY environment variable is not set. AI features may fail. ` +
-      `This is expected during the build process, but should be set in your production environment.`
-    );
+  console.warn("[Genkit] GEMINI_API_KEY is not set. AI features may fail.");
 }
 
-// NOTE: The API key is now explicitly passed from environment variables.
-// This is necessary for server environments like Vercel API routes that
-// do not inherit Firebase Functions secrets.
-export const ai = genkitCore({
+export const ai = genkit({
   plugins: [
-    googleAI({ apiKey })
-  ]
+    googleAI({
+      apiKey,
+    }),
+  ],
 });
