@@ -18,7 +18,6 @@ import { motion } from 'framer-motion';
 import { useAuth } from '@/context/AuthContext';
 import { AnalisisPlanoOutput, AnalisisPlanoInput, OpcionesAnalisis } from '@/types/analisis-planos';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import PdfToImageUploader from '@/components/cubicacion/PdfToImageUploader';
 import { generarAnalisisPlanoPdf } from '@/lib/pdf/generarAnalisisPlanoPdf';
 import { sha256DataUrl } from '@/lib/hash/sha256DataUrl';
 import { PlanType } from '@/lib/image/planPresets';
@@ -169,14 +168,10 @@ export default function AnalisisPlanosPage() {
             <Card>
                 <CardHeader><CardTitle>1. Sube tu plano</CardTitle></CardHeader>
                 <CardContent>
-                    <Tabs defaultValue="pdf">
-                        <TabsList className="grid w-full grid-cols-2">
-                            <TabsTrigger value="pdf"><FileIcon className="mr-2"/>Desde PDF</TabsTrigger>
-                            <TabsTrigger value="imagen"><ImageIcon className="mr-2"/>Desde Imagen</TabsTrigger>
+                    <Tabs defaultValue="imagen">
+                        <TabsList className="grid w-full grid-cols-1">
+                            <TabsTrigger value="imagen"><ImageIcon className="mr-2"/>Desde Imagen (JPG, PNG)</TabsTrigger>
                         </TabsList>
-                         <TabsContent value="pdf" className="pt-4">
-                           <PdfToImageUploader onImageReady={handleSubmit} disabled={cargando}/>
-                        </TabsContent>
                         <TabsContent value="imagen" className="pt-4">
                             <form onSubmit={handleDirectImageSubmit} className="space-y-4">
                                 <Label htmlFor="plano-file">Archivo del plano (JPG, PNG, máx. 10MB)</Label>

@@ -2,8 +2,7 @@
 // Es una Server Component que carga los datos iniciales.
 export const dynamic = "force-dynamic"; // Evita que Next.js intente prerenderizarlo
 
-import admin from '@/server/firebaseAdmin';
-import { Timestamp } from 'firebase-admin/firestore';
+import admin, { Timestamp } from '@/server/firebaseAdmin';
 import FichaContent from './FichaContent';
 import { EmpresaContratista, Obra } from '@/types/pcg';
 import { notFound } from 'next/navigation';
@@ -41,7 +40,7 @@ async function getEmpresaData(empresaId: string): Promise<{ empresa: Serializabl
 
         // Cargar datos de la obra asociada
         const obraRef = db.collection('obras').doc(empresaData.obraId);
-        const obraSnap = await getDoc(obraRef);
+        const obraSnap = await db.collection('obras').doc(empresaData.obraId).get();
 
         if (!obraSnap.exists()) {
             throw new Error(`La obra con ID ${empresaData.obraId} no fue encontrada.`);

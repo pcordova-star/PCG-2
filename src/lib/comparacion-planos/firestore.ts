@@ -1,7 +1,6 @@
 // src/lib/comparacion-planos/firestore.ts
 import admin from "@/server/firebaseAdmin";
 import { ComparacionJob, ComparacionJobStatus } from "@/types/comparacion-planos";
-import { FieldValue } from "firebase-admin/firestore";
 
 export async function getComparacionJob(jobId: string): Promise<ComparacionJob | null> {
   const db = admin.firestore();
@@ -18,7 +17,7 @@ export async function updateComparacionJob(jobId: string, data: object) {
   const docRef = db.collection("comparacionPlanosJobs").doc(jobId);
   await docRef.update({
     ...data,
-    updatedAt: FieldValue.serverTimestamp(),
+    updatedAt: admin.firestore.FieldValue.serverTimestamp(),
   });
 }
 

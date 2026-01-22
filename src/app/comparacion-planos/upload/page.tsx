@@ -9,7 +9,6 @@ import Link from "next/link";
 import { ArrowLeft, ShieldAlert } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import { useToast } from "@/hooks/use-toast";
-import { processFileBeforeUpload } from "@/lib/comparacion-planos/convertToJpeg";
 
 export default function UploadPage() {
     const router = useRouter();
@@ -32,18 +31,13 @@ export default function UploadPage() {
         }
 
         setIsSubmitting(true);
-        toast({ title: "Preparando archivos...", description: "Convirtiendo PDFs si es necesario. Esto puede tardar un momento." });
+        toast({ title: "Subiendo archivos...", description: "Por favor espere." });
 
         try {
-            const [processedPlanoA, processedPlanoB] = await Promise.all([
-                processFileBeforeUpload(files.planoA),
-                processFileBeforeUpload(files.planoB)
-            ]);
-
             const token = await user.getIdToken();
             const formData = new FormData();
-            formData.append('planoA', processedPlanoA);
-            formData.append('planoB', processedPlanoB);
+            formData.append('planoA', files.planoA);
+            formData.append('planoB', files.planoB);
 
             const response = await fetch('/api/comparacion-planos/upload', {
                 method: 'POST',
@@ -117,7 +111,7 @@ export default function UploadPage() {
                 <CardHeader>
                     <CardTitle>Cargar Planos</CardTitle>
                     <CardDescription>
-                       Selecciona la versión original (Plano A) y la versión modificada (Plano B). Los archivos pueden ser PDF, JPG o PNG.
+                       Selecciona la versión original (Plano A) y la versión modificada (Plano B). Los archivos pueden ser JPG o PNG.
                     </CardDescription>
                 </CardHeader>
                 <CardContent>

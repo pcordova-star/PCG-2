@@ -4,7 +4,6 @@ import admin from '@/server/firebaseAdmin';
 import * as crypto from 'crypto';
 import { canUserAccessCompany, getCompany } from '@/lib/comparacion-planos/permissions';
 import { copyPlanoFiles } from '@/lib/comparacion-planos/storage';
-import { FieldValue } from 'firebase-admin/firestore';
 import { AppUser } from '@/types/pcg';
 import { getComparacionJob } from '@/lib/comparacion-planos/firestore';
 
@@ -67,8 +66,8 @@ export async function POST(req: Request) {
       status: 'uploaded',
       planoA_storagePath: newPathA,
       planoB_storagePath: newPathB,
-      createdAt: FieldValue.serverTimestamp(),
-      updatedAt: FieldValue.serverTimestamp(),
+      createdAt: admin.firestore.FieldValue.serverTimestamp(),
+      updatedAt: admin.firestore.FieldValue.serverTimestamp(),
     });
 
     return NextResponse.json({ newJobId });
