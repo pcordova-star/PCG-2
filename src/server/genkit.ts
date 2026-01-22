@@ -1,5 +1,5 @@
 // src/server/genkit.ts
-import { genkit } from 'genkit';
+import { genkit as genkitCore } from 'genkit';
 import { googleAI } from '@genkit-ai/googleai';
 
 // This is a server-only module and must not be imported into any client-side code.
@@ -16,7 +16,7 @@ if (!apiKey) {
 // NOTE: The API key is now explicitly passed from environment variables.
 // This is necessary for server environments like Vercel API routes that
 // do not inherit Firebase Functions secrets.
-export const ai = genkit({
+export const ai = genkitCore({
   plugins: [
     googleAI({ apiKey })
   ]
