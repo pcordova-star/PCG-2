@@ -1,6 +1,6 @@
 // src/server/genkit.ts
 import { genkit } from 'genkit';
-import { googleAI } from '@genkit-ai/google-genai';
+import { googleAI } from '@genkit-ai/googleai';
 
 // This is a server-only module and must not be imported into any client-side code.
 
