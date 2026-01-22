@@ -3,7 +3,7 @@
 
 import { useEffect, useState, FormEvent } from "react";
 import { useRouter } from "next/navigation";
-import { useAuth } from "../../../context/AuthContext";
+import { useAuth } from "@/context/AuthContext";
 import { collection, addDoc, getDocs, doc, updateDoc, deleteDoc, query, orderBy, serverTimestamp, Timestamp, writeBatch, where } from "firebase/firestore";
 import { firebaseDb } from "@/lib/firebaseClient";
 import { Button } from "@/components/ui/button";
@@ -183,7 +183,7 @@ export default function ObrasPage() {
       if (currentObra.id) {
         // Actualizar obra existente
         const docRef = doc(firebaseDb, "obras", currentObra.id);
-        await updateDoc(docRef, obraData);
+        await updateDoc(docRef, { ...obraData, updatedAt: serverTimestamp() });
         setObras(obras.map(o => o.id === currentObra!.id ? { ...o, ...currentObra, ...obraData } as Obra : o));
         toast({ title: "Obra actualizada", description: `La obra "${obraData.nombreFaena}" ha sido actualizada.` });
       } else {

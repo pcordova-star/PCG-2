@@ -6,9 +6,8 @@ import { useRouter } from "next/navigation";
 import { useAuth } from "@/context/AuthContext";
 import { collection, getDocs, query, orderBy } from "firebase/firestore";
 import { firebaseDb } from "@/lib/firebaseClient";
-import RegistroFotograficoForm from "@/app/operaciones/programacion/components/RegistroFotograficoForm";
-import { ActividadProgramada } from "@/app/operaciones/programacion/page";
-import { Obra } from "../programacion/page";
+import RegistroFotograficoForm from "../programacion/components/RegistroFotograficoForm";
+import { ActividadProgramada, Obra } from "../programacion/page";
 import { Button } from "@/components/ui/button";
 import { ArrowLeft } from "lucide-react";
 
