@@ -1,6 +1,6 @@
 // src/app/api/test-google-ai/route.ts
 import { NextResponse } from "next/server";
-import { ai } from "@/server/genkit"; // CORRECTED IMPORT
+import { ai } from "@/server/genkit";
 
 export const runtime = "nodejs";
 export const maxDuration = 30;
