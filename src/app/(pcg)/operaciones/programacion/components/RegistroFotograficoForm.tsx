@@ -72,7 +72,7 @@ export default function RegistroFotograficoForm({ obras, actividades, onRegistro
             const avancesRef = collection(firebaseDb, "obras", selectedObraId, "avancesDiarios");
             await addDoc(avancesRef, {
                 obraId: selectedObraId,
-                actividadId: actividadId || null,
+                actividadId: actividadId === 'none' ? null : actividadId,
                 comentario,
                 fotos: [fotoUrl], // Almacenar en un array para consistencia
                 storagePaths: [storagePath], // Guardar el path para poder borrarlo después si es necesario
@@ -118,7 +118,7 @@ export default function RegistroFotograficoForm({ obras, actividades, onRegistro
                         <Select value={actividadId} onValueChange={setActividadId} disabled={!selectedObraId}>
                             <SelectTrigger id="actividad-foto"><SelectValue placeholder="Seleccione actividad..." /></SelectTrigger>
                             <SelectContent>
-                                 <SelectItem value="">Sin actividad específica</SelectItem>
+                                 <SelectItem value="none">Sin actividad específica</SelectItem>
                                 {actividadesFiltradas.map(act => <SelectItem key={act.id} value={act.id}>{act.nombreActividad}</SelectItem>)}
                             </SelectContent>
                         </Select>
