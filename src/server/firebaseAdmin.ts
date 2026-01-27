@@ -24,6 +24,9 @@ try {
     throw new Error('FIREBASE_ADMIN_SERVICE_ACCOUNT no es un JSON válido.');
 }
 
+// Se exporta la instancia de Firestore para usar en las API Routes
+export const adminDb = admin.firestore();
+
 // Se exporta la instancia principal de 'admin' para que otros archivos inicialicen los servicios dentro de las funciones.
 export default admin;
 
