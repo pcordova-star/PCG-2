@@ -52,6 +52,9 @@ async function getEmpresaData(empresaId: string): Promise<{ empresa: Serializabl
              creadoEn: obraRawData.creadoEn instanceof Timestamp
                 ? obraRawData.creadoEn.toDate()
                 : new Date(),
+             ultimaActualizacion: obraRawData.ultimaActualizacion instanceof Timestamp 
+                ? obraRawData.ultimaActualizacion.toDate() 
+                : undefined
         } as Obra;
 
 

@@ -5,12 +5,12 @@ import { getFunctions, httpsCallable } from "firebase/functions";
 
 // Definimos la estructura esperada de las variables de entorno
 const firebaseConfig: FirebaseOptions = {
-  apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
-  authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN,
-  projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID,
-  storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET,
-  messagingSenderId: process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID,
-  appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID,
+  apiKey: "YOUR_API_KEY_HERE",
+  authDomain: "YOUR_AUTH_DOMAIN_HERE",
+  projectId: "YOUR_PROJECT_ID_HERE",
+  storageBucket: "pcg-2-8bf1b.firebasestorage.app",
+  messagingSenderId: "YOUR_MESSAGING_SENDER_ID_HERE",
+  appId: "YOUR_APP_ID_HERE",
 };
 
 // Inicializar cliente Firebase (de forma segura, para evitar reinicializaciones)

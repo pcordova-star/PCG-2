@@ -102,7 +102,8 @@ export interface Obra {
   dotacionProyectada?: number;
   adminContratoNombre?: string;
   avanceAcumulado?: number;
-  ultimaActualizacion?: Timestamp;
+  ultimaActualizacion?: Timestamp | Date;
+  creadoEn: Timestamp | Date;
 }
 
 export interface ActividadProgramada {
