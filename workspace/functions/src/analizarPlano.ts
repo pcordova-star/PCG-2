@@ -26,7 +26,7 @@ export const analizarPlano = functions
 
     // 4. CONFIGURACIÓN: Directo a la API REST de Google (Sin SDKs que fallen)
     // Usamos la versión v1beta y el modelo flash
-    const ENDPOINT = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${API_KEY}`;
+    const ENDPOINT = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${API_KEY}`;
 
     const payload = {
       contents: [{

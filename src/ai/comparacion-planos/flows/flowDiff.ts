@@ -32,7 +32,7 @@ type DiffInput = z.infer<typeof DiffInputSchema>;
 const diffPrompt = ai.definePrompt(
   {
     name: 'diffTecnicoPrompt',
-    model: 'googleai/gemini-1.5-flash',
+    model: 'googleai/gemini-2.0-flash',
     input: { schema: DiffInputSchema },
     output: { schema: DiffTecnicoOutputSchema },
     prompt: diffPromptText,

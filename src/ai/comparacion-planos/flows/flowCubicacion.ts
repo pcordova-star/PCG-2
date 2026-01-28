@@ -35,7 +35,7 @@ Instrucciones:
 const cubicacionPrompt = ai.definePrompt(
   {
     name: 'cubicacionDiferencialPrompt',
-    model: 'googleai/gemini-1.5-flash',
+    model: 'googleai/gemini-2.0-flash',
     input: { schema: CubicacionInputSchema },
     output: { schema: CubicacionDiferencialOutputSchema },
     prompt: cubicacionPromptText,
