@@ -4,7 +4,7 @@ import { getFunctions, httpsCallable } from "firebase/functions";
 
 // CONFIGURACIÓN CORREGIDA (Datos reales de tu proyecto)
 const firebaseConfig: FirebaseOptions = {
-  apiKey: "AIzaSyA5FpS_1gI3B-Z1jY9w4q0xX_Vw-1A", // CORREGIDO: Esta es la clave de Firebase, no de Gemini.
+  apiKey: "AIzaSyBfMp_dH9XhFSXEeMxY-Cdy8MDRIgWrxR0",
   authDomain: "pcg-2-8bf1b.firebaseapp.com",
   projectId: "pcg-2-8bf1b",
   storageBucket: "pcg-2-8bf1b.firebasestorage.app",
@@ -12,7 +12,7 @@ const firebaseConfig: FirebaseOptions = {
   appId: "1:1073834543546:web:2f85a4a8358280f8589737",
 };
 
-// Inicializar cliente Firebase (Singleton para evitar errores de duplicidad)
+// Initialize Firebase client (Singleton para evitar errores de duplicidad)
 const app = getApps().length > 0 ? getApp() : initializeApp(firebaseConfig);
 const functions = getFunctions(app, "us-central1");
 
