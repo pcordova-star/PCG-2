@@ -1,4 +1,3 @@
-{// src/components/cubicacion/PdfToImageUploader.tsx
 "use client";
 
 import React, { useState, FormEvent, useCallback } from "react";

@@ -1,4 +1,3 @@
-{// src/lib/pdf/pdfToImage.ts
 import * as pdfjsLib from "pdfjs-dist/build/pdf.mjs";
 import "pdfjs-dist/build/pdf.worker.mjs";
 
