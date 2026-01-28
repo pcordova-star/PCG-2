@@ -15,7 +15,7 @@ export async function POST(req: Request) {
     let jobId: string | null = null;
     try {
         const db = admin.firestore();
-        const bucket = admin.storage().bucket();
+        const bucket = admin.storage().bucket("pcg-2-8bf1b.firebasestorage.app");
         const authorization = req.headers.get("Authorization");
         if (!authorization?.startsWith("Bearer ")) {
             return NextResponse.json({ error: 'No autorizado: Token no proporcionado.' }, { status: 401 });
