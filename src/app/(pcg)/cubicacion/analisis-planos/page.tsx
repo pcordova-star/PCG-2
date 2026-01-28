@@ -26,6 +26,7 @@ import CubicacionMetricsPanel from '@/components/cubicacion/CubicacionMetricsPan
 import { computeCubicacionMetrics } from '@/lib/image/cubicacionMetrics';
 import { httpsCallable } from 'firebase/functions';
 import { firebaseFunctions } from '@/lib/firebaseClient';
+import PdfToImageUploader from '@/components/cubicacion/PdfToImageUploader';
 
 
 const progressSteps = [
@@ -169,8 +170,9 @@ export default function AnalisisPlanosPage() {
                 <CardHeader><CardTitle>1. Sube tu plano</CardTitle></CardHeader>
                 <CardContent>
                     <Tabs defaultValue="imagen">
-                        <TabsList className="grid w-full grid-cols-1">
+                        <TabsList className="grid w-full grid-cols-2">
                             <TabsTrigger value="imagen"><ImageIcon className="mr-2"/>Desde Imagen (JPG, PNG)</TabsTrigger>
+                            <TabsTrigger value="pdf"><FileIcon className="mr-2"/>Desde PDF</TabsTrigger>
                         </TabsList>
                         <TabsContent value="imagen" className="pt-4">
                             <form onSubmit={handleDirectImageSubmit} className="space-y-4">
@@ -181,6 +183,9 @@ export default function AnalisisPlanosPage() {
                                     Analizar desde Imagen
                                 </Button>
                             </form>
+                        </TabsContent>
+                        <TabsContent value="pdf" className="pt-4">
+                           <PdfToImageUploader onSubmit={handleSubmit} cargando={cargando} />
                         </TabsContent>
                     </Tabs>
                 </CardContent>
