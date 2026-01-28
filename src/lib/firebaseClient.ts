@@ -6,7 +6,7 @@ import { getStorage } from "firebase/storage";
 import { getFunctions } from "firebase/functions";
 
 const firebaseConfig = {
-   apiKey: "AIzaSyDsRbRMKMJ7UQ6CKRdJY6LjeiVyoG1vlkU", 
+   apiKey: "AIzaSyA5FpS_1gI3B-Z1jY9w4q0xX_Vw-1A", 
   
   // El resto ya lo he rellenado con tus datos correctos:
   authDomain: "pcg-2-8bf1b.firebaseapp.com",

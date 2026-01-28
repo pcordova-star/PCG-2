@@ -4,7 +4,7 @@ import { getFunctions, httpsCallable } from "firebase/functions";
 
 // CONFIGURACIÓN CORREGIDA (Datos reales de tu proyecto)
 const firebaseConfig: FirebaseOptions = {
-  apiKey: "AIzaSyDsRbRMKMJ7UQ6CKRdJY6LjeiVyoG1vlkU", // CORREGIDO: Esta es la clave de Firebase, no de Gemini.
+  apiKey: "AIzaSyA5FpS_1gI3B-Z1jY9w4q0xX_Vw-1A", // CORREGIDO: Esta es la clave de Firebase, no de Gemini.
   authDomain: "pcg-2-8bf1b.firebaseapp.com",
   projectId: "pcg-2-8bf1b",
   storageBucket: "pcg-2-8bf1b.firebasestorage.app",
