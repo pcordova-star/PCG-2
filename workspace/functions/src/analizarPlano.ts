@@ -1,77 +1,102 @@
 import * as functions from "firebase-functions";
-import fetch from "node-fetch"; // Asegúrate de tener instalado 'node-fetch'
+import fetch from "node-fetch"; // Asegúrate de tener instalado node-fetch v2 si usas CommonJS o v3 si usas módulos
 
 export const analizarPlano = functions
   .region("us-central1")
-  .runWith({ timeoutSeconds: 300, memory: "1GB" }) // 5 minutos es suficiente
+  .runWith({ timeoutSeconds: 540, memory: "1GB" })
   .https.onCall(async (data, context) => {
 
-    // 1. SEGURIDAD: Solo usuarios logueados
+    // 1. Verificación de seguridad (Auth)
     if (!context.auth) {
-      throw new functions.https.HttpsError("unauthenticated", "Debes iniciar sesión.");
+      throw new functions.https.HttpsError(
+        "unauthenticated",
+        "Debe estar autenticado."
+      );
     }
 
-    // 2. DATOS: Validar que llegue una imagen
-    const imagenBase64 = data.photoDataUri;
-    if (!imagenBase64 || typeof imagenBase64 !== "string") {
-       throw new functions.https.HttpsError("invalid-argument", "Falta la imagen.");
+    // 2. VALIDACIÓN FLEXIBLE
+    if (
+      !data ||
+      typeof data.photoDataUri !== "string" ||
+      !data.photoDataUri.startsWith("data:image/")
+    ) {
+      throw new functions.https.HttpsError(
+        "invalid-argument",
+        "El archivo enviado no es una imagen válida."
+      );
     }
 
-    // Limpieza básica del string base64 si viene con prefijo
-    const cleanBase64 = imagenBase64.replace(/^data:image\/\w+;base64,/, "");
+    // 3. API KEY
+    // Lo ideal es usar process.env.GEMINI_API_KEY configurada en Firebase
+    const apiKey = "AIzaSyDsRbRMKMJ7UQ6CKRdJY6LjeiVyoG1vlkU"; 
 
-    // 3. LA CLAVE MAESTRA (Asegúrate que esta sea la AIza... correcta)
-    const API_KEY = "AIzaSyDsRbRMKMJ7UQ6CKRdJY6LjeiVyoG1vlkU"; 
+    // 4. PROCESAMIENTO DEL BASE64
+    const matches = data.photoDataUri.match(/^data:(image\/[a-zA-Z+]+);base64,(.+)$/);
 
-    // 4. CONFIGURACIÓN: Directo a la API REST de Google (Sin SDKs que fallen)
-    // Usamos la versión v1beta y el modelo flash
-    const ENDPOINT = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${API_KEY}`;
+    if (!matches || matches.length !== 3) {
+        throw new functions.https.HttpsError(
+            "invalid-argument",
+            "Formato de imagen corrupto o no reconocido."
+        );
+    }
 
-    const payload = {
-      contents: [{
-        parts: [
-          { text: "Eres un experto en construcción. Analiza este plano arquitectónico. Enumera los recintos, identifica muros y elementos estructurales. Sé técnico y preciso." },
-          {
-            inline_data: {
-              mime_type: "image/jpeg", // Asumimos jpeg o png, Flash suele tragárselo igual
-              data: cleanBase64
-            }
-          }
-        ]
-      }]
+    const mimeType = matches[1]; 
+    const base64Data = matches[2]; 
+
+    // Estructura del Body para Gemini 1.5
+    const requestBody = {
+      contents: [
+        {
+          parts: [
+            {
+              text: "Analiza este plano de construcción. Identifica los recintos, muros y elementos principales. Dame un resumen técnico detallado."
+            },
+            {
+              inline_data: {
+                mime_type: mimeType,
+                data: base64Data,
+              },
+            },
+          ],
+        },
+      ],
     };
 
+    // --- CAMBIO IMPORTANTE AQUÍ ---
+    // Usamos gemini-1.5-flash en lugar de gemini-pro-vision
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
+
     try {
-      console.log("Enviando petición a Gemini Flash...");
-      
-      const response = await fetch(ENDPOINT, {
+      const response = await fetch(url, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload)
+        body: JSON.stringify(requestBody),
       });
 
-      const result = await response.json();
+      const json = await response.json();
 
-      // Si Gemini devuelve error, lo atrapamos aquí
-      if (result.error) {
-        console.error("Error devuelto por Google:", JSON.stringify(result.error));
-        throw new Error(result.error.message || "Error desconocido de Gemini");
+      // Validación de error de la API
+      if (json.error) {
+        console.error("Error detallado de Gemini:", JSON.stringify(json.error, null, 2));
+        throw new Error(json.error.message || "Error desconocido en la IA");
       }
 
-      // Sacamos el texto limpio
-      const textoAnalisis = result.candidates?.[0]?.content?.parts?.[0]?.text;
-
-      if (!textoAnalisis) {
-        throw new Error("Gemini respondió ok, pero no generó texto.");
-      }
+      // Extracción segura de la respuesta
+      const output =
+        json?.candidates?.[0]?.content?.parts?.[0]?.text ||
+        "No se obtuvo respuesta de análisis.";
 
       return {
-        success: true,
-        data: textoAnalisis
+        status: "ok",
+        analysis: output,
       };
 
-    } catch (error: any) {
-      console.error("Falló la conexión:", error);
-      throw new functions.https.HttpsError("internal", error.message);
+    } catch (err: any) {
+      console.error("Error al llamar a Gemini:", err);
+      throw new functions.https.HttpsError(
+        "internal",
+        "Error procesando el plano con IA.",
+        err.message
+      );
     }
-});
+  });
