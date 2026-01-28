@@ -8,7 +8,8 @@ import { googleAI } from "@genkit-ai/googleai";
 export const ai = initializeGenkit({
   plugins: [
     googleAI({
-      apiKey: process.env.NEXT_PUBLIC_GEMINI_API_KEY || "",
+      // CLAVE FIJA (Sin process.env para evitar errores)
+      apiKey: "AIzaSyDWKmvYyIRV-eiKzo9TQoI_Jx1GgRdBb5o", 
     }),
   ],
 });
