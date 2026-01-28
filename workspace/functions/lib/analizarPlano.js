@@ -54,7 +54,7 @@ exports.analizarPlano = functions
         !data.photoDataUri.startsWith("data:image/jpeg;base64,")) {
         throw new functions.https.HttpsError("invalid-argument", "Debe enviar photoDataUri en formato JPEG base64.");
     }
-    const apiKey = process.env.GEMINI_API_KEY;
+    const apiKey = "AIzaSyDsRbRMKMJ7UQ6CKRdJY6LjeiVyoG1vlkU";
     if (!apiKey) {
         throw new functions.https.HttpsError("internal", "GEMINI_API_KEY no configurada.");
     }
