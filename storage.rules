@@ -3,6 +3,12 @@ rules_version = '2';
 service firebase.storage {
   match /b/{bucket}/o {
     
+    // Allow unauthenticated CORS preflight OPTIONS requests.
+    // This rule is crucial for allowing browser uploads to authenticated storage.
+    match /{allPaths=**} {
+      allow options: if true;
+    }
+    
     function isSignedIn() {
       return request.auth != null;
     }
@@ -44,6 +50,12 @@ service firebase.storage {
         && role() == 'contratista'
         && company == companyId()
         && sub == subcontractorId();
+    }
+    
+    // Regla abierta para desarrollo - permitir escrituras autenticadas.
+    // Esta regla debe ser más restrictiva en producción.
+    match /{allPaths=**} {
+        allow read, write: if isSignedIn();
     }
   }
 }
