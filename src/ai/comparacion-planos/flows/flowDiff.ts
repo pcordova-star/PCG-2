@@ -1,7 +1,7 @@
 // src/ai/comparacion-planos/flows/flowDiff.ts
 "use server";
 
-import { ai } from '@/server/genkit';
+import { ai } from '@/genkit';
 import { z } from 'zod';
 import { DiffTecnicoOutputSchema } from '@/types/comparacion-planos';
 

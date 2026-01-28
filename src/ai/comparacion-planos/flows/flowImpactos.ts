@@ -1,7 +1,7 @@
 // src/ai/comparacion-planos/flows/flowImpactos.ts
 "use server";
 
-import { ai } from '@/server/genkit';
+import { ai } from '@/genkit';
 import { z } from 'zod';
 import { ArbolImpactosOutputSchema, DiffTecnicoOutputSchema, CubicacionDiferencialOutputSchema } from '@/types/comparacion-planos';
 

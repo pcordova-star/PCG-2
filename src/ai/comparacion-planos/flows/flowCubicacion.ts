@@ -1,7 +1,7 @@
 // src/ai/comparacion-planos/flows/flowCubicacion.ts
 "use server";
 
-import { ai } from '@/server/genkit';
+import { ai } from '@/genkit';
 import { z } from 'zod';
 import { CubicacionDiferencialOutputSchema } from '@/types/comparacion-planos';
 

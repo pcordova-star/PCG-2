@@ -5,7 +5,7 @@
  * - compararPlanosFlow: Función principal que recibe dos imágenes de planos y devuelve un análisis comparativo estructurado.
  */
 
-import { ai } from '@/server/genkit';
+import { ai } from '@/genkit';
 import { ComparacionPlanosInputSchema, ComparacionPlanosOutputSchema } from '@/types/comparacion-planos';
 import type { ComparacionPlanosInput, ComparacionPlanosOutput } from '@/types/comparacion-planos';
 

@@ -8,7 +8,7 @@
  * - ItemizadoImportOutput: Tipo de salida (definido en src/types/itemizados-import.ts).
  */
 
-import { ai } from '@/server/genkit';
+import { ai } from '@/genkit';
 import { ItemizadoImportOutput, ItemizadoImportOutputSchema } from '@/types/itemizados-import';
 import { z } from 'zod';
 
@@ -61,7 +61,7 @@ const importarItemizadoFlow = ai.defineFlow(
   {
     name: 'importarItemizadoFlow',
     inputSchema: ImportarItemizadoInputSchema,
-    outputSchema: ItemizadoImportOutputSchema,
+    outputSchema: ItemizadoImportOutput,
   },
   async (input) => {
     console.log("Iniciando análisis de itemizado PDF para la obra:", input.obraNombre);

@@ -1,15 +1,1 @@
-/**
- * src/server/genkit.ts
- */
-
-import { initializeGenkit } from "@genkit-ai/core";
-import { googleAI } from "@genkit-ai/googleai";
-
-export const ai = initializeGenkit({
-  plugins: [
-    googleAI({
-      // CLAVE FIJA (Sin process.env para evitar errores)
-      apiKey: "AIzaSyDsRbRMKMJ7UQ6CKRdJY6LjeiVyoG1vlkU", 
-    }),
-  ],
-});
+// This file is intentionally left blank. The Genkit configuration has been moved to /src/genkit.ts
