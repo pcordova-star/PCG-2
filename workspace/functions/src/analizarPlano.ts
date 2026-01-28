@@ -1,3 +1,4 @@
+
 // workspace/functions/src/analizarPlano.ts
 import * as functions from "firebase-functions";
 import fetch from "node-fetch"; // Asegúrate de tener instalado node-fetch v2 si usas CommonJS o v3 si usas módulos
@@ -44,7 +45,7 @@ export const analizarPlano = functions
     const mimeType = matches[1]; 
     const base64Data = matches[2]; 
 
-    // Estructura del Body para Gemini
+    // Estructura del Body para Gemini 1.5
     const requestBody = {
       contents: [
         {
@@ -64,8 +65,8 @@ export const analizarPlano = functions
     };
 
     // --- CAMBIO IMPORTANTE AQUÍ ---
-    // Usamos gemini-pro-vision que es el modelo correcto para el endpoint v1beta multimodal
-    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-pro-vision:generateContent?key=${apiKey}`;
+    // Usamos gemini-1.5-flash en lugar de gemini-pro-vision
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
 
     try {
       const response = await fetch(url, {
