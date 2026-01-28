@@ -27,11 +27,12 @@ const ImportarItemizadoInputSchema = z.object({
 // Definición del tipo de entrada inferido desde el esquema Zod.
 export type ImportarItemizadoInput = z.infer<typeof ImportarItemizadoInputSchema>;
 
-// Definición del prompt de Genkit.
+// Definición del prompt de Genkit actualizado
 const importarItemizadoPrompt = ai.definePrompt(
   {
     name: 'importarItemizadoPrompt',
-    model: 'googleai/gemini-1.5-flash',
+    // AQUÍ ESTÁ EL CAMBIO CRÍTICO: Usamos el modelo 2.0 que sí tienes habilitado
+    model: 'googleai/gemini-2.0-flash', 
     input: { schema: ImportarItemizadoInputSchema },
     output: { schema: ItemizadoImportOutputSchema },
     prompt: `Eres un asistente experto en análisis de presupuestos de construcción. Tu tarea es interpretar un presupuesto (en formato PDF) y extraer los capítulos y todas las partidas/subpartidas en una estructura plana.
@@ -46,7 +47,7 @@ Debes seguir estas reglas estrictamente:
 6.  Asigna el 'chapterIndex' correcto a cada fila, correspondiendo a su capítulo en el array 'chapters'.
 7.  Extrae códigos, descripciones, unidades, cantidades, precios unitarios y totales para cada partida.
 8.  NO inventes cantidades, precios ni unidades si no están explícitamente en el documento. Si un valor no existe para un ítem, déjalo como 'null'.
-9.  Tu respuesta DEBE SER EXCLUSIVAMENTE un objeto JSON válido, sin texto adicional, explicaciones ni formato markdown (sin bloques de código).
+9.  Tu respuesta DEBE SER EXCLUSIVAMENTE un objeto JSON válido.
 
 Aquí está la información proporcionada por el usuario:
 - Itemizado PDF: {{media url=pdfDataUri}}
