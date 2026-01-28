@@ -5,10 +5,8 @@ import { getFirestore } from "firebase/firestore";
 import { getStorage } from "firebase/storage";
 import { getFunctions } from "firebase/functions";
 
-// Your web app's Firebase configuration
-// This is NOT sensitive data and can be exposed on the client.
 const firebaseConfig = {
-   apiKey: "AIzaSyBfMp_dH9XhFSXEeMxY-Cdy8MDRIgWrxR0",
+   apiKey: "AIzaSyBfMp_dH9XhFSXEeMxY-Cdy8MDRIgWrxR0", 
   
   // El resto ya lo he rellenado con tus datos correctos:
   authDomain: "pcg-2-8bf1b.firebaseapp.com",
@@ -23,7 +21,7 @@ const app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
 
 const firebaseAuth = getAuth(app);
 const firebaseDb = getFirestore(app);
-const firebaseStorage = getStorage(app);
+const firebaseStorage = getStorage(app, "gs://pcg-2-8bf1b.firebasestorage.app");
 const firebaseFunctions = getFunctions(app, "us-central1"); // O la región que corresponda
 
 export { app as firebaseApp, firebaseAuth, firebaseDb, firebaseStorage, firebaseFunctions };

@@ -29,15 +29,11 @@ export const processItemizadoJob = functions
       startedAt: admin.firestore.FieldValue.serverTimestamp(),
     });
 
-    const apiKey = process.env.GEMINI_API_KEY;
-    if (!apiKey) {
-      logger.error(`[${jobId}] Missing GEMINI_API_KEY`);
-      await jobRef.update({
-        status: "error",
-        errorMessage: "GEMINI_API_KEY no configurada.",
-      });
-      return;
-    }
+    // --- CORRECCIÓN AQUÍ: Clave puesta directamente ("Hardcoded") ---
+    const apiKey = "AIzaSyDsRbRMKMJ7UQ6CKRdJY6LjeiVyoG1vlkU";
+    
+    // Ya no necesitamos validar si existe porque la acabamos de escribir
+    // if (!apiKey) { ... }
 
     try {
       const { pdfDataUri, notas, sourceFileName } = jobData;
