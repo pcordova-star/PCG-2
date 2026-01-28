@@ -7,13 +7,15 @@ import { getFunctions } from "firebase/functions";
 
 // Your web app's Firebase configuration
 // This is NOT sensitive data and can be exposed on the client.
-const firebaseConfig: FirebaseOptions = {
-  apiKey: "YOUR_API_KEY_HERE",
-  authDomain: "YOUR_AUTH_DOMAIN_HERE",
-  projectId: "YOUR_PROJECT_ID_HERE",
+const firebaseConfig = {
+   apiKey: "AIzaSyBfMp_dH9XhFSXEeMxY-Cdy8MDRIgWrxR0",
+  
+  // El resto ya lo he rellenado con tus datos correctos:
+  authDomain: "pcg-2-8bf1b.firebaseapp.com",
+  projectId: "pcg-2-8bf1b",
   storageBucket: "pcg-2-8bf1b.firebasestorage.app",
-  messagingSenderId: "YOUR_MESSAGING_SENDER_ID_HERE",
-  appId: "YOUR_APP_ID_HERE",
+  messagingSenderId: "1073834543546",
+  appId: "1:1073834543546:web:2f85a4a8358280f8589737"
 };
 
 // Initialize Firebase for SSR
