@@ -31,7 +31,7 @@ export type ImportarItemizadoInput = z.infer<typeof ImportarItemizadoInputSchema
 const importarItemizadoPrompt = ai.definePrompt(
   {
     name: 'importarItemizadoPrompt',
-    model: 'googleai/gemini-2.5-flash',
+    model: 'googleai/gemini-1.5-flash',
     input: { schema: ImportarItemizadoInputSchema },
     output: { schema: ItemizadoImportOutputSchema },
     prompt: `Eres un asistente experto en análisis de presupuestos de construcción. Tu tarea es interpretar un presupuesto (en formato PDF) y extraer los capítulos y todas las partidas/subpartidas en una estructura plana.
