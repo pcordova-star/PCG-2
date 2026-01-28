@@ -1,6 +1,5 @@
-// Esta página muestra la ficha detallada de una empresa contratista.
-// Es una Server Component que carga los datos iniciales.
-export const dynamic = "force-dynamic"; // Evita que Next.js intente prerenderizarlo
+// This file is a Server Component that fetches data and passes it to a client component.
+export const dynamic = "force-dynamic";
 
 import admin, { Timestamp } from '@/server/firebaseAdmin';
 import FichaContent from './FichaContent';
@@ -51,8 +50,8 @@ async function getEmpresaData(empresaId: string): Promise<{ empresa: Serializabl
             id: obraSnap.id,
             ...obraRawData,
              creadoEn: obraRawData.creadoEn instanceof Timestamp
-                ? obraRawData.creadoEn.toDate().toISOString()
-                : undefined,
+                ? obraRawData.creadoEn.toDate()
+                : new Date(),
         } as Obra;
 
 

@@ -1,10 +1,11 @@
 "use client";
 
-import { useEffect, useState, use } from 'react';
+import { useEffect, useState } from 'react';
 import { doc, getDoc } from 'firebase/firestore';
 import { firebaseDb } from '@/lib/firebaseClient';
 import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { useParams } from 'next/navigation';
 
 // Copiamos el tipo de dato desde la página principal
 type RegistroPlanAccion = {
@@ -24,12 +25,13 @@ type RegistroPlanAccion = {
   createdAt?: any;
 };
 
-export default function ImprimirPlanAccionPage({ params }: { params: Promise<{ id: string }> }) {
+export default function ImprimirPlanAccionPage() {
   const [registro, setRegistro] = useState<RegistroPlanAccion | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  const { id: planId } = use(params);
+  const params = useParams();
+  const planId = params.id as string;
 
   useEffect(() => {
     if (!planId) {

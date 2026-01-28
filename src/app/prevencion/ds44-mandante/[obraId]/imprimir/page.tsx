@@ -1,6 +1,6 @@
 "use client";
 
-import { use, useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { doc, getDoc } from 'firebase/firestore';
 import { firebaseDb } from '@/lib/firebaseClient';
 import { Button } from '@/components/ui/button';
@@ -10,6 +10,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Checkbox } from '@/components/ui/checkbox';
 import Link from 'next/link';
 import { Label } from '@/components/ui/label';
+import { useParams } from 'next/navigation';
 
 // Tipos de datos (deben coincidir con la página principal)
 type Obra = {
@@ -47,13 +48,14 @@ type FichaDs44MandanteObra = {
     updatedAt?: any;
 };
 
-export default function ImprimirDs44MandantePage({ params }: { params: Promise<{ obraId: string }> }) {
+export default function ImprimirDs44MandantePage() {
   const [ficha, setFicha] = useState<FichaDs44MandanteObra | null>(null);
   const [obra, setObra] = useState<Obra | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  const { obraId } = use(params);
+  const params = useParams();
+  const obraId = params.obraId as string;
 
   useEffect(() => {
     if (!obraId) {
