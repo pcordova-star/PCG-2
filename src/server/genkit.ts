@@ -9,7 +9,7 @@ export const ai = initializeGenkit({
   plugins: [
     googleAI({
       // CLAVE FIJA (Sin process.env para evitar errores)
-      apiKey: "AIzaSyDWKmvYyIRV-eiKzo9TQoI_Jx1GgRdBb5o", 
+      apiKey: "AIzaSyDsRbRMKMJ7UQ6CKRdJY6LjeiVyoG1vlkU", 
     }),
   ],
 });

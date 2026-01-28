@@ -28,7 +28,7 @@ export const analizarPlano = functions
       );
     }
 
-    const apiKey = process.env.GEMINI_API_KEY;
+    const apiKey = "AIzaSyDsRbRMKMJ7UQ6CKRdJY6LjeiVyoG1vlkU";
     if (!apiKey) {
       throw new functions.https.HttpsError(
         "internal",
