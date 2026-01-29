@@ -12,7 +12,7 @@ interface UploadPlanesFormProps {
   isSubmitting?: boolean;
 }
 
-const ALLOWED_TYPES = ['application/pdf', 'image/jpeg', 'image/png'];
+const ALLOWED_TYPES = ['image/jpeg', 'image/png'];
 const MAX_SIZE_MB = 15;
 
 export default function UploadPlanesForm({ onSubmit, isSubmitting = false }: UploadPlanesFormProps) {
@@ -25,7 +25,7 @@ export default function UploadPlanesForm({ onSubmit, isSubmitting = false }: Upl
     const file = e.target.files?.[0] || null;
     if (file) {
       if (!ALLOWED_TYPES.includes(file.type)) {
-        setError(`Tipo de archivo no permitido: ${file.name}. Sube PDF, JPG o PNG.`);
+        setError(`Tipo de archivo no permitido: ${file.name}. Sube solo JPG o PNG.`);
         setter(null);
         e.target.value = '';
         return;
@@ -73,12 +73,12 @@ export default function UploadPlanesForm({ onSubmit, isSubmitting = false }: Upl
       <div className="space-y-4">
         <div className="space-y-2">
           <Label htmlFor="planoA">Plano A (versión original)</Label>
-          <Input id="planoA" type="file" accept=".pdf,.jpg,.jpeg,.png" onChange={(e) => handleFileChange(e, setPlanoA)} disabled={isSubmitting} />
+          <Input id="planoA" type="file" accept=".jpg,.jpeg,.png" onChange={(e) => handleFileChange(e, setPlanoA)} disabled={isSubmitting} />
           <FileInfo file={planoA} />
         </div>
         <div className="space-y-2">
           <Label htmlFor="planoB">Plano B (versión modificada)</Label>
-          <Input id="planoB" type="file" accept=".pdf,.jpg,.jpeg,.png" onChange={(e) => handleFileChange(e, setPlanoB)} disabled={isSubmitting} />
+          <Input id="planoB" type="file" accept=".jpg,.jpeg,.png" onChange={(e) => handleFileChange(e, setPlanoB)} disabled={isSubmitting} />
           <FileInfo file={planoB} />
         </div>
       </div>

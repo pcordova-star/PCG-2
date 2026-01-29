@@ -3,7 +3,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
@@ -17,16 +17,9 @@ import { Progress } from '@/components/ui/progress';
 import { motion } from 'framer-motion';
 import { useAuth } from '@/context/AuthContext';
 import { AnalisisPlanoOutput, AnalisisPlanoInput, OpcionesAnalisis } from '@/types/analisis-planos';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { generarAnalisisPlanoPdf } from '@/lib/pdf/generarAnalisisPlanoPdf';
-import { sha256DataUrl } from '@/lib/hash/sha256DataUrl';
-import { PlanType } from '@/lib/image/planPresets';
-import { CubicacionUiMetrics } from '@/types/cubicacion-ui';
-import CubicacionMetricsPanel from '@/components/cubicacion/CubicacionMetricsPanel';
-import { computeCubicacionMetrics } from '@/lib/image/cubicacionMetrics';
 import { httpsCallable } from 'firebase/functions';
 import { firebaseFunctions } from '@/lib/firebaseClient';
-import PdfToImageUploader from '@/components/cubicacion/PdfToImageUploader';
 
 
 const progressSteps = [
@@ -56,8 +49,7 @@ export default function AnalisisPlanosPage() {
   const [cargando, setCargando] = useState(false);
   const [resultado, setResultado] = useState<AnalisisPlanoOutput | null>(null);
   const [errorAnalisis, setErrorAnalisis] = useState<string | null>(null);
-  const [isCached, setIsCached] = useState(false);
-
+  
   const [progress, setProgress] = useState(0);
   const [progressText, setProgressText] = useState("Iniciando...");
 
@@ -96,12 +88,12 @@ export default function AnalisisPlanosPage() {
     }
   };
   
-  const handleSubmit = async (dataUri: string, meta: { width: number; height: number; sizeMb: number; planType: PlanType; }) => {
-    if (!dataUri) {
-        setErrorAnalisis("No se proporcionó una imagen para analizar.");
+  const handleSubmit = async (event: React.FormEvent) => {
+    event.preventDefault();
+    if (!planoFile) {
+        setErrorAnalisis("Debes seleccionar un archivo de imagen.");
         return;
     }
-
     if (!companyId) {
         setErrorAnalisis("No se ha podido identificar tu empresa. Asegúrate de haber iniciado sesión correctamente.");
         return;
@@ -110,48 +102,46 @@ export default function AnalisisPlanosPage() {
     setCargando(true);
     setErrorAnalisis(null);
     setResultado(null);
-    setIsCached(false);
-
-    try {
-        const input: Omit<AnalisisPlanoInput, 'cache' | 'imageMeta'> = {
-            photoDataUri: dataUri,
-            opciones,
-            notas,
-            obraId: companyId,
-            obraNombre: company?.nombreFantasia ?? 'Obra Desconocida',
-            companyId: companyId,
-            planType: meta.planType,
-        };
-
-        const analizarPlanoFn = httpsCallable(firebaseFunctions, 'analizarPlano');
-        const response = await analizarPlanoFn(input);
-        
-        const data = response.data as { result: AnalisisPlanoOutput };
-
-        setResultado(data.result);
-
-    } catch (err: any) {
-        console.error("Error al analizar el plano:", err);
-        setErrorAnalisis(err.message || "Ocurrió un error desconocido.");
-    } finally {
-        setCargando(false);
-    }
-  };
-
-  const handleDirectImageSubmit = async (event: React.FormEvent) => {
-    event.preventDefault();
-    if (!planoFile) {
-        setErrorAnalisis("Debes seleccionar un archivo de imagen.");
-        return;
-    }
+    
     const reader = new FileReader();
-    reader.onload = (e) => {
-        const dataUri = e.target?.result as string;
-        // Simular metadatos para la carga directa de imágenes
-        const sizeMb = (dataUri.length * 3) / 4 / 1024 / 1024;
-        handleSubmit(dataUri, { width: 0, height: 0, sizeMb, planType: 'otros' });
-    };
     reader.readAsDataURL(planoFile);
+    reader.onload = async (e) => {
+        const dataUri = e.target?.result as string;
+        if (!dataUri) {
+            setErrorAnalisis("No se pudo leer el archivo de imagen.");
+            setCargando(false);
+            return;
+        }
+
+        try {
+            const input: Omit<AnalisisPlanoInput, 'cache' | 'imageMeta'> = {
+                photoDataUri: dataUri,
+                opciones,
+                notas,
+                obraId: companyId,
+                obraNombre: company?.nombreFantasia ?? 'Obra Desconocida',
+                companyId: companyId,
+                planType: 'arquitectura', // Tipo por defecto
+            };
+    
+            const analizarPlanoFn = httpsCallable(firebaseFunctions, 'analizarPlano');
+            const response = await analizarPlanoFn(input);
+            
+            const data = response.data as { result: AnalisisPlanoOutput };
+    
+            setResultado(data.result);
+    
+        } catch (err: any) {
+            console.error("Error al analizar el plano:", err);
+            setErrorAnalisis(err.message || "Ocurrió un error desconocido.");
+        } finally {
+            setCargando(false);
+        }
+    };
+    reader.onerror = () => {
+        setErrorAnalisis("Error al leer el archivo.");
+        setCargando(false);
+    };
   }
 
   return (
@@ -167,27 +157,19 @@ export default function AnalisisPlanosPage() {
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 items-start">
         <div className="space-y-6">
             <Card>
-                <CardHeader><CardTitle>1. Sube tu plano</CardTitle></CardHeader>
+                <CardHeader>
+                  <CardTitle>1. Sube tu plano</CardTitle>
+                  <CardDescription>Sube un archivo de imagen (JPG, PNG) de tu plano.</CardDescription>
+                </CardHeader>
                 <CardContent>
-                    <Tabs defaultValue="imagen">
-                        <TabsList className="grid w-full grid-cols-2">
-                            <TabsTrigger value="imagen"><ImageIcon className="mr-2"/>Desde Imagen (JPG, PNG)</TabsTrigger>
-                            <TabsTrigger value="pdf"><FileIcon className="mr-2"/>Desde PDF</TabsTrigger>
-                        </TabsList>
-                        <TabsContent value="imagen" className="pt-4">
-                            <form onSubmit={handleDirectImageSubmit} className="space-y-4">
-                                <Label htmlFor="plano-file">Archivo del plano (JPG, PNG, máx. 10MB)</Label>
-                                <Input id="plano-file" type="file" accept="image/jpeg, image/png" onChange={handleFileChange} />
-                                <Button type="submit" size="sm" className="w-full" disabled={!planoFile || cargando}>
-                                    {cargando ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Wand2 className="mr-2 h-4 w-4" />}
-                                    Analizar desde Imagen
-                                </Button>
-                            </form>
-                        </TabsContent>
-                        <TabsContent value="pdf" className="pt-4">
-                           <PdfToImageUploader onSubmit={handleSubmit} cargando={cargando} />
-                        </TabsContent>
-                    </Tabs>
+                    <form onSubmit={handleSubmit} className="space-y-4">
+                        <Label htmlFor="plano-file">Archivo del plano (JPG, PNG, máx. 10MB)</Label>
+                        <Input id="plano-file" type="file" accept="image/jpeg, image/png" onChange={handleFileChange} />
+                        <Button type="submit" size="sm" className="w-full" disabled={!planoFile || cargando}>
+                            {cargando ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Wand2 className="mr-2 h-4 w-4" />}
+                            {cargando ? 'Analizando...' : 'Analizar Imagen'}
+                        </Button>
+                    </form>
                 </CardContent>
             </Card>
             
@@ -244,12 +226,6 @@ export default function AnalisisPlanosPage() {
                       <p className="font-semibold">Error en el análisis</p>
                       <p className="text-sm">{errorAnalisis}</p>
                   </div>
-              )}
-              {isCached && resultado && (
-                <div className="text-center py-4 text-green-700 bg-green-50 rounded-md mb-4 border border-green-200">
-                    <p className="font-semibold">Resultado obtenido desde la caché.</p>
-                    <p className="text-sm">Este plano ya fue analizado anteriormente.</p>
-                </div>
               )}
               {resultado && (
                  <div className="prose prose-sm max-w-none text-card-foreground">
