@@ -1,7 +1,6 @@
 // src/app/api/analizar-plano/route.ts
 import { NextResponse } from "next/server";
 import admin from "@/server/firebaseAdmin";
-import axios from "axios";
 
 // Helper para limpiar JSON que puede venir con formato markdown
 function cleanJsonString(rawString: string): string {
@@ -77,11 +76,20 @@ No incluyas texto adicional ni formato markdown fuera del JSON. Tu respuesta deb
     const mimeType = match[1];
     const base64Data = match[2];
 
-    const response = await axios.post(URL, {
-        contents: [{ parts: [{ text: prompt }, { inline_data: { mime_type: mimeType, data: base64Data } }] }],
+    const response = await fetch(URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+            contents: [{ parts: [{ text: prompt }, { inline_data: { mime_type: mimeType, data: base64Data } }] }],
+        }),
     });
 
-    const resultado = response.data;
+    if (!response.ok) {
+        const err = await response.json();
+        throw new Error(err?.error?.message || "Error desconocido en API Gemini");
+    }
+    
+    const resultado = await response.json();
     const rawJson = (resultado as any).candidates?.[0]?.content?.parts?.[0]?.text;
     
     if (!rawJson) {
