@@ -41,6 +41,8 @@
     "firebase-admin": "^12.0.0",
     "framer-motion": "^11.0.0",
     "genkit": "0.5.0",
+    "jspdf": "^2.5.1",
+    "jspdf-autotable": "^3.8.2",
     "lucide-react": "^0.488.0",
     "next": "14.2.35",
     "react": "^18.3.1",
@@ -53,6 +55,7 @@
     "zustand": "^4.5.2"
   },
   "devDependencies": {
+    "@types/jspdf": "^2.0.0",
     "@types/node": "^20.14.9",
     "@types/react": "^18.3.3",
     "@types/react-dom": "^18.3.0",
