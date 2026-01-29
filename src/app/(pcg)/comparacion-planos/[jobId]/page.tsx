@@ -4,7 +4,7 @@
 import { useEffect, useState, useMemo } from 'react';
 import AnalisisProgreso from '@/components/comparacion-planos/AnalisisProgreso';
 import { Button } from '@/components/ui/button';
-import { Loader2, ShieldAlert, ArrowLeft } from 'lucide-react';
+import { Loader2, ShieldAlert, ArrowLeft, AlertTriangle } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/context/AuthContext';

@@ -46,13 +46,11 @@ const node_fetch_1 = __importDefault(require("node-fetch"));
 const storage_1 = require("./lib/storage");
 const adminApp = (0, firebaseAdmin_1.getAdminApp)();
 const db = adminApp.firestore();
-// --- Prompts copiados desde los flujos del frontend ---
+// --- Prompts corregidos sin placeholders ---
 const diffPromptText = `Eres un experto en interpretación de planos de construcción.
 Tu tarea es comparar dos imágenes: Plano A (versión original) y Plano B (versión modificada).
 Debes identificar todas las diferencias visuales, geométricas, textuales y de anotaciones entre ambos.
-
-Plano A (Original): {{media url=planoA_DataUri}}
-Plano B (Modificado): {{media url=planoB_DataUri}}
+A continuación se presentan el Plano A y luego el Plano B.
 
 Instrucciones:
 1.  Analiza detalladamente ambas imágenes.
@@ -64,9 +62,7 @@ Instrucciones:
 7.  Tu respuesta DEBE SER EXCLUSIVAMENTE un objeto JSON válido que siga la estructura de salida, sin texto adicional.`;
 const cubicacionPromptText = `Eres un experto en cubicación y presupuestos de construcción.
 Tu tarea es analizar dos versiones de un plano, Plano A (original) y Plano B (modificado), para detectar variaciones en las cantidades de obra.
-
-Plano A (Original): {{media url=planoA_DataUri}}
-Plano B (Modificado): {{media url=planoB_DataUri}}
+A continuación se presentan el Plano A y luego el Plano B.
 
 Instrucciones:
 1.  Compara las dos imágenes y detecta cambios que afecten las cantidades de obra (superficies, volúmenes, longitudes, unidades).
@@ -79,9 +75,7 @@ Instrucciones:
 8.  Tu respuesta DEBE SER EXCLUSIVAMENTE un objeto JSON válido que siga el esquema de salida, sin texto adicional.`;
 const impactoPromptText = `Eres un Jefe de Proyectos experto con 20 años de experiencia coordinando especialidades.
 Tu tarea es analizar las diferencias entre dos planos para generar un árbol jerárquico de impactos técnicos.
-
-Plano A (Original): {{media url=planoA_DataUri}}
-Plano B (Modificado): {{media url=planoB_DataUri}}
+A continuación se presentan el Plano A y luego el Plano B, junto con contexto adicional.
 
 Contexto Adicional (Resultados de análisis previos):
 ---
@@ -159,8 +153,8 @@ exports.processComparacionJob = functions
         // 2. Ejecutar análisis de Diff y Cubicación en paralelo
         await jobRef.update({ status: 'analyzing-diff', updatedAt: admin.firestore.FieldValue.serverTimestamp() });
         const [diffResult, cubicacionResult] = await Promise.all([
-            callGeminiAPI(apiKey, diffPromptText, planoA_part, planoB_part),
-            callGeminiAPI(apiKey, cubicacionPromptText, planoA_part, planoB_part)
+            callGeminiAPI(apiKey, [{ text: diffPromptText }, planoA_part, planoB_part]),
+            callGeminiAPI(apiKey, [{ text: cubicacionPromptText }, planoA_part, planoB_part])
         ]);
         await jobRef.update({
             'results.diffTecnico': diffResult,
@@ -171,7 +165,7 @@ exports.processComparacionJob = functions
         // 3. Ejecutar análisis de Impactos con el contexto de los anteriores
         let impactoPromptFinal = impactoPromptText.replace('{{diffContext.resumen}}', diffResult.resumen || 'N/A');
         impactoPromptFinal = impactoPromptFinal.replace('{{cubicacionContext.resumen}}', cubicacionResult.resumen || 'N/A');
-        const impactosResult = await callGeminiAPI(apiKey, impactoPromptFinal, planoA_part, planoB_part);
+        const impactosResult = await callGeminiAPI(apiKey, [{ text: impactoPromptFinal }, planoA_part, planoB_part]);
         // 4. Finalizar
         await jobRef.update({
             'results.arbolImpactos': impactosResult,
