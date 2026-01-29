@@ -16,10 +16,8 @@ import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { motion } from 'framer-motion';
 import { useAuth } from '@/context/AuthContext';
-import { AnalisisPlanoOutput, AnalisisPlanoInput, OpcionesAnalisis } from '@/types/analisis-planos';
+import { AnalisisPlanoOutput, OpcionesAnalisis } from '@/types/analisis-planos';
 import { generarAnalisisPlanoPdf } from '@/lib/pdf/generarAnalisisPlanoPdf';
-import { httpsCallable } from 'firebase/functions';
-import { firebaseFunctions } from '@/lib/firebaseClient';
 
 
 const progressSteps = [
@@ -94,8 +92,8 @@ export default function AnalisisPlanosPage() {
         setErrorAnalisis("Debes seleccionar un archivo de imagen.");
         return;
     }
-    if (!companyId) {
-        setErrorAnalisis("No se ha podido identificar tu empresa. Asegúrate de haber iniciado sesión correctamente.");
+    if (!user) {
+        setErrorAnalisis("Debes estar autenticado para realizar el análisis.");
         return;
     }
 
@@ -114,21 +112,32 @@ export default function AnalisisPlanosPage() {
         }
 
         try {
-            const input: Omit<AnalisisPlanoInput, 'cache' | 'imageMeta'> = {
+            const token = await user.getIdToken();
+            const input = {
                 photoDataUri: dataUri,
                 opciones,
                 notas,
-                obraId: companyId,
+                obraId: companyId || 'default',
                 obraNombre: company?.nombreFantasia ?? 'Obra Desconocida',
-                companyId: companyId,
-                planType: 'arquitectura', // Tipo por defecto
+                companyId: companyId || 'default',
+                planType: 'arquitectura',
             };
     
-            const analizarPlanoFn = httpsCallable(firebaseFunctions, 'analizarPlano');
-            const response = await analizarPlanoFn(input);
+            const response = await fetch('/api/analizar-plano', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`
+                },
+                body: JSON.stringify(input)
+            });
+
+            const data = await response.json();
+
+            if (!response.ok) {
+                throw new Error(data.error || 'Ocurrió un error en el servidor al analizar el plano.');
+            }
             
-            const data = response.data as { result: AnalisisPlanoOutput };
-    
             setResultado(data.result);
     
         } catch (err: any) {
