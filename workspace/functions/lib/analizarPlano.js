@@ -37,68 +37,66 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.analizarPlano = void 0;
-// workspace/functions/src/analizarPlano.ts
 const functions = __importStar(require("firebase-functions"));
-const node_fetch_1 = __importDefault(require("node-fetch")); // Asegúrate de tener instalado 'node-fetch'
+const axios_1 = __importDefault(require("axios")); // Usamos axios porque es indestructible
 exports.analizarPlano = functions
     .region("us-central1")
-    .runWith({ timeoutSeconds: 300, memory: "1GB" }) // 5 minutos es suficiente
+    .runWith({ timeoutSeconds: 300, memory: "1GB" })
     .https.onCall(async (data, context) => {
-    // 1. SEGURIDAD: Solo usuarios logueados
+    // 1. Validaciones de seguridad
     if (!context.auth) {
         throw new functions.https.HttpsError("unauthenticated", "Debes iniciar sesión.");
     }
-    // 2. DATOS: Validar que llegue una imagen
     const imagenBase64 = data.photoDataUri;
     if (!imagenBase64 || typeof imagenBase64 !== "string") {
         throw new functions.https.HttpsError("invalid-argument", "Falta la imagen.");
     }
-    // Limpieza básica del string base64 si viene con prefijo
+    // Limpieza de la imagen
     const cleanBase64 = imagenBase64.replace(/^data:image\/\w+;base64,/, "");
-    // 3. LA CLAVE MAESTRA (Asegúrate que esta sea la AIza... correcta)
+    // 2. CONFIGURACIÓN (Tu clave y modelo 2.0 que ya validamos)
     const API_KEY = "AIzaSyBMKBvSYQBvS6X_EFE-cUtI2RDkThmXhtM";
-    // 4. CONFIGURACIÓN: Directo a la API REST de Google (Sin SDKs que fallen)
-    // Usamos la versión v1beta y el modelo flash
-    const ENDPOINT = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${API_KEY}`;
-    const payload = {
-        contents: [{
-                parts: [
-                    { text: "Eres un experto en construcción. Analiza este plano arquitectónico. Enumera los recintos, identifica muros y elementos estructurales. Sé técnico y preciso." },
-                    {
-                        inline_data: {
-                            mime_type: "image/jpeg", // Asumimos jpeg o png, Flash suele tragárselo igual
-                            data: cleanBase64
-                        }
-                    }
-                ]
-            }]
-    };
+    const URL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${API_KEY}`;
     try {
-        console.log("Enviando petición a Gemini Flash...");
-        const response = await (0, node_fetch_1.default)(ENDPOINT, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify(payload)
+        console.log("🚀 Enviando petición a Gemini con Axios...");
+        // 3. PETICIÓN CON AXIOS (Funciona en cualquier versión de Node)
+        const response = await axios_1.default.post(URL, {
+            contents: [{
+                    parts: [
+                        { text: "Eres un experto en construcción. Analiza este plano arquitectónico. Enumera los recintos, identifica muros y elementos estructurales. Dame un resumen técnico preciso." },
+                        {
+                            inline_data: {
+                                mime_type: "image/jpeg",
+                                data: cleanBase64
+                            }
+                        }
+                    ]
+                }]
         });
-        const result = await response.json();
-        // Si Gemini devuelve error, lo atrapamos aquí
-        if (result.error) {
-            console.error("Error devuelto por Google:", JSON.stringify(result.error));
-            throw new Error(result.error.message || "Error desconocido de Gemini");
+        // Axios entrega los datos directamente en .data
+        const resultado = response.data;
+        // Validación extra por si la IA devuelve vacío
+        if (!resultado.candidates || resultado.candidates.length === 0) {
+            console.warn("La IA respondió OK pero sin candidatos.");
+            return { success: true, data: "El análisis no generó texto legible." };
         }
-        // Sacamos el texto limpio
-        const textoAnalisis = result.candidates?.[0]?.content?.parts?.[0]?.text;
-        if (!textoAnalisis) {
-            throw new Error("Gemini respondió ok, pero no generó texto.");
-        }
+        const texto = resultado.candidates[0].content.parts[0].text;
         return {
             success: true,
-            data: textoAnalisis
+            data: texto
         };
     }
     catch (error) {
-        console.error("Falló la conexión:", error);
-        throw new functions.https.HttpsError("internal", error.message);
+        // Manejo de errores detallado
+        console.error("💥 Error en Axios:", error.message);
+        if (error.response) {
+            // El servidor de Google respondió con un error (ej: 400, 500)
+            console.error("Datos del error:", JSON.stringify(error.response.data));
+            throw new functions.https.HttpsError("internal", `Error de IA: ${JSON.stringify(error.response.data)}`);
+        }
+        else {
+            // Error de conexión u otro
+            throw new functions.https.HttpsError("internal", error.message);
+        }
     }
 });
 //# sourceMappingURL=analizarPlano.js.map

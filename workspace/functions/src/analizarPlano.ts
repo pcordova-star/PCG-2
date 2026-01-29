@@ -1,78 +1,63 @@
-// workspace/functions/src/analizarPlano.ts
 import * as functions from "firebase-functions";
-import fetch from "node-fetch"; // Asegúrate de tener instalado 'node-fetch'
+import axios from "axios";
+import * as logger from "firebase-functions/logger";
 
 export const analizarPlano = functions
   .region("us-central1")
-  .runWith({ timeoutSeconds: 300, memory: "1GB" }) // 5 minutos es suficiente
+  .runWith({ 
+    timeoutSeconds: 300, 
+    memory: "1GB",
+    secrets: ["GOOGLE_GENAI_API_KEY"] 
+  })
   .https.onCall(async (data, context) => {
 
-    // 1. SEGURIDAD: Solo usuarios logueados
     if (!context.auth) {
       throw new functions.https.HttpsError("unauthenticated", "Debes iniciar sesión.");
     }
 
-    // 2. DATOS: Validar que llegue una imagen
     const imagenBase64 = data.photoDataUri;
     if (!imagenBase64 || typeof imagenBase64 !== "string") {
        throw new functions.https.HttpsError("invalid-argument", "Falta la imagen.");
     }
+    
+    // La clave ahora se lee de forma segura desde el entorno de la función
+    const API_KEY = process.env.GOOGLE_GENAI_API_KEY; 
 
-    // Limpieza básica del string base64 si viene con prefijo
+    if (!API_KEY) {
+        logger.error("La variable de entorno GOOGLE_GENAI_API_KEY no está configurada.");
+        throw new functions.https.HttpsError("internal", "Falta configuración de API Key en el servidor.");
+    }
+
+    const URL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${API_KEY}`;
     const cleanBase64 = imagenBase64.replace(/^data:image\/\w+;base64,/, "");
 
-    // 3. LA CLAVE MAESTRA (Asegúrate que esta sea la AIza... correcta)
-    const API_KEY = "AIzaSyBMKBvSYQBvS6X_EFE-cUtI2RDkThmXhtM"; 
-
-    // 4. CONFIGURACIÓN: Directo a la API REST de Google (Sin SDKs que fallen)
-    // Usamos la versión v1beta y el modelo flash
-    const ENDPOINT = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${API_KEY}`;
-
-    const payload = {
-      contents: [{
-        parts: [
-          { text: "Eres un experto en construcción. Analiza este plano arquitectónico. Enumera los recintos, identifica muros y elementos estructurales. Sé técnico y preciso." },
-          {
-            inline_data: {
-              mime_type: "image/jpeg", // Asumimos jpeg o png, Flash suele tragárselo igual
-              data: cleanBase64
-            }
-          }
-        ]
-      }]
-    };
-
     try {
-      console.log("Enviando petición a Gemini Flash...");
-      
-      const response = await fetch(ENDPOINT, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload)
+      logger.info("🚀 Enviando petición a Gemini con Axios...");
+
+      const response = await axios.post(URL, {
+        contents: [{
+          parts: [
+            { text: "Eres un experto en construcción. Analiza este plano arquitectónico. Enumera los recintos, identifica muros y elementos estructurales. Dame un resumen técnico preciso." },
+            { inline_data: { mime_type: "image/jpeg", data: cleanBase64 } }
+          ]
+        }]
       });
 
-      const result = await response.json();
-
-      // Si Gemini devuelve error, lo atrapamos aquí
-      if (result.error) {
-        console.error("Error devuelto por Google:", JSON.stringify(result.error));
-        throw new Error(result.error.message || "Error desconocido de Gemini");
-      }
-
-      // Sacamos el texto limpio
-      const textoAnalisis = result.candidates?.[0]?.content?.parts?.[0]?.text;
-
-      if (!textoAnalisis) {
-        throw new Error("Gemini respondió ok, pero no generó texto.");
-      }
+      const resultado = response.data;
+      
+      const texto = (resultado as any).candidates?.[0]?.content?.parts?.[0]?.text;
 
       return {
         success: true,
-        data: textoAnalisis
+        data: texto || "Sin respuesta legible."
       };
 
-    } catch (error: any) {
-      console.error("Falló la conexión:", error);
-      throw new functions.https.HttpsError("internal", error.message);
+    } catch (err) {
+      const errorAny = err as any;
+      logger.error("Error Gemini:", errorAny.message);
+      if (errorAny.response?.data) {
+        logger.error("Error response data:", JSON.stringify(errorAny.response.data));
+      }
+      throw new functions.https.HttpsError("internal", errorAny.message || "Error al procesar");
     }
 });

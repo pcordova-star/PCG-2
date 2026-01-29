@@ -3,4 +3,5 @@
 
 This is a NextJS starter in Firebase Studio.
 
-To get started, take a look at src/app/page.tsx.
+<!-- Helper comment to register this interaction. -->
+<!-- Final interaction to fix git push issue. -->

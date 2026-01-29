@@ -10,7 +10,11 @@ const db = adminApp.firestore();
 
 export const processItemizadoJob = functions
   .region("us-central1")
-  .runWith({ timeoutSeconds: 540, memory: "1GB" })
+  .runWith({ 
+    timeoutSeconds: 540, 
+    memory: "1GB",
+    secrets: ["GOOGLE_GENAI_API_KEY"] 
+  })
   .firestore.document("itemizadoImportJobs/{jobId}")
   .onCreate(async (snapshot, context) => {
     const { jobId } = context.params;
@@ -29,11 +33,16 @@ export const processItemizadoJob = functions
       startedAt: admin.firestore.FieldValue.serverTimestamp(),
     });
 
-    // --- CORRECCIÓN AQUÍ: Clave puesta directamente ("Hardcoded") ---
-    const apiKey = "AIzaSyDsRbRMKMJ7UQ6CKRdJY6LjeiVyoG1vlkU";
+    const apiKey = process.env.GOOGLE_GENAI_API_KEY;
     
-    // Ya no necesitamos validar si existe porque la acabamos de escribir
-    // if (!apiKey) { ... }
+    if (!apiKey) {
+      logger.error(`[${jobId}] GOOGLE_GENAI_API_KEY no está configurada en el entorno de la función.`);
+      await jobRef.update({
+        status: "error",
+        errorMessage: "La clave de API de Google no está configurada en el servidor.",
+      });
+      return;
+    }
 
     try {
       const { pdfDataUri, notas, sourceFileName } = jobData;
@@ -63,7 +72,7 @@ ${notas || "Sin notas."}
 Entrega SOLO un JSON válido, sin texto adicional.
 `;
 
-      const geminiEndpoint = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
+      const geminiEndpoint = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`;
 
       const requestBody = {
         contents: [
@@ -92,11 +101,12 @@ Entrega SOLO un JSON válido, sin texto adicional.
 
       if (!response.ok) {
         const err = await response.json();
-        throw new Error(err.error?.message || "Error desconocido en API Gemini");
+        const errorAny = err as any; 
+        throw new Error(errorAny.response?.data?.error?.message || errorAny.message || "Error desconocido en API Gemini");
       }
 
       const result = await response.json();
-      const rawJson = result.candidates?.[0]?.content?.parts?.[0]?.text;
+      const rawJson = (result as any).candidates?.[0]?.content?.parts?.[0]?.text;
 
       if (!rawJson) throw new Error("Gemini no retornó texto JSON.");
 
@@ -112,10 +122,14 @@ Entrega SOLO un JSON válido, sin texto adicional.
     } catch (err: any) {
       logger.error(`[${jobId}] Error`, err);
 
+      const errorAny = err as any;
+      const mensajeError = errorAny.response?.data?.error?.message || errorAny.message || "Error desconocido";
+
       await jobRef.update({
         status: "error",
-        errorMessage: err.message || "Error inesperado",
+        errorMessage: `Fallo en Gemini: ${mensajeError}`,
         processedAt: admin.firestore.FieldValue.serverTimestamp(),
       });
     }
   });
+
