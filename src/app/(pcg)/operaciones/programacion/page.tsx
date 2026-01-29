@@ -5,7 +5,7 @@
 
 import React, { useEffect, useState, FormEvent, useMemo, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { useAuth } from "../../../context/AuthContext";
+import { useAuth } from "@/context/AuthContext";
 
 import {
   collection,
@@ -1200,7 +1200,3 @@ export default function ProgramacionPage() {
     </Suspense>
   );
 }
-
-
-
-
