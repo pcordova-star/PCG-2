@@ -58,8 +58,8 @@ export async function POST(req: Request) {
             userId,
             empresaId: empresaId || 'default_company',
             status: 'pending-upload' as ComparacionJobStatus,
-            createdAt: new Date(),
-            updatedAt: new Date(),
+            createdAt: admin.firestore.FieldValue.serverTimestamp(),
+            updatedAt: admin.firestore.FieldValue.serverTimestamp(),
         });
         
         const [bufferA, bufferB] = await Promise.all([
@@ -80,7 +80,7 @@ export async function POST(req: Request) {
             status: 'uploaded',
             planoA_storagePath: pathA,
             planoB_storagePath: pathB,
-            updatedAt: new Date(),
+            updatedAt: admin.firestore.FieldValue.serverTimestamp(),
         });
         
         return NextResponse.json({ jobId, status: "uploaded" });
@@ -96,7 +96,7 @@ export async function POST(req: Request) {
                         code: error.code || "UPLOAD_FAILED",
                         message: error.message,
                     },
-                    updatedAt: new Date(),
+                    updatedAt: admin.firestore.FieldValue.serverTimestamp(),
                 });
             } catch (dbError) {
                 console.error("Failed to update job status to error:", dbError);
