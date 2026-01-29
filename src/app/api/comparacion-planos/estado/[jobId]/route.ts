@@ -34,24 +34,30 @@ export async function GET(req: Request, { params }: { params: { jobId: string } 
       return NextResponse.json({ error: 'Job no encontrado.' }, { status: 404 });
     }
 
-    const jobData = jobSnap.data();
+    const jobData = jobSnap.data()!;
 
     // --- Permission Check ---
-    const hasAccess = await canUserAccessCompany(userForPerms, jobData!.empresaId);
+    const hasAccess = await canUserAccessCompany(userForPerms, jobData.empresaId);
     if (!hasAccess) {
         return NextResponse.json({ error: 'Acceso denegado a este recurso.' }, { status: 403 });
     }
     // --- End Permission Check ---
 
-    // Devolver los datos relevantes del job
-    return NextResponse.json({
-        jobId: jobData?.jobId,
-        status: jobData?.status,
-        results: jobData?.results || null,
-        errorMessage: jobData?.errorMessage || null,
-        createdAt: jobData?.createdAt?.toDate ? jobData.createdAt.toDate().toISOString() : null,
-        updatedAt: jobData?.updatedAt?.toDate ? jobData.updatedAt.toDate().toISOString() : null,
-    });
+    // Conversión segura de Timestamps a ISO strings
+    const createdAtISO = jobData.createdAt?.toDate ? jobData.createdAt.toDate().toISOString() : null;
+    const updatedAtISO = jobData.updatedAt?.toDate ? jobData.updatedAt.toDate().toISOString() : null;
+
+    // Crear un objeto de respuesta explícitamente serializable
+    const responseData = {
+        jobId: jobData.jobId,
+        status: jobData.status,
+        results: jobData.results || null,
+        errorMessage: jobData.errorMessage || null,
+        createdAt: createdAtISO,
+        updatedAt: updatedAtISO,
+    };
+    
+    return NextResponse.json(responseData);
     
   } catch (error: any) {
     console.error(`[API /estado/${jobId}] Error:`, error);
