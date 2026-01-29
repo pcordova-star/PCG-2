@@ -2,7 +2,6 @@
 import { NextResponse } from "next/server";
 import admin from "@/server/firebaseAdmin";
 import axios from "axios";
-import * as logger from "firebase-functions/logger";
 
 // Helper para limpiar JSON que puede venir con formato markdown
 function cleanJsonString(rawString: string): string {
@@ -10,7 +9,7 @@ function cleanJsonString(rawString: string): string {
     const startIndex = cleaned.indexOf("{");
     const endIndex = cleaned.lastIndexOf("}");
     if (startIndex === -1 || endIndex === -1 || endIndex < startIndex) {
-        logger.error("Respuesta de IA no contenía un objeto JSON válido.", { rawString });
+        console.error("Respuesta de IA no contenía un objeto JSON válido.", { rawString });
         return `{"summary": "Error: La IA no generó una respuesta JSON válida. Intente con una imagen más clara o un plano menos denso.", "elements": []}`;
     }
     return cleaned.substring(startIndex, endIndex + 1);
@@ -35,7 +34,7 @@ export async function POST(req: Request) {
     
     const API_KEY = process.env.GOOGLE_GENAI_API_KEY;
     if (!API_KEY) {
-        logger.error("La variable de entorno GOOGLE_GENAI_API_KEY no está configurada.");
+        console.error("La variable de entorno GOOGLE_GENAI_API_KEY no está configurada.");
         return NextResponse.json({ error: 'Falta configuración de API Key en el servidor.' }, { status: 500 });
     }
     
