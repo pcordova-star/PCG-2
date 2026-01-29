@@ -73,12 +73,12 @@ export default function UploadPlanesForm({ onSubmit, isSubmitting = false }: Upl
       <div className="space-y-4">
         <div className="space-y-2">
           <Label htmlFor="planoA">Plano A (versión original)</Label>
-          <Input id="planoA" type="file" accept=".jpg,.jpeg,.png" onChange={(e) => handleFileChange(e, setPlanoA)} disabled={isSubmitting} />
+          <Input id="planoA" type="file" accept="image/jpeg,image/png" onChange={(e) => handleFileChange(e, setPlanoA)} disabled={isSubmitting} />
           <FileInfo file={planoA} />
         </div>
         <div className="space-y-2">
           <Label htmlFor="planoB">Plano B (versión modificada)</Label>
-          <Input id="planoB" type="file" accept=".jpg,.jpeg,.png" onChange={(e) => handleFileChange(e, setPlanoB)} disabled={isSubmitting} />
+          <Input id="planoB" type="file" accept="image/jpeg,image/png" onChange={(e) => handleFileChange(e, setPlanoB)} disabled={isSubmitting} />
           <FileInfo file={planoB} />
         </div>
       </div>
