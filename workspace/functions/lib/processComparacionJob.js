@@ -96,6 +96,24 @@ Instrucciones:
 7.  Lista "consecuencias" y "recomendaciones".
 8.  Si un impacto genera otros, anídalos en "subImpactos".
 9.  Tu respuesta DEBE SER EXCLUSIVAMENTE un objeto JSON válido con la estructura de salida, sin texto adicional.`;
+/**
+ * Limpia una cadena que se espera contenga JSON, eliminando los delimitadores de markdown
+ * y extrayendo solo el objeto JSON principal.
+ * @param rawString La respuesta de texto crudo de la IA.
+ * @returns Una cadena JSON limpia.
+ */
+function cleanJsonString(rawString) {
+    // 1. Quitar bloques de código Markdown (```json ... ```)
+    let cleaned = rawString.replace(/```json/g, "").replace(/```/g, "");
+    // 2. Encontrar el primer '{' y el último '}' para ignorar texto basura al inicio/final
+    const startIndex = cleaned.indexOf("{");
+    const endIndex = cleaned.lastIndexOf("}");
+    if (startIndex === -1 || endIndex === -1 || endIndex < startIndex) {
+        throw new Error("No se encontró un objeto JSON válido en la respuesta de la IA.");
+    }
+    // 3. Extraer la subcadena que parece ser el JSON
+    return cleaned.substring(startIndex, endIndex + 1);
+}
 // --- Función para llamar a la API de Gemini ---
 async function callGeminiAPI(apiKey, parts) {
     const geminiEndpoint = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`;
@@ -115,7 +133,9 @@ async function callGeminiAPI(apiKey, parts) {
     const rawJson = result.candidates?.[0]?.content?.parts?.[0]?.text;
     if (!rawJson)
         throw new Error("La respuesta de Gemini no contiene texto JSON válido.");
-    return JSON.parse(rawJson);
+    // Limpiar la respuesta antes de parsear
+    const cleanedJson = cleanJsonString(rawJson);
+    return JSON.parse(cleanedJson);
 }
 // --- Cloud Function principal ---
 exports.processComparacionJob = functions

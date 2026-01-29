@@ -1,3 +1,4 @@
+
 // workspace/functions/src/analizarPlano.ts
 import * as functions from "firebase-functions";
 import axios from "axios";
@@ -81,7 +82,14 @@ No incluyas texto adicional ni formato markdown fuera del JSON. Tu respuesta deb
 
 
     const URL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-pro-vision:generateContent?key=${API_KEY}`;
-    const cleanBase64 = photoDataUri.replace(/^data:image\/\w+;base64,/, "");
+    
+    const match = photoDataUri.match(/^data:(image\/\w+);base64,(.*)$/);
+    if (!match) {
+        throw new functions.https.HttpsError("invalid-argument", "El formato del photoDataUri es inválido. Se esperaba 'data:image/jpeg;base64,...' o similar.");
+    }
+    const mimeType = match[1]; // e.g., "image/jpeg"
+    const base64Data = match[2];
+
 
     try {
       logger.info("🚀 Enviando petición a Gemini con prompt estructurado...");
@@ -90,7 +98,7 @@ No incluyas texto adicional ni formato markdown fuera del JSON. Tu respuesta deb
         contents: [{
           parts: [
             { text: prompt },
-            { inline_data: { mime_type: "image/jpeg", data: cleanBase64 } }
+            { inline_data: { mime_type: mimeType, data: base64Data } }
           ]
         }],
         generationConfig: {
