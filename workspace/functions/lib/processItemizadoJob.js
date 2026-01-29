@@ -16,12 +16,22 @@ var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (
     o["default"] = v;
 });
 var __importStar = (this && this.__importStar) || (function () {
-    if (this && this.__esModule) return this;
-    var result = {};
-    for (var k in this) if (k !== "default" && Object.prototype.hasOwnProperty.call(this, k)) __createBinding(result, this, k);
-    __setModuleDefault(result, this);
-    return result;
-});
+    var ownKeys = function(o) {
+        ownKeys = Object.getOwnPropertyNames || function (o) {
+            var ar = [];
+            for (var k in o) if (Object.prototype.hasOwnProperty.call(o, k)) ar[ar.length] = k;
+            return ar;
+        };
+        return ownKeys(o);
+    };
+    return function (mod) {
+        if (mod && mod.__esModule) return mod;
+        var result = {};
+        if (mod != null) for (var k = ownKeys(mod), i = 0; i < k.length; i++) if (k[i] !== "default") __createBinding(result, mod, k[i]);
+        __setModuleDefault(result, mod);
+        return result;
+    };
+})();
 var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
@@ -37,7 +47,11 @@ const adminApp = (0, firebaseAdmin_1.getAdminApp)();
 const db = adminApp.firestore();
 exports.processItemizadoJob = functions
     .region("us-central1")
-    .runWith({ timeoutSeconds: 540, memory: "1GB", secrets: ["GOOGLE_GENAI_API_KEY"] })
+    .runWith({
+    timeoutSeconds: 540,
+    memory: "1GB",
+    secrets: ["GOOGLE_GENAI_API_KEY"]
+})
     .firestore.document("itemizadoImportJobs/{jobId}")
     .onCreate(async (snapshot, context) => {
     const { jobId } = context.params;
@@ -86,7 +100,7 @@ Notas:
 ${notas || "Sin notas."}
 Entrega SOLO un JSON válido, sin texto adicional.
 `;
-        const geminiEndpoint = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
+        const geminiEndpoint = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`;
         const requestBody = {
             contents: [
                 {

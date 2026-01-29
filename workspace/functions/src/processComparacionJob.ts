@@ -1,0 +1,172 @@
+// workspace/functions/src/processComparacionJob.ts
+import * as functions from 'firebase-functions';
+import * as admin from 'firebase-admin';
+import * as logger from 'firebase-functions/logger';
+import { getAdminApp } from './firebaseAdmin';
+import fetch from 'node-fetch';
+import { getPlanoAsDataUri } from './lib/storage';
+
+const adminApp = getAdminApp();
+const db = adminApp.firestore();
+
+// --- Prompts copiados desde los flujos del frontend ---
+
+const diffPromptText = `Eres un experto en interpretación de planos de construcción.
+Tu tarea es comparar dos imágenes: Plano A (versión original) y Plano B (versión modificada).
+Debes identificar todas las diferencias visuales, geométricas, textuales y de anotaciones entre ambos.
+
+Plano A (Original): {{media url=planoA_DataUri}}
+Plano B (Modificado): {{media url=planoB_DataUri}}
+
+Instrucciones:
+1.  Analiza detalladamente ambas imágenes.
+2.  Para cada diferencia encontrada, crea un objeto "DiffElemento".
+3.  Clasifica cada diferencia en "tipo" como 'agregado', 'eliminado' o 'modificado'.
+4.  Describe el cambio de forma clara y concisa en el campo "descripcion".
+5.  Si es aplicable, indica la ubicación aproximada del cambio en el campo "ubicacion".
+6.  Genera un "resumen" conciso de los cambios más importantes.
+7.  Tu respuesta DEBE SER EXCLUSIVAMENTE un objeto JSON válido que siga la estructura de salida, sin texto adicional.`;
+
+const cubicacionPromptText = `Eres un experto en cubicación y presupuestos de construcción.
+Tu tarea es analizar dos versiones de un plano, Plano A (original) y Plano B (modificado), para detectar variaciones en las cantidades de obra.
+
+Plano A (Original): {{media url=planoA_DataUri}}
+Plano B (Modificado): {{media url=planoB_DataUri}}
+
+Instrucciones:
+1.  Compara las dos imágenes y detecta cambios que afecten las cantidades de obra (superficies, volúmenes, longitudes, unidades).
+2.  Para cada "partida" afectada, genera un objeto "CubicacionPartida".
+3.  Define la "unidad" correspondiente (m2, m3, ml, u, kg, etc.).
+4.  Indica la cantidad en el Plano A ("cantidadA") y en el Plano B ("cantidadB"). Si una cantidad no existe o no es aplicable (ej. en un elemento nuevo), déjala como null.
+5.  Calcula la "diferencia" (cantidadB - cantidadA).
+6.  Agrega "observaciones" si es necesario para aclarar un cálculo o suposición.
+7.  Genera un "resumen" de las variaciones más significativas.
+8.  Tu respuesta DEBE SER EXCLUSIVAMENTE un objeto JSON válido que siga el esquema de salida, sin texto adicional.`;
+
+const impactoPromptText = `Eres un Jefe de Proyectos experto con 20 años de experiencia coordinando especialidades.
+Tu tarea es analizar las diferencias entre dos planos para generar un árbol jerárquico de impactos técnicos.
+
+Plano A (Original): {{media url=planoA_DataUri}}
+Plano B (Modificado): {{media url=planoB_DataUri}}
+
+Contexto Adicional (Resultados de análisis previos):
+---
+RESUMEN DE DIFERENCIAS TÉCNICAS:
+{{diffContext.resumen}}
+
+RESUMEN DE VARIACIONES DE CUBICACIÓN:
+{{cubicacionContext.resumen}}
+---
+
+Instrucciones:
+1.  Basado en el contexto y las imágenes, identifica los cambios primarios (usualmente en arquitectura).
+2.  Para cada cambio, analiza su efecto en cascada sobre otras especialidades en el orden: arquitectura -> estructura -> electricidad -> sanitarias -> climatización.
+3.  Crea un nodo "ImpactoNode" para cada especialidad afectada.
+4.  Describe el "impactoDirecto" y el "impactoIndirecto" (cómo afecta a otras áreas).
+5.  Evalúa la "severidad" como "baja", "media" o "alta".
+6.  Identifica el principal "riesgo" (ej: "Sobrecosto", "Atraso", "Incompatibilidad").
+7.  Lista "consecuencias" y "recomendaciones".
+8.  Si un impacto genera otros, anídalos en "subImpactos".
+9.  Tu respuesta DEBE SER EXCLUSIVAMENTE un objeto JSON válido con la estructura de salida, sin texto adicional.`;
+
+// --- Función para llamar a la API de Gemini ---
+async function callGeminiAPI(apiKey: string, parts: any[]) {
+    const geminiEndpoint = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`;
+    const response = await fetch(geminiEndpoint, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+            contents: [{ parts }],
+            generationConfig: { response_mime_type: "application/json" },
+        }),
+    });
+
+    if (!response.ok) {
+        const err = await response.json();
+        throw new Error(err?.error?.message || "Error desconocido en API Gemini");
+    }
+
+    const result = await response.json() as any;
+    const rawJson = result.candidates?.[0]?.content?.parts?.[0]?.text;
+    if (!rawJson) throw new Error("La respuesta de Gemini no contiene texto JSON válido.");
+    
+    return JSON.parse(rawJson);
+}
+
+// --- Cloud Function principal ---
+export const processComparacionJob = functions
+    .region("us-central1")
+    .runWith({ timeoutSeconds: 540, memory: "1GB", secrets: ["GOOGLE_GENAI_API_KEY"] })
+    .firestore.document("comparacionPlanosJobs/{jobId}")
+    .onUpdate(async (change, context) => {
+        const { jobId } = context.params;
+        const jobDataAfter = change.after.data();
+        const jobDataBefore = change.before.data();
+
+        if (jobDataAfter.status !== 'queued_for_analysis' || jobDataBefore.status === 'queued_for_analysis') {
+            return; // No es el trigger que buscamos
+        }
+
+        logger.info(`[${jobId}] Iniciando análisis de comparación de planos...`);
+        const jobRef = change.after.ref;
+        const apiKey = process.env.GOOGLE_GENAI_API_KEY;
+
+        if (!apiKey) {
+            logger.error(`[${jobId}] GOOGLE_GENAI_API_KEY no configurada.`);
+            await jobRef.update({ status: 'error', errorMessage: { code: "NO_API_KEY", message: "La clave de API del servidor no está configurada." } });
+            return;
+        }
+        
+        try {
+            const { planoA_storagePath, planoB_storagePath } = jobDataAfter;
+            if (!planoA_storagePath || !planoB_storagePath) {
+                throw new Error("Rutas de almacenamiento de planos no encontradas en el job.");
+            }
+
+            // 1. Descargar planos
+            await jobRef.update({ status: 'processing', updatedAt: admin.firestore.FieldValue.serverTimestamp() });
+            const [planoA, planoB] = await Promise.all([
+                getPlanoAsDataUri(planoA_storagePath),
+                getPlanoAsDataUri(planoB_storagePath)
+            ]);
+            
+            const planoA_part = { inline_data: { mime_type: planoA.mimeType, data: planoA.data } };
+            const planoB_part = { inline_data: { mime_type: planoB.mimeType, data: planoB.data } };
+
+            // 2. Ejecutar análisis de Diff y Cubicación en paralelo
+            await jobRef.update({ status: 'analyzing-diff', updatedAt: admin.firestore.FieldValue.serverTimestamp() });
+            const [diffResult, cubicacionResult] = await Promise.all([
+                callGeminiAPI(apiKey, diffPromptText, planoA_part, planoB_part),
+                callGeminiAPI(apiKey, cubicacionPromptText, planoA_part, planoB_part)
+            ]);
+            
+            await jobRef.update({ 
+                'results.diffTecnico': diffResult,
+                'results.cubicacionDiferencial': cubicacionResult,
+                 status: 'generating-impactos',
+                 updatedAt: admin.firestore.FieldValue.serverTimestamp()
+            });
+
+            // 3. Ejecutar análisis de Impactos con el contexto de los anteriores
+            let impactoPromptFinal = impactoPromptText.replace('{{diffContext.resumen}}', diffResult.resumen || 'N/A');
+            impactoPromptFinal = impactoPromptFinal.replace('{{cubicacionContext.resumen}}', cubicacionResult.resumen || 'N/A');
+            const impactosResult = await callGeminiAPI(apiKey, impactoPromptFinal, planoA_part, planoB_part);
+            
+            // 4. Finalizar
+            await jobRef.update({
+                'results.arbolImpactos': impactosResult,
+                status: 'completed',
+                updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+            });
+            
+            logger.info(`[${jobId}] Análisis de comparación completado exitosamente.`);
+
+        } catch (error: any) {
+            logger.error(`[${jobId}] Error durante el análisis:`, error);
+            await jobRef.update({
+                status: 'error',
+                errorMessage: { code: "ANALYSIS_FAILED", message: error.message },
+                updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+            });
+        }
+    });

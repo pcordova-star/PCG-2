@@ -7,6 +7,7 @@
 export { createCompanyUser } from "./createCompanyUser";
 export { analizarPlano } from "./analizarPlano";
 export { processItemizadoJob } from "./processItemizadoJob";
+export { processComparacionJob } from "./processComparacionJob"; // <--- AÑADIDO
 
 // --- Funciones de autenticación / claims ---
 export { setCompanyClaims } from "./setCompanyClaims";

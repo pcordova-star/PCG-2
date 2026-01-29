@@ -16,12 +16,22 @@ var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (
     o["default"] = v;
 });
 var __importStar = (this && this.__importStar) || (function () {
-    if (this && this.__esModule) return this;
-    var result = {};
-    for (var k in this) if (k !== "default" && Object.prototype.hasOwnProperty.call(this, k)) __createBinding(result, this, k);
-    __setModuleDefault(result, this);
-    return result;
-});
+    var ownKeys = function(o) {
+        ownKeys = Object.getOwnPropertyNames || function (o) {
+            var ar = [];
+            for (var k in o) if (Object.prototype.hasOwnProperty.call(o, k)) ar[ar.length] = k;
+            return ar;
+        };
+        return ownKeys(o);
+    };
+    return function (mod) {
+        if (mod && mod.__esModule) return mod;
+        var result = {};
+        if (mod != null) for (var k = ownKeys(mod), i = 0; i < k.length; i++) if (k[i] !== "default") __createBinding(result, mod, k[i]);
+        __setModuleDefault(result, mod);
+        return result;
+    };
+})();
 var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
@@ -59,12 +69,7 @@ exports.analizarPlano = functions
             contents: [{
                     parts: [
                         { text: "Eres un experto en construcción. Analiza este plano arquitectónico. Enumera los recintos, identifica muros y elementos estructurales. Dame un resumen técnico preciso." },
-                        {
-                            inline_data: {
-                                mime_type: "image/jpeg",
-                                data: cleanBase64
-                            }
-                        }
+                        { inline_data: { mime_type: "image/jpeg", data: cleanBase64 } }
                     ]
                 }]
         });
