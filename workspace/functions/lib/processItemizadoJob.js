@@ -16,22 +16,12 @@ var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (
     o["default"] = v;
 });
 var __importStar = (this && this.__importStar) || (function () {
-    var ownKeys = function(o) {
-        ownKeys = Object.getOwnPropertyNames || function (o) {
-            var ar = [];
-            for (var k in o) if (Object.prototype.hasOwnProperty.call(o, k)) ar[ar.length] = k;
-            return ar;
-        };
-        return ownKeys(o);
-    };
-    return function (mod) {
-        if (mod && mod.__esModule) return mod;
-        var result = {};
-        if (mod != null) for (var k = ownKeys(mod), i = 0; i < k.length; i++) if (k[i] !== "default") __createBinding(result, mod, k[i]);
-        __setModuleDefault(result, mod);
-        return result;
-    };
-})();
+    if (this && this.__esModule) return this;
+    var result = {};
+    for (var k in this) if (k !== "default" && Object.prototype.hasOwnProperty.call(this, k)) __createBinding(result, this, k);
+    __setModuleDefault(result, this);
+    return result;
+});
 var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
@@ -47,7 +37,7 @@ const adminApp = (0, firebaseAdmin_1.getAdminApp)();
 const db = adminApp.firestore();
 exports.processItemizadoJob = functions
     .region("us-central1")
-    .runWith({ timeoutSeconds: 540, memory: "1GB" })
+    .runWith({ timeoutSeconds: 540, memory: "1GB", secrets: ["GOOGLE_GENAI_API_KEY"] })
     .firestore.document("itemizadoImportJobs/{jobId}")
     .onCreate(async (snapshot, context) => {
     const { jobId } = context.params;
@@ -62,10 +52,15 @@ exports.processItemizadoJob = functions
         status: "processing",
         startedAt: admin.firestore.FieldValue.serverTimestamp(),
     });
-    // --- CORRECCIÓN AQUÍ: Clave puesta directamente ("Hardcoded") ---
-    const apiKey = "AIzaSyDsRbRMKMJ7UQ6CKRdJY6LjeiVyoG1vlkU";
-    // Ya no necesitamos validar si existe porque la acabamos de escribir
-    // if (!apiKey) { ... }
+    const apiKey = process.env.GOOGLE_GENAI_API_KEY;
+    if (!apiKey) {
+        logger.error(`[${jobId}] GOOGLE_GENAI_API_KEY no está configurada en el entorno de la función.`);
+        await jobRef.update({
+            status: "error",
+            errorMessage: "La clave de API de Google no está configurada en el servidor.",
+        });
+        return;
+    }
     try {
         const { pdfDataUri, notas, sourceFileName } = jobData;
         if (!pdfDataUri)
@@ -117,7 +112,8 @@ Entrega SOLO un JSON válido, sin texto adicional.
         });
         if (!response.ok) {
             const err = await response.json();
-            throw new Error(err.error?.message || "Error desconocido en API Gemini");
+            const errorAny = err;
+            throw new Error(errorAny.response?.data?.error?.message || errorAny.message || "Error desconocido en API Gemini");
         }
         const result = await response.json();
         const rawJson = result.candidates?.[0]?.content?.parts?.[0]?.text;
@@ -133,9 +129,11 @@ Entrega SOLO un JSON válido, sin texto adicional.
     }
     catch (err) {
         logger.error(`[${jobId}] Error`, err);
+        const errorAny = err;
+        const mensajeError = errorAny.response?.data?.error?.message || errorAny.message || "Error desconocido";
         await jobRef.update({
             status: "error",
-            errorMessage: err.message || "Error inesperado",
+            errorMessage: `Fallo en Gemini: ${mensajeError}`,
             processedAt: admin.firestore.FieldValue.serverTimestamp(),
         });
     }
