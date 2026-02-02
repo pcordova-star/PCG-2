@@ -9,12 +9,22 @@ import fetch from "node-fetch";
 const db = getAdminApp().firestore();
 
 function cleanJsonString(rawString: string): string {
+    // 1. Quitar bloques de código Markdown (```json ... ```)
     let cleaned = rawString.replace(/```json/g, "").replace(/```/g, "");
+
+    // 2. Eliminar comas sobrantes (trailing commas) antes de corchetes y llaves de cierre
+    // Esto es clave para corregir errores de formato comunes de la IA.
+    cleaned = cleaned.replace(/,\s*(\]|})/g, "$1");
+
+    // 3. Encontrar el primer '{' y el último '}' para ignorar texto basura al inicio/final
     const startIndex = cleaned.indexOf("{");
     const endIndex = cleaned.lastIndexOf("}");
+
     if (startIndex === -1 || endIndex === -1 || endIndex < startIndex) {
         throw new Error("Respuesta de IA no contenía un objeto JSON válido.");
     }
+    
+    // 4. Extraer la subcadena que parece ser el JSON
     return cleaned.substring(startIndex, endIndex + 1);
 }
 
@@ -38,7 +48,6 @@ export const processPresupuestoPdf = onObjectFinalized(
 
     const jobRef = db.collection('itemizadoImportJobs').doc(jobId);
 
-    // FIX: Fetch the job document to check its status before processing
     const jobSnap = await jobRef.get();
     if (!jobSnap.exists) {
         logger.error(`[${jobId}] Job document not found in Firestore.`);
@@ -46,7 +55,6 @@ export const processPresupuestoPdf = onObjectFinalized(
     }
     const jobData = jobSnap.data()!;
 
-    // This is the crucial fix: check for 'uploaded' status
     if (jobData.status !== "uploaded") {
         logger.warn(`[${jobId}] Job not in 'uploaded' state (current: ${jobData.status}). Ignoring trigger.`);
         return;
