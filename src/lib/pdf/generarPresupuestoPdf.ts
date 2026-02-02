@@ -138,7 +138,7 @@ export function generarPresupuestoPdf(
     return [
       { content: item.itemNumber, styles: { fontStyle: 'bold' } },
       { content: item.descripcion, styles: { cellWidth: 80 } },
-      item.type === 'item' ? item.unidad || '' : '',
+      item.type === 'item' ? item.unidad : '',
       item.type === 'item' && item.cantidad != null ? item.cantidad.toLocaleString('es-CL') : '',
       item.type === 'item' ? formatoMoneda(item.precioUnitario) : '',
       { content: formatoMoneda(item.subtotal), styles: { fontStyle: 'bold', halign: 'right' } }
