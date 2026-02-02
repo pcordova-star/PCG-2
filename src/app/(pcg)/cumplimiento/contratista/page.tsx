@@ -67,18 +67,21 @@ export default function ContratistaPortalPage() {
     }, [companyId, periodKey]);
 
     const fetchData = async () => {
-        if (!companyId || !periodId || !subcontractorId) {
+        if (!companyId || !periodId || !subcontractorId || !user) {
             setPageLoading(false);
             return;
         }
 
         setPageLoading(true);
         try {
+            const token = await user.getIdToken();
+            const headers = { 'Authorization': `Bearer ${token}` };
+
             const year = new Date().getFullYear();
             const [calendarRes, reqsRes, subsRes] = await Promise.all([
-                fetch(`/api/mclp/calendar?companyId=${companyId}&year=${year}`),
-                fetch(`/api/mclp/requirements?companyId=${companyId}`),
-                fetch(`/api/mclp/submissions?companyId=${companyId}&periodId=${periodId}&subcontractorId=${subcontractorId}`)
+                fetch(`/api/mclp/calendar?companyId=${companyId}&year=${year}`, { headers }),
+                fetch(`/api/mclp/requirements?companyId=${companyId}`, { headers }),
+                fetch(`/api/mclp/submissions?companyId=${companyId}&periodId=${periodId}&subcontractorId=${subcontractorId}`, { headers })
             ]);
 
             if (!calendarRes.ok || !reqsRes.ok || !subsRes.ok) {
@@ -109,7 +112,7 @@ export default function ContratistaPortalPage() {
 
     useEffect(() => {
         fetchData();
-    }, [companyId, periodId, subcontractorId, toast]);
+    }, [companyId, periodId, subcontractorId, user, toast]);
     
      const handleFileChange = (reqId: string, file: File | null) => {
         setFiles(prev => ({...prev, [reqId]: file }));

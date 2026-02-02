@@ -1,6 +1,6 @@
 // src/app/api/mclp/calendar/route.ts
 import { NextRequest, NextResponse } from "next/server";
-import { adminDb, Timestamp as AdminTimestamp } from "@/server/firebaseAdmin";
+import admin, { adminDb, Timestamp as AdminTimestamp } from "@/server/firebaseAdmin";
 import { ensureMclpEnabled } from "@/server/lib/mclp/ensureMclpEnabled";
 
 export const runtime = "nodejs";
@@ -37,6 +37,13 @@ async function createDefaultMonths(calendarRef: any, year: number) {
 // GET /api/mclp/calendar?companyId=[ID]&year=[YEAR]
 export async function GET(req: NextRequest) {
     try {
+        const authorization = req.headers.get("Authorization");
+        if (!authorization?.startsWith("Bearer ")) {
+            return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+        }
+        const token = authorization.split("Bearer ")[1];
+        await admin.auth().verifyIdToken(token);
+
         const companyId = req.nextUrl.searchParams.get("companyId");
         const yearStr = req.nextUrl.searchParams.get("year");
 

@@ -1,6 +1,6 @@
 // src/app/api/mclp/submissions/route.ts
 import { NextRequest, NextResponse } from "next/server";
-import { adminDb, Timestamp } from "@/server/firebaseAdmin";
+import admin, { adminDb, Timestamp } from "@/server/firebaseAdmin";
 import { ensureMclpEnabled } from "@/server/lib/mclp/ensureMclpEnabled";
 
 export const runtime = "nodejs";
@@ -8,6 +8,13 @@ export const runtime = "nodejs";
 // GET /api/mclp/submissions?companyId=[ID]&periodId=[ID]&subcontractorId=[ID]
 export async function GET(req: NextRequest) {
     try {
+        const authorization = req.headers.get("Authorization");
+        if (!authorization?.startsWith("Bearer ")) {
+            return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+        }
+        const token = authorization.split("Bearer ")[1];
+        await admin.auth().verifyIdToken(token);
+
         const companyId = req.nextUrl.searchParams.get("companyId");
         const periodId = req.nextUrl.searchParams.get("periodId");
         const subcontractorId = req.nextUrl.searchParams.get("subcontractorId");
