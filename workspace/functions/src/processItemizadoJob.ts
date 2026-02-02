@@ -8,10 +8,22 @@ import fetch from "node-fetch";
 
 const db = getAdminApp().firestore();
 
+/**
+ * Limpia y repara una cadena JSON recibida de la IA.
+ * - Elimina bloques de código y comentarios.
+ * - Extrae el objeto JSON principal.
+ * - Repara errores de sintaxis comunes como las comas sobrantes.
+ * @param rawString La respuesta de texto crudo de la IA.
+ * @returns Una cadena JSON limpia y con mayor probabilidad de ser válida.
+ */
 function cleanJsonString(rawString: string): string {
-    let cleaned = rawString.replace(/```json/g, "").replace(/```/g, "");
-    cleaned = cleaned.replace(/\/\*[\s\S]*?\*\/|([^\\:]|^)\/\/.*$/gm, '$1');
+    // 1. Quitar bloques de código Markdown (```json ... ```) y comentarios (//, /* */)
+    let cleaned = rawString
+        .replace(/```json/g, "")
+        .replace(/```/g, "")
+        .replace(/\/\*[\s\S]*?\*\/|([^\\:]|^)\/\/.*$/gm, '$1');
 
+    // 2. Encontrar el primer '{' y el último '}' para aislar el objeto JSON principal
     const startIndex = cleaned.indexOf("{");
     const endIndex = cleaned.lastIndexOf("}");
 
@@ -19,11 +31,13 @@ function cleanJsonString(rawString: string): string {
         throw new Error("Respuesta de IA no contenía un objeto JSON válido `{...}`.");
     }
     
-    cleaned = cleaned.substring(startIndex, endIndex + 1);
-    cleaned = cleaned.replace(/,\s*]/g, "]");
-    cleaned = cleaned.replace(/,\s*}/g, "}");
-    
-    return cleaned;
+    let jsonContent = cleaned.substring(startIndex, endIndex + 1);
+
+    // 3. REPARACIÓN: Eliminar comas sobrantes (trailing commas) antes de '}' o ']'
+    // Esta es la causa más común de errores de parseo en JSON generados por IA.
+    jsonContent = jsonContent.replace(/,\s*(?=[}\]])/g, "");
+
+    return jsonContent;
 }
 
 
@@ -96,7 +110,7 @@ Genera ahora el JSON de salida.`;
         
         await jobRef.update({ status: 'running_ai', updatedAt: admin.firestore.FieldValue.serverTimestamp() });
 
-        const geminiEndpoint = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`;
+        const geminiEndpoint = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-pro-latest:generateContent?key=${apiKey}`;
 
         const requestBody = {
             contents: [{ parts: [{ text: prompt }, { inline_data: { mime_type: 'application/pdf', data: base64Data } }] }],
@@ -123,7 +137,8 @@ Genera ahora el JSON de salida.`;
         
         let parsed;
         try {
-            parsed = JSON.parse(cleanJsonString(rawJson));
+            const cleanedJson = cleanJsonString(rawJson);
+            parsed = JSON.parse(cleanedJson);
         } catch (e: any) {
             const snippet = rawJson.substring(0, 500);
             throw new Error(`La IA devolvió un JSON inválido. Error de parseo: ${e.message}. Comienzo de la respuesta: "${snippet}..."`);
