@@ -56,20 +56,80 @@ export const processItemizadoJob = functions
       const base64Data = match[2];
 
       const prompt = `
-Eres un experto analista de itemizados de construcción.
-Analiza el PDF entregado y genera un JSON válido siguiendo estas reglas:
-- chapters[]: lista de capítulos principales detectados.
-- rows[]:
-  * type: "chapter" | "subchapter" | "item"
-  * id: "1", "1.1", "1.1.1", etc.
-  * parentId: id del contenedor superior o null.
-  * chapterIndex: índice del capítulo.
-  * codigo, descripcion, unidad, cantidad, precioUnitario, total: si no existe → null.
-- meta.sourceFileName = "${sourceFileName || "N/A"}"
-- No inventes valores.
-Notas:
-${notas || "Sin notas."}
-Entrega SOLO un JSON válido, sin texto adicional.
+PROMPT GEMINI – IMPORTADOR DE PRESUPUESTOS (PCG)
+Eres un analista de costos y presupuestos de construcción en Chile, con experiencia en licitaciones privadas y públicas.
+
+Vas a analizar el texto completo extraído desde un PDF de presupuesto de obra.
+
+OBJETIVO
+Transformar el contenido en un ITEMIZADO TÉCNICO ESTRUCTURADO, listo para ser usado en un sistema de control de gestión de obras.
+
+REGLAS GENERALES
+- El proyecto es un edificio en Chile.
+- Asume moneda CLP.
+- NO inventes partidas ni valores que no estén explícitos o claramente inferibles.
+- Si una cantidad o precio no aparece, déjalo como null.
+- Respeta la jerarquía técnica real de obra.
+- El resultado debe ser exclusivamente JSON válido.
+- No incluyas explicaciones ni texto adicional.
+
+ESTRUCTURA JERÁRQUICA OBLIGATORIA
+Nivel 1 → Especialidad
+Nivel 2 → Partida
+Nivel 3 → Subpartida (si existe)
+
+Especialidades válidas:
+- Obras Preliminares
+- Obras de Fundación
+- Estructura
+- Arquitectura
+- Instalaciones Sanitarias
+- Instalaciones Eléctricas
+- Corrientes Débiles
+- Climatización (si existe)
+- Obras Exteriores
+
+FORMATO DE SALIDA (JSON)
+
+{
+  "currency": "CLP",
+  "source": "pdf_import",
+  "especialidades": [
+    {
+      "code": "01",
+      "name": "Obras Preliminares",
+      "items": [
+        {
+          "code": "01.01",
+          "name": "Instalación de faena",
+          "unit": "global",
+          "quantity": 1,
+          "unit_price": 25000000,
+          "total": 25000000
+        }
+      ]
+    }
+  ]
+}
+
+CAMPOS OBLIGATORIOS POR ÍTEM
+- code: string jerárquico correlativo
+- name: string
+- unit: m2 | m3 | kg | ml | punto | unidad | global | hh
+- quantity: number | null
+- unit_price: number | null
+- total: number | null
+
+REGLAS DE INTERPRETACIÓN
+- Si el PDF tiene totales por sección, distribúyelos solo si la lógica es evidente; si no, déjalos a nivel de partida.
+- No mezclar especialidades.
+- No agrupar partidas distintas en un solo ítem.
+- Si detectas subtítulos, trátalos como partidas padre.
+- Mantén el orden original del documento.
+- No calcules IVA ni gastos generales si no están explícitos.
+
+CONTEXTO DE ENTRADA
+A continuación recibirás el texto completo extraído del PDF, página por página.
 `;
 
       const geminiEndpoint = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`;
@@ -132,4 +192,3 @@ Entrega SOLO un JSON válido, sin texto adicional.
       });
     }
   });
-

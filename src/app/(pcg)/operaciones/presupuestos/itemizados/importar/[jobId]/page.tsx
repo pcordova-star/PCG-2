@@ -1,4 +1,3 @@
-
 // src/app/operaciones/presupuestos/itemizados/importar/[jobId]/page.tsx
 "use client";
 
@@ -39,7 +38,7 @@ function parseNumberCL(value: string | number | null | undefined): number {
 }
 
 
-// Función de normalización solicitada
+// Función de normalización que convierte el output de la IA a un formato plano y limpio.
 function normalizeRowsToPresupuestoItems(rows: any[]): Array<{ parentId: string | null; type: "chapter" | "subchapter" | "item"; descripcion: string; unidad: string; cantidad: number; precioUnitario: number; }> {
     if (!rows) return [];
 
@@ -61,7 +60,7 @@ function normalizeRowsToPresupuestoItems(rows: any[]): Array<{ parentId: string 
         const descripcion = row.descripcion ?? row.description ?? row.nombre ?? row.name ?? "";
         const unidad = row.unidad ?? row.unit ?? row.u ?? "";
         const cantidad = parseNumberCL(row.cantidad ?? row.qty ?? row.quantity);
-        const precioUnitario = parseNumberCL(row.precioUnitario ?? row.unitPrice ?? row.price);
+        const precioUnitario = parseNumberCL(row.precioUnitario ?? row.unitPrice ?? row.price ?? row.unit_price);
         
         let type: "chapter" | "subchapter" | "item";
         if (row.type && ["chapter", "subchapter", "item"].includes(row.type)) {
@@ -84,9 +83,57 @@ function normalizeRowsToPresupuestoItems(rows: any[]): Array<{ parentId: string 
             descripcion,
             unidad,
             cantidad,
-            precioUnitario
+            precioUnitario,
+            id: row.id // Se mantiene el id para la estructura jerárquica
         };
     });
+}
+
+function aplanarJerarquia(especialidades: any[]): any[] {
+  if (!especialidades) return [];
+  
+  const filas: any[] = [];
+
+  especialidades.forEach((especialidad, chapterIndex) => {
+    filas.push({
+      ...especialidad,
+      id: especialidad.code,
+      parentId: null,
+      chapterIndex: chapterIndex,
+      isChapter: true,
+      level: 0,
+      description: especialidad.name,
+      name: especialidad.name,
+    });
+
+    const procesarItems = (items: any[], parentId: string, level: number) => {
+      items.forEach(item => {
+        const tieneHijos = item.items && item.items.length > 0;
+        filas.push({
+          ...item,
+          id: item.code,
+          parentId: parentId,
+          chapterIndex: chapterIndex,
+          level: level,
+          isSubchapter: tieneHijos,
+          description: item.name,
+          name: item.name,
+          qty: item.quantity,
+          unitPrice: item.unit_price,
+        });
+
+        if (tieneHijos) {
+          procesarItems(item.items, item.code, level + 1);
+        }
+      });
+    };
+
+    if (especialidad.items) {
+      procesarItems(especialidad.items, especialidad.code, 1);
+    }
+  });
+
+  return filas;
 }
 
 
@@ -147,19 +194,19 @@ export default function ImportStatusPage() {
     setIsSaving(true);
     try {
         const sourceFileName =
-          jobData.result?.meta?.sourceFileName ??
-          jobData?.sourceFileName ??
+          jobData.sourceFileName ??
           "Itemizado IA";
         const nombrePresupuesto = `Presupuesto importado de ${sourceFileName} - ${new Date().toLocaleDateString()}`;
         
-        const normalizedItems = normalizeRowsToPresupuestoItems(jobData.result?.rows ?? []);
+        const flatRows = aplanarJerarquia(jobData.result?.especialidades ?? []);
+        const normalizedItems = normalizeRowsToPresupuestoItems(flatRows);
         const totalPresupuesto = normalizedItems.reduce((sum, item) => sum + (item.cantidad * item.precioUnitario), 0);
         
         const newPresupuesto = {
             obraId: jobData.obraId,
             nombre: nombrePresupuesto,
             moneda: "CLP",
-            observaciones: `Generado automáticamente por IA a partir de un PDF. Job ID: ${jobId}. ${jobData.result.meta?.notes || ''}`,
+            observaciones: `Generado automáticamente por IA a partir de un PDF. Job ID: ${jobId}.`,
             gastosGeneralesPorcentaje: 25,
             items: normalizedItems,
             fechaCreacion: serverTimestamp(),
@@ -228,14 +275,14 @@ export default function ImportStatusPage() {
             <p className="mt-2 font-semibold text-xl">¡Análisis completado!</p>
             {jobData.result && (
                 <p className="text-sm text-muted-foreground">
-                    Se encontraron {jobData.result.chapters.length} capítulos y {normalizeRowsToPresupuestoItems(jobData.result?.rows).length} partidas válidas.
+                    Se encontraron {jobData.result.especialidades.length} especialidades y {aplanarJerarquia(jobData.result.especialidades).filter(i => i.type==='item').length} partidas válidas.
                 </p>
             )}
 
              <div className="mt-6 flex justify-center gap-4">
                 <Button onClick={handleSaveItemizado} disabled={isSaving || isSaved}>
                     {isSaving ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <Save className="mr-2 h-4 w-4"/>}
-                    {isSaved ? "Guardado" : (isSaving ? "Guardando..." : "REVISAR ITEMIZADO IA")}
+                    {isSaved ? "Guardado" : (isSaving ? "Guardando..." : "REVISAR Y GUARDAR ITEMIZADO")}
                 </Button>
             </div>
           </div>
