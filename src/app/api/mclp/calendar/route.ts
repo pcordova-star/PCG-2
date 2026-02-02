@@ -49,19 +49,25 @@ export async function GET(req: NextRequest) {
         
         const calendarId = `${companyId}_${year}`;
         const ref = adminDb.collection("complianceCalendars").doc(calendarId);
-        let snap = await ref.get();
+        const snap = await ref.get();
+        
+        let monthsSnap = await ref.collection("months").orderBy("month").get();
 
-        if (!snap.exists) {
-            await ref.set({
-                companyId, year, locked: false,
-                createdAt: adminDb.FieldValue.serverTimestamp(),
-                updatedAt: adminDb.FieldValue.serverTimestamp(),
-            });
+        // If the parent calendar doc doesn't exist, OR if it exists but the months were not created,
+        // then we create them. This makes the function more robust.
+        if (!snap.exists || monthsSnap.empty) {
+            if (!snap.exists) {
+                 await ref.set({
+                    companyId, year, locked: false,
+                    createdAt: adminDb.FieldValue.serverTimestamp(),
+                    updatedAt: adminDb.FieldValue.serverTimestamp(),
+                });
+            }
             await createDefaultMonths(ref, year);
-            snap = await ref.get();
+            // Re-fetch the months subcollection after creating them.
+            monthsSnap = await ref.collection("months").orderBy("month").get();
         }
 
-        const monthsSnap = await ref.collection("months").orderBy("month").get();
         const months = monthsSnap.docs.map(d => {
             const data = d.data();
             return {
