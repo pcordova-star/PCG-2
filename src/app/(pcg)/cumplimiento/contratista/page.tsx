@@ -5,7 +5,7 @@ import { useAuth } from "@/context/AuthContext";
 import { useRouter } from 'next/navigation';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { useEffect, useState, useMemo } from "react";
+import { useEffect, useState, useMemo, useCallback } from "react";
 import { Loader2, Calendar, AlertTriangle, Upload, Check, X, Clock } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { ComplianceCalendarMonth, RequisitoDocumento, EntregaDocumento } from "@/types/pcg";
@@ -66,7 +66,7 @@ export default function ContratistaPortalPage() {
         return `${companyId}_${periodKey}`;
     }, [companyId, periodKey]);
 
-    const fetchData = async () => {
+    const fetchData = useCallback(async () => {
         if (!companyId || !periodId || !subcontractorId || !user) {
             setPageLoading(false);
             return;
@@ -107,12 +107,12 @@ export default function ContratistaPortalPage() {
         } finally {
             setPageLoading(false);
         }
-    };
+    }, [companyId, periodId, subcontractorId, user, periodKey, toast]);
 
 
     useEffect(() => {
         fetchData();
-    }, [companyId, periodId, subcontractorId, user, toast]);
+    }, [fetchData]);
     
      const handleFileChange = (reqId: string, file: File | null) => {
         setFiles(prev => ({...prev, [reqId]: file }));
