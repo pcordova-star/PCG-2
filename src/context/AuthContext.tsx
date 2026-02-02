@@ -131,7 +131,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             setCompany(null);
             setLoading(false);
             const publicPages = ['/', '/login/usuario', '/login/cliente', '/accept-invite', '/terminos', '/sin-acceso'];
-            if (!publicPages.includes(pathname)) {
+            if (!publicPages.includes(pathname) && !pathname.startsWith('/public')) {
                 router.replace('/');
             }
             return;
@@ -156,8 +156,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             } else {
                 const activationResult = await activateUserFromInvitation(firebaseUser);
                 if (activationResult.role !== 'none') {
-                    // La activación crea un documento, lo que volverá a activar este listener.
-                    // Se retorna para esperar el siguiente snapshot con los datos correctos.
                     return;
                 }
             }
@@ -166,7 +164,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             setCompanyId(userCompanyId);
             setLoading(false);
 
-            const isPublicPage = ['/', '/login/usuario', '/login/cliente', '/accept-invite'].includes(pathname);
+            const isPublicPage = ['/', '/login/usuario', '/login/cliente', '/accept-invite'].includes(pathname) || pathname.startsWith('/public');
             const isChangingPassword = pathname === '/cambiar-password';
 
             if (mustChangePassword) {
@@ -177,7 +175,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
                 if (userRole === 'none') {
                     if (pathname !== '/sin-acceso') router.replace('/sin-acceso');
                 } else if (isPublicPage || isChangingPassword) {
-                    const targetPath = userRole === 'cliente' ? '/cliente' : userRole === 'contratista' ? '/cumplimiento/contratista/dashboard' : '/dashboard';
+                    const targetPath = userRole === 'cliente' ? '/cliente' : (userRole === 'contratista' ? '/cumplimiento/contratista/dashboard' : '/dashboard');
                     router.replace(targetPath);
                 }
             }
