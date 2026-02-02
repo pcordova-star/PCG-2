@@ -28,8 +28,9 @@ export async function GET(req: Request, ctx: { params: { jobId: string } }) {
         status: jobData.status,
         obraId: jobData.obraId ?? null,
         obraNombre: jobData.obraNombre ?? null,
-        result: jobData.status === "done" ? jobData.result : null,
+        result: jobData.status === "completed" ? jobData.result : null,
         error: jobData.status === "error" ? jobData.errorMessage : null,
+        sourceFileName: jobData.sourceFileName ?? null,
       },
       { status: 200 }
     );
