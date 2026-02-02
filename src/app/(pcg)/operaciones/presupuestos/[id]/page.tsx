@@ -9,7 +9,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { ArrowLeft, Trash2, Loader2, Save, PlusCircle, FolderPlus, FilePlus, Type, AlertTriangle, ArrowUp, ArrowDown, Edit } from 'lucide-react';
+import { ArrowLeft, Trash2, Loader2, Save, PlusCircle, FolderPlus, FilePlus, Type, AlertTriangle, ArrowUp, ArrowDown, Edit, ChevronRight } from 'lucide-react';
 import { collection, doc, getDoc, setDoc, addDoc, serverTimestamp, query, orderBy, getDocs, Timestamp, where, writeBatch, updateDoc } from 'firebase/firestore';
 import { firebaseDb } from '@/lib/firebaseClient';
 import { useToast } from "@/hooks/use-toast";
@@ -108,6 +108,21 @@ export default function PresupuestoEditPage() {
     const [isSaving, setIsSaving] = useState(false);
 
     const isAiGenerated = presupuesto.source === 'IA_PDF';
+
+    // Estado para los items colapsados
+    const [collapsedItems, setCollapsedItems] = useState<Set<string>>(new Set());
+
+    const toggleCollapse = useCallback((itemId: string) => {
+        setCollapsedItems(prev => {
+            const newSet = new Set(prev);
+            if (newSet.has(itemId)) {
+                newSet.delete(itemId);
+            } else {
+                newSet.add(itemId);
+            }
+            return newSet;
+        });
+    }, []);
 
     useEffect(() => {
         if (!companyId && role !== 'superadmin') return;
@@ -521,6 +536,21 @@ export default function PresupuestoEditPage() {
     };
 
 
+    const itemMap = useMemo(() => new Map(items.map(i => [i.id, i])), [items]);
+
+    const isAncestorCollapsed = useCallback((item: PresupuestoItem) => {
+        let parentId = item.parentId;
+        while (parentId) {
+          if (collapsedItems.has(parentId)) {
+            return true;
+          }
+          const parent = itemMap.get(parentId);
+          parentId = parent ? parent.parentId : null;
+        }
+        return false;
+    }, [collapsedItems, itemMap]);
+
+
     if (loading) {
         return <div className="p-8 text-center"><Loader2 className="animate-spin" /> Cargando...</div>
     }
@@ -606,16 +636,27 @@ export default function PresupuestoEditPage() {
                             </TableRow>
                         </TableHeader>
                         <TableBody>
-                            {hierarchicalItems.map((item, index) => {
+                             {hierarchicalItems.filter(item => !isAncestorCollapsed(item)).map((item) => {
                                 const siblings = siblingsMap.get(item.parentId) || [];
                                 const myIndexInSiblings = siblings.findIndex(s => s.id === item.id);
                                 const isFirst = myIndexInSiblings === 0;
                                 const isLast = myIndexInSiblings === siblings.length - 1;
+                                const isCollapsible = item.type === 'chapter' || item.type === 'subchapter';
+                                const isCurrentlyCollapsed = collapsedItems.has(item.id);
 
                                 return (
-                                <TableRow key={item.id} className={cn(item.type === 'chapter' && 'bg-blue-50 font-bold', item.type === 'subchapter' && 'bg-slate-100 font-semibold')}>
-                                    <TableCell style={{ paddingLeft: `${1 + item.level * 1.5}rem` }} className="font-mono">
-                                        {item.itemNumber}
+                                <TableRow key={item.id} className={cn(item.type === 'chapter' && 'bg-blue-50/50 font-bold', item.type === 'subchapter' && 'bg-slate-100 font-semibold')}>
+                                    <TableCell className="font-mono">
+                                        <div className="flex items-center gap-1">
+                                            <div style={{ width: `${item.level * 1.5}rem` }}></div>
+                                            {isCollapsible && (
+                                                <Button variant="ghost" size="icon" className="h-6 w-6 -ml-2" onClick={() => toggleCollapse(item.id)}>
+                                                    <ChevronRight className={cn("h-4 w-4 transition-transform", !isCurrentlyCollapsed && "rotate-90")} />
+                                                </Button>
+                                            )}
+                                            {!isCollapsible && <div className="w-6"></div>}
+                                            <span>{item.itemNumber}</span>
+                                        </div>
                                     </TableCell>
                                     <TableCell>{item.descripcion}</TableCell>
                                     <TableCell className="text-xs text-muted-foreground">{item.type === 'item' ? item.especialidad : ''}</TableCell>
