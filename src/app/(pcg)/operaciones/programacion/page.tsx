@@ -2,9 +2,10 @@
 
 "use client";
 
-import React, { useEffect, useState, FormEvent, useMemo, Suspense } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
+import React, { useEffect, useState, FormEvent, useMemo, Suspense, useRef } from "react";
+import { useRouter, useSearchParams } from 'next/navigation';
 import { useAuth } from "@/context/AuthContext";
+import * as XLSX from 'xlsx';
 
 import {
   collection,
@@ -64,7 +65,7 @@ import {
 import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
 import Link from "next/link";
-import { FilePlus2, FileText, Trash2, Edit, PlusCircle, Camera, Download, X, DollarSign, FileDown, ArrowLeft, RefreshCw, Loader2 } from 'lucide-react';
+import { FilePlus2, FileText, Trash2, Edit, PlusCircle, Camera, Download, X, DollarSign, FileDown, ArrowLeft, RefreshCw, Loader2, FileUp } from 'lucide-react';
 import { Switch } from "@/components/ui/switch";
 import RegistrarAvanceForm from "./components/RegistrarAvanceForm";
 import RegistroFotograficoForm from "./components/RegistroFotograficoForm";
@@ -299,6 +300,12 @@ function ProgramacionPageInner() {
   const [newVisibleCliente, setNewVisibleCliente] = useState(true);
   const [isUpdatingAvance, setIsUpdatingAvance] = useState(false);
 
+  // Estados para importación de Excel
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [importData, setImportData] = useState<{data: any[], fileName: string} | null>(null);
+  const [importErrors, setImportErrors] = useState<string[]>([]);
+  const [isImportModalOpen, setIsImportModalOpen] = useState(false);
+  const [isProcessingImport, setIsProcessingImport] = useState(false);
 
 
   const montoTotalContrato = useMemo(() => {
@@ -765,6 +772,113 @@ function ProgramacionPageInner() {
     }
   };
 
+  const handleExport = () => {
+    if (actividades.length === 0) {
+        toast({ variant: "destructive", title: "No hay datos", description: "No hay actividades para exportar." });
+        return;
+    }
+    const dataToExport = actividades.map(act => ({
+        partida_id: act.id,
+        item: act.nombreActividad, // Aca usaremos el nombre como item para que el usuario se guie.
+        descripcion: act.nombreActividad,
+        fecha_inicio: act.fechaInicio,
+        fecha_termino: act.fechaFin,
+    }));
+    const worksheet = XLSX.utils.json_to_sheet(dataToExport);
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, "Programacion");
+    XLSX.writeFile(workbook, `programacion_${obraSeleccionadaId}.xlsx`);
+  };
+
+  const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    setIsProcessingImport(true);
+    const reader = new FileReader();
+    reader.onload = (e) => {
+        try {
+            const data = new Uint8Array(e.target?.result as ArrayBuffer);
+            const workbook = XLSX.read(data, { type: 'array', cellDates: true });
+            const sheetName = workbook.SheetNames[0];
+            const worksheet = workbook.Sheets[sheetName];
+            const jsonData = XLSX.utils.sheet_to_json(worksheet);
+            
+            const validation = validateImportData(jsonData);
+            setImportData({data: validation.validData, fileName: file.name});
+            setImportErrors(validation.errors);
+            setIsImportModalOpen(true);
+        } catch (error) {
+            toast({variant: 'destructive', title: 'Error al leer archivo', description: 'El formato del archivo es inválido.'});
+        } finally {
+            setIsProcessingImport(false);
+            if (fileInputRef.current) fileInputRef.current.value = '';
+        }
+    };
+    reader.readAsArrayBuffer(file);
+  };
+  
+  const validateImportData = (data: any[]): {validData: any[], errors: string[]} => {
+    const validData: any[] = [];
+    const errors: string[] = [];
+    const actividadIds = new Set(actividades.map(a => a.id));
+
+    data.forEach((row: any, index: number) => {
+        const { partida_id, fecha_inicio, fecha_termino } = row;
+        if (!partida_id || !fecha_inicio || !fecha_termino) {
+            errors.push(`Fila ${index + 2}: Faltan columnas requeridas (partida_id, fecha_inicio, fecha_termino).`);
+            return;
+        }
+        if (!actividadIds.has(partida_id)) {
+            errors.push(`Fila ${index + 2}: La partida con ID "${partida_id}" no existe en la programación actual.`);
+            return;
+        }
+        
+        // Basic date validation
+        const inicio = new Date(fecha_inicio);
+        const termino = new Date(fecha_termino);
+
+        if (isNaN(inicio.getTime()) || isNaN(termino.getTime())) {
+            errors.push(`Fila ${index + 2}: Formato de fecha inválido para "${fecha_inicio}" o "${fecha_termino}". Use AAAA-MM-DD.`);
+            return;
+        }
+
+        if (inicio > termino) {
+            errors.push(`Fila ${index + 2}: La fecha de término no puede ser anterior a la de inicio.`);
+            return;
+        }
+        
+        validData.push({
+            id: partida_id,
+            fechaInicio: format(inicio, 'yyyy-MM-dd'),
+            fechaFin: format(termino, 'yyyy-MM-dd')
+        });
+    });
+    return { validData, errors };
+  };
+
+  const handleConfirmImport = async () => {
+    if (!importData || importData.data.length === 0) return;
+    
+    setIsProcessingImport(true);
+    const batch = writeBatch(firebaseDb);
+    importData.data.forEach(item => {
+        const docRef = doc(firebaseDb, "obras", obraSeleccionadaId, "actividades", item.id);
+        batch.update(docRef, { fechaInicio: item.fechaInicio, fechaFin: item.fechaFin });
+    });
+    
+    try {
+        await batch.commit();
+        toast({title: "Importación exitosa", description: `${importData.data.length} actividades han sido actualizadas.`});
+        setIsImportModalOpen(false);
+        setImportData(null);
+    } catch (error) {
+        toast({variant: 'destructive', title: 'Error', description: 'No se pudieron guardar los cambios.'});
+    } finally {
+        setIsProcessingImport(false);
+    }
+  }
+
 
   
   if (loadingAuth) return <p className="text-sm text-muted-foreground">Cargando sesión...</p>;
@@ -841,7 +955,15 @@ function ProgramacionPageInner() {
                 <CardTitle>Actividades Programadas</CardTitle>
                 <CardDescription>{cargandoActividades ? "Cargando..." : `Mostrando ${actividades.length} actividades.`}</CardDescription>
             </div>
-            <div className="flex gap-2">
+            <div className="flex flex-wrap gap-2">
+                 <input type="file" ref={fileInputRef} onChange={handleFileSelect} className="hidden" accept=".xlsx, .xls, .csv"/>
+                 <Button onClick={() => fileInputRef.current?.click()} variant="outline" disabled={!obraSeleccionadaId || isProcessingImport}>
+                    {isProcessingImport ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <FileUp className="mr-2 h-4 w-4"/>}
+                    Importar desde Excel
+                 </Button>
+                 <Button onClick={handleExport} variant="outline" disabled={actividades.length === 0}>
+                    <FileDown className="mr-2 h-4 w-4"/> Exportar para Programar
+                 </Button>
                  <Button onClick={handleOpenImportDialog} variant="outline" disabled={!obraSeleccionadaId}>
                     <FileDown className="mr-2 h-4 w-4" />
                     Importar desde Presupuesto
@@ -1008,6 +1130,48 @@ function ProgramacionPageInner() {
                   </Button>
               </DialogFooter>
           </DialogContent>
+      </Dialog>
+       <Dialog open={isImportModalOpen} onOpenChange={setIsImportModalOpen}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>Previsualización de Importación de Fechas</DialogTitle>
+            <DialogDescription>
+              Se encontraron {importData?.data.length || 0} actividades para actualizar desde el archivo "{importData?.fileName}".
+            </DialogDescription>
+          </DialogHeader>
+          <div className="py-4 max-h-[60vh] overflow-y-auto">
+            {importErrors.length > 0 && (
+              <div className="mb-4">
+                <h4 className="font-semibold text-destructive">Errores de Validación ({importErrors.length}):</h4>
+                <ul className="list-disc pl-5 text-xs text-destructive bg-destructive/10 p-3 rounded-md">
+                  {importErrors.map((err, i) => <li key={i}>{err}</li>)}
+                </ul>
+              </div>
+            )}
+            <h4 className="font-semibold">Actividades a Actualizar:</h4>
+             <Table>
+                <TableHeader><TableRow><TableHead>Actividad</TableHead><TableHead>Fecha Inicio</TableHead><TableHead>Fecha Término</TableHead></TableRow></TableHeader>
+                <TableBody>
+                    {importData?.data.map((item) => {
+                        const actName = actividades.find(a => a.id === item.id)?.nombreActividad || 'Actividad no encontrada';
+                        return (
+                        <TableRow key={item.id}>
+                            <TableCell>{actName}</TableCell>
+                            <TableCell>{item.fechaInicio}</TableCell>
+                            <TableCell>{item.fechaFin}</TableCell>
+                        </TableRow>
+                    )})}
+                </TableBody>
+            </Table>
+          </div>
+          <DialogFooter>
+            <Button variant="ghost" onClick={() => setIsImportModalOpen(false)}>Cancelar</Button>
+            <Button onClick={handleConfirmImport} disabled={isProcessingImport || importErrors.length > 0 || !importData || importData.data.length === 0}>
+              {isProcessingImport && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              Confirmar e Importar Fechas
+            </Button>
+          </DialogFooter>
+        </DialogContent>
       </Dialog>
 
       {/* Gráfico Curva S */}
