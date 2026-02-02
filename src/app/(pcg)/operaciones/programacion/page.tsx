@@ -777,16 +777,39 @@ function ProgramacionPageInner() {
         toast({ variant: "destructive", title: "No hay datos", description: "No hay actividades para exportar." });
         return;
     }
+    
+    // 1. Datos para la hoja de programación
     const dataToExport = actividades.map(act => ({
         partida_id: act.id,
-        item: act.nombreActividad, // Aca usaremos el nombre como item para que el usuario se guie.
+        item: act.nombreActividad, // Nombre como referencia visual
         descripcion: act.nombreActividad,
         fecha_inicio: act.fechaInicio,
         fecha_termino: act.fechaFin,
     }));
-    const worksheet = XLSX.utils.json_to_sheet(dataToExport);
+    const programacionWorksheet = XLSX.utils.json_to_sheet(dataToExport);
+    
+    // 2. Datos para la hoja de instrucciones
+    const instructionsData = [
+        ["CÓMO COMPLETAR ESTE ARCHIVO"],
+        [],
+        ["QUÉ EDITAR", "Modifique únicamente las columnas `fecha_inicio` y `fecha_termino`."],
+        ["QUÉ NO EDITAR", "NO MODIFIQUE las columnas `partida_id`, `item` ni `descripcion`. El sistema las usa para identificar cada partida."],
+        ["FORMATO DE FECHA", "Use siempre el formato AAAA-MM-DD (ej. 2025-08-22)."],
+        ["FILAS SIN FECHAS", "Si deja las fechas de una fila en blanco, esa partida no se actualizará en la plataforma."],
+        ["RECOMENDACIÓN", "Puede usar todas las herramientas de Excel, como copiar, pegar y arrastrar fechas para rellenar rápidamente."],
+        ["GUARDAR Y SUBIR", "Una vez listo, guarde los cambios en este mismo archivo y súbalo de vuelta a la plataforma PCG en la sección de Programación."],
+    ];
+    const instruccionesWorksheet = XLSX.utils.aoa_to_sheet(instructionsData);
+
+    // Ajustar anchos de columna para la hoja de instrucciones
+    instruccionesWorksheet['!cols'] = [ { wch: 20 }, { wch: 100 } ];
+
+    // 3. Crear el libro y añadir las hojas
     const workbook = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(workbook, worksheet, "Programacion");
+    XLSX.utils.book_append_sheet(workbook, programacionWorksheet, "Programacion");
+    XLSX.utils.book_append_sheet(workbook, instruccionesWorksheet, "Instrucciones");
+
+    // 4. Descargar el archivo
     XLSX.writeFile(workbook, `programacion_${obraSeleccionadaId}.xlsx`);
   };
 
