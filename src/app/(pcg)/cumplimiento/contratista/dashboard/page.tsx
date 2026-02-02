@@ -1,4 +1,4 @@
-// src/app/cumplimiento/contratista/dashboard/page.tsx
+// src/app/(pcg)/cumplimiento/contratista/dashboard/page.tsx
 "use client";
 
 import { useAuth } from "@/context/AuthContext";
@@ -6,12 +6,9 @@ import { useRouter } from 'next/navigation';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { useEffect, useState } from "react";
-import { Loader2, CheckCircle, AlertTriangle, Clock, ArrowLeft } from "lucide-react";
-import { cn } from "@/lib/utils";
-import Link from "next/link";
+import { Loader2 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 
-type EstadoCumplimiento = "CUMPLIENDO" | "EN_REVISION" | "ACCION_REQUERIDA" | "PENDIENTE_DE_CARGA";
 type EstadoDocumento = "Aprobado" | "En Revisión" | "Observado" | "Pendiente de Carga";
 
 const documentosRequeridos = [
@@ -20,45 +17,6 @@ const documentosRequeridos = [
   { id: 'doc3', nombre: 'Liquidaciones de Sueldo Firmadas', estado: 'Pendiente de Carga' as EstadoDocumento },
   { id: 'doc4', nombre: 'Certificado de Mutualidad', estado: 'En Revisión' as EstadoDocumento },
 ];
-
-const estadoConfig: Record<EstadoCumplimiento, {
-    title: string;
-    description: string;
-    icon: React.ElementType;
-    color: string;
-}> = {
-    "CUMPLIENDO": {
-        title: "Cumpliendo - Documentación Aprobada",
-        description: "Felicitaciones, tu estado de pago para este período ha sido habilitado.",
-        icon: CheckCircle,
-        color: "bg-green-100 border-green-300 text-green-800",
-    },
-    "EN_REVISION": {
-        title: "En Revisión",
-        description: "Hemos recibido tu documentación. Nuestro equipo la está revisando.",
-        icon: Clock,
-        color: "bg-blue-100 border-blue-300 text-blue-800",
-    },
-    "ACCION_REQUERIDA": {
-        title: "Acción Requerida - Tienes Documentos Observados",
-        description: "Revisa los comentarios y vuelve a subir los documentos correctos para habilitar tu pago.",
-        icon: AlertTriangle,
-        color: "bg-red-100 border-red-300 text-red-800",
-    },
-    "PENDIENTE_DE_CARGA": {
-        title: "Pendiente de Carga",
-        description: "Sube los documentos requeridos antes de la fecha de corte para iniciar el proceso.",
-        icon: Clock,
-        color: "bg-yellow-100 border-yellow-300 text-yellow-800",
-    }
-};
-
-const getEstadoGlobal = (): EstadoCumplimiento => {
-    if (documentosRequeridos.some(d => d.estado === 'Observado')) return 'ACCION_REQUERIDA';
-    if (documentosRequeridos.some(d => d.estado === 'Pendiente de Carga')) return 'PENDIENTE_DE_CARGA';
-    if (documentosRequeridos.some(d => d.estado === 'En Revisión')) return 'EN_REVISION';
-    return 'CUMPLIENDO';
-}
 
 const estadoDocConfig: Record<EstadoDocumento, { color: string, label: string }> = {
     'Aprobado': { color: 'bg-green-100 text-green-800', label: 'Aprobado' },
@@ -70,8 +28,6 @@ const estadoDocConfig: Record<EstadoDocumento, { color: string, label: string }>
 export default function ContratistaDashboardPage() {
     const { role, loading, user } = useAuth();
     const router = useRouter();
-
-    const [estadoGlobal, setEstadoGlobal] = useState<EstadoCumplimiento>(getEstadoGlobal());
 
     useEffect(() => {
         if (!loading && role !== 'contratista' && role !== 'superadmin') {
@@ -87,28 +43,12 @@ export default function ContratistaDashboardPage() {
         return null;
     }
 
-    const config = estadoConfig[estadoGlobal];
-    const Icon = config.icon;
-
     return (
         <div className="space-y-6">
             <header>
-                <Button asChild variant="outline" size="sm" className="mb-4">
-                  <Link href="/dashboard"><ArrowLeft className="mr-2 h-4 w-4" />Volver al Dashboard</Link>
-                </Button>
                 <h1 className="text-3xl font-bold">Portal del Contratista</h1>
                 <p className="text-muted-foreground">Bienvenido, {user?.displayName || user?.email}.</p>
             </header>
-
-            <Card className={cn("border-l-4", config.color)}>
-                <CardHeader className="flex flex-row items-center gap-4">
-                    <Icon className="h-8 w-8" />
-                    <div>
-                        <CardTitle className="text-lg">{config.title}</CardTitle>
-                        <CardDescription className="text-sm">{config.description}</CardDescription>
-                    </div>
-                </CardHeader>
-            </Card>
 
             <Card>
                 <CardHeader>
