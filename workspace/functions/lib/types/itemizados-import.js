@@ -1,27 +1,23 @@
 "use strict";
-// functions/src/types/itemizados-import.ts
-// Este archivo contiene los esquemas Zod necesarios para la Cloud Function,
-// desacoplándola del código del frontend.
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.ItemizadoImportOutputSchema = void 0;
+// functions/src/types/itemizados-import.ts
 const zod_1 = require("zod");
-const BudgetItemSchema = zod_1.z.lazy(() => zod_1.z.object({
-    code: zod_1.z.string(),
-    name: zod_1.z.string(),
-    unit: zod_1.z.string(),
-    quantity: zod_1.z.number().nullable(),
-    unit_price: zod_1.z.number().nullable(),
-    total: zod_1.z.number().nullable(),
-    items: zod_1.z.array(BudgetItemSchema).optional(),
-}));
-const EspecialidadSchema = zod_1.z.object({
-    code: zod_1.z.string(),
-    name: zod_1.z.string(),
-    items: zod_1.z.array(BudgetItemSchema)
+const ItemizadoRowSchema = zod_1.z.object({
+    id: zod_1.z.string(),
+    parentId: zod_1.z.string().nullable(),
+    type: zod_1.z.enum(['chapter', 'subchapter', 'item']),
+    description: zod_1.z.string(),
+    unit: zod_1.z.string().optional().nullable(),
+    quantity: zod_1.z.number().optional().nullable(),
+    unit_price: zod_1.z.number().optional().nullable(),
+    total: zod_1.z.number().optional().nullable(),
+    chapterIndex: zod_1.z.number(),
 });
 exports.ItemizadoImportOutputSchema = zod_1.z.object({
     currency: zod_1.z.string(),
     source: zod_1.z.string(),
-    especialidades: zod_1.z.array(EspecialidadSchema)
+    chapters: zod_1.z.array(zod_1.z.string()),
+    rows: zod_1.z.array(ItemizadoRowSchema)
 });
 //# sourceMappingURL=itemizados-import.js.map

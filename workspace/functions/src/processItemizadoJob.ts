@@ -9,19 +9,20 @@ import fetch from "node-fetch";
 const db = getAdminApp().firestore();
 
 function cleanJsonString(rawString: string): string {
-    // Quita los delimitadores de bloque de código de Markdown
     let cleaned = rawString.replace(/```json/g, "").replace(/```/g, "");
+    
+    // Eliminar comentarios de una línea o de bloque
+    cleaned = cleaned.replace(/\/\*[\s\S]*?\*\/|([^\\:]|^)\/\/.*$/gm, '$1');
 
-    // Encuentra el primer '{' y el último '}' para asegurarse de que tenemos un objeto
     const startIndex = cleaned.indexOf("{");
     const endIndex = cleaned.lastIndexOf("}");
     if (startIndex === -1 || endIndex === -1 || endIndex < startIndex) {
         throw new Error("Respuesta de IA no contenía un objeto JSON válido.");
     }
+    
     cleaned = cleaned.substring(startIndex, endIndex + 1);
 
-    // Intenta eliminar comas sobrantes justo antes de ']' o '}'
-    // Esto es un arreglo común para errores de formato de la IA.
+    // Eliminar comas sobrantes antes de corchetes o llaves de cierre.
     cleaned = cleaned.replace(/,\s*(]|})/g, "$1");
 
     return cleaned;
@@ -46,7 +47,6 @@ export const processPresupuestoPdf = onObjectFinalized(
     }
 
     const jobRef = db.collection('itemizadoImportJobs').doc(jobId);
-
     const jobSnap = await jobRef.get();
     if (!jobSnap.exists) {
         logger.error(`[${jobId}] Job document not found in Firestore.`);
@@ -74,25 +74,27 @@ export const processPresupuestoPdf = onObjectFinalized(
             throw new Error("GOOGLE_GENAI_API_KEY no está configurada en el entorno de la función.");
         }
 
-        const prompt = `Eres un asistente experto en análisis de presupuestos de construcción. Tu tarea es interpretar un presupuesto (en formato PDF) y extraer los capítulos y todas las partidas/subpartidas en una estructura plana.
+        const prompt = `Eres un analista de costos y presupuestos de construcción en Chile. Tu tarea es interpretar un presupuesto de obra en formato PDF y transformarlo en una lista PLANA de objetos JSON.
 
-Debes seguir estas reglas estrictamente:
+REGLAS OBLIGATORIAS:
+1.  El resultado DEBE ser un único objeto JSON que contenga una sola clave: "items".
+2.  "items" debe ser un array de objetos, donde cada objeto representa una línea del presupuesto (capítulo, subpartida o ítem).
+3.  Cada objeto en el array "items" DEBE tener la siguiente estructura exacta:
+    - id: string (Un código jerárquico único, ej: "1", "1.1", "1.1.1")
+    - parentId: string | null (El 'id' del padre, o null si es un capítulo raíz)
+    - type: 'chapter' | 'subchapter' | 'item'
+    - descripcion: string
+    - unidad: string | null
+    - cantidad: number | null
+    - precioUnitario: number | null
+    - especialidad: string | null
+4.  No incluyas texto, comentarios ni formato markdown fuera del objeto JSON principal. Tu respuesta debe ser solo el JSON.
+5.  Si un valor numérico (cantidad, precio) no aparece, usa 'null', no 0.
 
-1.  Analiza el documento PDF que se te entrega.
-2.  Primero, identifica los capítulos principales y llena el array 'chapters'.
-3.  Luego, procesa CADA LÍNEA del itemizado (capítulos, partidas, sub-partidas) y conviértela en un objeto para el array 'rows'.
-4.  Para cada fila en 'rows', genera un 'id' estable y único (ej: "1", "1.1", "1.2.3").
-5.  Para representar la jerarquía, asigna el 'id' del elemento padre al campo 'parentId'. Si un ítem es de primer nivel (un capítulo), su 'parentId' debe ser 'null'.
-6.  Asigna el 'chapterIndex' correcto a cada fila, correspondiendo a su capítulo en el array 'chapters'.
-7.  Extrae códigos, descripciones, unidades, cantidades, precios unitarios y totales para cada partida.
-8.  NO inventes cantidades, precios ni unidades si no están explícitamente en el documento. Si un valor no existe para un ítem, déjalo como 'null'.
-9.  Tu respuesta DEBE SER EXCLUSIVAMENTE un objeto JSON válido.
+Notas del usuario:
+${notas || "Sin notas."}
 
-Aquí está la información proporcionada por el usuario:
-- Itemizado PDF: (se adjuntará el archivo)
-- Notas adicionales: ${notas || "Sin notas."}
-
-Genera ahora el JSON de salida.
+A continuación, el PDF para analizar. Genera el JSON.
 `;
         
         await jobRef.update({ status: 'running_ai', updatedAt: admin.firestore.FieldValue.serverTimestamp() });
@@ -130,8 +132,8 @@ Genera ahora el JSON de salida.
             throw new Error(`La IA devolvió un JSON inválido. Error de parseo: ${e.message}. Comienzo de la respuesta: "${snippet}..."`);
         }
 
-        if (!parsed.rows || !Array.isArray(parsed.rows) || parsed.rows.length === 0) {
-            throw new Error("IA no devolvió un array de 'rows' válido.");
+        if (!parsed.items || !Array.isArray(parsed.items)) {
+            throw new Error("La respuesta de la IA no contiene un array 'items' válido.");
         }
 
         await jobRef.update({

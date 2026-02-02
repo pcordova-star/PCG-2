@@ -26,64 +26,6 @@ type JobResponse = {
   sourceFileName?: string;
 };
 
-// Función para parsear números en formato chileno (ej: "1.234,56")
-function parseNumberCL(value: string | number | null | undefined): number {
-    if (typeof value === 'number') return value;
-    if (typeof value !== 'string' || value.trim() === '') return 0;
-
-    // Eliminar signo peso y puntos de miles, luego reemplazar coma decimal por punto.
-    const cleanValue = value.replace(/\$/g, '').replace(/\./g, '').replace(/,/g, '.').trim();
-    const parsed = parseFloat(cleanValue);
-    return isNaN(parsed) ? 0 : parsed;
-}
-
-
-// Esta función ahora solo normaliza y limpia los datos, ya que la IA devuelve una estructura plana.
-function normalizeRowsToPresupuestoItems(rows: any[]): Array<{ parentId: string | null; type: "chapter" | "subchapter" | "item"; descripcion: string; unidad: string; cantidad: number; precioUnitario: number; especialidad: string; id: string; }> {
-    if (!rows) return [];
-
-    const excludedTokens = [
-        "iva", "total", "subtotal", "costo directo", "costos directos", 
-        "gastos generales", "ggyu", "utilidad", "administración", 
-        "imprevistos", "neto", "bruto"
-    ];
-
-    return rows
-      .filter(row => {
-        const descripcion = (row.descripcion ?? row.description ?? row.name ?? "").trim().toLowerCase();
-        if (!descripcion) return false;
-        
-        return !excludedTokens.some(token => descripcion.includes(token));
-      })
-      .map(row => {
-        const descripcion = row.descripcion ?? row.description ?? row.name ?? "";
-        const unidad = row.unidad ?? row.unit ?? row.u ?? "";
-        const cantidad = parseNumberCL(row.cantidad ?? row.qty ?? row.quantity);
-        const precioUnitario = parseNumberCL(row.precioUnitario ?? row.unitPrice ?? row.price ?? row.unit_price);
-        
-        let type: "chapter" | "subchapter" | "item";
-        if (row.type && ["chapter", "subchapter", "item"].includes(row.type)) {
-            type = row.type;
-        } else {
-            type = 'item'; // Default to item if type is missing/invalid
-        }
-        
-        const parentId = row.parentId ?? row.parent_id ?? null;
-
-        return {
-            parentId,
-            type,
-            descripcion,
-            unidad,
-            cantidad,
-            precioUnitario,
-            id: row.id,
-            especialidad: row.especialidad || 'Sin especialidad'
-        };
-    });
-}
-
-
 export default function ImportStatusPage() {
   const params = useParams();
   const router = useRouter();
@@ -109,9 +51,7 @@ export default function ImportStatusPage() {
         
         setJobData(data);
 
-        if (data.status === 'done') {
-          setProgress(100);
-        } else if (data.status === 'error') {
+        if (data.status === 'done' || data.status === 'error') {
           setProgress(100);
         } else if (data.status === 'processing' || data.status === 'running_ai') {
             setProgress(prev => Math.min(prev + 5, 90)); // Simula progreso
@@ -129,7 +69,7 @@ export default function ImportStatusPage() {
   }, [jobId, jobData?.status]);
 
   const handleSaveItemizado = async () => {
-    if (!jobData?.result || !jobData?.obraId || !user || !companyId) {
+    if (!jobData?.result?.items || !jobData?.obraId || !user || !companyId) {
       toast({
         variant: "destructive",
         title: "Error",
@@ -140,13 +80,11 @@ export default function ImportStatusPage() {
 
     setIsSaving(true);
     try {
-        const sourceFileName =
-          jobData.sourceFileName ??
-          "Itemizado IA";
+        const sourceFileName = jobData.sourceFileName ?? "Itemizado IA";
         const nombrePresupuesto = `Presupuesto importado de ${sourceFileName} - ${new Date().toLocaleDateString()}`;
         
-        const normalizedItems = normalizeRowsToPresupuestoItems(jobData.result?.rows ?? []);
-        const totalPresupuesto = normalizedItems.reduce((sum, item) => sum + (item.cantidad * item.precioUnitario), 0);
+        const items = jobData.result.items;
+        const totalPresupuesto = items.reduce((sum, item) => sum + ((item.cantidad || 0) * (item.precioUnitario || 0)), 0);
         
         const newPresupuesto = {
             obraId: jobData.obraId,
@@ -154,12 +92,12 @@ export default function ImportStatusPage() {
             moneda: "CLP",
             observaciones: `Generado automáticamente por IA a partir de un PDF. Job ID: ${jobId}.`,
             gastosGeneralesPorcentaje: 25,
-            items: normalizedItems,
+            items: items, // Los items ya vienen en el formato correcto
             fechaCreacion: serverTimestamp(),
             updatedAt: serverTimestamp(),
             createdBy: user.uid,
             companyId: companyId,
-            source: "IA_PDF",
+            source: "IA_PDF" as const,
             jobId: jobId,
             totalPresupuesto,
         };
@@ -215,7 +153,7 @@ export default function ImportStatusPage() {
             <p className="mt-2 font-semibold text-xl">¡Análisis completado!</p>
             {jobData.result && (
                 <p className="text-sm text-muted-foreground">
-                    Se encontraron {jobData.result.rows.length} filas válidas en {jobData.result.chapters.length} capítulos.
+                    Se encontraron {jobData.result.items?.length || 0} filas válidas.
                 </p>
             )}
 

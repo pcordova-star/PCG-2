@@ -1,31 +1,22 @@
 // src/types/itemizados-import.ts
 import { z } from 'zod';
 
-const BudgetItemSchema: z.ZodType<any> = z.lazy(() => z.object({
-    code: z.string(),
-    name: z.string(),
-    unit: z.string(),
-    quantity: z.number().nullable(),
-    unit_price: z.number().nullable(),
-    total: z.number().nullable(),
-    items: z.array(BudgetItemSchema).optional(),
-}));
-
-const EspecialidadSchema = z.object({
-    code: z.string(),
-    name: z.string(),
-    items: z.array(BudgetItemSchema)
+// Este schema ahora coincide con PresupuestoItem, que es el formato interno de la app.
+// La IA debe devolver un array de estos objetos.
+export const PresupuestoItemImportSchema = z.object({
+    id: z.string().describe("Un ID único para el ítem, como un número jerárquico (ej: '1.2.3')."),
+    parentId: z.string().nullable().describe("El ID del ítem padre, o null si es un ítem de nivel raíz."),
+    type: z.enum(['chapter', 'subchapter', 'item']).describe("El tipo de ítem."),
+    descripcion: z.string().describe("La descripción de la partida."),
+    unidad: z.string().optional().nullable().describe("La unidad de medida (m2, ml, kg, etc.)."),
+    cantidad: z.number().optional().nullable().describe("La cantidad de la partida."),
+    precioUnitario: z.number().optional().nullable().describe("El precio por unidad de la partida."),
+    especialidad: z.string().optional().nullable().describe("La especialidad a la que pertenece (ej: 'Obra Gruesa')."),
 });
 
+// El output de la IA es un objeto que contiene la lista plana de items.
 export const ItemizadoImportOutputSchema = z.object({
-    currency: z.string(),
-    source: z.string(),
-    especialidades: z.array(EspecialidadSchema)
+  items: z.array(PresupuestoItemImportSchema)
 });
 
 export type ItemizadoImportOutput = z.infer<typeof ItemizadoImportOutputSchema>;
-
-// Tipo auxiliar para el frontend, para reconstruir el árbol para visualización.
-export type ItemNode = z.infer<typeof BudgetItemSchema> & {
-  children: ItemNode[];
-};
