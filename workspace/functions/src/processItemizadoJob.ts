@@ -34,7 +34,6 @@ function cleanJsonString(rawString: string): string {
     let jsonContent = cleaned.substring(startIndex, endIndex + 1);
 
     // 3. REPARACIÓN: Eliminar comas sobrantes (trailing commas) antes de '}' o ']'
-    // Esta es la causa más común de errores de parseo en JSON generados por IA.
     jsonContent = jsonContent.replace(/,\s*(?=[}\]])/g, "");
 
     return jsonContent;
@@ -110,7 +109,7 @@ Genera ahora el JSON de salida.`;
         
         await jobRef.update({ status: 'running_ai', updatedAt: admin.firestore.FieldValue.serverTimestamp() });
 
-        const geminiEndpoint = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-pro-latest:generateContent?key=${apiKey}`;
+        const geminiEndpoint = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`;
 
         const requestBody = {
             contents: [{ parts: [{ text: prompt }, { inline_data: { mime_type: 'application/pdf', data: base64Data } }] }],
