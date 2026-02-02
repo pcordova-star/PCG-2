@@ -1,66 +1,96 @@
 // workspace/functions/src/deactivateCompanyUser.ts
 import * as functions from 'firebase-functions';
 import * as logger from "firebase-functions/logger";
-import { getAuth } from "firebase-admin/auth";
 import * as admin from "firebase-admin";
 import { getAdminApp } from "./firebaseAdmin";
 
-const cors = require('cors')({origin: true});
 const adminApp = getAdminApp();
 
-export const deactivateCompanyUser = functions.region("us-central1").runWith({ memory: "256MB", timeoutSeconds: 30 }).https.onRequest((req, res) => {
-    cors(req, res, async () => {
-        if (req.method !== "POST") {
-            res.status(405).json({ success: false, error: "Method Not Allowed" });
-            return;
+// Refactored to onCall for consistency and easier auth handling
+export const deactivateCompanyUser = functions
+  .region("us-central1")
+  .https.onCall(async (data, context) => {
+    // 1. Check for authentication
+    if (!context.auth) {
+      throw new functions.https.HttpsError(
+        "unauthenticated",
+        "El usuario no está autenticado."
+      );
+    }
+
+    const { uid: requesterUid } = context.auth;
+    const requesterClaims = context.auth.token;
+    const requesterRole = requesterClaims.role;
+
+    // 2. Validate input data
+    const { userId, motivo } = data;
+    if (!userId) {
+      throw new functions.https.HttpsError(
+        "invalid-argument",
+        "El ID del usuario a desactivar es requerido."
+      );
+    }
+    
+    const auth = adminApp.auth();
+    const db = adminApp.firestore();
+
+    // 3. Permission Check
+    if (requesterRole !== "superadmin" && requesterRole !== "admin_empresa") {
+       throw new functions.https.HttpsError(
+        "permission-denied",
+        "Permiso denegado. Se requiere rol de administrador."
+      );
+    }
+
+    // 4. Scope Check (if admin_empresa)
+    if (requesterRole === "admin_empresa") {
+        const requesterCompanyId = requesterClaims.companyId;
+        if (!requesterCompanyId) {
+            throw new functions.https.HttpsError("permission-denied", "El administrador no tiene una empresa asociada.");
         }
+        
+        const targetUserSnap = await db.collection("users").doc(userId).get();
+        if (!targetUserSnap.exists) {
+            throw new functions.https.HttpsError("not-found", "El usuario a desactivar no fue encontrado.");
+        }
+        const targetUserData = targetUserSnap.data()!;
 
-        try {
-          const authHeader = req.headers.authorization;
-          if (!authHeader || !authHeader.startsWith("Bearer ")) {
-            res.status(401).json({ success: false, error: "Unauthorized: No token provided." });
-            return;
-          }
-          const token = authHeader.split(" ")[1];
-          const decodedToken = await getAuth().verifyIdToken(token);
-          
-          const userClaims = (decodedToken as any).role;
-          if (userClaims !== "superadmin") {
-            res.status(403).json({ success: false, error: "Permission Denied: Caller is not a superadmin." });
-            return;
-          }
+        // An admin can only deactivate users of their own company or subcontractors of their company.
+        if (targetUserData.empresaId !== requesterCompanyId) {
+             // Let's check if the user belongs to a subcontractor of the admin's company
+             if (!targetUserData.subcontractorId) {
+                 throw new functions.https.HttpsError("permission-denied", "No puedes gestionar usuarios de otra empresa.");
+             }
+             const subRef = await db.collection('subcontractors').doc(targetUserData.subcontractorId).get();
+             if (!subRef.exists || subRef.data()?.companyId !== requesterCompanyId) {
+                 throw new functions.https.HttpsError("permission-denied", "No puedes gestionar usuarios de un subcontratista de otra empresa.");
+             }
+        }
+    }
 
-          const { userId, motivo } = req.body;
-          if (!userId) {
-            res.status(400).json({ success: false, error: "Bad Request: userId is required." });
-            return;
-          }
+    // 5. Deactivation Logic
+    try {
+        logger.info(`Iniciando desactivación para usuario ${userId} por ${requesterUid}`);
 
-          const auth = admin.auth();
-          const db = admin.firestore();
+        await auth.updateUser(userId, { disabled: true });
+        logger.info(`Usuario ${userId} deshabilitado en Firebase Auth.`);
 
-          logger.info(`Iniciando desactivación para usuario ${userId} por ${decodedToken.uid}`);
-
-          await auth.updateUser(userId, { disabled: true });
-          logger.info(`Usuario ${userId} deshabilitado en Firebase Auth.`);
-
-          const userDocRef = db.collection("users").doc(userId);
-          await userDocRef.update({
+        const userDocRef = db.collection("users").doc(userId);
+        await userDocRef.update({
             activo: false,
             fechaBaja: admin.firestore.FieldValue.serverTimestamp(),
             motivoBaja: motivo || "Desactivado por administrador.",
-            bajaPorUid: decodedToken.uid,
-          });
-          logger.info(`Documento de usuario ${userId} marcado como inactivo en Firestore.`);
+            bajaPorUid: requesterUid,
+        });
+        logger.info(`Documento de usuario ${userId} marcado como inactivo en Firestore.`);
+        
+        await auth.revokeRefreshTokens(userId);
+        logger.info(`Tokens de sesión para ${userId} revocados.`);
+        
+        return { success: true, message: `Usuario ${userId} ha sido desactivado.` };
 
-          await auth.revokeRefreshTokens(userId);
-          logger.info(`Tokens de sesión para ${userId} revocados.`);
-
-          res.status(200).json({ success: true, message: `Usuario ${userId} ha sido desactivado.` });
-
-        } catch (error: any) {
-          logger.error(`Error al desactivar usuario:`, error);
-          res.status(500).json({ success: false, error: "Internal Server Error", details: error.message });
-        }
-    });
+    } catch (error: any) {
+        logger.error(`Error al desactivar usuario ${userId}:`, error);
+        throw new functions.https.HttpsError("internal", "Ocurrió un error interno al desactivar el usuario.", error.message);
+    }
 });
