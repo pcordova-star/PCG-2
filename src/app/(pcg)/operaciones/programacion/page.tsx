@@ -1,5 +1,5 @@
 
-// src/app/operaciones/programacion/page.tsx
+// src/app/(pcg)/operaciones/programacion/page.tsx
 
 "use client";
 
@@ -382,9 +382,9 @@ function ProgramacionPageInner() {
         const colRef = collection(firebaseDb, "obras");
         let q;
         if (role === 'superadmin') {
-            q = query(colRef);
+            q = query(colRef, orderBy("nombreFaena", "asc"));
         } else if (companyId) {
-            q = query(colRef, where("empresaId", "==", companyId));
+            q = query(colRef, where("empresaId", "==", companyId), orderBy("nombreFaena", "asc"));
         } else {
             setObras([]);
             return;
