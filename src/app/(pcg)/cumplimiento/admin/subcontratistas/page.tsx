@@ -170,7 +170,6 @@ export default function GestionSubcontratistasPage() {
                         <TableHead>Razón Social</TableHead>
                         <TableHead>RUT</TableHead>
                         <TableHead>Contacto</TableHead>
-                        <TableHead>Usuarios</TableHead>
                         <TableHead className="text-right">Acciones</TableHead>
                     </TableRow>
                 </TableHeader>
@@ -180,10 +179,14 @@ export default function GestionSubcontratistasPage() {
                             <TableCell className="font-medium">{sub.razonSocial}</TableCell>
                             <TableCell>{sub.rut}</TableCell>
                             <TableCell>{sub.contactoPrincipal?.nombre || 'N/A'}</TableCell>
-                            <TableCell><Badge>{sub.userIds?.length || 0}</Badge></TableCell>
                             <TableCell className="text-right">
                                 <div className="flex gap-2 justify-end">
-                                    <Button size="sm" variant="outline" onClick={() => { setSelectedSubcontractor(sub); setIsInviteModalOpen(true);}}>
+                                    <Button asChild variant="outline" size="sm">
+                                        <Link href={`/cumplimiento/admin/subcontratistas/${sub.id}`}>
+                                            Ver Usuarios ({sub.userIds?.length || 0})
+                                        </Link>
+                                    </Button>
+                                    <Button size="sm" onClick={() => { setSelectedSubcontractor(sub); setIsInviteModalOpen(true);}}>
                                         <UserPlus className="mr-2 h-4 w-4" />
                                         Invitar Usuario
                                     </Button>
