@@ -107,7 +107,7 @@ Genera ahora la secuencia de objetos JSON.`;
         if (!rawJsonLines) throw new Error("La respuesta de Gemini no contiene texto válido.");
         
         const lines = rawJsonLines.split('\n').filter((line: string) => line.trim().startsWith('{'));
-        const items = [];
+        const items: any[] = [];
         for (const line of lines) {
             try {
                 const item = JSON.parse(line);
