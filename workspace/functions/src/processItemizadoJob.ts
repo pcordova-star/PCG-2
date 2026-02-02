@@ -12,21 +12,21 @@ function cleanJsonString(rawString: string): string {
     // 1. Quitar bloques de código Markdown (```json ... ```)
     let cleaned = rawString.replace(/```json/g, "").replace(/```/g, "");
 
-    // 2. Eliminar comas sobrantes (trailing commas) antes de corchetes y llaves de cierre
-    // Esto es clave para corregir errores de formato comunes de la IA.
-    cleaned = cleaned.replace(/,\s*(\]|})/g, "$1");
-
-    // 3. Encontrar el primer '{' y el último '}' para ignorar texto basura al inicio/final
+    // 2. Encontrar el primer '{' y el último '}' para ignorar texto basura al inicio/final
     const startIndex = cleaned.indexOf("{");
     const endIndex = cleaned.lastIndexOf("}");
-
     if (startIndex === -1 || endIndex === -1 || endIndex < startIndex) {
-        throw new Error("Respuesta de IA no contenía un objeto JSON válido.");
+        throw new Error("Respuesta de IA no contenía un objeto JSON válido (faltan '{' o '}').");
     }
-    
-    // 4. Extraer la subcadena que parece ser el JSON
-    return cleaned.substring(startIndex, endIndex + 1);
+    cleaned = cleaned.substring(startIndex, endIndex + 1);
+
+    // 3. Quitar comas sobrantes (trailing commas) antes de corchetes y llaves de cierre.
+    // Esta es la causa más común de errores de parseo con JSON de IA.
+    cleaned = cleaned.replace(/,\s*(]|})/g, "$1");
+
+    return cleaned;
 }
+
 
 export const processPresupuestoPdf = onObjectFinalized(
   { memory: "2GiB", timeoutSeconds: 540, secrets: ["GOOGLE_GENAI_API_KEY"] },
