@@ -18,6 +18,7 @@ import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 type JobStatus = 'queued' | 'uploaded' | 'processing' | 'running_ai' | 'normalizing_result' | 'completed' | 'error';
 type JobResponse = {
   status: JobStatus;
+  statusDetail?: string; // Nuevo campo para detalle
   obraId?: string;
   obraNombre?: string;
   companyId?: string;
@@ -30,7 +31,7 @@ const statusSteps: Record<JobStatus, { progress: number; text: string; icon: Rea
     queued: { progress: 5, text: "En cola...", icon: Loader2 },
     uploaded: { progress: 10, text: "Archivo subido, esperando procesador...", icon: Loader2 },
     processing: { progress: 20, text: "Procesando archivo PDF...", icon: Loader2 },
-    running_ai: { progress: 50, text: "Analizando con IA (esto puede tardar hasta 2 minutos)...", icon: Loader2 },
+    running_ai: { progress: 50, text: "Analizando con IA...", icon: Loader2 }, // Texto genérico
     normalizing_result: { progress: 90, text: "Validando y finalizando resultados...", icon: Loader2 },
     completed: { progress: 100, text: "¡Análisis completado!", icon: CheckCircle },
     error: { progress: 100, text: "Error en el análisis", icon: AlertCircle },
@@ -128,7 +129,12 @@ export default function ImportStatusPage() {
 
   const currentStatusInfo = useMemo(() => {
     if (!jobData) return statusSteps['queued'];
-    return statusSteps[jobData.status] || statusSteps['queued'];
+    const baseStatus = statusSteps[jobData.status] || statusSteps['queued'];
+    // Si hay un detalle de estado, lo usamos en lugar del texto genérico
+    if (jobData.statusDetail) {
+        return { ...baseStatus, text: jobData.statusDetail };
+    }
+    return baseStatus;
   }, [jobData]);
 
 
