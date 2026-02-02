@@ -8,56 +8,34 @@ import fetch from 'node-fetch';
 
 const db = getAdminApp().firestore();
 
-const indexPrompt = `
-Eres un experto en analizar presupuestos de construcción. Tu ÚNICA tarea es identificar la estructura del documento.
-Analiza el PDF y devuelve SOLAMENTE un objeto JSON con la siguiente estructura:
-{
-  "chapters": [
-    {
-      "name": "Nombre del capítulo principal (ej: Obra Gruesa)",
-      "items": [
-        "Descripción completa de la primera partida",
-        "Descripción completa de la segunda partida",
-        ...
-      ]
-    }
-  ]
-}
-NO incluyas precios, cantidades ni unidades. SOLO la estructura jerárquica de capítulos y partidas.
-Tu respuesta DEBE ser EXCLUSIVAMENTE el objeto JSON.
-`;
+// 1. PROMPT MODIFICADO: Ahora pide un JSON por línea. Es más robusto contra truncamientos.
+const streamPrompt = `
+Eres un experto en analizar presupuestos de construcción. Tu tarea es interpretar un presupuesto en PDF y extraer CADA partida como un objeto JSON independiente en una nueva línea.
 
-const detailPromptTemplate = `
-Eres un experto en extraer datos de presupuestos.
-Analiza el PDF adjunto y encuentra la partida EXACTA con la descripción "{{itemName}}" dentro del capítulo "{{chapterName}}".
-Devuelve SOLAMENTE un objeto JSON con los siguientes datos para ESA partida específica:
-{
-  "unit": "la unidad (ej: m2, kg, ml)",
-  "quantity": el número de la cantidad (ej: 150.5),
-  "unit_price": el número del precio unitario (ej: 25000)
-}
-Si un valor no se encuentra, déjalo como null. Tu respuesta DEBE ser EXCLUSIVAMENTE el objeto JSON.
-`;
+REGLAS ESTRICTAS:
+1. Analiza el documento PDF adjunto.
+2. Por CADA LÍNEA del itemizado (capítulos, partidas, etc.), genera un ÚNICO objeto JSON en una nueva línea.
+3. NO envuelvas los objetos en un array JSON ([...]).
+4. NO pongas comas entre los objetos JSON de cada línea.
+5. Cada línea DEBE ser un JSON válido e independiente.
+6. La estructura de cada objeto JSON debe ser:
+   {
+     "id": "ID jerárquico único (ej: '1', '1.1', '1.2.3')",
+     "parentId": "ID del padre o null si es raíz",
+     "type": "'chapter', 'subchapter', o 'item'",
+     "descripcion": "Descripción completa de la partida",
+     "unidad": "Unidad de medida (ej: m2, ml) o null",
+     "cantidad": "Cantidad numérica o null",
+     "precioUnitario": "Precio unitario numérico o null",
+     "especialidad": "Nombre del capítulo principal al que pertenece"
+   }
+7. Si un valor no existe, usa 'null'. No inventes datos.`;
 
 
 /**
- * Limpia una cadena que se espera contenga JSON, eliminando los delimitadores de markdown
- * y extrayendo solo el objeto JSON principal.
+ * Llama a la API de Gemini y devuelve la respuesta de texto crudo.
  */
-function cleanJsonString(rawString: string): string {
-    let cleaned = rawString.replace(/```json/g, "").replace(/```/g, "");
-    const startIndex = cleaned.indexOf("{");
-    const endIndex = cleaned.lastIndexOf("}");
-    if (startIndex === -1 || endIndex === -1 || endIndex < startIndex) {
-        throw new Error("No se encontró un objeto JSON válido en la respuesta de la IA.");
-    }
-    return cleaned.substring(startIndex, endIndex + 1);
-}
-
-/**
- * Llama a la API de Gemini con un prompt y un buffer de datos.
- */
-async function callGeminiAPI(apiKey: string, model: string, prompt: string, fileBuffer: Buffer) {
+async function callGeminiAPI(apiKey: string, model: string, prompt: string, fileBuffer: Buffer): Promise<string> {
     const geminiEndpoint = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
     const base64Data = fileBuffer.toString('base64');
     
@@ -66,7 +44,6 @@ async function callGeminiAPI(apiKey: string, model: string, prompt: string, file
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
             contents: [{ parts: [{ text: prompt }, { inline_data: { mime_type: 'application/pdf', data: base64Data } }] }],
-            generationConfig: { response_mime_type: "application/json" },
         }),
     });
 
@@ -77,12 +54,12 @@ async function callGeminiAPI(apiKey: string, model: string, prompt: string, file
     }
 
     const result = await response.json() as any;
-    const rawJson = result.candidates?.[0]?.content?.parts?.[0]?.text;
-    if (!rawJson) throw new Error(`La respuesta de Gemini (${model}) no contiene texto JSON válido.`);
+    const rawText = result.candidates?.[0]?.content?.parts?.[0]?.text;
+    if (!rawText) throw new Error(`La respuesta de Gemini (${model}) no contiene texto.`);
     
-    const cleanedJson = cleanJsonString(rawJson);
-    return JSON.parse(cleanedJson);
+    return rawText;
 }
+
 
 export const processPresupuestoPdf = onObjectFinalized(
   { memory: "2GiB", timeoutSeconds: 540, secrets: ["GOOGLE_GENAI_API_KEY"] },
@@ -120,63 +97,44 @@ export const processPresupuestoPdf = onObjectFinalized(
         const file = storageBucket.file(filePath);
         const [pdfBuffer] = await file.download();
         
-        await jobRef.update({ status: 'running_ai', statusDetail: 'Fase 1: Analizando estructura...', updatedAt: admin.firestore.FieldValue.serverTimestamp() });
-        const indexResult = await callGeminiAPI(apiKey, 'gemini-2.0-flash', indexPrompt, pdfBuffer);
-
-        if (!indexResult.chapters || !Array.isArray(indexResult.chapters)) {
-            throw new Error("La respuesta del índice de la IA no contiene la estructura 'chapters' esperada.");
-        }
+        await jobRef.update({ status: 'running_ai', statusDetail: 'Analizando documento con IA...', updatedAt: admin.firestore.FieldValue.serverTimestamp() });
         
+        // 1. Obtener la respuesta de la IA como un bloque de texto.
+        const rawResultText = await callGeminiAPI(apiKey, 'gemini-2.0-flash', streamPrompt, pdfBuffer);
+
+        await jobRef.update({ status: 'normalizing_result', statusDetail: 'Procesando resultados...', updatedAt: admin.firestore.FieldValue.serverTimestamp() });
+
+        // 2. Procesar el texto línea por línea.
+        const lines = rawResultText.split('\n').filter(line => line.trim().startsWith('{'));
         const finalItems: any[] = [];
-        let chapterIndex = 0;
+        let errors = 0;
 
-        for (const chapter of indexResult.chapters) {
-            chapterIndex++;
-            const chapterId = `${chapterIndex}`;
-            finalItems.push({
-                id: chapterId, parentId: null, type: 'chapter',
-                descripcion: chapter.name, unidad: null, cantidad: null,
-                precioUnitario: null, especialidad: chapter.name
-            });
-
-            let itemIndex = 0;
-            for (const itemName of chapter.items) {
-                itemIndex++;
-                await jobRef.update({
-                    status: 'running_ai',
-                    statusDetail: `Fase 2: Extrayendo partida ${itemIndex}/${chapter.items.length} de '${chapter.name}'...`
-                });
-
-                const detailPrompt = detailPromptTemplate
-                    .replace('{{itemName}}', itemName)
-                    .replace('{{chapterName}}', chapter.name);
-                
-                try {
-                    const detailResult = await callGeminiAPI(apiKey, 'gemini-2.0-flash', detailPrompt, pdfBuffer);
-                    finalItems.push({
-                        id: `${chapterId}.${itemIndex}`, parentId: chapterId, type: 'item',
-                        descripcion: itemName, unidad: detailResult.unit || 's/u',
-                        cantidad: detailResult.quantity || null, precioUnitario: detailResult.unit_price || null,
-                        especialidad: chapter.name
-                    });
-                } catch (itemError: any) {
-                    logger.warn(`[${jobId}] Error extrayendo detalles para '${itemName}': ${itemError.message}. Omitiendo partida.`);
-                    finalItems.push({
-                        id: `${chapterId}.${itemIndex}`, parentId: chapterId, type: 'item',
-                        descripcion: `${itemName} (ERROR DE EXTRACCIÓN)`, unidad: null,
-                        cantidad: null, precioUnitario: null, especialidad: chapter.name
-                    });
-                }
+        for (const line of lines) {
+            try {
+                // Intenta parsear cada línea como un JSON independiente.
+                const item = JSON.parse(line);
+                finalItems.push(item);
+            } catch (e) {
+                errors++;
+                logger.warn(`[${jobId}] Error al parsear línea JSON, se omite: ${line}`, e);
             }
         }
         
+        if (finalItems.length === 0 && errors > 0) {
+            throw new Error(`El análisis de la IA falló. No se pudo parsear ninguna línea de la respuesta.`);
+        }
+        if (errors > 0) {
+             logger.warn(`[${jobId}] Se encontraron ${errors} líneas con formato JSON inválido que fueron omitidas.`);
+        }
+
+        // 3. Guardar el resultado agregado.
         await jobRef.update({
             status: "completed",
-            result: { items: finalItems },
+            result: { items: finalItems, parsingErrors: errors },
             finishedAt: admin.firestore.FieldValue.serverTimestamp(),
         });
 
-        logger.info(`[${jobId}] Job completado OK con arquitectura de dos fases. Total de items: ${finalItems.length}`);
+        logger.info(`[${jobId}] Job completado. Items extraídos: ${finalItems.length}, Errores de parseo: ${errors}`);
 
     } catch (err: any) {
         logger.error(`[${jobId}] Error fatal en processItemizadoJob:`, err);

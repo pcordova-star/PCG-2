@@ -44,7 +44,6 @@ const logger = __importStar(require("firebase-functions/logger"));
 const firebaseAdmin_1 = require("./firebaseAdmin");
 const node_fetch_1 = __importDefault(require("node-fetch"));
 const db = (0, firebaseAdmin_1.getAdminApp)().firestore();
-// --- Prompts para la arquitectura de dos fases ---
 const indexPrompt = `
 Eres un experto en analizar presupuestos de construcción. Tu ÚNICA tarea es identificar la estructura del documento.
 Analiza el PDF y devuelve SOLAMENTE un objeto JSON con la siguiente estructura:
@@ -135,33 +134,24 @@ exports.processPresupuestoPdf = (0, storage_1.onObjectFinalized)({ memory: "2GiB
         if (!apiKey) {
             throw new Error("GOOGLE_GENAI_API_KEY no está configurada.");
         }
-        // --- INICIO DEL PROCESO ---
         await jobRef.update({ status: "processing", updatedAt: admin.firestore.FieldValue.serverTimestamp() });
         const storageBucket = admin.storage().bucket(bucket);
         const file = storageBucket.file(filePath);
         const [pdfBuffer] = await file.download();
-        // --- FASE 1: OBTENER ÍNDICE ---
         await jobRef.update({ status: 'running_ai', statusDetail: 'Fase 1: Analizando estructura...', updatedAt: admin.firestore.FieldValue.serverTimestamp() });
         const indexResult = await callGeminiAPI(apiKey, 'gemini-2.0-flash', indexPrompt, pdfBuffer);
         if (!indexResult.chapters || !Array.isArray(indexResult.chapters)) {
             throw new Error("La respuesta del índice de la IA no contiene la estructura 'chapters' esperada.");
         }
-        // --- FASE 2: OBTENER DETALLES ---
         const finalItems = [];
         let chapterIndex = 0;
         for (const chapter of indexResult.chapters) {
             chapterIndex++;
-            // Añadir el capítulo a la lista final
             const chapterId = `${chapterIndex}`;
             finalItems.push({
-                id: chapterId,
-                parentId: null,
-                type: 'chapter',
-                descripcion: chapter.name,
-                unidad: null,
-                cantidad: null,
-                precioUnitario: null,
-                especialidad: chapter.name
+                id: chapterId, parentId: null, type: 'chapter',
+                descripcion: chapter.name, unidad: null, cantidad: null,
+                precioUnitario: null, especialidad: chapter.name
             });
             let itemIndex = 0;
             for (const itemName of chapter.items) {
@@ -176,33 +166,22 @@ exports.processPresupuestoPdf = (0, storage_1.onObjectFinalized)({ memory: "2GiB
                 try {
                     const detailResult = await callGeminiAPI(apiKey, 'gemini-2.0-flash', detailPrompt, pdfBuffer);
                     finalItems.push({
-                        id: `${chapterId}.${itemIndex}`,
-                        parentId: chapterId,
-                        type: 'item',
-                        descripcion: itemName,
-                        unidad: detailResult.unit || 's/u',
-                        cantidad: detailResult.quantity || null,
-                        precioUnitario: detailResult.unit_price || null,
+                        id: `${chapterId}.${itemIndex}`, parentId: chapterId, type: 'item',
+                        descripcion: itemName, unidad: detailResult.unit || 's/u',
+                        cantidad: detailResult.quantity || null, precioUnitario: detailResult.unit_price || null,
                         especialidad: chapter.name
                     });
                 }
                 catch (itemError) {
                     logger.warn(`[${jobId}] Error extrayendo detalles para '${itemName}': ${itemError.message}. Omitiendo partida.`);
-                    // Opcional: añadir un item de error a la lista final para notificar al usuario
                     finalItems.push({
-                        id: `${chapterId}.${itemIndex}`,
-                        parentId: chapterId,
-                        type: 'item',
-                        descripcion: `${itemName} (ERROR DE EXTRACCIÓN)`,
-                        unidad: null,
-                        cantidad: null,
-                        precioUnitario: null,
-                        especialidad: chapter.name
+                        id: `${chapterId}.${itemIndex}`, parentId: chapterId, type: 'item',
+                        descripcion: `${itemName} (ERROR DE EXTRACCIÓN)`, unidad: null,
+                        cantidad: null, precioUnitario: null, especialidad: chapter.name
                     });
                 }
             }
         }
-        // --- FINALIZACIÓN ---
         await jobRef.update({
             status: "completed",
             result: { items: finalItems },
