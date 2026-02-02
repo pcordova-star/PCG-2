@@ -105,6 +105,7 @@ type AuthContextValue = {
   user: User | null;
   role: UserRole;
   companyId: string | null;
+  subcontractorId: string | null;
   company: Company | null;
   loading: boolean;
   login: (email: string, password: string) => Promise<void>;
@@ -117,6 +118,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [role, setRole] = useState<UserRole>("none");
   const [companyId, setCompanyId] = useState<string | null>(null);
+  const [subcontractorId, setSubcontractorId] = useState<string | null>(null);
   const [company, setCompany] = useState<Company | null>(null);
   const [loading, setLoading] = useState(true);
   const router = useRouter();
@@ -128,6 +130,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             setUser(null);
             setRole("none");
             setCompanyId(null);
+            setSubcontractorId(null);
             setCompany(null);
             setLoading(false);
             const publicPages = ['/', '/login/usuario', '/login/cliente', '/accept-invite', '/terminos', '/sin-acceso'];
@@ -144,6 +147,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             setLoading(true);
             let userRole: UserRole = 'none';
             let userCompanyId: string | null = null;
+            let userSubcontractorId: string | null = null;
             let mustChangePassword = false;
 
             await bootstrapSuperAdmin(firebaseUser);
@@ -152,6 +156,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
                 const userData = userDocSnap.data() as AppUser;
                 userRole = userData.role || 'none';
                 userCompanyId = userData.empresaId || null;
+                userSubcontractorId = userData.subcontractorId || null;
                 mustChangePassword = !!userData.mustChangePassword;
             } else {
                 const activationResult = await activateUserFromInvitation(firebaseUser);
@@ -162,6 +167,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             
             setRole(userRole);
             setCompanyId(userCompanyId);
+            setSubcontractorId(userSubcontractorId);
             setLoading(false);
 
             const isPublicPage = ['/', '/login/usuario', '/login/cliente', '/accept-invite'].includes(pathname) || pathname.startsWith('/public');
@@ -184,6 +190,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             setLoading(false);
             setUser(null);
             setRole('none');
+            setSubcontractorId(null);
         });
 
         return () => unsubUserDoc();
@@ -230,6 +237,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setUser(null);
       setRole("none");
       setCompanyId(null);
+      setSubcontractorId(null);
       setCompany(null);
       router.push('/');
     } catch (error) {
@@ -241,6 +249,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     user,
     role,
     companyId,
+    subcontractorId,
     company,
     loading,
     login,
