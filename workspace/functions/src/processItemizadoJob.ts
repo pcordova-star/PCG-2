@@ -175,8 +175,9 @@ ${notas || "Sin notas."}
         let parsed;
         try {
             parsed = JSON.parse(cleanJsonString(rawJson));
-        } catch (e) {
-            throw new Error("JSON inválido devuelto por IA");
+        } catch (e: any) {
+            const snippet = rawJson.substring(0, 500);
+            throw new Error(`La IA devolvió un JSON inválido. Error de parseo: ${e.message}. Comienzo de la respuesta: "${snippet}..."`);
         }
 
         if (!parsed.especialidades || !Array.isArray(parsed.especialidades) || parsed.especialidades.length === 0) {

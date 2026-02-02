@@ -286,14 +286,16 @@ export default function ImportStatusPage() {
         );
       case 'error':
         return (
-          <div className="text-center">
-            <AlertCircle className="mx-auto h-12 w-12 text-destructive" />
-            <p className="mt-4 font-semibold">Error en el análisis</p>
-            <p className="text-sm text-destructive bg-destructive/10 p-2 rounded-md">{jobData.error}</p>
-            <Button onClick={() => router.push('/operaciones/presupuestos/itemizados/importar')} className="mt-4">
-                <Redo className="mr-2"/> Intentar de Nuevo
-            </Button>
-          </div>
+            <div className="text-center w-full">
+                <AlertCircle className="mx-auto h-12 w-12 text-destructive" />
+                <p className="mt-4 font-semibold">Error en el análisis</p>
+                <pre className="mt-2 text-left text-xs text-destructive bg-destructive/10 p-3 rounded-md whitespace-pre-wrap font-mono">
+                  {jobData.error}
+                </pre>
+                <Button onClick={() => router.push('/operaciones/presupuestos/itemizados/importar')} className="mt-4">
+                    <Redo className="mr-2 h-4 w-4" /> Intentar de Nuevo
+                </Button>
+            </div>
         );
       default:
         return null;
