@@ -31,9 +31,9 @@ type PresupuestoItem = {
     parentId: string | null;
     type: PresupuestoItemType;
     descripcion: string;
-    unidad: string;
-    cantidad: number;
-    precioUnitario: number;
+    unidad: string | null;
+    cantidad: number | null;
+    precioUnitario: number | null;
     especialidad?: string;
 };
 
@@ -58,8 +58,8 @@ type Presupuesto = {
     source?: 'IA_PDF' | 'manual'; // Flag para identificar origen
 };
 
-function formatoMoneda(value: number) {
-    if (isNaN(value)) return '$ 0';
+function formatoMoneda(value: number | null | undefined) {
+    if (value == null || isNaN(value)) return '$ 0';
     return new Intl.NumberFormat("es-CL", {
         style: "currency",
         currency: "CLP",
@@ -216,7 +216,7 @@ export default function PresupuestoEditPage() {
         const item = itemsById.get(itemId);
         if (!item) return 0;
         if (item.type === 'item') {
-            const subtotal = item.cantidad * item.precioUnitario;
+            const subtotal = (item.cantidad || 0) * (item.precioUnitario || 0);
             item.subtotal = subtotal;
             return subtotal;
         }
@@ -315,7 +315,7 @@ export default function PresupuestoEditPage() {
     };
 
     const actualizarCatalogoDesdePresupuesto = async (presupuestoItems: PresupuestoItem[]) => {
-        const partidas = presupuestoItems.filter(item => item.type === 'item' && item.descripcion && item.precioUnitario > 0);
+        const partidas = presupuestoItems.filter(item => item.type === 'item' && item.descripcion && (item.precioUnitario || 0) > 0);
         if (partidas.length === 0) return;
 
         const catalogoRef = collection(firebaseDb, "catalogoItems");
@@ -619,8 +619,8 @@ export default function PresupuestoEditPage() {
                                     </TableCell>
                                     <TableCell>{item.descripcion}</TableCell>
                                     <TableCell className="text-xs text-muted-foreground">{item.type === 'item' ? item.especialidad : ''}</TableCell>
-                                    <TableCell>{item.type === 'item' ? item.unidad : ''}</TableCell>
-                                    <TableCell>{item.type === 'item' ? item.cantidad.toLocaleString('es-CL') : ''}</TableCell>
+                                    <TableCell>{item.type === 'item' ? item.unidad || '' : ''}</TableCell>
+                                    <TableCell>{item.type === 'item' && item.cantidad != null ? item.cantidad.toLocaleString('es-CL') : ''}</TableCell>
                                     <TableCell>{item.type === 'item' ? formatoMoneda(item.precioUnitario) : ''}</TableCell>
                                     <TableCell className="font-bold">{formatoMoneda(item.subtotal)}</TableCell>
                                     <TableCell className="text-right">
@@ -698,20 +698,20 @@ export default function PresupuestoEditPage() {
                                 <>
                                      <div className="space-y-2">
                                         <Label>Unidad</Label>
-                                        <Input value={currentItem.unidad} onChange={e => setCurrentItem({...currentItem, unidad: e.target.value})} />
+                                        <Input value={currentItem.unidad || ''} onChange={e => setCurrentItem({...currentItem, unidad: e.target.value})} />
                                     </div>
                                     <div className="space-y-2">
                                         <Label>Cantidad</Label>
                                         <Input 
                                             type="text" 
-                                            value={formatNumber(currentItem.cantidad)} 
+                                            value={formatNumber(currentItem.cantidad || 0)} 
                                             onChange={e => setCurrentItem({...currentItem, cantidad: parseNumber(e.target.value)})} />
                                     </div>
                                      <div className="space-y-2">
                                         <Label>Precio Unitario</Label>
                                         <Input 
                                             type="text"
-                                            value={formatNumber(currentItem.precioUnitario)} 
+                                            value={formatNumber(currentItem.precioUnitario || 0)} 
                                             onChange={e => setCurrentItem({...currentItem, precioUnitario: parseNumber(e.target.value)})} />
                                     </div>
                                 </>
