@@ -1,4 +1,4 @@
-// src/app/operaciones/programacion/page.tsx
+// src/app/(pcg)/operaciones/programacion/page.tsx
 
 "use client";
 
@@ -698,9 +698,9 @@ function ProgramacionPageInner() {
                         const nuevaActividadData = {
                             obraId: obraSeleccionadaId,
                             nombreActividad: item.descripcion,
-                            unidad: item.unidad,
-                            cantidad: item.cantidad,
-                            precioContrato: item.precioContrato,
+                            unidad: item.unidad || 'und',
+                            cantidad: item.cantidad || 0,
+                            precioContrato: item.precioUnitario || 0,
                             fechaInicio: new Date().toISOString().slice(0, 10), // Fecha por defecto
                             fechaFin: new Date().toISOString().slice(0, 10), // Fecha por defecto
                         };
@@ -722,7 +722,7 @@ function ProgramacionPageInner() {
             setPresupuestoSeleccionadoId('');
         } catch (err) {
             console.error("Error importing budget:", err);
-            toast({ variant: 'destructive', title: 'Error de importación', description: (err as Error).message });
+            toast({ variant: "destructive", title: "Error de importación", description: (err as Error).message });
         } finally {
             setImportando(false);
         }
