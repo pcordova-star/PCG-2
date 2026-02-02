@@ -1,6 +1,7 @@
 // src/lib/pdf/generarPresupuestoPdf.ts
 import jsPDF from "jspdf";
 import autoTable from 'jspdf-autotable';
+import { Company } from "@/types/pcg";
 
 export type HierarchicalItem = {
     id: string;
@@ -8,8 +9,8 @@ export type HierarchicalItem = {
     type: "chapter" | "subchapter" | "item";
     descripcion: string;
     unidad: string;
-    cantidad: number;
-    precioUnitario: number;
+    cantidad: number | null;
+    precioUnitario: number | null;
     level: number;
     itemNumber: string;
     subtotal: number;
@@ -39,8 +40,8 @@ export type DatosPresupuesto = {
   total: number;
 };
 
-function formatoMoneda(valor: number) {
-  if (isNaN(valor)) return '$ 0';
+function formatoMoneda(valor: number | null) {
+  if (valor === null || isNaN(valor)) return '$ 0';
   return new Intl.NumberFormat("es-CL", {
     style: "currency",
     currency: "CLP",
@@ -137,8 +138,8 @@ export function generarPresupuestoPdf(
     return [
       { content: item.itemNumber, styles: { fontStyle: 'bold' } },
       { content: item.descripcion, styles: { cellWidth: 80 } },
-      item.type === 'item' ? item.unidad : '',
-      item.type === 'item' ? item.cantidad.toLocaleString('es-CL') : '',
+      item.type === 'item' ? item.unidad || '' : '',
+      item.type === 'item' && item.cantidad != null ? item.cantidad.toLocaleString('es-CL') : '',
       item.type === 'item' ? formatoMoneda(item.precioUnitario) : '',
       { content: formatoMoneda(item.subtotal), styles: { fontStyle: 'bold', halign: 'right' } }
     ]
