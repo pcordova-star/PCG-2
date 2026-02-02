@@ -2,7 +2,7 @@
  * src/genkit.ts
  */
 import { initializeGenkit } from '@genkit-ai/core';
-import { googleAI } from '@genkit-ai/google-genai';
+import { googleAI } from '@genkit-ai/googleai';
 
 const plugins = [];
 
