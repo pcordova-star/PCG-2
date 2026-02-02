@@ -374,6 +374,16 @@ export default function WelcomePage() {
       <main>
         {/* Hero Section */}
         <section className="relative min-h-[70vh] md:min-h-[90vh] w-full flex items-center justify-center text-center text-white overflow-hidden bg-slate-900">
+            <video
+                autoPlay
+                loop
+                muted
+                playsInline
+                className="absolute z-0 w-auto min-w-full min-h-full max-w-none object-cover"
+            >
+                <source src="/hero-video.mp4" type="video/mp4" />
+                Your browser does not support the video tag.
+            </video>
             <div className="absolute inset-0 bg-gradient-to-t from-slate-900/90 via-slate-900/60 to-transparent z-10"></div>
             <div className="absolute inset-0 bg-black/40 z-10"></div>
             
