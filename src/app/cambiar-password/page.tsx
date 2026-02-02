@@ -67,13 +67,18 @@ export default function CambiarPasswordPage() {
           description: "Tu nueva contraseña ha sido guardada. Serás redirigido a tu panel.",
       });
 
-      // 3. Redirigir. AuthContext se encargará del destino final.
-      router.push('/dashboard');
+      // NO es necesario redirigir manualmente. 
+      // El onSnapshot en AuthContext detectará el cambio y redirigirá automáticamente.
+      // router.push('/dashboard');
 
     } catch (err: any) {
       console.error("Error al cambiar la contraseña:", err);
-      setError("No se pudo cambiar la contraseña. Intenta cerrar sesión y volver a ingresar.");
-      toast({ variant: 'destructive', title: 'Error', description: 'Ocurrió un problema al actualizar tu contraseña.' });
+      let friendlyError = "No se pudo cambiar la contraseña. Intenta cerrar sesión y volver a ingresar.";
+      if (err.code === 'auth/requires-recent-login') {
+          friendlyError = "Por seguridad, debes volver a iniciar sesión para cambiar tu contraseña."
+      }
+      setError(friendlyError);
+      toast({ variant: 'destructive', title: 'Error', description: friendlyError });
     } finally {
         setIsChanging(false);
     }

@@ -1,10 +1,9 @@
-
 // src/app/accept-invite/page.tsx
 "use client";
 
 import { useEffect, useState, Suspense } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
-import { doc, getDoc } from 'firebase/firestore';
+import { doc, getDoc, updateDoc, writeBatch, collection, query, where, getDocs, serverTimestamp } from 'firebase/firestore';
 import { firebaseDb } from '@/lib/firebaseClient';
 import { Loader2, ShieldX } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -49,19 +48,29 @@ function AcceptInvitePageInner() {
         }
 
         const invData = { id: invSnap.id, ...invSnap.data() } as UserInvitation;
-
+        
         if (invData.email.toLowerCase().trim() !== email.toLowerCase().trim()) {
           throw new Error("El correo de la invitación no coincide con el de este enlace.");
         }
         
-        // Ya no se cambia el estado aquí, solo se muestra la información.
-        // Se puede añadir lógica para mostrar mensajes diferentes si el estado no es 'pendiente'.
         if (invData.estado === 'activado') {
             setError(`Esta invitación ya fue activada. Si tienes problemas para acceder, contacta al administrador o intenta iniciar sesión directamente.`);
             setStatus('error');
             return;
         }
+
+        if (invData.estado === 'revocada') {
+            setError(`Esta invitación ha sido revocada por el administrador.`);
+            setStatus('error');
+            return;
+        }
         
+        // Si la invitación está 'pendiente' y el usuario no está logueado,
+        // marcamos la invitación como 'pendiente_auth' para que el AuthContext la procese al registrarse.
+        if (invData.estado === 'pendiente') {
+            await updateDoc(invRef, { estado: 'pendiente_auth' });
+        }
+
         setInvitation(invData);
         setStatus('valid');
 
@@ -96,11 +105,11 @@ function AcceptInvitePageInner() {
             </div>
             
             <p className="text-sm p-4 bg-blue-50 border border-blue-200 rounded-md text-blue-800">
-                Para activar tu cuenta, <strong>revisa el correo con tu contraseña temporal</strong>. Luego, inicia sesión. Por seguridad, el sistema te pedirá cambiar tu contraseña en tu primer acceso.
+                El siguiente paso es crear tu cuenta. Serás redirigido a la página de registro. Usa el correo <strong>{email}</strong>.
             </p>
             
              <Button asChild className="w-full">
-               <Link href="/login/usuario">Ir a Iniciar Sesión</Link>
+               <Link href={`/login/usuario?email=${encodeURIComponent(email || '')}`}>Ir a crear mi cuenta</Link>
             </Button>
           </div>
         );

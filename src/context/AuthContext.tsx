@@ -6,6 +6,7 @@ import {
   signInWithEmailAndPassword,
   signOut,
   User,
+  updatePassword,
 } from "firebase/auth";
 import {
   createContext,
@@ -16,7 +17,7 @@ import {
 } from "react";
 import { firebaseAuth, firebaseDb } from "@/lib/firebaseClient";
 import { useRouter, usePathname } from "next/navigation";
-import { doc, getDoc, setDoc, serverTimestamp, collection, query, where, limit, writeBatch, getDocs } from "firebase/firestore";
+import { doc, getDoc, setDoc, serverTimestamp, collection, query, where, limit, writeBatch, getDocs, onSnapshot } from "firebase/firestore";
 import { UserRole } from "@/lib/roles";
 import { AppUser, UserInvitation, Company } from "@/types/pcg";
 
@@ -30,7 +31,7 @@ async function activateUserFromInvitation(firebaseUser: User): Promise<{role: Us
   const q = query(
     collection(db, "invitacionesUsuarios"),
     where("email", "==", email),
-    where("estado", "==", "pendiente_auth"),
+    where("estado", "==", "pendiente"), // El estado correcto para una invitación nueva es 'pendiente'
     limit(1)
   );
 
@@ -47,29 +48,31 @@ async function activateUserFromInvitation(firebaseUser: User): Promise<{role: Us
   const userRef = doc(db, "users", firebaseUser.uid);
   const batch = writeBatch(db);
 
-  // 1. Crear/actualizar el documento del usuario
+  // 1. Crear/actualizar el documento del usuario con mustChangePassword: true
   batch.set(userRef, {
-    nombre: invitationData.nombre || firebaseUser.displayName,
+    nombre: invitationData.nombre || firebaseUser.displayName || email,
     email: email,
     role: invitationData.roleDeseado,
     empresaId: invitationData.empresaId,
     activo: true,
     createdAt: serverTimestamp(),
     updatedAt: serverTimestamp(),
+    mustChangePassword: true, // Forzar cambio en la primera activación
   }, { merge: true });
 
-  // 2. Actualizar la invitación
+  // 2. Actualizar la invitación a 'activado'
   batch.update(invitationDoc.ref, {
-    estado: "activado",
+    estado: "activado", // Cambiado de 'activada' a 'activado' para consistencia
     uid: firebaseUser.uid,
     activatedAt: serverTimestamp(),
   });
 
   await batch.commit();
 
-  console.log(`Usuario ${email} activado con rol ${invitationData.roleDeseado} en empresa ${invitationData.empresaId}.`);
+  console.log(`Usuario ${email} activado con rol ${invitationData.roleDeseado} en empresa ${invitationData.empresaId}. Se requiere cambio de contraseña.`);
   return { role: invitationData.roleDeseado, companyId: invitationData.empresaId };
 }
+
 
 /**
  * Lógica de Bootstrap solo para desarrollo.
@@ -120,77 +123,86 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const pathname = usePathname();
 
   useEffect(() => {
-    const unsub = onAuthStateChanged(firebaseAuth, async (firebaseUser) => {
-      if (firebaseUser) {
-        
-        await bootstrapSuperAdmin(firebaseUser);
-
-        const userDocRef = doc(firebaseDb, "users", firebaseUser.uid);
-        const userDocSnap = await getDoc(userDocRef);
-        
-        let userRole: UserRole = 'none';
-        let userCompanyId: string | null = null;
-        let mustChangePassword = false;
-        
-        if (userDocSnap.exists()) {
-            const userData = userDocSnap.data() as AppUser;
-            if (userData.role && userData.empresaId !== undefined) {
-                userRole = userData.role;
-                userCompanyId = userData.empresaId;
-                mustChangePassword = userData.mustChangePassword === true;
+    const unsubAuth = onAuthStateChanged(firebaseAuth, (firebaseUser) => {
+        if (!firebaseUser) {
+            setUser(null);
+            setRole("none");
+            setCompanyId(null);
+            setCompany(null);
+            setLoading(false);
+            const publicPages = ['/', '/login/usuario', '/login/cliente', '/accept-invite', '/terminos', '/sin-acceso'];
+            if (!publicPages.includes(pathname)) {
+                router.replace('/');
             }
-        }
-        
-        // La activación desde invitación se mantiene como fallback
-        if (userRole === 'none') {
-            const activationResult = await activateUserFromInvitation(firebaseUser);
-            userRole = activationResult.role;
-            userCompanyId = activationResult.companyId;
-            mustChangePassword = true; // Forzar cambio de contraseña al activar
+            return;
         }
 
-        setRole(userRole);
-        setCompanyId(userCompanyId);
         setUser(firebaseUser);
-        
-        // --- Lógica de redirección centralizada ---
-        const isChangingPassword = pathname === '/cambiar-password';
-        
-        if (mustChangePassword && !isChangingPassword) {
-            router.replace('/cambiar-password');
-        } else if (!mustChangePassword) {
-            if (userRole === 'none') {
-                router.replace('/sin-acceso');
-            } else if (pathname.startsWith('/login') || pathname === '/' || isChangingPassword) {
-               const targetPath = userRole === 'cliente' ? '/cliente' : userRole === 'contratista' ? '/cumplimiento/contratista' : '/dashboard';
-               router.replace(targetPath);
+        const userDocRef = doc(firebaseDb, "users", firebaseUser.uid);
+
+        const unsubUserDoc = onSnapshot(userDocRef, async (userDocSnap) => {
+            setLoading(true);
+            let userRole: UserRole = 'none';
+            let userCompanyId: string | null = null;
+            let mustChangePassword = false;
+
+            await bootstrapSuperAdmin(firebaseUser);
+
+            if (userDocSnap.exists()) {
+                const userData = userDocSnap.data() as AppUser;
+                userRole = userData.role || 'none';
+                userCompanyId = userData.empresaId || null;
+                mustChangePassword = !!userData.mustChangePassword;
+            } else {
+                const activationResult = await activateUserFromInvitation(firebaseUser);
+                if (activationResult.role !== 'none') {
+                    // La activación crea un documento, lo que volverá a activar este listener.
+                    // Se retorna para esperar el siguiente snapshot con los datos correctos.
+                    return;
+                }
             }
-        }
-        
-      } else {
-        setUser(null);
-        setRole("none");
-        setCompanyId(null);
-        setCompany(null);
-      }
-      setLoading(false);
+            
+            setRole(userRole);
+            setCompanyId(userCompanyId);
+            setLoading(false);
+
+            const isPublicPage = ['/', '/login/usuario', '/login/cliente', '/accept-invite'].includes(pathname);
+            const isChangingPassword = pathname === '/cambiar-password';
+
+            if (mustChangePassword) {
+                if (!isChangingPassword) {
+                    router.replace('/cambiar-password');
+                }
+            } else {
+                if (userRole === 'none') {
+                    if (pathname !== '/sin-acceso') router.replace('/sin-acceso');
+                } else if (isPublicPage || isChangingPassword) {
+                    const targetPath = userRole === 'cliente' ? '/cliente' : userRole === 'contratista' ? '/cumplimiento/contratista/dashboard' : '/dashboard';
+                    router.replace(targetPath);
+                }
+            }
+        }, (error) => {
+            console.error("Error escuchando el documento del usuario:", error);
+            setLoading(false);
+            setUser(null);
+            setRole('none');
+        });
+
+        return () => unsubUserDoc();
     });
 
-    return () => unsub();
-  }, [router, pathname]);
+    return () => unsubAuth();
+}, [pathname, router]);
+
 
   useEffect(() => {
     if (companyId) {
         const companyRef = doc(firebaseDb, "companies", companyId);
-        const unsub = onAuthStateChanged(firebaseAuth, user => {
-            if(user) {
-                getDoc(companyRef).then(docSnap => {
-                    if (docSnap.exists()) {
-                        setCompany({ id: docSnap.id, ...docSnap.data() } as Company);
-                    } else {
-                        setCompany(null);
-                    }
-                });
+        const unsub = onSnapshot(companyRef, (docSnap) => {
+            if (docSnap.exists()) {
+                setCompany({ id: docSnap.id, ...docSnap.data() } as Company);
+            } else {
+                setCompany(null);
             }
         });
         return () => unsub();
