@@ -1,5 +1,4 @@
-
-// src/app/cumplimiento/contratista/page.tsx
+// src/app/(pcg)/cumplimiento/contratista/page.tsx
 "use client";
 
 import { useAuth } from "@/context/AuthContext";
@@ -7,11 +6,12 @@ import { useRouter } from 'next/navigation';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { useEffect, useState } from "react";
-import { Loader2, CheckCircle, AlertTriangle, Clock } from "lucide-react";
-import { cn } from "@/lib/utils";
+import { Loader2, Calendar } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
+import { ComplianceCalendarMonth } from "@/types/pcg";
+import { format } from "date-fns";
+import { es } from "date-fns/locale";
 
-// --- Tipos de Datos (Simulados por ahora) ---
-type EstadoCumplimiento = "CUMPLIENDO" | "EN_REVISION" | "ACCION_REQUERIDA" | "PENDIENTE_DE_CARGA";
 type EstadoDocumento = "Aprobado" | "En Revisión" | "Observado" | "Pendiente de Carga";
 
 const documentosRequeridos = [
@@ -21,45 +21,6 @@ const documentosRequeridos = [
   { id: 'doc4', nombre: 'Certificado de Mutualidad', estado: 'En Revisión' as EstadoDocumento },
 ];
 
-const estadoConfig: Record<EstadoCumplimiento, {
-    title: string;
-    description: string;
-    icon: React.ElementType;
-    color: string;
-}> = {
-    "CUMPLIENDO": {
-        title: "Cumpliendo - Documentación Aprobada",
-        description: "Felicitaciones, tu estado de pago para este período ha sido habilitado.",
-        icon: CheckCircle,
-        color: "bg-green-100 border-green-300 text-green-800",
-    },
-    "EN_REVISION": {
-        title: "En Revisión",
-        description: "Hemos recibido tu documentación. Nuestro equipo la está revisando.",
-        icon: Clock,
-        color: "bg-blue-100 border-blue-300 text-blue-800",
-    },
-    "ACCION_REQUERIDA": {
-        title: "Acción Requerida - Tienes Documentos Observados",
-        description: "Revisa los comentarios y vuelve a subir los documentos correctos para habilitar tu pago.",
-        icon: AlertTriangle,
-        color: "bg-red-100 border-red-300 text-red-800",
-    },
-    "PENDIENTE_DE_CARGA": {
-        title: "Pendiente de Carga",
-        description: "Sube los documentos requeridos antes de la fecha de corte para iniciar el proceso.",
-        icon: Clock,
-        color: "bg-yellow-100 border-yellow-300 text-yellow-800",
-    }
-};
-
-const getEstadoGlobal = (): EstadoCumplimiento => {
-    if (documentosRequeridos.some(d => d.estado === 'Observado')) return 'ACCION_REQUERIDA';
-    if (documentosRequeridos.some(d => d.estado === 'Pendiente de Carga')) return 'PENDIENTE_DE_CARGA';
-    if (documentosRequeridos.some(d => d.estado === 'En Revisión')) return 'EN_REVISION';
-    return 'CUMPLIENDO';
-}
-
 const estadoDocConfig: Record<EstadoDocumento, { color: string, label: string }> = {
     'Aprobado': { color: 'bg-green-100 text-green-800', label: 'Aprobado' },
     'En Revisión': { color: 'bg-blue-100 text-blue-800', label: 'En Revisión' },
@@ -68,10 +29,11 @@ const estadoDocConfig: Record<EstadoDocumento, { color: string, label: string }>
 };
 
 export default function ContratistaDashboardPage() {
-    const { role, loading, user } = useAuth();
+    const { role, loading, user, companyId } = useAuth();
     const router = useRouter();
 
-    const [estadoGlobal, setEstadoGlobal] = useState<EstadoCumplimiento>(getEstadoGlobal());
+    const [currentPeriod, setCurrentPeriod] = useState<ComplianceCalendarMonth | null>(null);
+    const [loadingCalendar, setLoadingCalendar] = useState(true);
 
     useEffect(() => {
         if (!loading && role !== 'contratista' && role !== 'superadmin') {
@@ -79,16 +41,45 @@ export default function ContratistaDashboardPage() {
         }
     }, [role, loading, router]);
 
-    if (loading) {
+    useEffect(() => {
+        if (!companyId) {
+            setLoadingCalendar(false);
+            return;
+        };
+
+        const fetchCurrentPeriod = async () => {
+            setLoadingCalendar(true);
+            try {
+                const year = new Date().getFullYear();
+                const month = new Date().getMonth() + 1;
+                const monthKey = `${year}-${String(month).padStart(2, '0')}`;
+
+                const res = await fetch(`/api/mclp/calendar?companyId=${companyId}&year=${year}`);
+                if (!res.ok) {
+                    throw new Error("No se pudo cargar el calendario de cumplimiento.");
+                }
+                const calendarYear: ComplianceCalendarMonth[] = await res.json();
+                
+                const period = calendarYear.find(p => p.id === monthKey);
+                setCurrentPeriod(period || null);
+
+            } catch (error) {
+                console.error("Error fetching compliance calendar:", error);
+            } finally {
+                setLoadingCalendar(false);
+            }
+        };
+
+        fetchCurrentPeriod();
+    }, [companyId]);
+
+    if (loading || loadingCalendar) {
         return <div className="flex justify-center items-center h-full"><Loader2 className="h-8 w-8 animate-spin" /></div>;
     }
     
     if (role !== 'contratista' && role !== 'superadmin') {
         return null;
     }
-
-    const config = estadoConfig[estadoGlobal];
-    const Icon = config.icon;
 
     return (
         <div className="space-y-6">
@@ -97,20 +88,42 @@ export default function ContratistaDashboardPage() {
                 <p className="text-muted-foreground">Bienvenido, {user?.displayName || user?.email}.</p>
             </header>
 
-            <Card className={cn("border-l-4", config.color)}>
-                <CardHeader className="flex flex-row items-center gap-4">
-                    <Icon className="h-8 w-8" />
-                    <div>
-                        <CardTitle className="text-lg">{config.title}</CardTitle>
-                        <CardDescription className="text-sm">{config.description}</CardDescription>
-                    </div>
+            <Card>
+                <CardHeader>
+                    <CardTitle className="flex items-center gap-2">
+                        <Calendar className="h-5 w-5" />
+                        Período de Cumplimiento Actual: {currentPeriod ? format(new Date(currentPeriod.id + '-02T00:00:00'), "MMMM yyyy", { locale: es }).replace(/^\w/, (c) => c.toUpperCase()) : 'Cargando...'}
+                    </CardTitle>
+                    <CardDescription>
+                        Fechas clave para la carga y revisión de tu documentación.
+                    </CardDescription>
                 </CardHeader>
+                <CardContent>
+                    {currentPeriod ? (
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-center">
+                            <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                                <p className="text-sm font-semibold text-blue-800">Fecha de Corte de Carga</p>
+                                <p className="text-lg font-bold">{format(new Date(currentPeriod.corteCarga), "dd 'de' MMMM", { locale: es })}</p>
+                            </div>
+                             <div className="p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
+                                <p className="text-sm font-semibold text-yellow-800">Límite para Revisión</p>
+                                <p className="text-lg font-bold">{format(new Date(currentPeriod.limiteRevision), "dd 'de' MMMM", { locale: es })}</p>
+                            </div>
+                             <div className="p-4 bg-green-50 border border-green-200 rounded-lg">
+                                <p className="text-sm font-semibold text-green-800">Fecha de Pago</p>
+                                <p className="text-lg font-bold">{format(new Date(currentPeriod.fechaPago), "dd 'de' MMMM", { locale: es })}</p>
+                            </div>
+                        </div>
+                    ) : (
+                         <p className="text-muted-foreground">No se encontró información del período actual. Contacta al administrador.</p>
+                    )}
+                </CardContent>
             </Card>
 
             <Card>
                 <CardHeader>
-                    <CardTitle>Requisitos del Período: Noviembre 2025</CardTitle>
-                    <CardDescription>Sube la documentación requerida para habilitar tu estado de pago. Fecha de corte: 25/11/2025.</CardDescription>
+                    <CardTitle>Requisitos del Período</CardTitle>
+                    <CardDescription>Sube la documentación requerida para habilitar tu estado de pago.</CardDescription>
                 </CardHeader>
                 <CardContent>
                     <div className="space-y-4">
