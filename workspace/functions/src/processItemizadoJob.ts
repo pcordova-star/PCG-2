@@ -75,7 +75,7 @@ async function callGeminiAPI(apiKey: string, model: string, prompt: string, file
     if (!response.ok) {
         const errText = await response.text();
         logger.error(`Gemini API error (${model}):`, errText);
-        throw new Error(`Error en API Gemini (${model}): ${response.statusText}`);
+        throw new Error(`Error en API Gemini: ${response.statusText}`);
     }
 
     const result = await response.json();
@@ -125,7 +125,7 @@ export const processPresupuestoPdf = onObjectFinalized(
 
         // --- FASE 1: OBTENER ÍNDICE ---
         await jobRef.update({ status: 'running_ai', statusDetail: 'Fase 1: Analizando estructura...', updatedAt: admin.firestore.FieldValue.serverTimestamp() });
-        const indexResult = await callGeminiAPI(apiKey, 'gemini-1.5-pro-latest', indexPrompt, pdfBuffer);
+        const indexResult = await callGeminiAPI(apiKey, 'gemini-2.0-flash', indexPrompt, pdfBuffer);
 
         if (!indexResult.chapters || !Array.isArray(indexResult.chapters)) {
             throw new Error("La respuesta del índice de la IA no contiene la estructura 'chapters' esperada.");
