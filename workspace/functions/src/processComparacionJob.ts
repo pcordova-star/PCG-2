@@ -9,7 +9,8 @@ import { getPlanoAsDataUri } from './lib/storage';
 const adminApp = getAdminApp();
 const db = adminApp.firestore();
 
-// --- Prompts corregidos sin placeholders ---
+// --- Prompts para cada agente especializado ---
+
 const diffPromptText = `Eres un experto en interpretación de planos de construcción.
 Tu tarea es comparar dos imágenes: Plano A (versión original) y Plano B (versión modificada).
 Debes identificar todas las diferencias visuales, geométricas, textuales y de anotaciones entre ambos.
@@ -61,6 +62,7 @@ Instrucciones:
 7.  Lista "consecuencias" y "recomendaciones".
 8.  Si un impacto genera otros, anídalos en "subImpactos".
 9.  Tu respuesta DEBE SER EXCLUSIVAMENTE un objeto JSON válido con la estructura de salida, sin texto adicional.`;
+
 
 /**
  * Limpia una cadena que se espera contenga JSON, eliminando los delimitadores de markdown
