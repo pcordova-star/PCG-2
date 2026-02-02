@@ -38,7 +38,7 @@ function parseNumberCL(value: string | number | null | undefined): number {
 }
 
 
-// Función de normalización que convierte el output de la IA a un formato plano y limpio.
+// Esta función ahora solo normaliza y limpia los datos, ya que la IA devuelve una estructura plana.
 function normalizeRowsToPresupuestoItems(rows: any[]): Array<{ parentId: string | null; type: "chapter" | "subchapter" | "item"; descripcion: string; unidad: string; cantidad: number; precioUnitario: number; especialidad: string; id: string; }> {
     if (!rows) return [];
 
@@ -50,14 +50,13 @@ function normalizeRowsToPresupuestoItems(rows: any[]): Array<{ parentId: string 
 
     return rows
       .filter(row => {
-        const descripcion = (row.descripcion ?? row.description ?? row.nombre ?? row.name ?? "").trim().toLowerCase();
-        if (!descripcion) return false; // Excluir filas sin descripción
+        const descripcion = (row.descripcion ?? row.description ?? row.name ?? "").trim().toLowerCase();
+        if (!descripcion) return false;
         
-        // Excluir si alguna de las palabras clave está en la descripción
         return !excludedTokens.some(token => descripcion.includes(token));
       })
       .map(row => {
-        const descripcion = row.descripcion ?? row.description ?? row.nombre ?? row.name ?? "";
+        const descripcion = row.descripcion ?? row.description ?? row.name ?? "";
         const unidad = row.unidad ?? row.unit ?? row.u ?? "";
         const cantidad = parseNumberCL(row.cantidad ?? row.qty ?? row.quantity);
         const precioUnitario = parseNumberCL(row.precioUnitario ?? row.unitPrice ?? row.price ?? row.unit_price);
@@ -66,13 +65,7 @@ function normalizeRowsToPresupuestoItems(rows: any[]): Array<{ parentId: string 
         if (row.type && ["chapter", "subchapter", "item"].includes(row.type)) {
             type = row.type;
         } else {
-            if (row.isChapter === true || row.level === 0) {
-                type = "chapter";
-            } else if (row.isSubchapter === true || row.level === 1) {
-                type = "subchapter";
-            } else {
-                type = "item";
-            }
+            type = 'item'; // Default to item if type is missing/invalid
         }
         
         const parentId = row.parentId ?? row.parent_id ?? null;
@@ -84,59 +77,10 @@ function normalizeRowsToPresupuestoItems(rows: any[]): Array<{ parentId: string 
             unidad,
             cantidad,
             precioUnitario,
-            id: row.id, // Se mantiene el id para la estructura jerárquica
+            id: row.id,
             especialidad: row.especialidad || 'Sin especialidad'
         };
     });
-}
-
-function aplanarJerarquia(especialidades: any[]): any[] {
-  if (!especialidades) return [];
-  
-  const filas: any[] = [];
-
-  especialidades.forEach((especialidad, chapterIndex) => {
-    filas.push({
-      ...especialidad,
-      id: especialidad.code,
-      parentId: null,
-      chapterIndex: chapterIndex,
-      isChapter: true,
-      level: 0,
-      description: especialidad.name,
-      name: especialidad.name,
-      especialidad: especialidad.name // Add specialty name
-    });
-
-    const procesarItems = (items: any[], parentId: string, level: number) => {
-      items.forEach(item => {
-        const tieneHijos = item.items && item.items.length > 0;
-        filas.push({
-          ...item,
-          id: item.code,
-          parentId: parentId,
-          chapterIndex: chapterIndex,
-          level: level,
-          isSubchapter: tieneHijos,
-          description: item.name,
-          name: item.name,
-          qty: item.quantity,
-          unitPrice: item.unit_price,
-          especialidad: especialidad.name // Pass down specialty name
-        });
-
-        if (tieneHijos) {
-          procesarItems(item.items, item.code, level + 1);
-        }
-      });
-    };
-
-    if (especialidad.items) {
-      procesarItems(especialidad.items, especialidad.code, 1);
-    }
-  });
-
-  return filas;
 }
 
 
@@ -201,8 +145,7 @@ export default function ImportStatusPage() {
           "Itemizado IA";
         const nombrePresupuesto = `Presupuesto importado de ${sourceFileName} - ${new Date().toLocaleDateString()}`;
         
-        const flatRows = aplanarJerarquia(jobData.result?.especialidades ?? []);
-        const normalizedItems = normalizeRowsToPresupuestoItems(flatRows);
+        const normalizedItems = normalizeRowsToPresupuestoItems(jobData.result?.rows ?? []);
         const totalPresupuesto = normalizedItems.reduce((sum, item) => sum + (item.cantidad * item.precioUnitario), 0);
         
         const newPresupuesto = {
@@ -272,7 +215,7 @@ export default function ImportStatusPage() {
             <p className="mt-2 font-semibold text-xl">¡Análisis completado!</p>
             {jobData.result && (
                 <p className="text-sm text-muted-foreground">
-                    Se encontraron {jobData.result.especialidades.length} especialidades y {aplanarJerarquia(jobData.result.especialidades).filter(i => i.type==='item').length} partidas válidas.
+                    Se encontraron {jobData.result.rows.length} filas válidas en {jobData.result.chapters.length} capítulos.
                 </p>
             )}
 

@@ -45,13 +45,19 @@ const firebaseAdmin_1 = require("./firebaseAdmin");
 const node_fetch_1 = __importDefault(require("node-fetch"));
 const db = (0, firebaseAdmin_1.getAdminApp)().firestore();
 function cleanJsonString(rawString) {
+    // 1. Quitar bloques de código Markdown (```json ... ```)
     let cleaned = rawString.replace(/```json/g, "").replace(/```/g, "");
+    // 2. Encontrar el primer '{' y el último '}' para ignorar texto basura al inicio/final
     const startIndex = cleaned.indexOf("{");
     const endIndex = cleaned.lastIndexOf("}");
     if (startIndex === -1 || endIndex === -1 || endIndex < startIndex) {
-        throw new Error("Respuesta de IA no contenía un objeto JSON válido.");
+        throw new Error("Respuesta de IA no contenía un objeto JSON válido (faltan '{' o '}').");
     }
-    return cleaned.substring(startIndex, endIndex + 1);
+    cleaned = cleaned.substring(startIndex, endIndex + 1);
+    // 3. Quitar comas sobrantes (trailing commas) antes de corchetes y llaves de cierre.
+    // Esta es la causa más común de errores de parseo con JSON de IA.
+    cleaned = cleaned.replace(/,\s*(]|})/g, "$1");
+    return cleaned;
 }
 exports.processPresupuestoPdf = (0, storage_1.onObjectFinalized)({ memory: "2GiB", timeoutSeconds: 540, secrets: ["GOOGLE_GENAI_API_KEY"] }, async (event) => {
     const { bucket, name: filePath } = event.data;
@@ -66,14 +72,12 @@ exports.processPresupuestoPdf = (0, storage_1.onObjectFinalized)({ memory: "2GiB
         return;
     }
     const jobRef = db.collection('itemizadoImportJobs').doc(jobId);
-    // FIX: Fetch the job document to check its status before processing
     const jobSnap = await jobRef.get();
     if (!jobSnap.exists) {
         logger.error(`[${jobId}] Job document not found in Firestore.`);
         return;
     }
     const jobData = jobSnap.data();
-    // This is the crucial fix: check for 'uploaded' status
     if (jobData.status !== "uploaded") {
         logger.warn(`[${jobId}] Job not in 'uploaded' state (current: ${jobData.status}). Ignoring trigger.`);
         return;

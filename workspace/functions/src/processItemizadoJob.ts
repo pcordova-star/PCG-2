@@ -9,24 +9,23 @@ import fetch from "node-fetch";
 const db = getAdminApp().firestore();
 
 function cleanJsonString(rawString: string): string {
-    // 1. Quitar bloques de código Markdown (```json ... ```)
+    // Quita los delimitadores de bloque de código de Markdown
     let cleaned = rawString.replace(/```json/g, "").replace(/```/g, "");
 
-    // 2. Encontrar el primer '{' y el último '}' para ignorar texto basura al inicio/final
+    // Encuentra el primer '{' y el último '}' para asegurarse de que tenemos un objeto
     const startIndex = cleaned.indexOf("{");
     const endIndex = cleaned.lastIndexOf("}");
     if (startIndex === -1 || endIndex === -1 || endIndex < startIndex) {
-        throw new Error("Respuesta de IA no contenía un objeto JSON válido (faltan '{' o '}').");
+        throw new Error("Respuesta de IA no contenía un objeto JSON válido.");
     }
     cleaned = cleaned.substring(startIndex, endIndex + 1);
 
-    // 3. Quitar comas sobrantes (trailing commas) antes de corchetes y llaves de cierre.
-    // Esta es la causa más común de errores de parseo con JSON de IA.
+    // Intenta eliminar comas sobrantes justo antes de ']' o '}'
+    // Esto es un arreglo común para errores de formato de la IA.
     cleaned = cleaned.replace(/,\s*(]|})/g, "$1");
 
     return cleaned;
 }
-
 
 export const processPresupuestoPdf = onObjectFinalized(
   { memory: "2GiB", timeoutSeconds: 540, secrets: ["GOOGLE_GENAI_API_KEY"] },
@@ -68,89 +67,32 @@ export const processPresupuestoPdf = onObjectFinalized(
         const [buffer] = await file.download();
         const base64Data = buffer.toString('base64');
         
-        const { notas, sourceFileName } = jobData;
+        const { notas } = jobData;
         
         const apiKey = process.env.GOOGLE_GENAI_API_KEY;
         if (!apiKey) {
             throw new Error("GOOGLE_GENAI_API_KEY no está configurada en el entorno de la función.");
         }
 
-        const prompt = `PROMPT GEMINI – IMPORTADOR DE PRESUPUESTOS (PCG)
-Eres un analista de costos y presupuestos de construcción en Chile, con experiencia en licitaciones privadas y públicas.
+        const prompt = `Eres un asistente experto en análisis de presupuestos de construcción. Tu tarea es interpretar un presupuesto (en formato PDF) y extraer los capítulos y todas las partidas/subpartidas en una estructura plana.
 
-Vas a analizar el texto completo extraído desde un PDF de presupuesto de obra.
+Debes seguir estas reglas estrictamente:
 
-OBJETIVO
-Transformar el contenido en un ITEMIZADO TÉCNICO ESTRUCTURADO, listo para ser usado en un sistema de control de gestión de obras.
+1.  Analiza el documento PDF que se te entrega.
+2.  Primero, identifica los capítulos principales y llena el array 'chapters'.
+3.  Luego, procesa CADA LÍNEA del itemizado (capítulos, partidas, sub-partidas) y conviértela en un objeto para el array 'rows'.
+4.  Para cada fila en 'rows', genera un 'id' estable y único (ej: "1", "1.1", "1.2.3").
+5.  Para representar la jerarquía, asigna el 'id' del elemento padre al campo 'parentId'. Si un ítem es de primer nivel (un capítulo), su 'parentId' debe ser 'null'.
+6.  Asigna el 'chapterIndex' correcto a cada fila, correspondiendo a su capítulo en el array 'chapters'.
+7.  Extrae códigos, descripciones, unidades, cantidades, precios unitarios y totales para cada partida.
+8.  NO inventes cantidades, precios ni unidades si no están explícitamente en el documento. Si un valor no existe para un ítem, déjalo como 'null'.
+9.  Tu respuesta DEBE SER EXCLUSIVAMENTE un objeto JSON válido.
 
-REGLAS GENERALES
-- El proyecto es un edificio en Chile.
-- Asume moneda CLP.
-- NO inventes partidas ni valores que no estén explícitos o claramente inferibles.
-- Si una cantidad o precio no aparece, déjalo como null.
-- Respeta la jerarquía técnica real de obra.
-- El resultado debe ser exclusivamente JSON válido.
-- No incluyas explicaciones ni texto adicional.
+Aquí está la información proporcionada por el usuario:
+- Itemizado PDF: (se adjuntará el archivo)
+- Notas adicionales: ${notas || "Sin notas."}
 
-ESTRUCTURA JERÁRQUICA OBLIGATORIA
-Nivel 1 → Especialidad  
-Nivel 2 → Partida  
-Nivel 3 → Subpartida (si existe)
-
-Especialidades válidas:
-- Obras Preliminares
-- Obras de Fundación
-- Estructura
-- Arquitectura
-- Instalaciones Sanitarias
-- Instalaciones Eléctricas
-- Corrientes Débiles
-- Climatización (si existe)
-- Obras Exteriores
-
-FORMATO DE SALIDA (JSON)
-
-{
-  "currency": "CLP",
-  "source": "pdf_import",
-  "especialidades": [
-    {
-      "code": "01",
-      "name": "Obras Preliminares",
-      "items": [
-        {
-          "code": "01.01",
-          "name": "Instalación de faena",
-          "unit": "global",
-          "quantity": 1,
-          "unit_price": 25000000,
-          "total": 25000000
-        }
-      ]
-    }
-  ]
-}
-
-CAMPOS OBLIGATORIOS POR ÍTEM
-- code: string jerárquico correlativo
-- name: string
-- unit: m2 | m3 | kg | ml | punto | unidad | global | hh
-- quantity: number | null
-- unit_price: number | null
-- total: number | null
-
-REGLAS DE INTERPRETACIÓN
-- Si el PDF tiene totales por sección, distribúyelos solo si la lógica es evidente; si no, déjalos a nivel de partida.
-- No mezclar especialidades.
-- No agrupar partidas distintas en un solo ítem.
-- Si detectas subtítulos, trátalos como partidas padre.
-- Mantén el orden original del documento.
-- No calcules IVA ni gastos generales si no están explícitos.
-
-CONTEXTO DE ENTRADA
-A continuación recibirás el texto completo extraído del PDF, página por página.
-Notas adicionales del usuario (úsalas como guía, especialmente para escalas o alturas):
-${notas || "Sin notas."}
+Genera ahora el JSON de salida.
 `;
         
         await jobRef.update({ status: 'running_ai', updatedAt: admin.firestore.FieldValue.serverTimestamp() });
@@ -188,8 +130,8 @@ ${notas || "Sin notas."}
             throw new Error(`La IA devolvió un JSON inválido. Error de parseo: ${e.message}. Comienzo de la respuesta: "${snippet}..."`);
         }
 
-        if (!parsed.especialidades || !Array.isArray(parsed.especialidades) || parsed.especialidades.length === 0) {
-            throw new Error("IA no devolvió un array de 'especialidades' válido.");
+        if (!parsed.rows || !Array.isArray(parsed.rows) || parsed.rows.length === 0) {
+            throw new Error("IA no devolvió un array de 'rows' válido.");
         }
 
         await jobRef.update({
