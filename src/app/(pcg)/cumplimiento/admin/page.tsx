@@ -7,7 +7,7 @@ import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter }
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
 import { useEffect } from "react";
-import { Loader2, Calendar, Users, ListChecks, ArrowLeft } from "lucide-react";
+import { Loader2, Calendar, Users, ListChecks, ArrowLeft, FileCheck } from "lucide-react";
 
 export default function AdminCumplimientoPage() {
     const { role, loading, company } = useAuth();
@@ -57,6 +57,12 @@ export default function AdminCumplimientoPage() {
     }
 
     const adminActions = [
+        {
+            title: "Revisión de Documentos",
+            description: "Revisa y aprueba los documentos mensuales de tus subcontratistas.",
+            href: "/cumplimiento/revision",
+            icon: FileCheck
+        },
         {
             title: "Documentos Requeridos",
             description: "Define la lista de documentos que se solicitarán mensualmente a los subcontratistas.",
