@@ -3,18 +3,19 @@
 import { onObjectFinalized } from "firebase-functions/v2/storage";
 import * as admin from "firebase-admin";
 import * as logger from "firebase-functions/logger";
+import { getAdminApp } from "./firebaseAdmin";
 import fetch from "node-fetch";
 
-const db = admin.firestore();
+const db = getAdminApp().firestore();
 
 function cleanJsonString(rawString: string): string {
-  let cleaned = rawString.replace(/```json/g, "").replace(/```/g, "");
-  const startIndex = cleaned.indexOf("{");
-  const endIndex = cleaned.lastIndexOf("}");
-  if (startIndex === -1 || endIndex === -1 || endIndex < startIndex) {
-    throw new Error("No se encontró un objeto JSON válido en la respuesta de la IA.");
-  }
-  return cleaned.substring(startIndex, endIndex + 1);
+    let cleaned = rawString.replace(/```json/g, "").replace(/```/g, "");
+    const startIndex = cleaned.indexOf("{");
+    const endIndex = cleaned.lastIndexOf("}");
+    if (startIndex === -1 || endIndex === -1 || endIndex < startIndex) {
+        throw new Error("Respuesta de IA no contenía un objeto JSON válido.");
+    }
+    return cleaned.substring(startIndex, endIndex + 1);
 }
 
 export const processPresupuestoPdf = onObjectFinalized(
@@ -37,20 +38,29 @@ export const processPresupuestoPdf = onObjectFinalized(
 
     const jobRef = db.collection('itemizadoImportJobs').doc(jobId);
 
+    // FIX: Fetch the job document to check its status before processing
+    const jobSnap = await jobRef.get();
+    if (!jobSnap.exists) {
+        logger.error(`[${jobId}] Job document not found in Firestore.`);
+        return;
+    }
+    const jobData = jobSnap.data()!;
+
+    // This is the crucial fix: check for 'uploaded' status
+    if (jobData.status !== "uploaded") {
+        logger.warn(`[${jobId}] Job not in 'uploaded' state (current: ${jobData.status}). Ignoring trigger.`);
+        return;
+    }
+
     try {
         await jobRef.update({ status: "processing", updatedAt: admin.firestore.FieldValue.serverTimestamp() });
 
         const storageBucket = admin.storage().bucket(bucket);
         const file = storageBucket.file(filePath);
         const [buffer] = await file.download();
-
         const base64Data = buffer.toString('base64');
         
-        const jobSnap = await jobRef.get();
-        if (!jobSnap.exists) throw new Error(`Job document ${jobId} not found in Firestore.`);
-        const jobData = jobSnap.data()!;
-        
-        const { notas } = jobData;
+        const { notas, sourceFileName } = jobData;
         
         const apiKey = process.env.GOOGLE_GENAI_API_KEY;
         if (!apiKey) {
@@ -135,7 +145,7 @@ Notas adicionales del usuario (úsalas como guía, especialmente para escalas o 
 ${notas || "Sin notas."}
 `;
         
-        await jobRef.update({ status: 'running_ai' });
+        await jobRef.update({ status: 'running_ai', updatedAt: admin.firestore.FieldValue.serverTimestamp() });
 
         const geminiEndpoint = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`;
 
@@ -158,8 +168,8 @@ ${notas || "Sin notas."}
 
         const result = await response.json();
         const rawJson = (result as any).candidates?.[0]?.content?.parts?.[0]?.text;
-
-        await jobRef.update({ rawAiResult: rawJson, status: "normalizing_result" });
+        
+        await jobRef.update({ rawAiResult: rawJson, status: "normalizing_result", updatedAt: admin.firestore.FieldValue.serverTimestamp() });
         if (!rawJson) throw new Error("La respuesta de Gemini no contiene texto JSON válido.");
         
         let parsed;

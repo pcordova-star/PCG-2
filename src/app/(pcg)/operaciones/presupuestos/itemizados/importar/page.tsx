@@ -82,7 +82,7 @@ export default function ImportarItemizadoPage() {
             companyId,
             obraId: selectedObraId,
             obraNombre: selectedObra.nombreFaena,
-            status: "uploading",
+            status: "uploaded", // FIX: Changed from "uploading" to "uploaded"
             createdAt: serverTimestamp(),
             source: "pdf",
             sourceFileName: pdfFile.name,
