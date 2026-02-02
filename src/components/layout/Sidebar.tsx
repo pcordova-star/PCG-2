@@ -38,7 +38,9 @@ interface NavItem {
   icon: React.ElementType;
   roles: string[];
   subItems?: NavItem[];
+  featureFlag?: string; // Add featureFlag property
 }
+
 
 const navItems: NavItem[] = [
   { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard, roles: ['superadmin', 'admin_empresa', 'jefe_obra', 'prevencionista'] },
@@ -154,7 +156,12 @@ export default function Sidebar() {
     }
   }
 
-  const navFiltered = navItems.filter(item => item.roles.includes(role));
+  const navFiltered = navItems.filter(item => {
+    if (!item.roles.includes(role)) return false;
+    if (item.featureFlag && company && !company[item.featureFlag]) return false;
+    return true;
+  });
+  
   const adminFiltered = adminNavItems.filter(item => item.roles.includes(role));
 
   const sidebarContent = (
