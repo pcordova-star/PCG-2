@@ -15,7 +15,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { collection, query, where, orderBy, getDocs } from 'firebase/firestore';
 import { firebaseDb } from '@/lib/firebaseClient';
 import { Obra } from '@/types/pcg';
-import { importarItemizado } from '@/ai/flows/importar-itemizado-flow';
+import { iniciarImportacionAction } from './actions';
 
 
 export default function ImportarItemizadoPage() {
@@ -62,7 +62,7 @@ export default function ImportarItemizadoPage() {
     }
   };
 
-  const handleSubmit = (e: FormEvent) => {
+  const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
     if (!pdfFile) {
       toast({ variant: 'destructive', title: 'Error', description: 'Debes seleccionar un archivo PDF.' });
@@ -82,75 +82,30 @@ export default function ImportarItemizadoPage() {
     setIsUploading(true);
     toast({ title: "Analizando documento...", description: "La IA está procesando el PDF. Esto puede tardar hasta 2 minutos." });
 
-    const reader = new FileReader();
-    reader.readAsDataURL(pdfFile);
-    reader.onload = async () => {
-        try {
-            const pdfDataUri = reader.result as string;
-            
-            // 1. Llamar a la acción de servidor directamente
-            const result = await importarItemizado({
-                pdfDataUri,
-                obraId: selectedObraId,
-                obraNombre: selectedObra.nombreFaena,
-                notas,
-            });
+    const formData = new FormData();
+    formData.append('obraId', selectedObraId);
+    formData.append('obraNombre', selectedObra.nombreFaena);
+    formData.append('notas', notas);
+    formData.append('pdfFile', pdfFile);
 
-            if (!result || !result.rows) {
-              throw new Error("La IA no devolvió un resultado válido.");
-            }
+    try {
+        const result = await iniciarImportacionAction(formData);
 
-            toast({
-                title: "Redirigiendo a revisión...",
-                description: "El itemizado ha sido creado. Ahora puedes revisarlo y editarlo.",
-            });
-            
-            // Aquí en lugar de guardar, pasamos el resultado a la página de edición
-            // para que el usuario pueda revisarlo ANTES de guardar.
-            // Para esto, se podría usar state management (Zustand) o pasar por query params.
-            // Por simplicidad, por ahora vamos a asumir que se guarda y se redirige,
-            // pero el flujo ideal sería de revisión.
-            // En el futuro, se puede implementar un guardado temporal y una página de revisión.
-            
-            // Por ahora, simularemos que la redirección lleva a una página de edición.
-            // Como el resultado puede ser muy grande, no lo pasamos por URL.
-            // La solución más robusta sería un job asíncrono.
-            
-            // Dado el código existente, el flujo original creaba un job y redirigía
-            // al status page. Vamos a replicar eso con la API Route.
-            
-             const response = await fetch('/api/itemizados/importar', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                  pdfDataUri: pdfDataUri,
-                  obraId: selectedObraId,
-                  obraNombre: selectedObra.nombreFaena,
-                  notas,
-                  sourceFileName: pdfFile.name,
-                }),
-            });
-            
-            if (!response.ok) {
-                 const errorData = await response.json();
-                throw new Error(errorData.error || 'Error al iniciar el trabajo de importación.');
-            }
-            
-            const { jobId } = await response.json();
-            router.push(`/operaciones/presupuestos/itemizados/importar/${jobId}`);
-
-
-        } catch (err: any) {
-            console.error(err);
-            toast({ variant: 'destructive', title: 'Error al analizar', description: `Ocurrió un problema: ${err.message}` });
-        } finally {
-            setIsUploading(false);
+        if (result.error) {
+            throw new Error(result.error);
         }
-    };
-    reader.onerror = () => {
-        toast({ variant: 'destructive', title: 'Error', description: 'No se pudo leer el archivo PDF.' });
+        
+        if (result.jobId) {
+            router.push(`/operaciones/presupuestos/itemizados/importar/${result.jobId}`);
+        } else {
+            throw new Error('No se recibió un ID de trabajo del servidor.');
+        }
+
+    } catch (err: any) {
+        console.error(err);
+        toast({ variant: 'destructive', title: 'Error al analizar', description: `Ocurrió un problema: ${err.message}` });
         setIsUploading(false);
-    };
+    }
   };
 
   return (
