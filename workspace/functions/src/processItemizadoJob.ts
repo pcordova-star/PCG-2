@@ -1,61 +1,63 @@
 // workspace/functions/src/processItemizadoJob.ts
-import * as functions from "firebase-functions";
+
+import { onObjectFinalized } from "firebase-functions/v2/storage";
 import * as admin from "firebase-admin";
 import * as logger from "firebase-functions/logger";
-import { getAdminApp } from "./firebaseAdmin";
 import fetch from "node-fetch";
 
-const adminApp = getAdminApp();
-const db = adminApp.firestore();
+const db = admin.firestore();
 
-export const processItemizadoJob = functions
-  .region("us-central1")
-  .runWith({ 
-    timeoutSeconds: 540, 
-    memory: "1GB",
-    secrets: ["GOOGLE_GENAI_API_KEY"] 
-  })
-  .firestore.document("itemizadoImportJobs/{jobId}")
-  .onCreate(async (snapshot, context) => {
-    const { jobId } = context.params;
-    const jobData = snapshot.data();
-    const jobRef = snapshot.ref;
+function cleanJsonString(rawString: string): string {
+  let cleaned = rawString.replace(/```json/g, "").replace(/```/g, "");
+  const startIndex = cleaned.indexOf("{");
+  const endIndex = cleaned.lastIndexOf("}");
+  if (startIndex === -1 || endIndex === -1 || endIndex < startIndex) {
+    throw new Error("No se encontró un objeto JSON válido en la respuesta de la IA.");
+  }
+  return cleaned.substring(startIndex, endIndex + 1);
+}
 
-    logger.info(`[${jobId}] Job triggered`);    
-
-    if (jobData.status !== "queued") {
-      logger.warn(`[${jobId}] Not queued. Ignoring.`);
-      return;
-    }
-
-    await jobRef.update({
-      status: "processing",
-      startedAt: admin.firestore.FieldValue.serverTimestamp(),
-    });
-
-    const apiKey = process.env.GOOGLE_GENAI_API_KEY;
+export const processPresupuestoPdf = onObjectFinalized(
+  { memory: "2GiB", timeoutSeconds: 540, secrets: ["GOOGLE_GENAI_API_KEY"] },
+  async (event) => {
     
-    if (!apiKey) {
-      logger.error(`[${jobId}] GOOGLE_GENAI_API_KEY no está configurada en el entorno de la función.`);
-      await jobRef.update({
-        status: "error",
-        errorMessage: "La clave de API de Google no está configurada en el servidor.",
-      });
+    const { bucket, name: filePath } = event.data;
+    if (!filePath || !filePath.startsWith('itemizados/') || !filePath.endsWith('.pdf')) {
+      logger.log(`[IGNORE] File ${filePath} is not a presupuesto PDF.`);
       return;
     }
+    
+    const pathParts = filePath.split("/");
+    const jobId = pathParts[pathParts.length - 1].replace(".pdf", "");
+
+    if (!jobId) {
+        logger.error("Could not extract jobId from file path:", filePath);
+        return;
+    }
+
+    const jobRef = db.collection('itemizadoImportJobs').doc(jobId);
 
     try {
-      const { pdfDataUri, notas, sourceFileName } = jobData;
+        await jobRef.update({ status: "processing", updatedAt: admin.firestore.FieldValue.serverTimestamp() });
 
-      if (!pdfDataUri) throw new Error("pdfDataUri vacío.");
+        const storageBucket = admin.storage().bucket(bucket);
+        const file = storageBucket.file(filePath);
+        const [buffer] = await file.download();
 
-      const match = pdfDataUri.match(/^data:(application\/pdf);base64,(.*)$/);
-      if (!match) throw new Error("Formato inválido: data:application/pdf;base64,...");
+        const base64Data = buffer.toString('base64');
+        
+        const jobSnap = await jobRef.get();
+        if (!jobSnap.exists) throw new Error(`Job document ${jobId} not found in Firestore.`);
+        const jobData = jobSnap.data()!;
+        
+        const { notas } = jobData;
+        
+        const apiKey = process.env.GOOGLE_GENAI_API_KEY;
+        if (!apiKey) {
+            throw new Error("GOOGLE_GENAI_API_KEY no está configurada en el entorno de la función.");
+        }
 
-      const mimeType = match[1];
-      const base64Data = match[2];
-
-      const prompt = `PROMPT GEMINI – IMPORTADOR DE PRESUPUESTOS (PCG)
+        const prompt = `PROMPT GEMINI – IMPORTADOR DE PRESUPUESTOS (PCG)
 Eres un analista de costos y presupuestos de construcción en Chile, con experiencia en licitaciones privadas y públicas.
 
 Vas a analizar el texto completo extraído desde un PDF de presupuesto de obra.
@@ -129,77 +131,63 @@ REGLAS DE INTERPRETACIÓN
 
 CONTEXTO DE ENTRADA
 A continuación recibirás el texto completo extraído del PDF, página por página.
+Notas adicionales del usuario (úsalas como guía, especialmente para escalas o alturas):
+${notas || "Sin notas."}
 `;
+        
+        await jobRef.update({ status: 'running_ai' });
 
-      await jobRef.update({ status: 'running_ai' });
+        const geminiEndpoint = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`;
 
-      const geminiEndpoint = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`;
+        const requestBody = {
+            contents: [{ parts: [{ text: prompt }, { inline_data: { mime_type: 'application/pdf', data: base64Data } }] }],
+            generationConfig: { response_mime_type: "application/json" },
+        };
+        
+        const response = await fetch(geminiEndpoint, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(requestBody),
+        });
 
-      const requestBody = {
-        contents: [
-          {
-            parts: [
-              { text: prompt },
-              {
-                inline_data: {
-                  mime_type: mimeType,
-                  data: base64Data,
-                },
-              },
-            ],
-          },
-        ],
-        generationConfig: {
-          response_mime_type: "application/json",
-        },
-      };
+        if (!response.ok) {
+            const errText = await response.text();
+            logger.error(`[${jobId}] Gemini API error:`, errText);
+            throw new Error(`Error en API Gemini: ${response.statusText}`);
+        }
 
-      const response = await fetch(geminiEndpoint, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(requestBody),
-      });
+        const result = await response.json();
+        const rawJson = (result as any).candidates?.[0]?.content?.parts?.[0]?.text;
 
-      if (!response.ok) {
-        const err = await response.json();
-        const errorAny = err as any; 
-        throw new Error(errorAny.response?.data?.error?.message || errorAny.message || "Error desconocido en API Gemini");
-      }
+        await jobRef.update({ rawAiResult: rawJson, status: "normalizing_result" });
+        if (!rawJson) throw new Error("La respuesta de Gemini no contiene texto JSON válido.");
+        
+        let parsed;
+        try {
+            parsed = JSON.parse(cleanJsonString(rawJson));
+        } catch (e) {
+            throw new Error("JSON inválido devuelto por IA");
+        }
 
-      const result = await response.json();
-      const rawJson = (result as any).candidates?.[0]?.content?.parts?.[0]?.text;
-      
-      await jobRef.update({ rawAiResult: rawJson });
+        if (!parsed.especialidades || !Array.isArray(parsed.especialidades) || parsed.especialidades.length === 0) {
+            throw new Error("IA no devolvió un array de 'especialidades' válido.");
+        }
 
-      if (!rawJson) throw new Error("La respuesta de Gemini no contiene texto JSON válido.");
-      
-      let parsed;
-      try {
-        parsed = JSON.parse(rawJson);
-      } catch (e) {
-        throw new Error("JSON inválido devuelto por IA.");
-      }
-
-      if (!parsed.especialidades || !Array.isArray(parsed.especialidades) || parsed.especialidades.length === 0) {
-        throw new Error("La IA no devolvió un array de 'especialidades' válido.");
-      }
-
-      await jobRef.update({
-        status: "completed",
-        result: parsed,
-        processedAt: admin.firestore.FieldValue.serverTimestamp(),
-      });
-
-      logger.info(`[${jobId}] Job completado OK`);
-    } catch (err: any) {
-      logger.error(`[${jobId}] Error`, err);
-
-      const mensajeError = err.message || "Error desconocido";
-
-      await jobRef.update({
-        status: "error",
-        errorMessage: `Fallo en el proceso: ${mensajeError}`,
-        processedAt: admin.firestore.FieldValue.serverTimestamp(),
-      });
+        await jobRef.update({
+            status: "completed",
+            result: parsed,
+            finishedAt: admin.firestore.FieldValue.serverTimestamp(),
+        });
+        
+        logger.info(`[${jobId}] Job completado OK.`);
+        
+    } catch(err: any) {
+        logger.error(`[${jobId}] Error processing job:`, err);
+        await jobRef.update({
+            status: 'error',
+            errorMessage: err.message || "Error desconocido durante el procesamiento.",
+            finishedAt: admin.firestore.FieldValue.serverTimestamp()
+        });
     }
-  });
+  }
+);

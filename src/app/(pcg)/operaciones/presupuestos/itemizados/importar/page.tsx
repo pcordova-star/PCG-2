@@ -1,4 +1,4 @@
-// src/app/(pcg)/operaciones/presupuestos/itemizados/importar/page.tsx
+// src/app/operaciones/presupuestos/itemizados/importar/page.tsx
 "use client";
 
 import { useState, useEffect, FormEvent } from 'react';
@@ -12,10 +12,10 @@ import { Loader2, Upload, ArrowLeft } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/context/AuthContext';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { collection, query, where, orderBy, getDocs } from 'firebase/firestore';
-import { firebaseDb } from '@/lib/firebaseClient';
+import { collection, query, where, orderBy, getDocs, addDoc, serverTimestamp } from 'firebase/firestore';
+import { firebaseDb, firebaseStorage } from '@/lib/firebaseClient';
+import { ref, uploadBytes } from "firebase/storage";
 import { Obra } from '@/types/pcg';
-import { iniciarImportacionAction } from './actions';
 
 
 export default function ImportarItemizadoPage() {
@@ -64,12 +64,8 @@ export default function ImportarItemizadoPage() {
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
-    if (!pdfFile) {
-      toast({ variant: 'destructive', title: 'Error', description: 'Debes seleccionar un archivo PDF.' });
-      return;
-    }
-    if (!selectedObraId) {
-      toast({ variant: 'destructive', title: 'Error', description: 'Debes seleccionar una obra.' });
+    if (!pdfFile || !selectedObraId || !companyId || !user) {
+      toast({ variant: 'destructive', title: 'Error', description: 'Debes seleccionar una obra, un archivo y estar autenticado.' });
       return;
     }
 
@@ -80,30 +76,32 @@ export default function ImportarItemizadoPage() {
     }
 
     setIsUploading(true);
-    toast({ title: "Analizando documento...", description: "La IA está procesando el PDF. Esto puede tardar hasta 2 minutos." });
-
-    const formData = new FormData();
-    formData.append('obraId', selectedObraId);
-    formData.append('obraNombre', selectedObra.nombreFaena);
-    formData.append('notas', notas);
-    formData.append('pdfFile', pdfFile);
-
+    
     try {
-        const result = await iniciarImportacionAction(formData);
+        const jobRef = await addDoc(collection(firebaseDb, "itemizadoImportJobs"), {
+            companyId,
+            obraId: selectedObraId,
+            obraNombre: selectedObra.nombreFaena,
+            status: "uploading",
+            createdAt: serverTimestamp(),
+            source: "pdf",
+            sourceFileName: pdfFile.name,
+            notas: notas,
+            userId: user.uid,
+        });
 
-        if (result.error) {
-            throw new Error(result.error);
-        }
+        const storagePath = `itemizados/${companyId}/${jobRef.id}.pdf`;
+        const storageRef = ref(firebaseStorage, storagePath);
+
+        await uploadBytes(storageRef, pdfFile);
         
-        if (result.jobId) {
-            router.push(`/operaciones/presupuestos/itemizados/importar/${result.jobId}`);
-        } else {
-            throw new Error('No se recibió un ID de trabajo del servidor.');
-        }
+        toast({ title: "Archivo subido con éxito", description: "El análisis comenzará en segundo plano. Serás redirigido." });
+        
+        router.push(`/operaciones/presupuestos/itemizados/importar/${jobRef.id}`);
 
     } catch (err: any) {
-        console.error(err);
-        toast({ variant: 'destructive', title: 'Error al analizar', description: `Ocurrió un problema: ${err.message}` });
+        console.error("Error al iniciar importación:", err);
+        toast({ variant: 'destructive', title: 'Error al subir', description: `Ocurrió un problema: ${err.message}` });
         setIsUploading(false);
     }
   };
@@ -142,7 +140,7 @@ export default function ImportarItemizadoPage() {
                 </div>
                 <Button type="submit" disabled={isUploading || !pdfFile || !selectedObraId} className="w-full">
                     {isUploading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Upload className="mr-2 h-4 w-4" />}
-                    {isUploading ? 'Enviando a análisis...' : 'Analizar Documento Completo con IA'}
+                    {isUploading ? 'Subiendo archivo...' : 'Subir y Analizar con IA'}
                 </Button>
             </form>
         </CardContent>

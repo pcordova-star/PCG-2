@@ -4,7 +4,7 @@
  */
 
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.mclpDailyScheduler = exports.notifyDocumentDistribution = exports.requestModuleActivation = exports.registrarAvanceRapido = exports.deactivateCompanyUser = exports.checkUserExistsByEmail = exports.setSuperAdminClaim = exports.setCompanyClaims = exports.processComparacionJob = exports.processItemizadoJob = exports.analizarPlano = exports.createCompanyUser = void 0;
+exports.mclpDailyScheduler = exports.notifyDocumentDistribution = exports.requestModuleActivation = exports.registrarAvanceRapido = exports.deactivateCompanyUser = exports.checkUserExistsByEmail = exports.setSuperAdminClaim = exports.setCompanyClaims = exports.processComparacionJob = exports.processPresupuestoPdf = exports.analizarPlano = exports.createCompanyUser = void 0;
 
 // --- HTTP ---
 var createCompanyUser_1 = require("./createCompanyUser");
@@ -12,7 +12,7 @@ Object.defineProperty(exports, "createCompanyUser", { enumerable: true, get: fun
 var analizarPlano_1 = require("./analizarPlano");
 Object.defineProperty(exports, "analizarPlano", { enumerable: true, get: function () { return analizarPlano_1.analizarPlano; } });
 var processItemizadoJob_1 = require("./processItemizadoJob");
-Object.defineProperty(exports, "processItemizadoJob", { enumerable: true, get: function () { return processItemizadoJob_1.processItemizadoJob; } });
+Object.defineProperty(exports, "processPresupuestoPdf", { enumerable: true, get: function () { return processItemizadoJob_1.processPresupuestoPdf; } });
 var processComparacionJob_1 = require("./processComparacionJob");
 Object.defineProperty(exports, "processComparacionJob", { enumerable: true, get: function () { return processComparacionJob_1.processComparacionJob; } });
 
@@ -40,4 +40,3 @@ Object.defineProperty(exports, "notifyDocumentDistribution", { enumerable: true,
 // --- Scheduler (cron) ---
 var scheduler_1 = require("./mclp/scheduler");
 Object.defineProperty(exports, "mclpDailyScheduler", { enumerable: true, get: function () { return scheduler_1.mclpDailyScheduler; } });
-
