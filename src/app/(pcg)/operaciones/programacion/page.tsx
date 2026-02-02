@@ -307,6 +307,10 @@ function ProgramacionPageInner() {
   const [isImportModalOpen, setIsImportModalOpen] = useState(false);
   const [isProcessingImport, setIsProcessingImport] = useState(false);
 
+  // Estados para los filtros de la tabla de actividades
+  const [filtroNombre, setFiltroNombre] = useState('');
+  const [filtroEstado, setFiltroEstado] = useState('todos');
+
 
   const montoTotalContrato = useMemo(() => {
     return actividades.reduce((sum, act) => sum + ((act.cantidad || 0) * (act.precioContrato || 0)), 0);
@@ -372,6 +376,15 @@ function ProgramacionPageInner() {
     });
     return Object.entries(grupos).sort((a, b) => b[0].localeCompare(a[0])); // Ordena de más reciente a más antiguo
   }, [avances]);
+
+  const actividadesFiltradas = useMemo(() => {
+    return actividadesConPeso.filter(act => {
+      const matchNombre = filtroNombre === '' || act.nombreActividad.toLowerCase().includes(filtroNombre.toLowerCase());
+      const estadoAct = getEstadoActividad(act);
+      const matchEstado = filtroEstado === 'todos' || estadoAct === filtroEstado;
+      return matchNombre && matchEstado;
+    })
+  }, [actividadesConPeso, filtroNombre, filtroEstado, getEstadoActividad]);
 
 
   useEffect(() => {
@@ -778,7 +791,6 @@ function ProgramacionPageInner() {
         return;
     }
     
-    // 1. Datos para la hoja de programación
     const dataToExport = actividades.map(act => ({
         partida_id: act.id,
         item: act.nombreActividad, // Nombre como referencia visual
@@ -786,9 +798,9 @@ function ProgramacionPageInner() {
         fecha_inicio: act.fechaInicio,
         fecha_termino: act.fechaFin,
     }));
+    
     const programacionWorksheet = XLSX.utils.json_to_sheet(dataToExport);
     
-    // 2. Datos para la hoja de instrucciones
     const instructionsData = [
         ["CÓMO COMPLETAR ESTE ARCHIVO"],
         [],
@@ -801,15 +813,12 @@ function ProgramacionPageInner() {
     ];
     const instruccionesWorksheet = XLSX.utils.aoa_to_sheet(instructionsData);
 
-    // Ajustar anchos de columna para la hoja de instrucciones
     instruccionesWorksheet['!cols'] = [ { wch: 20 }, { wch: 100 } ];
 
-    // 3. Crear el libro y añadir las hojas
     const workbook = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(workbook, programacionWorksheet, "Programacion");
     XLSX.utils.book_append_sheet(workbook, instruccionesWorksheet, "Instrucciones");
 
-    // 4. Descargar el archivo
     XLSX.writeFile(workbook, `programacion_${obraSeleccionadaId}.xlsx`);
   };
 
@@ -932,24 +941,40 @@ function ProgramacionPageInner() {
       {error && <p className="text-sm font-medium text-destructive">{error}</p>}
 
       <Card>
-        <CardHeader className="flex flex-row items-center justify-between">
-            <div>
-              <CardTitle>Selector de Obra</CardTitle>
-              <CardDescription>Filtre las actividades y avances por obra.</CardDescription>
-            </div>
+        <CardHeader>
+            <CardTitle>Filtros y Controles</CardTitle>
         </CardHeader>
-        <CardContent>
-          <div className="max-w-xs space-y-2">
-            <Label htmlFor="obra-select">Seleccione una obra</Label>
-            <Select value={obraSeleccionadaId} onValueChange={setObraSeleccionadaId}>
-              <SelectTrigger id="obra-select"><SelectValue placeholder="Seleccione una obra" /></SelectTrigger>
-              <SelectContent>
-                {obras.map((obra) => (
-                  <SelectItem key={obra.id} value={obra.id}>{obra.nombreFaena}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
+        <CardContent className="space-y-4">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="space-y-2">
+                    <Label htmlFor="obra-select">Obra Activa</Label>
+                    <Select value={obraSeleccionadaId} onValueChange={setObraSeleccionadaId}>
+                    <SelectTrigger id="obra-select"><SelectValue placeholder="Seleccione una obra" /></SelectTrigger>
+                    <SelectContent>
+                        {obras.map((obra) => (
+                        <SelectItem key={obra.id} value={obra.id}>{obra.nombreFaena}</SelectItem>
+                        ))}
+                    </SelectContent>
+                    </Select>
+                </div>
+                <div className="space-y-2">
+                    <Label htmlFor="filtro-nombre">Buscar Actividad</Label>
+                    <Input id="filtro-nombre" placeholder="Buscar por nombre..." value={filtroNombre} onChange={(e) => setFiltroNombre(e.target.value)} />
+                </div>
+                <div className="space-y-2">
+                    <Label htmlFor="filtro-estado">Filtrar por Estado</Label>
+                    <Select value={filtroEstado} onValueChange={setFiltroEstado}>
+                        <SelectTrigger id="filtro-estado"><SelectValue/></SelectTrigger>
+                        <SelectContent>
+                            <SelectItem value="todos">Todos los estados</SelectItem>
+                            <SelectItem value="Pendiente">Pendiente</SelectItem>
+                            <SelectItem value="En curso">En curso</SelectItem>
+                            <SelectItem value="Atrasada">Atrasada</SelectItem>
+                            <SelectItem value="Terminada">Terminada</SelectItem>
+                        </SelectContent>
+                    </Select>
+                </div>
+            </div>
         </CardContent>
       </Card>
       
@@ -976,7 +1001,7 @@ function ProgramacionPageInner() {
         <CardHeader className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
             <div>
                 <CardTitle>Actividades Programadas</CardTitle>
-                <CardDescription>{cargandoActividades ? "Cargando..." : `Mostrando ${actividades.length} actividades.`}</CardDescription>
+                <CardDescription>{cargandoActividades ? "Cargando..." : `Mostrando ${actividadesFiltradas.length} de ${actividades.length} actividades.`}</CardDescription>
             </div>
             <div className="flex flex-wrap gap-2">
                  <input type="file" ref={fileInputRef} onChange={handleFileSelect} className="hidden" accept=".xlsx, .xls, .csv"/>
@@ -1037,7 +1062,7 @@ function ProgramacionPageInner() {
                     </TableHeader>
                     <TableBody>
                     {cargandoActividades ? <TableRow><TableCell colSpan={11} className="text-center">Cargando...</TableCell></TableRow> : 
-                    actividadesConPeso.length > 0 ? (actividadesConPeso.map((act) => {
+                    actividadesFiltradas.length > 0 ? (actividadesFiltradas.map((act) => {
                       const total = (act.cantidad ?? 0) * (act.precioContrato ?? 0);
                       const avanceInfo = avancesPorActividad[act.id];
                       return (
@@ -1087,7 +1112,7 @@ function ProgramacionPageInner() {
                         </TableRow>
                       )
                     })) : (
-                        <TableRow><TableCell colSpan={11} className="text-center text-muted-foreground py-8">No hay actividades para esta obra.</TableCell></TableRow>
+                        <TableRow><TableCell colSpan={11} className="text-center text-muted-foreground py-8">No hay actividades que coincidan con los filtros.</TableCell></TableRow>
                     )}
                     </TableBody>
                 </Table>
