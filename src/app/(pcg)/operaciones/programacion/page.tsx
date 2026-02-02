@@ -1,5 +1,4 @@
-
-// src/app/(pcg)/operaciones/programacion/page.tsx
+// src/app/operaciones/programacion/page.tsx
 
 "use client";
 
@@ -23,7 +22,7 @@ import {
   runTransaction,
   onSnapshot
 } from "firebase/firestore";
-import { firebaseDb, firebaseStorage } from "../../../lib/firebaseClient";
+import { firebaseDb, firebaseStorage } from "@/lib/firebaseClient";
 import { ref, deleteObject } from "firebase/storage";
 import { Button } from "@/components/ui/button";
 import {
