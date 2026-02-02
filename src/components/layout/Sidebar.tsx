@@ -3,7 +3,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import {
   HardHat,
   LayoutDashboard,
@@ -107,9 +107,10 @@ function NavLink({ item, isCollapsed }: { item: NavItem, isCollapsed: boolean })
 
 
 export default function Sidebar() {
-  const { isCollapsed, toggleSidebar } = useSidebarStore();
+  const { isCollapsed, toggleSidebar, setCollapsed } = useSidebarStore();
   const { user, role, company, logout } = useAuth();
   const [isMobile, setIsMobile] = useState(false);
+  const inactivityTimer = useRef<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
     const checkMobile = () => setIsMobile(window.innerWidth < 768);
@@ -117,11 +118,37 @@ export default function Sidebar() {
     window.addEventListener('resize', checkMobile);
     return () => window.removeEventListener('resize', checkMobile);
   }, []);
+
+  useEffect(() => {
+    if (isMobile) return;
+
+    const resetTimer = () => {
+        if (inactivityTimer.current) {
+            clearTimeout(inactivityTimer.current);
+        }
+        inactivityTimer.current = setTimeout(() => {
+            if (!isCollapsed) {
+                setCollapsed(true);
+            }
+        }, 30000); // 30 segundos
+    };
+
+    const events: (keyof WindowEventMap)[] = ['mousemove', 'keydown', 'mousedown', 'touchstart'];
+    events.forEach(event => window.addEventListener(event, resetTimer));
+    resetTimer(); // Start the timer on mount
+
+    return () => {
+        events.forEach(event => window.removeEventListener(event, resetTimer));
+        if (inactivityTimer.current) {
+            clearTimeout(inactivityTimer.current);
+        }
+    };
+  }, [isCollapsed, isMobile, setCollapsed]);
   
   const handleToggle = () => {
     if (isMobile) {
       // En móvil, el toggle cierra el menú (que es un overlay)
-      useSidebarStore.setState({ isCollapsed: true });
+      setCollapsed(true);
     } else {
       toggleSidebar();
     }
