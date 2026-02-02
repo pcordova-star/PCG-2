@@ -57,9 +57,13 @@ export default function RevisionPage() {
     useEffect(() => {
         if (!companyId) return;
 
-        const periodsQuery = query(collection(firebaseDb, "compliancePeriods"), where("companyId", "==", companyId), orderBy("periodo", "desc"));
+        const periodsQuery = query(collection(firebaseDb, "compliancePeriods"), where("companyId", "==", companyId));
         const unsubPeriods = onSnapshot(periodsQuery, (snapshot) => {
             const periodsData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as CompliancePeriod));
+            
+            // Ordenar en el cliente para evitar la necesidad de un índice compuesto
+            periodsData.sort((a, b) => b.periodo.localeCompare(a.periodo));
+
             setPeriods(periodsData);
             if (periodsData.length > 0 && !selectedPeriodId) {
                 setSelectedPeriodId(periodsData[0].id);
@@ -75,7 +79,7 @@ export default function RevisionPage() {
         });
 
         return () => { unsubPeriods(); unsubSubs(); };
-    }, [companyId]);
+    }, [companyId, selectedPeriodId]);
 
     useEffect(() => {
         if (!selectedPeriodId) {
