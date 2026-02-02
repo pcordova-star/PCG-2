@@ -55,8 +55,7 @@ export const processItemizadoJob = functions
       const mimeType = match[1];
       const base64Data = match[2];
 
-      const prompt = `
-PROMPT GEMINI – IMPORTADOR DE PRESUPUESTOS (PCG)
+      const prompt = `PROMPT GEMINI – IMPORTADOR DE PRESUPUESTOS (PCG)
 Eres un analista de costos y presupuestos de construcción en Chile, con experiencia en licitaciones privadas y públicas.
 
 Vas a analizar el texto completo extraído desde un PDF de presupuesto de obra.
@@ -74,8 +73,8 @@ REGLAS GENERALES
 - No incluyas explicaciones ni texto adicional.
 
 ESTRUCTURA JERÁRQUICA OBLIGATORIA
-Nivel 1 → Especialidad
-Nivel 2 → Partida
+Nivel 1 → Especialidad  
+Nivel 2 → Partida  
 Nivel 3 → Subpartida (si existe)
 
 Especialidades válidas:
@@ -132,6 +131,8 @@ CONTEXTO DE ENTRADA
 A continuación recibirás el texto completo extraído del PDF, página por página.
 `;
 
+      await jobRef.update({ status: 'running_ai' });
+
       const geminiEndpoint = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`;
 
       const requestBody = {
@@ -167,13 +168,24 @@ A continuación recibirás el texto completo extraído del PDF, página por pág
 
       const result = await response.json();
       const rawJson = (result as any).candidates?.[0]?.content?.parts?.[0]?.text;
+      
+      await jobRef.update({ rawAiResult: rawJson });
 
-      if (!rawJson) throw new Error("Gemini no retornó texto JSON.");
+      if (!rawJson) throw new Error("La respuesta de Gemini no contiene texto JSON válido.");
+      
+      let parsed;
+      try {
+        parsed = JSON.parse(rawJson);
+      } catch (e) {
+        throw new Error("JSON inválido devuelto por IA.");
+      }
 
-      const parsed = JSON.parse(rawJson);
+      if (!parsed.especialidades || !Array.isArray(parsed.especialidades) || parsed.especialidades.length === 0) {
+        throw new Error("La IA no devolvió un array de 'especialidades' válido.");
+      }
 
       await jobRef.update({
-        status: "done",
+        status: "completed",
         result: parsed,
         processedAt: admin.firestore.FieldValue.serverTimestamp(),
       });
@@ -182,12 +194,11 @@ A continuación recibirás el texto completo extraído del PDF, página por pág
     } catch (err: any) {
       logger.error(`[${jobId}] Error`, err);
 
-      const errorAny = err as any;
-      const mensajeError = errorAny.response?.data?.error?.message || errorAny.message || "Error desconocido";
+      const mensajeError = err.message || "Error desconocido";
 
       await jobRef.update({
         status: "error",
-        errorMessage: `Fallo en Gemini: ${mensajeError}`,
+        errorMessage: `Fallo en el proceso: ${mensajeError}`,
         processedAt: admin.firestore.FieldValue.serverTimestamp(),
       });
     }

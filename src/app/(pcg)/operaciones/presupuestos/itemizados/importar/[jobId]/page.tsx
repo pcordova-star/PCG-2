@@ -15,7 +15,7 @@ import { useAuth } from '@/context/AuthContext';
 import { useToast } from '@/hooks/use-toast';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 
-type JobStatus = 'queued' | 'processing' | 'done' | 'error';
+type JobStatus = 'queued' | 'processing' | 'running_ai' | 'done' | 'error';
 type JobResponse = {
   status: JobStatus;
   obraId?: string;
@@ -39,7 +39,7 @@ function parseNumberCL(value: string | number | null | undefined): number {
 
 
 // Función de normalización que convierte el output de la IA a un formato plano y limpio.
-function normalizeRowsToPresupuestoItems(rows: any[]): Array<{ parentId: string | null; type: "chapter" | "subchapter" | "item"; descripcion: string; unidad: string; cantidad: number; precioUnitario: number; }> {
+function normalizeRowsToPresupuestoItems(rows: any[]): Array<{ parentId: string | null; type: "chapter" | "subchapter" | "item"; descripcion: string; unidad: string; cantidad: number; precioUnitario: number; especialidad: string; id: string; }> {
     if (!rows) return [];
 
     const excludedTokens = [
@@ -84,7 +84,8 @@ function normalizeRowsToPresupuestoItems(rows: any[]): Array<{ parentId: string 
             unidad,
             cantidad,
             precioUnitario,
-            id: row.id // Se mantiene el id para la estructura jerárquica
+            id: row.id, // Se mantiene el id para la estructura jerárquica
+            especialidad: row.especialidad || 'Sin especialidad'
         };
     });
 }
@@ -104,6 +105,7 @@ function aplanarJerarquia(especialidades: any[]): any[] {
       level: 0,
       description: especialidad.name,
       name: especialidad.name,
+      especialidad: especialidad.name // Add specialty name
     });
 
     const procesarItems = (items: any[], parentId: string, level: number) => {
@@ -120,6 +122,7 @@ function aplanarJerarquia(especialidades: any[]): any[] {
           name: item.name,
           qty: item.quantity,
           unitPrice: item.unit_price,
+          especialidad: especialidad.name // Pass down specialty name
         });
 
         if (tieneHijos) {
@@ -166,7 +169,7 @@ export default function ImportStatusPage() {
           setProgress(100);
         } else if (data.status === 'error') {
           setProgress(100);
-        } else if (data.status === 'processing') {
+        } else if (data.status === 'processing' || data.status === 'running_ai') {
             setProgress(prev => Math.min(prev + 5, 90)); // Simula progreso
         }
 
@@ -252,14 +255,8 @@ export default function ImportStatusPage() {
 
     switch (jobData.status) {
       case 'queued':
-        return (
-          <div className="text-center">
-            <Loader2 className="mx-auto h-12 w-12 animate-spin text-primary" />
-            <p className="mt-4 font-semibold">En cola para análisis...</p>
-            <p className="text-sm text-muted-foreground">Tu documento está esperando ser procesado por la IA.</p>
-          </div>
-        );
       case 'processing':
+      case 'running_ai':
         return (
             <motion.div initial={{opacity: 0}} animate={{opacity: 1}} className="text-center">
                 <Loader2 className="mx-auto h-12 w-12 animate-spin text-primary" />

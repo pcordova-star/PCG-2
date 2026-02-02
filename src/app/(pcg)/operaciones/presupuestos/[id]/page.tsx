@@ -34,6 +34,7 @@ type PresupuestoItem = {
     unidad: string;
     cantidad: number;
     precioUnitario: number;
+    especialidad?: string;
 };
 
 type HierarchicalItem = PresupuestoItem & {
@@ -595,7 +596,8 @@ export default function PresupuestoEditPage() {
                         <TableHeader>
                             <TableRow>
                                 <TableHead className="w-[10%]">Ítem</TableHead>
-                                <TableHead className="w-[40%]">Descripción</TableHead>
+                                <TableHead className="w-[35%]">Descripción</TableHead>
+                                <TableHead className="w-[15%]">Especialidad</TableHead>
                                 <TableHead>Un.</TableHead>
                                 <TableHead>Cant.</TableHead>
                                 <TableHead>P. Unitario</TableHead>
@@ -616,6 +618,7 @@ export default function PresupuestoEditPage() {
                                         {item.itemNumber}
                                     </TableCell>
                                     <TableCell>{item.descripcion}</TableCell>
+                                    <TableCell className="text-xs text-muted-foreground">{item.type === 'item' ? item.especialidad : ''}</TableCell>
                                     <TableCell>{item.type === 'item' ? item.unidad : ''}</TableCell>
                                     <TableCell>{item.type === 'item' ? item.cantidad.toLocaleString('es-CL') : ''}</TableCell>
                                     <TableCell>{item.type === 'item' ? formatoMoneda(item.precioUnitario) : ''}</TableCell>
