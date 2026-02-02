@@ -46,15 +46,13 @@ const node_fetch_1 = __importDefault(require("node-fetch"));
 const db = (0, firebaseAdmin_1.getAdminApp)().firestore();
 function cleanJsonString(rawString) {
     let cleaned = rawString.replace(/```json/g, "").replace(/```/g, "");
-    // Eliminar comentarios de una línea o de bloque
     cleaned = cleaned.replace(/\/\*[\s\S]*?\*\/|([^\\:]|^)\/\/.*$/gm, '$1');
-    const startIndex = cleaned.indexOf("[");
-    const endIndex = cleaned.lastIndexOf("]");
+    const startIndex = cleaned.indexOf("{");
+    const endIndex = cleaned.lastIndexOf("}");
     if (startIndex === -1 || endIndex === -1 || endIndex < startIndex) {
-        throw new Error("Respuesta de IA no contenía un array JSON válido `[...]`.");
+        throw new Error("Respuesta de IA no contenía un objeto JSON válido `{...}`.");
     }
     cleaned = cleaned.substring(startIndex, endIndex + 1);
-    // Eliminar comas sobrantes antes de corchetes de cierre.
     cleaned = cleaned.replace(/,\s*]/g, "]");
     cleaned = cleaned.replace(/,\s*}/g, "}");
     return cleaned;
@@ -88,35 +86,31 @@ exports.processPresupuestoPdf = (0, storage_1.onObjectFinalized)({ memory: "2GiB
         const file = storageBucket.file(filePath);
         const [buffer] = await file.download();
         const base64Data = buffer.toString('base64');
-        const { notas } = jobData;
+        const { notas, obraNombre } = jobData;
         const apiKey = process.env.GOOGLE_GENAI_API_KEY;
         if (!apiKey) {
             throw new Error("GOOGLE_GENAI_API_KEY no está configurada en el entorno de la función.");
         }
-        const prompt = `Eres un analista de costos y presupuestos de construcción en Chile. Tu tarea es interpretar un presupuesto de obra en formato PDF y transformarlo en un array de objetos JSON.
+        const prompt = `Eres un asistente experto en análisis de presupuestos de construcción. Tu tarea es interpretar un presupuesto (en formato PDF) y extraer los capítulos y todas las partidas/subpartidas en una estructura plana.
 
-REGLAS DE ORO:
-- Tu respuesta debe ser EXCLUSIVAMENTE un array JSON, comenzando con [ y terminando con ].
-- NO envuelvas el array en un objeto como {"items": [...]}. Solo el array.
-- **DIRECTIVA CRÍTICA: Es más importante que el JSON final sea válido y completo a que proceses el 100% del PDF. Si el documento es muy largo y te acercas a tu límite de respuesta, es PREFERIBLE que omitas las últimas partidas y te asegures de cerrar correctamente todos los arrays \`]\` y objetos \`}\`. Un JSON truncado es un error.**
-- Si un valor numérico (cantidad, precio) no aparece, usa 'null', no 0.
+Debes seguir estas reglas estrictamente:
 
-ESTRUCTURA DE CADA OBJETO DENTRO DEL ARRAY:
-{
-  "id": "string",            // Un código jerárquico único (ej: "1", "1.1", "1.1.1")
-  "parentId": "string|null", // El 'id' del padre, o null si es un capítulo raíz
-  "type": "'chapter'|'subchapter'|'item'",
-  "descripcion": "string",
-  "unidad": "string|null",
-  "cantidad": "number|null",
-  "precioUnitario": "number|null",
-  "especialidad": "string|null"
-}
+1.  Analiza el documento PDF que se te entrega.
+2.  Procesa CADA LÍNEA del itemizado (capítulos, partidas, sub-partidas) y conviértela en un objeto para el array 'items'.
+3.  Para cada fila en 'items', genera un 'id' estable y único (ej: "1", "1.1", "1.2.3").
+4.  Para representar la jerarquía, asigna el 'id' del elemento padre al campo 'parentId'. Si un ítem es de primer nivel (un capítulo principal), su 'parentId' debe ser 'null'.
+5.  Asigna el tipo de fila correcto en el campo 'type': 'chapter' para títulos principales, 'subchapter' para subtítulos, y 'item' para partidas con cantidades y precios.
+6.  Extrae códigos, descripciones, unidades, cantidades y precios unitarios para cada partida.
+7.  NO inventes cantidades, precios ni unidades si no están explícitamente en el documento. Si un valor no existe para un ítem (ej. en un capítulo), déjalo como 'null'.
+8.  **DIRECTIVA CRÍTICA: Es más importante que el JSON final sea válido y completo a que proceses el 100% del PDF. Si el documento es muy largo y te acercas a tu límite de tokens, es PREFERIBLE que omitas las últimas partidas y te asegures de cerrar correctamente todos los arrays y objetos.**
+9.  Tu respuesta DEBE SER EXCLUSIVAMENTE un objeto JSON válido con la estructura \`{ "items": [...] }\`.
 
-Notas del usuario:
-${notas || "Sin notas."}
+Aquí está la información proporcionada por el usuario:
+- Obra: ${obraNombre}
+- Itemizado PDF: (adjunto)
+- Notas adicionales: ${notas || "Sin notas."}
 
-A continuación, el PDF para analizar. Genera el array JSON.`;
+Genera ahora el JSON de salida.`;
         await jobRef.update({ status: 'running_ai', updatedAt: admin.firestore.FieldValue.serverTimestamp() });
         const geminiEndpoint = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`;
         const requestBody = {
@@ -138,20 +132,16 @@ A continuación, el PDF para analizar. Genera el array JSON.`;
         await jobRef.update({ rawAiResult: rawJson, status: "normalizing_result", updatedAt: admin.firestore.FieldValue.serverTimestamp() });
         if (!rawJson)
             throw new Error("La respuesta de Gemini no contiene texto JSON válido.");
-        let items;
+        let parsed;
         try {
-            items = JSON.parse(cleanJsonString(rawJson));
+            parsed = JSON.parse(cleanJsonString(rawJson));
         }
         catch (e) {
             const snippet = rawJson.substring(0, 500);
             throw new Error(`La IA devolvió un JSON inválido. Error de parseo: ${e.message}. Comienzo de la respuesta: "${snippet}..."`);
         }
-        if (!Array.isArray(items)) {
-            throw new Error("La IA no devolvió un array. Se recibió un objeto en su lugar.");
-        }
-        const parsed = { items }; // Wrap the array in the final object structure
-        if (!parsed.items || parsed.items.length === 0) {
-            throw new Error("La respuesta de la IA no contiene un array 'items' válido o está vacío.");
+        if (!parsed.items || !Array.isArray(parsed.items)) {
+            throw new Error("La respuesta de la IA no contiene un array 'items' válido.");
         }
         await jobRef.update({
             status: "completed",

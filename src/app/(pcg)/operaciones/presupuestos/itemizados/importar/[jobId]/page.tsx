@@ -1,7 +1,7 @@
 // src/app/operaciones/presupuestos/itemizados/importar/[jobId]/page.tsx
 "use client";
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -15,7 +15,7 @@ import { useAuth } from '@/context/AuthContext';
 import { useToast } from '@/hooks/use-toast';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 
-type JobStatus = 'queued' | 'processing' | 'running_ai' | 'done' | 'error';
+type JobStatus = 'queued' | 'uploaded' | 'processing' | 'running_ai' | 'normalizing_result' | 'completed' | 'error';
 type JobResponse = {
   status: JobStatus;
   obraId?: string;
@@ -26,6 +26,17 @@ type JobResponse = {
   sourceFileName?: string;
 };
 
+const statusSteps: Record<JobStatus, { progress: number; text: string; icon: React.ElementType }> = {
+    queued: { progress: 5, text: "En cola...", icon: Loader2 },
+    uploaded: { progress: 10, text: "Archivo subido, esperando procesador...", icon: Loader2 },
+    processing: { progress: 20, text: "Procesando archivo PDF...", icon: Loader2 },
+    running_ai: { progress: 50, text: "Analizando con IA (esto puede tardar hasta 2 minutos)...", icon: Loader2 },
+    normalizing_result: { progress: 90, text: "Validando y finalizando resultados...", icon: Loader2 },
+    completed: { progress: 100, text: "¡Análisis completado!", icon: CheckCircle },
+    error: { progress: 100, text: "Error en el análisis", icon: AlertCircle },
+};
+
+
 export default function ImportStatusPage() {
   const params = useParams();
   const router = useRouter();
@@ -34,7 +45,6 @@ export default function ImportStatusPage() {
   const jobId = params.jobId as string;
 
   const [jobData, setJobData] = useState<JobResponse | null>(null);
-  const [progress, setProgress] = useState(0);
   const [isSaving, setIsSaving] = useState(false);
   const [isSaved, setIsSaved] = useState(false);
 
@@ -48,21 +58,13 @@ export default function ImportStatusPage() {
           throw new Error('No se pudo obtener el estado del trabajo.');
         }
         const data: JobResponse = await res.json();
-        
         setJobData(data);
-
-        if (data.status === 'done' || data.status === 'error') {
-          setProgress(100);
-        } else if (data.status === 'processing' || data.status === 'running_ai') {
-            setProgress(prev => Math.min(prev + 5, 90)); // Simula progreso
-        }
-
       } catch (err: any) {
         setJobData({ status: 'error', error: err.message });
       }
     };
 
-    if (jobData?.status !== 'done' && jobData?.status !== 'error') {
+    if (jobData?.status !== 'completed' && jobData?.status !== 'error') {
       const interval = setInterval(pollStatus, 3000);
       return () => clearInterval(interval);
     }
@@ -92,7 +94,7 @@ export default function ImportStatusPage() {
             moneda: "CLP",
             observaciones: `Generado automáticamente por IA a partir de un PDF. Job ID: ${jobId}.`,
             gastosGeneralesPorcentaje: 25,
-            items: items, // Los items ya vienen en el formato correcto
+            items: items,
             fechaCreacion: serverTimestamp(),
             updatedAt: serverTimestamp(),
             createdBy: user.uid,
@@ -124,6 +126,12 @@ export default function ImportStatusPage() {
   };
 
 
+  const currentStatusInfo = useMemo(() => {
+    if (!jobData) return statusSteps['queued'];
+    return statusSteps[jobData.status] || statusSteps['queued'];
+  }, [jobData]);
+
+
   const renderContent = () => {
     if (!jobData) {
         return (
@@ -133,27 +141,17 @@ export default function ImportStatusPage() {
             </div>
         );
     }
+    
+    const { status, result, error } = jobData;
 
-    switch (jobData.status) {
-      case 'queued':
-      case 'processing':
-      case 'running_ai':
-        return (
-            <motion.div initial={{opacity: 0}} animate={{opacity: 1}} className="text-center">
-                <Loader2 className="mx-auto h-12 w-12 animate-spin text-primary" />
-                <p className="mt-4 font-semibold">Procesando con IA...</p>
-                <p className="text-sm text-muted-foreground">Analizando estructura y extrayendo datos. Esto puede tardar hasta 2 minutos.</p>
-                <Progress value={progress} className="w-full max-w-sm mx-auto mt-4" />
-            </motion.div>
-        );
-      case 'done':
+    if (status === 'completed') {
         return (
           <div className="text-center space-y-4">
             <CheckCircle className="mx-auto h-12 w-12 text-green-500" />
-            <p className="mt-2 font-semibold text-xl">¡Análisis completado!</p>
-            {jobData.result && (
+            <p className="mt-2 font-semibold text-xl">{currentStatusInfo.text}</p>
+            {result && (
                 <p className="text-sm text-muted-foreground">
-                    Se encontraron {jobData.result.items?.length || 0} filas válidas.
+                    Se encontraron {result.items?.length || 0} filas válidas.
                 </p>
             )}
 
@@ -165,22 +163,31 @@ export default function ImportStatusPage() {
             </div>
           </div>
         );
-      case 'error':
+    }
+
+    if (status === 'error') {
         return (
             <div className="text-center w-full">
                 <AlertCircle className="mx-auto h-12 w-12 text-destructive" />
-                <p className="mt-4 font-semibold">Error en el análisis</p>
+                <p className="mt-4 font-semibold">{currentStatusInfo.text}</p>
                 <pre className="mt-2 text-left text-xs text-destructive bg-destructive/10 p-3 rounded-md whitespace-pre-wrap font-mono">
-                  {jobData.error}
+                  {error}
                 </pre>
                 <Button onClick={() => router.push('/operaciones/presupuestos/itemizados/importar')} className="mt-4">
                     <Redo className="mr-2 h-4 w-4" /> Intentar de Nuevo
                 </Button>
             </div>
         );
-      default:
-        return null;
     }
+
+    // Para todos los demás estados en progreso
+    return (
+        <motion.div initial={{opacity: 0}} animate={{opacity: 1}} className="text-center">
+            <Loader2 className="mx-auto h-12 w-12 animate-spin text-primary" />
+            <p className="mt-4 font-semibold">{currentStatusInfo.text}</p>
+            <Progress value={currentStatusInfo.progress} className="w-full max-w-sm mx-auto mt-4" />
+        </motion.div>
+    );
   };
 
   return (

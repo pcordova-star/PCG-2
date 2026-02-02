@@ -46,7 +46,7 @@ const node_fetch_1 = __importDefault(require("node-fetch"));
 const storage_1 = require("./lib/storage");
 const adminApp = (0, firebaseAdmin_1.getAdminApp)();
 const db = adminApp.firestore();
-// --- Prompts corregidos sin placeholders ---
+// --- Prompts para cada agente especializado ---
 const diffPromptText = `Eres un experto en interpretación de planos de construcción.
 Tu tarea es comparar dos imágenes: Plano A (versión original) y Plano B (versión modificada).
 Debes identificar todas las diferencias visuales, geométricas, textuales y de anotaciones entre ambos.
