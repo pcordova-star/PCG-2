@@ -13,7 +13,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { Badge } from '@/components/ui/badge';
 
 // Server actions have been replaced with API calls
@@ -47,10 +47,13 @@ async function deactivateSubcontractor(companyId: string, subcontractorId: strin
     return res.json();
 }
 
-async function inviteContractor(data: any) {
+async function inviteContractor(data: any, token: string) {
      const res = await fetch('/api/mclp/subcontractors/invite', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+        },
         body: JSON.stringify(data)
     });
     if (!res.ok) {
@@ -62,7 +65,7 @@ async function inviteContractor(data: any) {
 
 
 export default function GestionSubcontratistasPage() {
-    const { companyId } = useAuth();
+    const { user, companyId } = useAuth();
     const { toast } = useToast();
     const [subcontractors, setSubcontractors] = useState<Subcontractor[]>([]);
     const [loading, setLoading] = useState(true);
@@ -72,7 +75,7 @@ export default function GestionSubcontratistasPage() {
 
     // Form states
     const [newSub, setNewSub] = useState({ razonSocial: '', rut: '', contactoNombre: '', contactoEmail: '' });
-    const [newInvite, setNewInvite] = useState({ nombre: '', email: '' });
+    const [newInvite, setNewInvite] = useState({ nombre: '', email: '', password: '' });
 
     const fetchSubcontractors = async () => {
         if (!companyId) return;
@@ -107,12 +110,18 @@ export default function GestionSubcontratistasPage() {
     
     const handleInviteSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
-        if (!companyId || !selectedSubcontractor) return;
+        if (!companyId || !selectedSubcontractor || !user) return;
+        if (newInvite.password.length < 6) {
+            toast({ variant: 'destructive', title: 'Contraseña débil', description: 'La contraseña debe tener al menos 6 caracteres.' });
+            return;
+        }
+
         try {
-            await inviteContractor({ ...newInvite, companyId, subcontractorId: selectedSubcontractor.id });
+            const token = await user.getIdToken();
+            await inviteContractor({ ...newInvite, companyId, subcontractorId: selectedSubcontractor.id }, token);
             toast({ title: 'Éxito', description: `Invitación enviada a ${newInvite.email}.` });
             setIsInviteModalOpen(false);
-            setNewInvite({ nombre: '', email: '' });
+            setNewInvite({ nombre: '', email: '', password: '' });
             await fetchSubcontractors();
         } catch (error: any) {
             toast({ variant: 'destructive', title: 'Error', description: error.message });
@@ -192,10 +201,10 @@ export default function GestionSubcontratistasPage() {
                                                     Esta acción es reversible. El subcontratista no podrá acceder al sistema hasta que sea reactivado.
                                                 </AlertDialogDescription>
                                             </AlertDialogHeader>
-                                            <div className="flex justify-end gap-2 pt-4">
+                                            <AlertDialogFooter>
                                                 <AlertDialogCancel>Cancelar</AlertDialogCancel>
                                                 <AlertDialogAction onClick={() => handleDeactivate(sub.id)}>Desactivar</AlertDialogAction>
-                                            </div>
+                                            </AlertDialogFooter>
                                         </AlertDialogContent>
                                     </AlertDialog>
                                 </div>
@@ -232,6 +241,7 @@ export default function GestionSubcontratistasPage() {
             <form onSubmit={handleInviteSubmit} className="space-y-4">
                 <div className="space-y-2"><Label>Nombre del Usuario</Label><Input value={newInvite.nombre} onChange={e => setNewInvite(p => ({...p, nombre: e.target.value}))}/></div>
                 <div className="space-y-2"><Label>Email del Usuario</Label><Input type="email" value={newInvite.email} onChange={e => setNewInvite(p => ({...p, email: e.target.value}))}/></div>
+                <div className="space-y-2"><Label>Contraseña Temporal</Label><Input type="password" value={newInvite.password} onChange={e => setNewInvite(p => ({...p, password: e.target.value}))} placeholder="Mínimo 6 caracteres"/></div>
                 <DialogFooter>
                     <Button type="button" variant="ghost" onClick={() => setIsInviteModalOpen(false)}>Cancelar</Button>
                     <Button type="submit">Enviar Invitación</Button>

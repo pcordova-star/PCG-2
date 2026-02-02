@@ -8,9 +8,12 @@ export const runtime = "nodejs";
 // POST /api/mclp/subcontractors/invite
 export async function POST(req: NextRequest) {
   try {
-    const { companyId, subcontractorId, email, nombre } = await req.json();
-    if (!companyId || !subcontractorId || !email || !nombre) {
-      return NextResponse.json({ error: "Faltan parámetros requeridos" }, { status: 400 });
+    const { companyId, subcontractorId, email, nombre, password } = await req.json();
+    if (!companyId || !subcontractorId || !email || !nombre || !password) {
+      return NextResponse.json({ error: "Faltan parámetros requeridos (incluyendo contraseña)" }, { status: 400 });
+    }
+    if (password.length < 6) {
+        return NextResponse.json({ error: "La contraseña debe tener al menos 6 caracteres" }, { status: 400 });
     }
     
     const auth = admin.auth();
@@ -19,18 +22,28 @@ export async function POST(req: NextRequest) {
     let user;
     try {
       user = await auth.getUserByEmail(email);
-    } catch {
-      user = await auth.createUser({ email, displayName: nombre, emailVerified: false });
+       return NextResponse.json({ error: "Ya existe un usuario con este correo electrónico." }, { status: 409 });
+    } catch (error: any) {
+      if (error.code === 'auth/user-not-found') {
+        // El usuario no existe, se puede crear.
+        user = await auth.createUser({ email, password, displayName: nombre, emailVerified: false });
+      } else {
+        // Otro error, lo relanzamos
+        throw error;
+      }
     }
 
     await adminDb.collection("users").doc(user.uid).set({
       uid: user.uid, email, nombre, role: "contratista", companyId, subcontractorId,
+      activo: true,
+      mustChangePassword: true, // Forzar cambio de contraseña en el primer login
       updatedAt: admin.firestore.Timestamp.now(),
     }, { merge: true });
 
     const subcontractorRef = adminDb.collection("subcontractors").doc(subcontractorId);
     const subcontractorSnap = await subcontractorRef.get();
-    const existingUserIds = subcontractorSnap.data()?.userIds || [];
+    const subcontractorData = subcontractorSnap.data();
+    const existingUserIds = subcontractorData?.userIds || [];
     
     await subcontractorRef.update({
         userIds: Array.from(new Set([...existingUserIds, user.uid])),
@@ -38,13 +51,18 @@ export async function POST(req: NextRequest) {
     });
 
     const loginUrl = `${process.env.APP_BASE_URL || 'http://localhost:3000'}/login/usuario`;
-    const oob = await auth.generatePasswordResetLink(email, { url: loginUrl });
 
     await adminDb.collection("mail").add({
         to: email,
         message: {
-            subject: `Invitación al Portal de Cumplimiento`,
-            html: `<p>Hola ${nombre},</p><p>Has sido invitado a unirte al portal de cumplimiento de PCG.</p><p>Para activar tu cuenta y establecer tu contraseña, haz clic en el siguiente enlace:</p><p><a href="${oob}">Activar cuenta</a></p>`,
+            subject: `Invitación al Portal de Cumplimiento de PCG`,
+            html: `
+              <p>Hola ${nombre},</p>
+              <p>Has sido invitado a unirte al portal de cumplimiento de PCG para la empresa <strong>${subcontractorData?.razonSocial || 'subcontratista'}</strong>.</p>
+              <p>Puedes iniciar sesión con tu correo y la contraseña temporal proporcionada por tu administrador.</p>
+              <p><strong>Por seguridad, se te pedirá que cambies tu contraseña en tu primer acceso.</strong></p>
+              <p><a href="${loginUrl}">Iniciar Sesión en PCG</a></p>
+            `,
         },
     });
 
