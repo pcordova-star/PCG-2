@@ -4,14 +4,14 @@
  * Punto de entrada UNIFICADO de Cloud Functions.
  */
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.mclpDailyScheduler = exports.notifyDocumentDistribution = exports.requestModuleActivation = exports.registrarAvanceRapido = exports.deactivateCompanyUser = exports.checkUserExistsByEmail = exports.setSuperAdminClaim = exports.setCompanyClaims = exports.processComparacionJob = exports.processItemizadoJob = exports.analizarPlano = exports.createCompanyUser = void 0;
+exports.mclpDailyScheduler = exports.notifyDocumentDistribution = exports.requestModuleActivation = exports.registrarAvanceRapido = exports.deactivateCompanyUser = exports.checkUserExistsByEmail = exports.setSuperAdminClaim = exports.setCompanyClaims = exports.processComparacionJob = exports.processPresupuestoPdf = exports.analizarPlano = exports.createCompanyUser = void 0;
 // --- HTTP ---
 var createCompanyUser_1 = require("./createCompanyUser");
 Object.defineProperty(exports, "createCompanyUser", { enumerable: true, get: function () { return createCompanyUser_1.createCompanyUser; } });
 var analizarPlano_1 = require("./analizarPlano");
 Object.defineProperty(exports, "analizarPlano", { enumerable: true, get: function () { return analizarPlano_1.analizarPlano; } });
 var processItemizadoJob_1 = require("./processItemizadoJob");
-Object.defineProperty(exports, "processItemizadoJob", { enumerable: true, get: function () { return processItemizadoJob_1.processItemizadoJob; } });
+Object.defineProperty(exports, "processPresupuestoPdf", { enumerable: true, get: function () { return processItemizadoJob_1.processPresupuestoPdf; } });
 var processComparacionJob_1 = require("./processComparacionJob");
 Object.defineProperty(exports, "processComparacionJob", { enumerable: true, get: function () { return processComparacionJob_1.processComparacionJob; } });
 // --- Funciones de autenticación / claims ---

@@ -1,4 +1,5 @@
 "use strict";
+// workspace/functions/src/processItemizadoJob.ts
 var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
     if (k2 === undefined) k2 = k;
     var desc = Object.getOwnPropertyDescriptor(m, k);
@@ -36,88 +37,140 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.processItemizadoJob = void 0;
-// workspace/functions/src/processItemizadoJob.ts
-const functions = __importStar(require("firebase-functions"));
+exports.processPresupuestoPdf = void 0;
+const storage_1 = require("firebase-functions/v2/storage");
 const admin = __importStar(require("firebase-admin"));
 const logger = __importStar(require("firebase-functions/logger"));
 const firebaseAdmin_1 = require("./firebaseAdmin");
 const node_fetch_1 = __importDefault(require("node-fetch"));
-const adminApp = (0, firebaseAdmin_1.getAdminApp)();
-const db = adminApp.firestore();
-exports.processItemizadoJob = functions
-    .region("us-central1")
-    .runWith({
-    timeoutSeconds: 540,
-    memory: "1GB",
-    secrets: ["GOOGLE_GENAI_API_KEY"]
-})
-    .firestore.document("itemizadoImportJobs/{jobId}")
-    .onCreate(async (snapshot, context) => {
-    const { jobId } = context.params;
-    const jobData = snapshot.data();
-    const jobRef = snapshot.ref;
-    logger.info(`[${jobId}] Job triggered`);
-    if (jobData.status !== "queued") {
-        logger.warn(`[${jobId}] Not queued. Ignoring.`);
+const db = (0, firebaseAdmin_1.getAdminApp)().firestore();
+function cleanJsonString(rawString) {
+    let cleaned = rawString.replace(/```json/g, "").replace(/```/g, "");
+    const startIndex = cleaned.indexOf("{");
+    const endIndex = cleaned.lastIndexOf("}");
+    if (startIndex === -1 || endIndex === -1 || endIndex < startIndex) {
+        throw new Error("Respuesta de IA no contenía un objeto JSON válido.");
+    }
+    return cleaned.substring(startIndex, endIndex + 1);
+}
+exports.processPresupuestoPdf = (0, storage_1.onObjectFinalized)({ memory: "2GiB", timeoutSeconds: 540, secrets: ["GOOGLE_GENAI_API_KEY"] }, async (event) => {
+    const { bucket, name: filePath } = event.data;
+    if (!filePath || !filePath.startsWith('itemizados/') || !filePath.endsWith('.pdf')) {
+        logger.log(`[IGNORE] File ${filePath} is not a presupuesto PDF.`);
         return;
     }
-    await jobRef.update({
-        status: "processing",
-        startedAt: admin.firestore.FieldValue.serverTimestamp(),
-    });
-    const apiKey = process.env.GOOGLE_GENAI_API_KEY;
-    if (!apiKey) {
-        logger.error(`[${jobId}] GOOGLE_GENAI_API_KEY no está configurada en el entorno de la función.`);
-        await jobRef.update({
-            status: "error",
-            errorMessage: "La clave de API de Google no está configurada en el servidor.",
-        });
+    const pathParts = filePath.split("/");
+    const jobId = pathParts[pathParts.length - 1].replace(".pdf", "");
+    if (!jobId) {
+        logger.error("Could not extract jobId from file path:", filePath);
+        return;
+    }
+    const jobRef = db.collection('itemizadoImportJobs').doc(jobId);
+    // FIX: Fetch the job document to check its status before processing
+    const jobSnap = await jobRef.get();
+    if (!jobSnap.exists) {
+        logger.error(`[${jobId}] Job document not found in Firestore.`);
+        return;
+    }
+    const jobData = jobSnap.data();
+    // This is the crucial fix: check for 'uploaded' status
+    if (jobData.status !== "uploaded") {
+        logger.warn(`[${jobId}] Job not in 'uploaded' state (current: ${jobData.status}). Ignoring trigger.`);
         return;
     }
     try {
-        const { pdfDataUri, notas, sourceFileName } = jobData;
-        if (!pdfDataUri)
-            throw new Error("pdfDataUri vacío.");
-        const match = pdfDataUri.match(/^data:(application\/pdf);base64,(.*)$/);
-        if (!match)
-            throw new Error("Formato inválido: data:application/pdf;base64,...");
-        const mimeType = match[1];
-        const base64Data = match[2];
-        const prompt = `
-Eres un experto analista de itemizados de construcción.
-Analiza el PDF entregado y genera un JSON válido siguiendo estas reglas:
-- chapters[]: lista de capítulos principales detectados.
-- rows[]:
-  * type: "chapter" | "subchapter" | "item"
-  * id: "1", "1.1", "1.1.1", etc.
-  * parentId: id del contenedor superior o null.
-  * chapterIndex: índice del capítulo.
-  * codigo, descripcion, unidad, cantidad, precioUnitario, total: si no existe → null.
-- meta.sourceFileName = "${sourceFileName || "N/A"}"
-- No inventes valores.
-Notas:
+        await jobRef.update({ status: "processing", updatedAt: admin.firestore.FieldValue.serverTimestamp() });
+        const storageBucket = admin.storage().bucket(bucket);
+        const file = storageBucket.file(filePath);
+        const [buffer] = await file.download();
+        const base64Data = buffer.toString('base64');
+        const { notas, sourceFileName } = jobData;
+        const apiKey = process.env.GOOGLE_GENAI_API_KEY;
+        if (!apiKey) {
+            throw new Error("GOOGLE_GENAI_API_KEY no está configurada en el entorno de la función.");
+        }
+        const prompt = `PROMPT GEMINI – IMPORTADOR DE PRESUPUESTOS (PCG)
+Eres un analista de costos y presupuestos de construcción en Chile, con experiencia en licitaciones privadas y públicas.
+
+Vas a analizar el texto completo extraído desde un PDF de presupuesto de obra.
+
+OBJETIVO
+Transformar el contenido en un ITEMIZADO TÉCNICO ESTRUCTURADO, listo para ser usado en un sistema de control de gestión de obras.
+
+REGLAS GENERALES
+- El proyecto es un edificio en Chile.
+- Asume moneda CLP.
+- NO inventes partidas ni valores que no estén explícitos o claramente inferibles.
+- Si una cantidad o precio no aparece, déjalo como null.
+- Respeta la jerarquía técnica real de obra.
+- El resultado debe ser exclusivamente JSON válido.
+- No incluyas explicaciones ni texto adicional.
+
+ESTRUCTURA JERÁRQUICA OBLIGATORIA
+Nivel 1 → Especialidad  
+Nivel 2 → Partida  
+Nivel 3 → Subpartida (si existe)
+
+Especialidades válidas:
+- Obras Preliminares
+- Obras de Fundación
+- Estructura
+- Arquitectura
+- Instalaciones Sanitarias
+- Instalaciones Eléctricas
+- Corrientes Débiles
+- Climatización (si existe)
+- Obras Exteriores
+
+FORMATO DE SALIDA (JSON)
+
+{
+  "currency": "CLP",
+  "source": "pdf_import",
+  "especialidades": [
+    {
+      "code": "01",
+      "name": "Obras Preliminares",
+      "items": [
+        {
+          "code": "01.01",
+          "name": "Instalación de faena",
+          "unit": "global",
+          "quantity": 1,
+          "unit_price": 25000000,
+          "total": 25000000
+        }
+      ]
+    }
+  ]
+}
+
+CAMPOS OBLIGATORIOS POR ÍTEM
+- code: string jerárquico correlativo
+- name: string
+- unit: m2 | m3 | kg | ml | punto | unidad | global | hh
+- quantity: number | null
+- unit_price: number | null
+- total: number | null
+
+REGLAS DE INTERPRETACIÓN
+- Si el PDF tiene totales por sección, distribúyelos solo si la lógica es evidente; si no, déjalos a nivel de partida.
+- No mezclar especialidades.
+- No agrupar partidas distintas en un solo ítem.
+- Si detectas subtítulos, trátalos como partidas padre.
+- Mantén el orden original del documento.
+- No calcules IVA ni gastos generales si no están explícitos.
+
+CONTEXTO DE ENTRADA
+A continuación recibirás el texto completo extraído del PDF, página por página.
+Notas adicionales del usuario (úsalas como guía, especialmente para escalas o alturas):
 ${notas || "Sin notas."}
-Entrega SOLO un JSON válido, sin texto adicional.
 `;
+        await jobRef.update({ status: 'running_ai', updatedAt: admin.firestore.FieldValue.serverTimestamp() });
         const geminiEndpoint = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`;
         const requestBody = {
-            contents: [
-                {
-                    parts: [
-                        { text: prompt },
-                        {
-                            inline_data: {
-                                mime_type: mimeType,
-                                data: base64Data,
-                            },
-                        },
-                    ],
-                },
-            ],
-            generationConfig: {
-                response_mime_type: "application/json",
-            },
+            contents: [{ parts: [{ text: prompt }, { inline_data: { mime_type: 'application/pdf', data: base64Data } }] }],
+            generationConfig: { response_mime_type: "application/json" },
         };
         const response = await (0, node_fetch_1.default)(geminiEndpoint, {
             method: "POST",
@@ -125,30 +178,38 @@ Entrega SOLO un JSON válido, sin texto adicional.
             body: JSON.stringify(requestBody),
         });
         if (!response.ok) {
-            const err = await response.json();
-            const errorAny = err;
-            throw new Error(errorAny.response?.data?.error?.message || errorAny.message || "Error desconocido en API Gemini");
+            const errText = await response.text();
+            logger.error(`[${jobId}] Gemini API error:`, errText);
+            throw new Error(`Error en API Gemini: ${response.statusText}`);
         }
         const result = await response.json();
         const rawJson = result.candidates?.[0]?.content?.parts?.[0]?.text;
+        await jobRef.update({ rawAiResult: rawJson, status: "normalizing_result", updatedAt: admin.firestore.FieldValue.serverTimestamp() });
         if (!rawJson)
-            throw new Error("Gemini no retornó texto JSON.");
-        const parsed = JSON.parse(rawJson);
+            throw new Error("La respuesta de Gemini no contiene texto JSON válido.");
+        let parsed;
+        try {
+            parsed = JSON.parse(cleanJsonString(rawJson));
+        }
+        catch (e) {
+            throw new Error("JSON inválido devuelto por IA");
+        }
+        if (!parsed.especialidades || !Array.isArray(parsed.especialidades) || parsed.especialidades.length === 0) {
+            throw new Error("IA no devolvió un array de 'especialidades' válido.");
+        }
         await jobRef.update({
-            status: "done",
+            status: "completed",
             result: parsed,
-            processedAt: admin.firestore.FieldValue.serverTimestamp(),
+            finishedAt: admin.firestore.FieldValue.serverTimestamp(),
         });
-        logger.info(`[${jobId}] Job completado OK`);
+        logger.info(`[${jobId}] Job completado OK.`);
     }
     catch (err) {
-        logger.error(`[${jobId}] Error`, err);
-        const errorAny = err;
-        const mensajeError = errorAny.response?.data?.error?.message || errorAny.message || "Error desconocido";
+        logger.error(`[${jobId}] Error processing job:`, err);
         await jobRef.update({
-            status: "error",
-            errorMessage: `Fallo en Gemini: ${mensajeError}`,
-            processedAt: admin.firestore.FieldValue.serverTimestamp(),
+            status: 'error',
+            errorMessage: err.message || "Error desconocido durante el procesamiento.",
+            finishedAt: admin.firestore.FieldValue.serverTimestamp()
         });
     }
 });
