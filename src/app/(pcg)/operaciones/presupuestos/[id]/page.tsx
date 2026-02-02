@@ -32,8 +32,8 @@ type PresupuestoItem = {
     type: PresupuestoItemType;
     descripcion: string;
     unidad: string;
-    cantidad: number;
-    precioUnitario: number;
+    cantidad: number | null;
+    precioUnitario: number | null;
     especialidad?: string;
 };
 
@@ -620,7 +620,7 @@ export default function PresupuestoEditPage() {
                                     <TableCell>{item.descripcion}</TableCell>
                                     <TableCell className="text-xs text-muted-foreground">{item.type === 'item' ? item.especialidad : ''}</TableCell>
                                     <TableCell>{item.type === 'item' ? item.unidad : ''}</TableCell>
-                                    <TableCell>{item.type === 'item' ? item.cantidad.toLocaleString('es-CL') : ''}</TableCell>
+                                    <TableCell>{item.type === 'item' && item.cantidad != null ? item.cantidad.toLocaleString('es-CL') : ''}</TableCell>
                                     <TableCell>{item.type === 'item' ? formatoMoneda(item.precioUnitario) : ''}</TableCell>
                                     <TableCell className="font-bold">{formatoMoneda(item.subtotal)}</TableCell>
                                     <TableCell className="text-right">
