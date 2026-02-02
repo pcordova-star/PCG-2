@@ -16,7 +16,7 @@ export const PresupuestoItemImportSchema = z.object({
 
 // El output de la IA es un objeto que contiene la lista plana de items.
 export const ItemizadoImportOutputSchema = z.object({
-  items: z.array(PresupuestoItemImportSchema)
+  items: z.array(PresupuestoItemImportSchema).describe("La lista plana de todos los ítems extraídos del PDF.")
 });
 
 export type ItemizadoImportOutput = z.infer<typeof ItemizadoImportOutputSchema>;
