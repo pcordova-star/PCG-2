@@ -48,14 +48,14 @@ function cleanJsonString(rawString) {
     let cleaned = rawString.replace(/```json/g, "").replace(/```/g, "");
     // Eliminar comentarios de una línea o de bloque
     cleaned = cleaned.replace(/\/\*[\s\S]*?\*\/|([^\\:]|^)\/\/.*$/gm, '$1');
-    const startIndex = cleaned.indexOf("{");
-    const endIndex = cleaned.lastIndexOf("}");
+    const startIndex = cleaned.indexOf("[");
+    const endIndex = cleaned.lastIndexOf("]");
     if (startIndex === -1 || endIndex === -1 || endIndex < startIndex) {
-        throw new Error("Respuesta de IA no contenía un objeto JSON válido.");
+        throw new Error("Respuesta de IA no contenía un array JSON válido `[...]`.");
     }
     cleaned = cleaned.substring(startIndex, endIndex + 1);
-    // Eliminar comas sobrantes antes de corchetes o llaves de cierre.
-    cleaned = cleaned.replace(/,\s*(]|})/g, "$1");
+    // Eliminar comas sobrantes antes de corchetes de cierre.
+    cleaned = cleaned.replace(/,\s*]/g, "]");
     return cleaned;
 }
 exports.processPresupuestoPdf = (0, storage_1.onObjectFinalized)({ memory: "2GiB", timeoutSeconds: 540, secrets: ["GOOGLE_GENAI_API_KEY"] }, async (event) => {
@@ -92,28 +92,30 @@ exports.processPresupuestoPdf = (0, storage_1.onObjectFinalized)({ memory: "2GiB
         if (!apiKey) {
             throw new Error("GOOGLE_GENAI_API_KEY no está configurada en el entorno de la función.");
         }
-        const prompt = `Eres un analista de costos y presupuestos de construcción en Chile. Tu tarea es interpretar un presupuesto de obra en formato PDF y transformarlo en una lista PLANA de objetos JSON.
+        const prompt = `Eres un analista de costos y presupuestos de construcción en Chile. Tu tarea es interpretar un presupuesto de obra en formato PDF y transformarlo en un array de objetos JSON.
 
-REGLAS OBLIGATORIAS:
-1.  El resultado DEBE ser un único objeto JSON que contenga una sola clave: "items".
-2.  "items" debe ser un array de objetos, donde cada objeto representa una línea del presupuesto (capítulo, subpartida o ítem).
-3.  Cada objeto en el array "items" DEBE tener la siguiente estructura exacta:
-    - id: string (Un código jerárquico único, ej: "1", "1.1", "1.1.1")
-    - parentId: string | null (El 'id' del padre, o null si es un capítulo raíz)
-    - type: 'chapter' | 'subchapter' | 'item'
-    - descripcion: string
-    - unidad: string | null
-    - cantidad: number | null
-    - precioUnitario: number | null
-    - especialidad: string | null
-4.  No incluyas texto, comentarios ni formato markdown fuera del objeto JSON principal. Tu respuesta debe ser solo el JSON.
-5.  Si un valor numérico (cantidad, precio) no aparece, usa 'null', no 0.
+REGLAS DE ORO:
+- Tu respuesta debe ser EXCLUSIVAMENTE un array JSON, comenzando con [ y terminando con ].
+- NO envuelvas el array en un objeto como {"items": [...]}. Solo el array.
+- Cada objeto dentro del array representa una línea del presupuesto (capítulo, subpartida o ítem).
+- Si un valor numérico (cantidad, precio) no aparece, usa 'null', no 0.
+
+ESTRUCTURA DE CADA OBJETO DENTRO DEL ARRAY:
+{
+  "id": "string",            // Un código jerárquico único (ej: "1", "1.1", "1.1.1")
+  "parentId": "string|null", // El 'id' del padre, o null si es un capítulo raíz
+  "type": "'chapter'|'subchapter'|'item'",
+  "descripcion": "string",
+  "unidad": "string|null",
+  "cantidad": "number|null",
+  "precioUnitario": "number|null",
+  "especialidad": "string|null"
+}
 
 Notas del usuario:
 ${notas || "Sin notas."}
 
-A continuación, el PDF para analizar. Genera el JSON.
-`;
+A continuación, el PDF para analizar. Genera el array JSON.`;
         await jobRef.update({ status: 'running_ai', updatedAt: admin.firestore.FieldValue.serverTimestamp() });
         const geminiEndpoint = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`;
         const requestBody = {
@@ -137,14 +139,19 @@ A continuación, el PDF para analizar. Genera el JSON.
             throw new Error("La respuesta de Gemini no contiene texto JSON válido.");
         let parsed;
         try {
-            parsed = JSON.parse(cleanJsonString(rawJson));
+            const items = JSON.parse(cleanJsonString(rawJson));
+            if (!Array.isArray(items)) {
+                throw new Error("La IA no devolvió un array. Se recibió un objeto en su lugar.");
+            }
+            // Envuelvo el array en la estructura que espera mi aplicación
+            parsed = { items };
         }
         catch (e) {
             const snippet = rawJson.substring(0, 500);
             throw new Error(`La IA devolvió un JSON inválido. Error de parseo: ${e.message}. Comienzo de la respuesta: "${snippet}..."`);
         }
-        if (!parsed.items || !Array.isArray(parsed.items)) {
-            throw new Error("La respuesta de la IA no contiene un array 'items' válido.");
+        if (!parsed.items || parsed.items.length === 0) {
+            throw new Error("La respuesta de la IA no contiene un array 'items' válido o está vacío.");
         }
         await jobRef.update({
             status: "completed",

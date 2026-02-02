@@ -25,6 +25,7 @@ function cleanJsonString(rawString: string): string {
 
     // Eliminar comas sobrantes antes de corchetes de cierre.
     cleaned = cleaned.replace(/,\s*]/g, "]");
+    cleaned = cleaned.replace(/,\s*}/g, "}");
 
     return cleaned;
 }
@@ -80,7 +81,7 @@ export const processPresupuestoPdf = onObjectFinalized(
 REGLAS DE ORO:
 - Tu respuesta debe ser EXCLUSIVAMENTE un array JSON, comenzando con [ y terminando con ].
 - NO envuelvas el array en un objeto como {"items": [...]}. Solo el array.
-- Cada objeto dentro del array representa una línea del presupuesto (capítulo, subpartida o ítem).
+- **DIRECTIVA CRÍTICA: Es más importante que el JSON final sea válido y completo a que proceses el 100% del PDF. Si el documento es muy largo y te acercas a tu límite de respuesta, es PREFERIBLE que omitas las últimas partidas y te asegures de cerrar correctamente todos los arrays \`]\` y objetos \`}\`. Un JSON truncado es un error.**
 - Si un valor numérico (cantidad, precio) no aparece, usa 'null', no 0.
 
 ESTRUCTURA DE CADA OBJETO DENTRO DEL ARRAY:
@@ -127,19 +128,19 @@ A continuación, el PDF para analizar. Genera el array JSON.`;
         await jobRef.update({ rawAiResult: rawJson, status: "normalizing_result", updatedAt: admin.firestore.FieldValue.serverTimestamp() });
         if (!rawJson) throw new Error("La respuesta de Gemini no contiene texto JSON válido.");
         
-        let parsed;
+        let items;
         try {
-            const items = JSON.parse(cleanJsonString(rawJson));
-            if (!Array.isArray(items)) {
-              throw new Error("La IA no devolvió un array. Se recibió un objeto en su lugar.");
-            }
-            // Envuelvo el array en la estructura que espera mi aplicación
-            parsed = { items };
-
+            items = JSON.parse(cleanJsonString(rawJson));
         } catch (e: any) {
             const snippet = rawJson.substring(0, 500);
             throw new Error(`La IA devolvió un JSON inválido. Error de parseo: ${e.message}. Comienzo de la respuesta: "${snippet}..."`);
         }
+
+        if (!Array.isArray(items)) {
+            throw new Error("La IA no devolvió un array. Se recibió un objeto en su lugar.");
+        }
+
+        const parsed = { items }; // Wrap the array in the final object structure
 
         if (!parsed.items || parsed.items.length === 0) {
             throw new Error("La respuesta de la IA no contiene un array 'items' válido o está vacío.");
