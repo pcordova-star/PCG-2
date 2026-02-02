@@ -18,7 +18,7 @@ export async function GET(req: NextRequest) {
         await ensureMclpEnabled(companyId);
         
         
-        let q = adminDb
+        let q: admin.firestore.Query<admin.firestore.DocumentData> = adminDb
             .collection("compliancePeriods")
             .doc(periodId)
             .collection("submissions");

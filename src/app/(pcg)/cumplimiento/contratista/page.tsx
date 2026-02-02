@@ -5,75 +5,148 @@ import { useAuth } from "@/context/AuthContext";
 import { useRouter } from 'next/navigation';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { useEffect, useState } from "react";
-import { Loader2, Calendar } from "lucide-react";
+import { useEffect, useState, useMemo } from "react";
+import { Loader2, Calendar, AlertTriangle, Upload, Check, X, Clock } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
-import { ComplianceCalendarMonth } from "@/types/pcg";
+import { ComplianceCalendarMonth, RequisitoDocumento, EntregaDocumento } from "@/types/pcg";
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
+import { useToast } from "@/hooks/use-toast";
+import { Input } from "@/components/ui/input";
+import { uploadDocumentSubmission } from "@/lib/mclp/submissions/uploadSubmission";
 
-type EstadoDocumento = "Aprobado" | "En Revisión" | "Observado" | "Pendiente de Carga";
-
-const documentosRequeridos = [
-  { id: 'doc1', nombre: 'F30-1 de la Dirección del Trabajo', estado: 'Aprobado' as EstadoDocumento },
-  { id: 'doc2', nombre: 'Planilla de Cotizaciones Previsionales', estado: 'Observado' as EstadoDocumento, observacion: 'El mes de la planilla es incorrecto. Se requiere la del mes de Octubre 2025.' },
-  { id: 'doc3', nombre: 'Liquidaciones de Sueldo Firmadas', estado: 'Pendiente de Carga' as EstadoDocumento },
-  { id: 'doc4', nombre: 'Certificado de Mutualidad', estado: 'En Revisión' as EstadoDocumento },
-];
-
-const estadoDocConfig: Record<EstadoDocumento, { color: string, label: string }> = {
-    'Aprobado': { color: 'bg-green-100 text-green-800', label: 'Aprobado' },
-    'En Revisión': { color: 'bg-blue-100 text-blue-800', label: 'En Revisión' },
-    'Observado': { color: 'bg-red-100 text-red-800', label: 'Observado' },
-    'Pendiente de Carga': { color: 'bg-gray-100 text-gray-800', label: 'Pendiente' }
+type MergedRequirement = RequisitoDocumento & {
+  submission?: EntregaDocumento;
 };
 
-export default function ContratistaDashboardPage() {
-    const { role, loading, user, companyId } = useAuth();
+function FileStatusBadge({ submission }: { submission?: EntregaDocumento }) {
+    if (!submission) {
+        return <Badge variant="secondary">Pendiente</Badge>;
+    }
+    switch (submission.estado) {
+        case 'Cargado':
+            return <Badge className="bg-blue-100 text-blue-800"><Clock className="h-3 w-3 mr-1"/> En Revisión</Badge>;
+        case 'Aprobado':
+            return <Badge className="bg-green-100 text-green-800"><Check className="h-3 w-3 mr-1"/> Aprobado</Badge>;
+        case 'Observado':
+            return <Badge variant="destructive"><X className="h-3 w-3 mr-1"/> Observado</Badge>;
+        default:
+            return <Badge variant="outline">Desconocido</Badge>;
+    }
+}
+
+
+export default function ContratistaPortalPage() {
+    const { role, loading, user, companyId, subcontractorId } = useAuth();
     const router = useRouter();
+    const { toast } = useToast();
 
     const [currentPeriod, setCurrentPeriod] = useState<ComplianceCalendarMonth | null>(null);
-    const [loadingCalendar, setLoadingCalendar] = useState(true);
+    const [requirements, setRequirements] = useState<MergedRequirement[]>([]);
+    const [pageLoading, setPageLoading] = useState(true);
+
+    const [files, setFiles] = useState<Record<string, File | null>>({});
+    const [uploading, setUploading] = useState<Record<string, boolean>>({});
 
     useEffect(() => {
         if (!loading && role !== 'contratista' && role !== 'superadmin') {
             router.replace('/dashboard');
         }
     }, [role, loading, router]);
+    
+    const periodKey = useMemo(() => {
+        const now = new Date();
+        const year = now.getFullYear();
+        const month = now.getMonth() + 1;
+        return `${year}-${String(month).padStart(2, '0')}`;
+    }, []);
+
+    const periodId = useMemo(() => {
+        if (!companyId) return null;
+        return `${companyId}_${periodKey}`;
+    }, [companyId, periodKey]);
+
+    const fetchData = async () => {
+        if (!companyId || !periodId || !subcontractorId) {
+            setPageLoading(false);
+            return;
+        }
+
+        setPageLoading(true);
+        try {
+            const year = new Date().getFullYear();
+            const [calendarRes, reqsRes, subsRes] = await Promise.all([
+                fetch(`/api/mclp/calendar?companyId=${companyId}&year=${year}`),
+                fetch(`/api/mclp/requirements?companyId=${companyId}`),
+                fetch(`/api/mclp/submissions?companyId=${companyId}&periodId=${periodId}&subcontractorId=${subcontractorId}`)
+            ]);
+
+            if (!calendarRes.ok || !reqsRes.ok || !subsRes.ok) {
+                throw new Error('No se pudieron cargar todos los datos de cumplimiento.');
+            }
+
+            const calendarYear: ComplianceCalendarMonth[] = await calendarRes.json();
+            const period = calendarYear.find(p => p.id === periodKey);
+            setCurrentPeriod(period || null);
+
+            const reqs: RequisitoDocumento[] = await reqsRes.json();
+            const subs: EntregaDocumento[] = await subsRes.json();
+
+            const merged = reqs.map((req) => {
+                const submission = subs.find((s) => s.requirementId === req.id);
+                return { ...req, submission };
+            });
+            setRequirements(merged);
+
+        } catch (error) {
+            console.error(error);
+            toast({ variant: 'destructive', title: 'Error', description: 'No se pudieron cargar los requisitos del período.' });
+        } finally {
+            setPageLoading(false);
+        }
+    };
+
 
     useEffect(() => {
-        if (!companyId) {
-            setLoadingCalendar(false);
+        fetchData();
+    }, [companyId, periodId, subcontractorId, toast]);
+    
+     const handleFileChange = (reqId: string, file: File | null) => {
+        setFiles(prev => ({...prev, [reqId]: file }));
+    };
+
+    const handleUpload = async (req: MergedRequirement) => {
+        const file = files[req.id];
+        if (!file || !user || !companyId || !subcontractorId || !periodId) {
+            toast({ variant: 'destructive', title: 'Error', description: 'Faltan datos para la subida.'});
             return;
-        };
+        }
 
-        const fetchCurrentPeriod = async () => {
-            setLoadingCalendar(true);
-            try {
-                const year = new Date().getFullYear();
-                const month = new Date().getMonth() + 1;
-                const monthKey = `${year}-${String(month).padStart(2, '0')}`;
+        setUploading(prev => ({...prev, [req.id]: true }));
+        try {
+            await uploadDocumentSubmission({
+                companyId: companyId,
+                periodId: periodId,
+                period: periodKey,
+                subcontractorId: subcontractorId,
+                requirementId: req.id,
+                nombreDocumentoSnapshot: req.nombre,
+                file: file,
+                uid: user.uid
+            });
 
-                const res = await fetch(`/api/mclp/calendar?companyId=${companyId}&year=${year}`);
-                if (!res.ok) {
-                    throw new Error("No se pudo cargar el calendario de cumplimiento.");
-                }
-                const calendarYear: ComplianceCalendarMonth[] = await res.json();
-                
-                const period = calendarYear.find(p => p.id === monthKey);
-                setCurrentPeriod(period || null);
+             toast({ title: 'Éxito', description: `Documento "${req.nombre}" subido correctamente.` });
+             fetchData(); // Refrescar los datos
 
-            } catch (error) {
-                console.error("Error fetching compliance calendar:", error);
-            } finally {
-                setLoadingCalendar(false);
-            }
-        };
+        } catch (error: any) {
+            console.error(error);
+            toast({ variant: 'destructive', title: 'Error de subida', description: error.message });
+        } finally {
+             setUploading(prev => ({...prev, [req.id]: false }));
+        }
+    };
 
-        fetchCurrentPeriod();
-    }, [companyId]);
-
-    if (loading || loadingCalendar) {
+    if (loading || pageLoading) {
         return <div className="flex justify-center items-center h-full"><Loader2 className="h-8 w-8 animate-spin" /></div>;
     }
     
@@ -126,23 +199,37 @@ export default function ContratistaDashboardPage() {
                     <CardDescription>Sube la documentación requerida para habilitar tu estado de pago.</CardDescription>
                 </CardHeader>
                 <CardContent>
-                    <div className="space-y-4">
-                        {documentosRequeridos.map(doc => (
-                             <Card key={doc.id} className={doc.estado === 'Observado' ? 'border-red-300' : ''}>
-                                <CardContent className="p-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-                                    <div className="flex-1">
-                                        <p className="font-medium">{doc.nombre}</p>
-                                        {doc.estado === 'Observado' && <p className="text-xs text-red-600 mt-1"><strong>Observación:</strong> {doc.observacion}</p>}
-                                    </div>
-                                    <div className="flex items-center gap-4 flex-shrink-0">
-                                        <Badge className={estadoDocConfig[doc.estado].color}>{estadoDocConfig[doc.estado].label}</Badge>
-                                        {doc.estado === 'Pendiente de Carga' && <Button size="sm">Subir Archivo</Button>}
-                                        {doc.estado === 'Observado' && <Button size="sm" variant="destructive">Corregir y Volver a Subir</Button>}
-                                    </div>
-                                </CardContent>
-                            </Card>
-                        ))}
-                    </div>
+                     {pageLoading ? <p>Cargando requisitos...</p> : 
+                     requirements.length === 0 ? <p className="text-muted-foreground">No hay requisitos definidos para este período.</p> : (
+                        <div className="space-y-4">
+                            {requirements.map(req => (
+                                <Card key={req.id} className={req.submission?.estado === 'Observado' ? 'border-red-300' : ''}>
+                                    <CardContent className="p-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                                        <div className="flex-1">
+                                            <p className="font-medium">{req.nombre}</p>
+                                             {req.submission?.estado === 'Observado' && (
+                                                <div className="mt-2 text-xs text-red-600 bg-red-50 p-2 rounded-md border border-red-200">
+                                                    <p className="font-bold flex items-center gap-1"><AlertTriangle className="h-3 w-3"/> Observación del administrador:</p>
+                                                    <p className="italic pl-2">{req.submission.revision?.comentario || 'Sin comentario.'}</p>
+                                                </div>
+                                            )}
+                                        </div>
+                                        <div className="flex items-center gap-4 flex-shrink-0">
+                                            <FileStatusBadge submission={req.submission} />
+                                             {(!req.submission || req.submission.estado === 'Observado') && (
+                                                <div className="flex items-center gap-2">
+                                                    <Input id={`file-${req.id}`} type="file" className="h-9 text-xs" onChange={e => handleFileChange(req.id, e.target.files ? e.target.files[0] : null)} />
+                                                    <Button size="sm" onClick={() => handleUpload(req)} disabled={!files[req.id] || uploading[req.id]}>
+                                                        {uploading[req.id] ? <Loader2 className="h-4 w-4 animate-spin"/> : <Upload className="h-4 w-4"/>}
+                                                    </Button>
+                                                </div>
+                                            )}
+                                        </div>
+                                    </CardContent>
+                                </Card>
+                            ))}
+                        </div>
+                     )}
                 </CardContent>
             </Card>
         </div>
