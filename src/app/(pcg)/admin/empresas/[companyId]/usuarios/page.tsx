@@ -1,4 +1,3 @@
-
 "use client";
 
 import React, { useState, useEffect, FormEvent } from 'react';
@@ -149,19 +148,8 @@ export default function AdminEmpresaUsuariosPage() {
         }
         
         try {
-            const idToken = await user.getIdToken();
-            const FUNCTION_URL = "https://deactivatecompanyuser-3uw4oqhaxq-tl.a.run.app";
-            const response = await fetch(FUNCTION_URL, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${idToken}`,
-                },
-                body: JSON.stringify({ userId: userId, motivo: motivoBaja }),
-            });
-
-            const result = await response.json();
-            if (!response.ok) throw new Error(result.error || 'Error en el servidor');
+            const deactivateFn = httpsCallable(firebaseFunctions, 'deactivateCompanyUser');
+            await deactivateFn({ userId: userId, motivo: motivoBaja });
 
             toast({ title: "Usuario Desactivado", description: "El usuario ya no podrá acceder a la plataforma." });
 
