@@ -1,7 +1,7 @@
 // src/app/page.tsx
 "use client";
 
-import React, { useState, useEffect, FormEvent } from 'react';
+import React, { useState, useEffect, FormEvent, useRef } from 'react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
@@ -344,6 +344,16 @@ function InteligenciaOperativaSection() {
 }
 
 export default function WelcomePage() {
+  const videoRef = useRef<HTMLVideoElement>(null);
+
+  useEffect(() => {
+    if (videoRef.current) {
+      videoRef.current.play().catch(error => {
+        console.error("Error trying to play the video:", error);
+      });
+    }
+  }, []);
+  
   return (
     <>
       {/* Navbar */}
@@ -375,6 +385,7 @@ export default function WelcomePage() {
         {/* Hero Section */}
         <section className="relative min-h-[70vh] md:min-h-[90vh] w-full flex items-center justify-center text-center text-white overflow-hidden bg-slate-900">
             <video
+                ref={videoRef}
                 autoPlay
                 loop
                 muted
