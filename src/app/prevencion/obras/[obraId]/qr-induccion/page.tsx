@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import Link from "next/link";
 import { Loader2, ShieldX } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
+import QRCode from "react-qr-code";
 
 export default function QrInduccionPage() {
   const { obraId } = useParams<{ obraId: string }>();
@@ -85,11 +86,13 @@ export default function QrInduccionPage() {
           inspector para que complete su inducción de acceso.
         </p>
 
-        <div className="bg-white p-4 inline-block rounded-lg border-4 border-primary mb-6 min-h-[100px] flex items-center justify-center">
+        <div className="bg-white p-4 inline-block rounded-lg border-4 border-primary mb-6 min-h-[192px] flex items-center justify-center">
            {url ? (
-             <p className="text-xs text-black break-all">{url}</p>
+             <QRCode value={url} size={160} />
            ) : (
-             <Loader2 className="animate-spin h-8 w-8 text-muted-foreground" />
+             <div className="w-[160px] h-[160px] flex items-center justify-center">
+                <Loader2 className="animate-spin h-8 w-8 text-muted-foreground" />
+             </div>
            )}
         </div>
 
@@ -100,10 +103,6 @@ export default function QrInduccionPage() {
         ) : (
              <p className="text-xs text-muted-foreground">Generando URL...</p>
         )}
-
-        <p className="mt-4 text-xs text-muted-foreground">
-          Sugerencia: imprime este QR y colócalo en portería o en el acceso a la obra.
-        </p>
 
         <div className="mt-8 flex flex-col sm:flex-row gap-2 justify-center">
            <Button onClick={() => window.print()} disabled={!url}>Imprimir QR</Button>
