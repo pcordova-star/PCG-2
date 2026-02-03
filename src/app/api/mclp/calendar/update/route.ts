@@ -5,7 +5,7 @@ import { ensureMclpEnabled } from "@/server/lib/mclp/ensureMclpEnabled";
 
 export const runtime = "nodejs";
 
-// POST /api/mclp/calendar/update (for updating a month)
+// POST /api/mclp/calendar/update (para actualizar un período)
 export async function POST(req: NextRequest) {
     try {
         const authorization = req.headers.get("Authorization");
@@ -18,9 +18,9 @@ export async function POST(req: NextRequest) {
         const userRole = (decodedToken as any).role;
         const userCompanyId = (decodedToken as any).companyId;
         
-        const { companyId, year, monthId, data } = await req.json();
+        const { companyId, periodId, data } = await req.json();
 
-        if (!companyId || !year || !monthId || !data) {
+        if (!companyId || !periodId || !data) {
             return NextResponse.json({ error: "Faltan parámetros requeridos" }, { status: 400 });
         }
 
@@ -34,22 +34,26 @@ export async function POST(req: NextRequest) {
         
         await ensureMclpEnabled(companyId);
         
-        const calendarId = `${companyId}_${year}`;
-        const ref = adminDb.collection("complianceCalendars").doc(calendarId).collection("months").doc(monthId);
-
+        const ref = adminDb.collection("compliancePeriods").doc(periodId);
+        
         const snap = await ref.get();
-        if (!snap.exists || snap.data()?.editable === false) {
-            throw new Error("Mes no encontrado o bloqueado para edición.");
+        if (!snap.exists) {
+            throw new Error("Período no encontrado.");
         }
+        // Opcional: añadir lógica para no editar períodos cerrados
+        // if (snap.data()?.estado === 'Cerrado') {
+        //     throw new Error("No se puede editar un período que ya está cerrado.");
+        // }
         
         await ref.update({
+            nombre: data.nombre,
             corteCarga: AdminTimestamp.fromDate(new Date(data.corteCarga)),
             limiteRevision: AdminTimestamp.fromDate(new Date(data.limiteRevision)),
             fechaPago: AdminTimestamp.fromDate(new Date(data.fechaPago)),
             updatedAt: adminDb.FieldValue.serverTimestamp(),
         });
 
-        return NextResponse.json({ success: true, id: monthId });
+        return NextResponse.json({ success: true, id: periodId });
 
     } catch (error: any) {
         if (error.code === 'auth/id-token-expired' || error.code === 'auth/argument-error') {

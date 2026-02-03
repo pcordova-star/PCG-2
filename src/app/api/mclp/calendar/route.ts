@@ -5,36 +5,7 @@ import { ensureMclpEnabled } from "@/server/lib/mclp/ensureMclpEnabled";
 
 export const runtime = "nodejs";
 
-async function createDefaultMonths(calendarRef: any, year: number) {
-    const batch = adminDb.batch();
-    
-    const programRef = adminDb.collection("compliancePrograms").doc(calendarRef.id.split('_')[0]);
-    const programSnap = await programRef.get();
-    const { diaCorteCarga = 25, diaLimiteRevision = 5, diaPago = 10 } = programSnap.data() || {};
-  
-    for (let m = 1; m <= 12; m++) {
-      const monthId = `${year}-${String(m).padStart(2, '0')}`;
-      const monthRef = calendarRef.collection("months").doc(monthId);
-
-      const fechaCorte = new Date(Date.UTC(year, m - 1, diaCorteCarga));
-      const fechaRevision = new Date(Date.UTC(year, m, diaLimiteRevision)); 
-      const fechaDePago = new Date(Date.UTC(year, m, diaPago));
-
-      batch.set(monthRef, {
-        month: monthId,
-        corteCarga: AdminTimestamp.fromDate(fechaCorte),
-        limiteRevision: AdminTimestamp.fromDate(fechaRevision),
-        fechaPago: AdminTimestamp.fromDate(fechaDePago),
-        editable: true,
-        createdAt: adminDb.FieldValue.serverTimestamp(),
-        updatedAt: adminDb.FieldValue.serverTimestamp(),
-      });
-    }
-  
-    await batch.commit();
-}
-
-// GET /api/mclp/calendar?companyId=[ID]&year=[YEAR]
+// GET /api/mclp/calendar?companyId=[ID]
 export async function GET(req: NextRequest) {
     try {
         const authorization = req.headers.get("Authorization");
@@ -48,13 +19,12 @@ export async function GET(req: NextRequest) {
         const userCompanyId = (decodedToken as any).companyId;
 
         const companyId = req.nextUrl.searchParams.get("companyId");
-        const yearStr = req.nextUrl.searchParams.get("year");
-
-        if (!companyId || !yearStr) {
-            return NextResponse.json({ error: "companyId y year son requeridos" }, { status: 400 });
+        
+        if (!companyId) {
+            return NextResponse.json({ error: "companyId es requerido" }, { status: 400 });
         }
 
-        const allowedReadRoles = ['superadmin', 'admin_empresa', 'jefe_obra', 'contratista'];
+        const allowedReadRoles = ['superadmin', 'admin_empresa', 'jefe_obra', 'contratista', 'revisor_cumplimiento'];
         if (!allowedReadRoles.includes(userRole)) {
             return NextResponse.json({ error: "Permission Denied: Insufficient role." }, { status: 403 });
         }
@@ -62,32 +32,14 @@ export async function GET(req: NextRequest) {
              return NextResponse.json({ error: "Permission Denied: User does not belong to the requested company." }, { status: 403 });
         }
 
-        const year = parseInt(yearStr, 10);
         await ensureMclpEnabled(companyId);
 
+        const periodsSnap = await adminDb.collection("compliancePeriods")
+            .where("companyId", "==", companyId)
+            .orderBy("fechaPago", "desc")
+            .get();
         
-        const calendarId = `${companyId}_${year}`;
-        const ref = adminDb.collection("complianceCalendars").doc(calendarId);
-        const snap = await ref.get();
-        
-        let monthsSnap = await ref.collection("months").orderBy("month").get();
-
-        // If the parent calendar doc doesn't exist, OR if it exists but the months were not created,
-        // then we create them. This makes the function more robust.
-        if (!snap.exists || monthsSnap.empty) {
-            if (!snap.exists) {
-                 await ref.set({
-                    companyId, year, locked: false,
-                    createdAt: adminDb.FieldValue.serverTimestamp(),
-                    updatedAt: adminDb.FieldValue.serverTimestamp(),
-                });
-            }
-            await createDefaultMonths(ref, year);
-            // Re-fetch the months subcollection after creating them.
-            monthsSnap = await ref.collection("months").orderBy("month").get();
-        }
-
-        const months = monthsSnap.docs.map(d => {
+        const periods = periodsSnap.docs.map(d => {
             const data = d.data();
             return {
                 id: d.id, ...data,
@@ -99,7 +51,55 @@ export async function GET(req: NextRequest) {
             };
         });
 
-        return NextResponse.json(months);
+        return NextResponse.json(periods);
+
+    } catch (error: any) {
+        return NextResponse.json({ error: error.message }, { status: 500 });
+    }
+}
+
+// POST /api/mclp/calendar (para crear un nuevo período)
+export async function POST(req: NextRequest) {
+    try {
+        const authorization = req.headers.get("Authorization");
+        if (!authorization?.startsWith("Bearer ")) {
+            return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+        }
+        const token = authorization.split("Bearer ")[1];
+        const decodedToken = await admin.auth().verifyIdToken(token);
+        
+        const userRole = (decodedToken as any).role;
+        const userCompanyId = (decodedToken as any).companyId;
+
+        const { companyId, ...data } = await req.json();
+
+        if (!companyId || !data.nombre || !data.corteCarga || !data.limiteRevision || !data.fechaPago) {
+            return NextResponse.json({ error: "Faltan parámetros requeridos" }, { status: 400 });
+        }
+
+        const allowedRoles = ['superadmin', 'admin_empresa'];
+        if (!allowedRoles.includes(userRole)) {
+            return NextResponse.json({ error: "Permission Denied" }, { status: 403 });
+        }
+        if (userRole !== 'superadmin' && userCompanyId !== companyId) {
+            return NextResponse.json({ error: "Permission Denied" }, { status: 403 });
+        }
+
+        await ensureMclpEnabled(companyId);
+        
+        const newPeriodRef = adminDb.collection("compliancePeriods").doc();
+        await newPeriodRef.set({
+            companyId: companyId,
+            nombre: data.nombre,
+            corteCarga: AdminTimestamp.fromDate(new Date(data.corteCarga)),
+            limiteRevision: AdminTimestamp.fromDate(new Date(data.limiteRevision)),
+            fechaPago: AdminTimestamp.fromDate(new Date(data.fechaPago)),
+            estado: "Abierto para Carga",
+            createdAt: adminDb.FieldValue.serverTimestamp(),
+            updatedAt: adminDb.FieldValue.serverTimestamp(),
+        });
+        
+        return NextResponse.json({ success: true, id: newPeriodRef.id });
 
     } catch (error: any) {
         return NextResponse.json({ error: error.message }, { status: 500 });

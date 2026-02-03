@@ -537,23 +537,14 @@ export interface EstadoCumplimientoPeriodo {
     asignadoPorUid: string;
 }
 
-// NUEVAS INTERFACES PARA CALENDARIO
-export interface ComplianceCalendar {
-  id: string; // companyId_year
+export interface CompliancePeriod {
+  id: string;
   companyId: string;
-  year: number;
-  locked: boolean;
-  createdAt: Timestamp;
-  updatedAt: Timestamp;
-}
-
-export interface ComplianceCalendarMonth {
-  id: string; // YYYY-MM
-  month: string; // "2026-03"
-  corteCarga: string;
-  limiteRevision: string;
-  fechaPago: string;
-  editable: boolean;
+  nombre: string;
+  estado: 'Abierto para Carga' | 'En Revisión' | 'Cerrado';
+  corteCarga: string; // ISO String
+  limiteRevision: string; // ISO String
+  fechaPago: string; // ISO String
   createdAt: Timestamp;
   updatedAt: Timestamp;
 }

@@ -1,16 +1,17 @@
-// src/app/cumplimiento/admin/calendario/page.tsx
+// src/app/(pcg)/cumplimiento/admin/calendario/page.tsx
 "use client";
 
 import React, { useState, useEffect, useTransition } from 'react';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Label } from '@/components/ui/label';
+import { Input } from '@/components/ui/input';
 import { useAuth } from '@/context/AuthContext';
 import { useToast } from '@/hooks/use-toast';
-import { ComplianceCalendarMonth } from '@/types/pcg';
-import { ChevronLeft, ChevronRight, Loader2, Edit, CalendarIcon, Lock, ArrowLeft } from 'lucide-react';
+import { CompliancePeriod } from '@/types/pcg';
+import { Loader2, Edit, Calendar as CalendarIcon, ArrowLeft, PlusCircle } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from '@/components/ui/dialog';
 import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { format } from 'date-fns';
@@ -18,89 +19,78 @@ import { es } from 'date-fns/locale';
 import { Badge } from '@/components/ui/badge';
 import Link from 'next/link';
 import { UserRole } from '@/lib/roles';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 
-interface EditMonthState {
-  id: string;
+
+interface EditPeriodState {
+  id?: string;
+  nombre: string;
   corteCarga: Date;
   limiteRevision: Date;
   fechaPago: Date;
 }
 
-async function fetchCalendarData(companyId: string, year: number, token: string) {
-    const res = await fetch(`/api/mclp/calendar?companyId=${companyId}&year=${year}`, {
+const initialPeriodState: EditPeriodState = {
+    nombre: '',
+    corteCarga: new Date(),
+    limiteRevision: new Date(),
+    fechaPago: new Date(),
+};
+
+async function fetchPeriods(companyId: string, token: string) {
+    const res = await fetch(`/api/mclp/calendar?companyId=${companyId}`, {
         headers: { 'Authorization': `Bearer ${token}` }
     });
     if (!res.ok) {
         const errorData = await res.json();
-        throw new Error(errorData.error || 'Failed to fetch calendar data');
+        throw new Error(errorData.error || 'Failed to fetch periods');
     }
     return res.json();
 }
 
-async function updateCalendarMonth(companyId: string, year: number, monthId: string, data: any, token: string) {
-    const res = await fetch('/api/mclp/calendar/update', {
-        method: 'POST',
+async function savePeriod(companyId: string, data: EditPeriodState, token: string) {
+    const isEditing = !!data.id;
+    const url = isEditing ? '/api/mclp/calendar/update' : '/api/mclp/calendar';
+    const body = isEditing ? { companyId, periodId: data.id, data } : { companyId, ...data };
+    
+    const res = await fetch(url, {
+        method: 'POST', // La ruta de update también usa POST por simplicidad en la transición
         headers: { 
             'Content-Type': 'application/json',
             'Authorization': `Bearer ${token}`
         },
-        body: JSON.stringify({ companyId, year, monthId, data }),
+        body: JSON.stringify(body),
     });
      if (!res.ok) {
         const errorData = await res.json();
-        throw new Error(errorData.error || 'Failed to update month');
+        throw new Error(errorData.error || `Failed to ${isEditing ? 'update' : 'create'} period`);
     }
     return res.json();
 }
 
-
-function MonthCard({ month, onEdit, userRole }: { month: ComplianceCalendarMonth, onEdit: (month: ComplianceCalendarMonth) => void, userRole: UserRole }) {
-  const isEditable = month.editable;
-  const canEditRole = userRole === 'superadmin' || userRole === 'admin_empresa';
-
-  return (
-    <Card className={!isEditable ? 'bg-muted/50 border-dashed' : ''}>
-      <CardHeader className="flex-row justify-between items-center pb-2">
-        <CardTitle className="text-base font-bold">{new Date(month.id + '-02T00:00:00').toLocaleString('es-CL', { month: 'long', timeZone: 'UTC' }).toUpperCase()}</CardTitle>
-        <Badge variant={isEditable ? 'default' : 'secondary'}>
-          {isEditable ? 'Editable' : <><Lock className="h-3 w-3 mr-1"/>Bloqueado</>}
-        </Badge>
-      </CardHeader>
-      <CardContent className="text-sm space-y-2">
-        <div className="flex justify-between"><span>📥 Corte carga:</span><span className="font-semibold">{format(new Date(month.corteCarga), "dd 'de' MMM", { locale: es })}</span></div>
-        <div className="flex justify-between"><span>🧐 Límite revisión:</span><span className="font-semibold">{format(new Date(month.limiteRevision), "dd 'de' MMM", { locale: es })}</span></div>
-        <div className="flex justify-between"><span>💰 Fecha pago:</span><span className="font-semibold">{format(new Date(month.fechaPago), "dd 'de' MMM", { locale: es })}</span></div>
-      </CardContent>
-      <CardFooter>
-        <Button size="sm" variant="outline" className="w-full" disabled={!isEditable || !canEditRole} onClick={() => onEdit(month)}>
-            <Edit className="mr-2 h-4 w-4"/> Editar Fechas
-        </Button>
-      </CardFooter>
-    </Card>
-  );
-}
-
-function EditMonthDialog({ month, isOpen, onClose, onSave }: { month: EditMonthState | null, isOpen: boolean, onClose: () => void, onSave: (data: EditMonthState) => Promise<void>}) {
-    const [localMonth, setLocalMonth] = useState<EditMonthState | null>(month);
+function EditPeriodDialog({ period, isOpen, onClose, onSave }: { period: EditPeriodState | null, isOpen: boolean, onClose: () => void, onSave: (data: EditPeriodState) => Promise<void>}) {
+    const [localPeriod, setLocalPeriod] = useState<EditPeriodState | null>(period);
     const [isSaving, setIsSaving] = useState(false);
 
     useEffect(() => {
-        if(month) {
-            setLocalMonth(month);
-        }
-    }, [month]);
+        setLocalPeriod(period);
+    }, [period]);
 
-    if (!localMonth) return null;
+    if (!localPeriod) return null;
 
-    const handleDateChange = (field: keyof EditMonthState, date?: Date) => {
+    const handleDateChange = (field: keyof EditPeriodState, date?: Date) => {
         if (date) {
-            setLocalMonth(prev => prev ? {...prev, [field]: date} : null);
+            setLocalPeriod(prev => prev ? {...prev, [field]: date} : null);
         }
+    }
+    
+    const handleTextChange = (field: keyof EditPeriodState, value: string) => {
+        setLocalPeriod(prev => prev ? {...prev, [field]: value } : null);
     }
 
     const handleSaveChanges = async () => {
         setIsSaving(true);
-        await onSave(localMonth);
+        await onSave(localPeriod);
         setIsSaving(false);
     }
     
@@ -108,33 +98,38 @@ function EditMonthDialog({ month, isOpen, onClose, onSave }: { month: EditMonthS
         <Dialog open={isOpen} onOpenChange={onClose}>
             <DialogContent>
                 <DialogHeader>
-                    <DialogTitle>Editar Fechas de {new Date(localMonth.id + '-02T00:00:00').toLocaleString('es-CL', { month: 'long', year: 'numeric', timeZone: 'UTC' })}</DialogTitle>
+                    <DialogTitle>{localPeriod.id ? 'Editar Período' : 'Crear Nuevo Período'}</DialogTitle>
+                    <DialogDescription>Define el nombre y las fechas clave para este ciclo de cumplimiento.</DialogDescription>
                 </DialogHeader>
                 <div className="py-4 space-y-4">
                     <div className="space-y-2">
+                        <Label>Nombre del Período</Label>
+                        <Input value={localPeriod.nombre} onChange={e => handleTextChange('nombre', e.target.value)} placeholder="Ej: Enero 2024 - Quincena 1"/>
+                    </div>
+                    <div className="space-y-2">
                         <Label>Fecha de corte de carga</Label>
                         <Popover><PopoverTrigger asChild>
-                            <Button variant="outline" className="w-full justify-start text-left font-normal"><CalendarIcon className="mr-2 h-4 w-4"/>{format(localMonth.corteCarga, 'PPP', { locale: es })}</Button>
-                        </PopoverTrigger><PopoverContent className="w-auto p-0"><Calendar mode="single" selected={localMonth.corteCarga} onSelect={(d) => handleDateChange('corteCarga', d)} /></PopoverContent></Popover>
+                            <Button variant="outline" className="w-full justify-start text-left font-normal"><CalendarIcon className="mr-2 h-4 w-4"/>{format(localPeriod.corteCarga, 'PPP', { locale: es })}</Button>
+                        </PopoverTrigger><PopoverContent className="w-auto p-0"><Calendar mode="single" selected={localPeriod.corteCarga} onSelect={(d) => handleDateChange('corteCarga', d)} initialFocus /></PopoverContent></Popover>
                     </div>
                      <div className="space-y-2">
                         <Label>Fecha límite de revisión</Label>
                         <Popover><PopoverTrigger asChild>
-                            <Button variant="outline" className="w-full justify-start text-left font-normal"><CalendarIcon className="mr-2 h-4 w-4"/>{format(localMonth.limiteRevision, 'PPP', { locale: es })}</Button>
-                        </PopoverTrigger><PopoverContent className="w-auto p-0"><Calendar mode="single" selected={localMonth.limiteRevision} onSelect={(d) => handleDateChange('limiteRevision', d)} /></PopoverContent></Popover>
+                            <Button variant="outline" className="w-full justify-start text-left font-normal"><CalendarIcon className="mr-2 h-4 w-4"/>{format(localPeriod.limiteRevision, 'PPP', { locale: es })}</Button>
+                        </PopoverTrigger><PopoverContent className="w-auto p-0"><Calendar mode="single" selected={localPeriod.limiteRevision} onSelect={(d) => handleDateChange('limiteRevision', d)} /></PopoverContent></Popover>
                     </div>
                      <div className="space-y-2">
                         <Label>Fecha propuesta de pago</Label>
                         <Popover><PopoverTrigger asChild>
-                            <Button variant="outline" className="w-full justify-start text-left font-normal"><CalendarIcon className="mr-2 h-4 w-4"/>{format(localMonth.fechaPago, 'PPP', { locale: es })}</Button>
-                        </PopoverTrigger><PopoverContent className="w-auto p-0"><Calendar mode="single" selected={localMonth.fechaPago} onSelect={(d) => handleDateChange('fechaPago', d)} /></PopoverContent></Popover>
+                            <Button variant="outline" className="w-full justify-start text-left font-normal"><CalendarIcon className="mr-2 h-4 w-4"/>{format(localPeriod.fechaPago, 'PPP', { locale: es })}</Button>
+                        </PopoverTrigger><PopoverContent className="w-auto p-0"><Calendar mode="single" selected={localPeriod.fechaPago} onSelect={(d) => handleDateChange('fechaPago', d)} /></PopoverContent></Popover>
                     </div>
                 </div>
                 <DialogFooter>
                     <Button variant="ghost" onClick={onClose} disabled={isSaving}>Cancelar</Button>
                     <Button onClick={handleSaveChanges} disabled={isSaving}>
                         {isSaving && <Loader2 className="animate-spin mr-2"/>}
-                        Guardar Cambios
+                        Guardar Período
                     </Button>
                 </DialogFooter>
             </DialogContent>
@@ -147,22 +142,21 @@ export default function CalendarioMclpPage() {
     const { toast } = useToast();
     const [isPending, startTransition] = useTransition();
     
-    const [year, setYear] = useState(new Date().getFullYear());
-    const [months, setMonths] = useState<ComplianceCalendarMonth[]>([]);
+    const [periods, setPeriods] = useState<CompliancePeriod[]>([]);
     const [loading, setLoading] = useState(true);
-    const [editingMonth, setEditingMonth] = useState<EditMonthState | null>(null);
+    const [editingPeriod, setEditingPeriod] = useState<EditPeriodState | null>(null);
 
-    const loadCalendar = (targetYear: number) => {
+    const loadPeriods = () => {
         if (!companyId || !user) return;
         setLoading(true);
         startTransition(async () => {
             try {
                 const token = await user.getIdToken();
-                const data = await fetchCalendarData(companyId, targetYear, token);
-                setMonths(data);
+                const data = await fetchPeriods(companyId, token);
+                setPeriods(data);
             } catch (error: any) {
                 toast({ variant: 'destructive', title: 'Error', description: error.message });
-                setMonths([]); // Limpiar en caso de error
+                setPeriods([]);
             } finally {
                 setLoading(false);
             }
@@ -170,19 +164,24 @@ export default function CalendarioMclpPage() {
     }
 
     useEffect(() => {
-        loadCalendar(year);
-    }, [companyId, year, user]);
+        loadPeriods();
+    }, [companyId, user]);
 
-    const handleEditMonth = (month: ComplianceCalendarMonth) => {
-        setEditingMonth({
-            id: month.id,
-            corteCarga: new Date(month.corteCarga),
-            limiteRevision: new Date(month.limiteRevision),
-            fechaPago: new Date(month.fechaPago)
+    const handleEditPeriod = (period: CompliancePeriod) => {
+        setEditingPeriod({
+            id: period.id,
+            nombre: period.nombre,
+            corteCarga: new Date(period.corteCarga),
+            limiteRevision: new Date(period.limiteRevision),
+            fechaPago: new Date(period.fechaPago)
         });
     }
+
+    const handleCreatePeriod = () => {
+        setEditingPeriod(initialPeriodState);
+    }
     
-    const handleSaveMonth = async (data: EditMonthState) => {
+    const handleSavePeriod = async (data: EditPeriodState) => {
         if (!companyId || !user) return;
 
         if (data.corteCarga >= data.limiteRevision || data.limiteRevision >= data.fechaPago) {
@@ -193,14 +192,10 @@ export default function CalendarioMclpPage() {
         startTransition(async () => {
             try {
                 const token = await user.getIdToken();
-                await updateCalendarMonth(companyId, year, data.id, {
-                    corteCarga: data.corteCarga.toISOString(),
-                    limiteRevision: data.limiteRevision.toISOString(),
-                    fechaPago: data.fechaPago.toISOString()
-                }, token);
-                toast({ title: 'Éxito', description: 'Fechas del mes actualizadas.' });
-                setEditingMonth(null);
-                loadCalendar(year); // Re-fetch
+                await savePeriod(companyId, data, token);
+                toast({ title: 'Éxito', description: 'Período guardado correctamente.' });
+                setEditingPeriod(null);
+                loadPeriods(); // Re-fetch
             } catch (error: any) {
                  toast({ variant: 'destructive', title: 'Error', description: error.message });
             }
@@ -217,45 +212,65 @@ export default function CalendarioMclpPage() {
                         </Link>
                     </Button>
                     <div>
-                        <h1 className="text-2xl font-bold">Calendario de Cumplimiento {year}</h1>
-                        <p className="text-muted-foreground">Visualiza y edita las fechas clave de cada período mensual.</p>
+                        <h1 className="text-2xl font-bold">Calendario de Períodos de Cumplimiento</h1>
+                        <p className="text-muted-foreground">Crea y edita los ciclos de cumplimiento (quincenas, mensual, etc.).</p>
                     </div>
                 </div>
-                <div className="flex items-center gap-2">
-                    <Button variant="outline" size="icon" onClick={() => setYear(y => y-1)}><ChevronLeft/></Button>
-                    <span className="font-bold text-lg w-24 text-center">{year}</span>
-                    <Button variant="outline" size="icon" onClick={() => setYear(y => y+1)}><ChevronRight/></Button>
-                </div>
+                {(role === 'superadmin' || role === 'admin_empresa') && (
+                    <Button onClick={handleCreatePeriod}>
+                        <PlusCircle className="mr-2 h-4 w-4"/>
+                        Crear Nuevo Período
+                    </Button>
+                )}
             </header>
 
-            {loading ? (
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-                    {Array.from({length: 12}).map((_, i) => <Skeleton key={i} className="h-48"/>)}
-                </div>
-            ) : months.length === 0 ? (
-                 <Card className="text-center p-8">
-                    <CardHeader>
-                        <CardTitle>Calendario no generado</CardTitle>
-                        <CardDescription>Parece que el calendario para el año {year} aún no se ha creado.</CardDescription>
-                    </CardHeader>
-                    <CardContent>
-                        <Button onClick={() => loadCalendar(year)} disabled={isPending}>
-                            {isPending && <Loader2 className="animate-spin mr-2"/>}
-                            {isPending ? 'Creando...' : `Crear Calendario ${year}`}
-                        </Button>
-                    </CardContent>
-                </Card>
-            ) : (
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-                    {months.map(month => <MonthCard key={month.id} month={month} onEdit={handleEditMonth} userRole={role} />)}
-                </div>
-            )}
+            <Card>
+                <CardHeader>
+                    <CardTitle>Períodos Registrados</CardTitle>
+                </CardHeader>
+                <CardContent>
+                    {loading ? <Skeleton className="h-48 w-full"/> : (
+                        <Table>
+                            <TableHeader>
+                                <TableRow>
+                                    <TableHead>Nombre del Período</TableHead>
+                                    <TableHead>Corte de Carga</TableHead>
+                                    <TableHead>Límite Revisión</TableHead>
+                                    <TableHead>Fecha de Pago</TableHead>
+                                    <TableHead>Estado</TableHead>
+                                    <TableHead className="text-right">Acciones</TableHead>
+                                </TableRow>
+                            </TableHeader>
+                            <TableBody>
+                                {periods.length === 0 ? (
+                                    <TableRow><TableCell colSpan={6} className="text-center h-24">No hay períodos creados. ¡Crea el primero!</TableCell></TableRow>
+                                ) : periods.map(period => (
+                                    <TableRow key={period.id}>
+                                        <TableCell className="font-medium">{period.nombre}</TableCell>
+                                        <TableCell>{format(new Date(period.corteCarga), "dd/MM/yyyy")}</TableCell>
+                                        <TableCell>{format(new Date(period.limiteRevision), "dd/MM/yyyy")}</TableCell>
+                                        <TableCell>{format(new Date(period.fechaPago), "dd/MM/yyyy")}</TableCell>
+                                        <TableCell><Badge variant={period.estado === 'Cerrado' ? 'secondary' : 'default'}>{period.estado}</Badge></TableCell>
+                                        <TableCell className="text-right">
+                                            {(role === 'superadmin' || role === 'admin_empresa') && (
+                                                <Button size="sm" variant="outline" onClick={() => handleEditPeriod(period)} disabled={period.estado === 'Cerrado'}>
+                                                    <Edit className="mr-2 h-4 w-4"/> Editar
+                                                </Button>
+                                            )}
+                                        </TableCell>
+                                    </TableRow>
+                                ))}
+                            </TableBody>
+                        </Table>
+                    )}
+                </CardContent>
+            </Card>
             
-            <EditMonthDialog 
-                month={editingMonth} 
-                isOpen={!!editingMonth}
-                onClose={() => setEditingMonth(null)}
-                onSave={handleSaveMonth}
+            <EditPeriodDialog 
+                period={editingPeriod} 
+                isOpen={!!editingPeriod}
+                onClose={() => setEditingPeriod(null)}
+                onSave={handleSavePeriod}
             />
         </div>
     )

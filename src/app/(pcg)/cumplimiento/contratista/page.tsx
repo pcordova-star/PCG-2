@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button";
 import { useEffect, useState, useMemo, useCallback } from "react";
 import { Loader2, Calendar, AlertTriangle, Upload, Check, X, Clock } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
-import { ComplianceCalendarMonth, RequisitoDocumento, EntregaDocumento } from "@/types/pcg";
+import { CompliancePeriod, RequisitoDocumento, EntregaDocumento } from "@/types/pcg";
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
 import { useToast } from "@/hooks/use-toast";
@@ -42,7 +42,7 @@ export default function ContratistaPortalPage() {
     const router = useRouter();
     const { toast } = useToast();
 
-    const [currentPeriod, setCurrentPeriod] = useState<ComplianceCalendarMonth | null>(null);
+    const [currentPeriod, setCurrentPeriod] = useState<CompliancePeriod | null>(null);
     const [requirements, setRequirements] = useState<MergedRequirement[]>([]);
     const [pageLoading, setPageLoading] = useState(true);
     const [pageError, setPageError] = useState<string | null>(null);
@@ -58,17 +58,6 @@ export default function ContratistaPortalPage() {
         }
     }, [role, loading, router]);
     
-    const periodKey = useMemo(() => {
-        const now = new Date();
-        const year = now.getFullYear();
-        const month = now.getMonth() + 1;
-        return `${year}-${String(month).padStart(2, '0')}`;
-    }, []);
-
-    const periodId = useMemo(() => {
-        if (!companyId) return null;
-        return `${companyId}_${periodKey}`;
-    }, [companyId, periodKey]);
 
     const fetchData = useCallback(async () => {
         if (loading) return;
@@ -79,7 +68,7 @@ export default function ContratistaPortalPage() {
             return;
         }
 
-        if (!companyId || !periodId || !user) {
+        if (!companyId || !user) {
             if(role === 'contratista') setPageError("Faltan datos de sesión para cargar el portal.");
             setPageLoading(false);
             return;
@@ -91,23 +80,29 @@ export default function ContratistaPortalPage() {
             const token = await user.getIdToken();
             const headers = { 'Authorization': `Bearer ${token}` };
 
-            const year = new Date().getFullYear();
-            const [calendarRes, reqsRes, subsRes] = await Promise.all([
-                fetch(`/api/mclp/calendar?companyId=${companyId}&year=${year}`, { headers }),
+            // Fetch all periods and find the current one
+            const periodsRes = await fetch(`/api/mclp/calendar?companyId=${companyId}`, { headers });
+            if (!periodsRes.ok) throw new Error('No se pudieron cargar los períodos de cumplimiento.');
+            const allPeriods: CompliancePeriod[] = await periodsRes.json();
+            
+            const now = new Date();
+            const activePeriod = allPeriods.find(p => p.estado === 'Abierto para Carga' && now < new Date(p.corteCarga));
+            setCurrentPeriod(activePeriod || null);
+
+            if (!activePeriod) {
+                setRequirements([]);
+                setPageLoading(false);
+                return;
+            }
+
+            const [reqsRes, subsRes] = await Promise.all([
                 fetch(`/api/mclp/requirements?companyId=${companyId}`, { headers }),
-                fetch(`/api/mclp/submissions?companyId=${companyId}&periodId=${periodId}&subcontractorId=${subcontractorId}`, { headers })
+                fetch(`/api/mclp/submissions?companyId=${companyId}&periodId=${activePeriod.id}&subcontractorId=${subcontractorId}`, { headers })
             ]);
 
-            if (!calendarRes.ok) {
-                 throw new Error('No se pudieron cargar los datos del calendario.');
-            }
             if (!reqsRes.ok || !subsRes.ok) {
-                 throw new Error('No se pudieron cargar los datos de cumplimiento.');
+                 throw new Error('No se pudieron cargar todos los datos de cumplimiento.');
             }
-
-            const calendarYear: ComplianceCalendarMonth[] = await calendarRes.json();
-            const period = calendarYear.find(p => p.id === periodKey);
-            setCurrentPeriod(period || null);
 
             const reqs: RequisitoDocumento[] = await reqsRes.json();
             const subs: EntregaDocumento[] = await subsRes.json();
@@ -125,7 +120,7 @@ export default function ContratistaPortalPage() {
         } finally {
             setPageLoading(false);
         }
-    }, [companyId, periodId, subcontractorId, user, periodKey, toast, loading, role]);
+    }, [companyId, subcontractorId, user, toast, loading, role]);
 
 
     useEffect(() => {
@@ -143,7 +138,7 @@ export default function ContratistaPortalPage() {
     const handleUpload = async (req: MergedRequirement) => {
         const file = files[req.id];
         const comentario = comments[req.id] || '';
-        if (!file || !user || !companyId || !subcontractorId || !periodId) {
+        if (!file || !user || !companyId || !subcontractorId || !currentPeriod) {
             toast({ variant: 'destructive', title: 'Error', description: 'Faltan datos para la subida.'});
             return;
         }
@@ -152,8 +147,7 @@ export default function ContratistaPortalPage() {
         try {
             await uploadDocumentSubmission({
                 companyId: companyId,
-                periodId: periodId,
-                period: periodKey,
+                periodId: currentPeriod.id,
                 subcontractorId: subcontractorId,
                 requirementId: req.id,
                 nombreDocumentoSnapshot: req.nombre,
@@ -205,7 +199,7 @@ export default function ContratistaPortalPage() {
                 <CardHeader>
                     <CardTitle className="flex items-center gap-2">
                         <Calendar className="h-5 w-5" />
-                        Período de Cumplimiento Actual: {currentPeriod ? format(new Date(currentPeriod.id + '-02T00:00:00'), "MMMM yyyy", { locale: es }).replace(/^\w/, (c) => c.toUpperCase()) : 'Cargando...'}
+                        Período de Cumplimiento Actual: {currentPeriod ? currentPeriod.nombre : 'No hay período activo'}
                     </CardTitle>
                     <CardDescription>
                         Fechas clave para la carga y revisión de tu documentación.
@@ -228,7 +222,7 @@ export default function ContratistaPortalPage() {
                             </div>
                         </div>
                     ) : (
-                         <p className="text-muted-foreground">No se encontró información del período actual. Contacta al administrador.</p>
+                         <p className="text-muted-foreground text-center py-4">No se encontró un período de cumplimiento abierto para la carga de documentos. Contacta al administrador de la empresa principal.</p>
                     )}
                 </CardContent>
             </Card>
@@ -240,6 +234,7 @@ export default function ContratistaPortalPage() {
                 </CardHeader>
                 <CardContent>
                      {pageLoading ? <p>Cargando requisitos...</p> : 
+                     !currentPeriod ? null :
                      requirements.length === 0 ? <p className="text-muted-foreground">No hay requisitos definidos para este período.</p> : (
                         <div className="space-y-4">
                             {requirements.map(req => (
