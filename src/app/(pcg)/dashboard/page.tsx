@@ -166,7 +166,7 @@ const allMainModules = [
     icon: ListChecks,
     linkText: 'Gestionar Checklists',
     tooltip: 'Define tus formularios de inspección y control de calidad.',
-    roles: ['superadmin', 'admin_empresa', 'jefe_obra'],
+    roles: ['superadmin', 'admin_empresa', 'jefe_obra', 'prevencionista'],
     featureFlag: 'feature_operational_checklists_enabled'
   },
   {
@@ -225,7 +225,7 @@ const quickAccessModules = [
         id: 'comparacion-planos',
         title: 'Comparación de Planos (IA)',
         description: 'Detecta diferencias entre versiones de planos y evalúa impactos.',
-        href: '/comparacion-planos',
+        href: '/comparacion-planos/historial',
         icon: GitCompareArrows,
         color: 'purple' as const,
         roles: ['superadmin', 'admin_empresa', 'jefe_obra'],
@@ -419,7 +419,7 @@ export default function DashboardPage() {
   }, [user, role, companyId, authLoading, isPrevencionista]);
   
   const handleQuickAccessClick = (target: string) => {
-    if (['/rdi', '/cubicacion/analisis-planos', '/cumplimiento', '/comparacion-planos'].includes(target)) {
+    if (['/rdi', '/cubicacion/analisis-planos', '/cumplimiento', '/comparacion-planos/historial'].includes(target)) {
         router.push(target);
         return;
     }

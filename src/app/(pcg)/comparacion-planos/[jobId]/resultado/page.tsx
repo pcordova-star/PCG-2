@@ -200,7 +200,7 @@ export default function ResultadoPage({ params }: { params: { jobId: string } })
             <header className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
                 <div>
                     <Button variant="outline" size="sm" asChild className="mb-4">
-                        <Link href="/dashboard"><ArrowLeft className="mr-2"/>Volver al Dashboard</Link>
+                        <Link href="/comparacion-planos/historial"><ArrowLeft className="mr-2"/>Volver al Historial</Link>
                     </Button>
                     <h1 className="text-3xl font-semibold text-gray-900">Resultados del Análisis Comparativo</h1>
                     <p className="text-muted-foreground font-mono text-sm mt-1">Job ID: {params.jobId}</p>

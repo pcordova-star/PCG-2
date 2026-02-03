@@ -116,9 +116,9 @@ export default function ProgresoPage({ params }: { params: { jobId: string } }) 
         <div className="max-w-2xl mx-auto px-4 py-8 space-y-8 text-center">
             <header className="space-y-2">
                  <Button asChild variant="outline" size="sm" className="mb-4">
-                  <Link href="/comparacion-planos/upload">
+                  <Link href="/comparacion-planos/historial">
                     <ArrowLeft className="mr-2 h-4 w-4" />
-                    Subir otros planos
+                    Volver al Historial
                   </Link>
                 </Button>
                 <h1 className="text-3xl font-semibold text-gray-900">Análisis de Planos en Progreso</h1>

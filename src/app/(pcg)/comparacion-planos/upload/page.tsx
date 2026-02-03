@@ -95,9 +95,9 @@ export default function UploadPage() {
         <div className="max-w-2xl mx-auto px-4 py-8 space-y-8">
             <header className="space-y-2">
                  <Button asChild variant="outline" size="sm">
-                  <Link href="/dashboard">
+                  <Link href="/comparacion-planos/historial">
                     <ArrowLeft className="mr-2 h-4 w-4" />
-                    Volver al Dashboard
+                    Volver al Historial
                   </Link>
                 </Button>
                  <h1 className="text-3xl font-semibold text-gray-900">Comparación de Planos con IA</h1>
