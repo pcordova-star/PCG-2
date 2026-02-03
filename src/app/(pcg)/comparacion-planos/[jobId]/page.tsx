@@ -10,6 +10,21 @@ import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/context/AuthContext';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
 import Link from 'next/link';
+import { ComparacionJobStatus } from '@/types/comparacion-planos';
+
+const estadoTraduccion: Record<ComparacionJobStatus | string, string> = {
+    'pending-upload': 'Pendiente de Carga',
+    'uploaded': 'Archivos Cargados',
+    'queued_for_analysis': 'En cola para análisis',
+    'processing': 'Procesando Imágenes',
+    'running_ai': 'Analizando con IA',
+    'analyzing-diff': 'Analizando Diferencias',
+    'analyzing-cubicacion': 'Analizando Cubicación',
+    'generating-impactos': 'Generando Impactos',
+    'completed': 'Completado',
+    'error': 'Error',
+};
+
 
 export default function ProgresoPage({ params }: { params: { jobId: string } }) {
     const [status, setStatus] = useState<string | null>(null);
@@ -143,7 +158,7 @@ export default function ProgresoPage({ params }: { params: { jobId: string } }) 
                     ) : (
                         <div className="flex items-center gap-2">
                              <span className="font-semibold">Estado actual:</span>
-                             <span className="font-bold text-primary uppercase">{status}</span>
+                             <span className="font-bold text-primary uppercase">{estadoTraduccion[status] || status}</span>
                         </div>
                     )}
                 </div>
