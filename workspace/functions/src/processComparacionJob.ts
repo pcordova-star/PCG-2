@@ -10,7 +10,6 @@ const adminApp = getAdminApp();
 const db = adminApp.firestore();
 
 // --- Prompts para cada agente especializado (actualizados para ser más estrictos) ---
-
 const diffPromptText = `Eres un experto en interpretación de planos de construcción.
 Tu tarea es comparar dos imágenes: Plano A (versión original) y Plano B (versión modificada).
 Debes identificar todas las diferencias visuales, geométricas, textuales y de anotaciones entre ambos.
@@ -89,7 +88,7 @@ function cleanJsonString(rawString: string): string {
 
 // --- Función para llamar a la API de Gemini (actualizada) ---
 async function callGeminiAPI(apiKey: string, parts: any[]) {
-    const geminiEndpoint = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent?key=${apiKey}`;
+    const geminiEndpoint = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`;
     const response = await fetch(geminiEndpoint, {
         method: "POST",
         headers: { "Content-Type": "application/json" },

@@ -46,7 +46,7 @@ const node_fetch_1 = __importDefault(require("node-fetch"));
 const storage_1 = require("./lib/storage");
 const adminApp = (0, firebaseAdmin_1.getAdminApp)();
 const db = adminApp.firestore();
-// --- Prompts para cada agente especializado ---
+// --- Prompts para cada agente especializado (actualizados para ser más estrictos) ---
 const diffPromptText = `Eres un experto en interpretación de planos de construcción.
 Tu tarea es comparar dos imágenes: Plano A (versión original) y Plano B (versión modificada).
 Debes identificar todas las diferencias visuales, geométricas, textuales y de anotaciones entre ambos.
@@ -59,7 +59,7 @@ Instrucciones:
 4.  Describe el cambio de forma clara y concisa en el campo "descripcion".
 5.  Si es aplicable, indica la ubicación aproximada del cambio en el campo "ubicacion".
 6.  Genera un "resumen" conciso de los cambios más importantes.
-7.  Tu respuesta DEBE SER EXCLUSIVAMENTE un objeto JSON válido que siga la estructura de salida, sin texto adicional.`;
+7.  IMPORTANTE: Tu respuesta DEBE SER EXCLUSIVAMENTE un objeto JSON válido. No incluyas texto, explicaciones, ni \`\`\`json markdown. La respuesta completa debe ser el objeto JSON, comenzando con { y terminando con }.`;
 const cubicacionPromptText = `Eres un experto en cubicación y presupuestos de construcción.
 Tu tarea es analizar dos versiones de un plano, Plano A (original) y Plano B (modificado), para detectar variaciones en las cantidades de obra.
 A continuación se presentan el Plano A y luego el Plano B.
@@ -72,7 +72,7 @@ Instrucciones:
 5.  Calcula la "diferencia" (cantidadB - cantidadA).
 6.  Agrega "observaciones" si es necesario para aclarar un cálculo o suposición.
 7.  Genera un "resumen" de las variaciones más significativas.
-8.  Tu respuesta DEBE SER EXCLUSIVAMENTE un objeto JSON válido que siga el esquema de salida, sin texto adicional.`;
+8.  IMPORTANTE: Tu respuesta DEBE SER EXCLUSIVAMENTE un objeto JSON válido. No incluyas texto, explicaciones, ni \`\`\`json markdown. La respuesta completa debe ser el objeto JSON, comenzando con { y terminando con }.`;
 const impactoPromptText = `Eres un Jefe de Proyectos experto con 20 años de experiencia coordinando especialidades.
 Tu tarea es analizar las diferencias entre dos planos para generar un árbol jerárquico de impactos técnicos.
 A continuación se presentan el Plano A y luego el Plano B, junto con contexto adicional.
@@ -95,7 +95,7 @@ Instrucciones:
 6.  Identifica el principal "riesgo" (ej: "Sobrecosto", "Atraso", "Incompatibilidad").
 7.  Lista "consecuencias" y "recomendaciones".
 8.  Si un impacto genera otros, anídalos en "subImpactos".
-9.  Tu respuesta DEBE SER EXCLUSIVAMENTE un objeto JSON válido con la estructura de salida, sin texto adicional.`;
+9.  IMPORTANTE: Tu respuesta DEBE SER EXCLUSIVAMENTE un objeto JSON válido. No incluyas texto, explicaciones, ni \`\`\`json markdown. La respuesta completa debe ser el objeto JSON, comenzando con { y terminando con }.`;
 /**
  * Limpia una cadena que se espera contenga JSON, eliminando los delimitadores de markdown
  * y extrayendo solo el objeto JSON principal.
@@ -114,15 +114,18 @@ function cleanJsonString(rawString) {
     // 3. Extraer la subcadena que parece ser el JSON
     return cleaned.substring(startIndex, endIndex + 1);
 }
-// --- Función para llamar a la API de Gemini ---
+// --- Función para llamar a la API de Gemini (actualizada) ---
 async function callGeminiAPI(apiKey, parts) {
-    const geminiEndpoint = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`;
+    const geminiEndpoint = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent?key=${apiKey}`;
     const response = await (0, node_fetch_1.default)(geminiEndpoint, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
             contents: [{ parts }],
-            generationConfig: { response_mime_type: "application/json" },
+            generationConfig: {
+                response_mime_type: "application/json",
+                temperature: 0.1, // Reducir creatividad para un JSON más consistente
+            },
         }),
     });
     if (!response.ok) {
