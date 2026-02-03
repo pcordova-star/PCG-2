@@ -23,8 +23,12 @@ const initialRequirementState: Omit<RequisitoDocumento, 'id' | 'createdAt' | 'up
     activo: true,
 };
 
-async function fetchRequirements(companyId: string) {
-    const res = await fetch(`/api/mclp/requirements?companyId=${companyId}`);
+async function fetchRequirements(companyId: string, token: string) {
+    const res = await fetch(`/api/mclp/requirements?companyId=${companyId}`, {
+        headers: {
+            'Authorization': `Bearer ${token}`
+        }
+    });
     if (!res.ok) {
         const errorData = await res.json();
         throw new Error(errorData.error || 'Failed to fetch requirements');
@@ -32,11 +36,14 @@ async function fetchRequirements(companyId: string) {
     return res.json();
 }
 
-async function saveRequirement(companyId: string, req: Partial<RequisitoDocumento>) {
+async function saveRequirement(companyId: string, req: Partial<RequisitoDocumento>, token: string) {
     const method = req.id ? 'PUT' : 'POST';
     const res = await fetch(`/api/mclp/requirements`, {
         method,
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+        },
         body: JSON.stringify({ companyId, requirement: req }),
     });
     if (!res.ok) {
@@ -48,7 +55,7 @@ async function saveRequirement(companyId: string, req: Partial<RequisitoDocument
 
 
 export default function RequerimientosCumplimientoPage() {
-  const { companyId } = useAuth();
+  const { companyId, user, role } = useAuth();
   const { toast } = useToast();
   const [isPending, startTransition] = useTransition();
 
@@ -59,10 +66,11 @@ export default function RequerimientosCumplimientoPage() {
   const [currentReq, setCurrentReq] = useState<Partial<RequisitoDocumento>>(initialRequirementState);
   
   const loadRequirements = async () => {
-    if (!companyId) return;
+    if (!companyId || !user) return;
     setLoading(true);
     try {
-      const data = await fetchRequirements(companyId);
+      const token = await user.getIdToken();
+      const data = await fetchRequirements(companyId, token);
       setRequirements(data);
     } catch (error: any) {
       toast({ variant: 'destructive', title: 'Error', description: error.message });
@@ -73,16 +81,17 @@ export default function RequerimientosCumplimientoPage() {
 
   useEffect(() => {
     loadRequirements();
-  }, [companyId]);
+  }, [companyId, user]);
 
   const handleReqSave = () => {
-    if (!companyId || !currentReq.nombre) {
-        toast({ variant: 'destructive', title: 'Error', description: 'El nombre del requisito es obligatorio.' });
+    if (!companyId || !currentReq.nombre || !user) {
+        toast({ variant: 'destructive', title: 'Error', description: 'El nombre del requisito es obligatorio o falta el usuario.' });
         return;
     }
     startTransition(async () => {
         try {
-            await saveRequirement(companyId, currentReq);
+            const token = await user.getIdToken();
+            await saveRequirement(companyId, currentReq, token);
             toast({ title: 'Éxito', description: `Requisito ${currentReq.id ? 'actualizado' : 'creado'}.` });
             setIsReqModalOpen(false);
             await loadRequirements(); // Re-fetch data
@@ -124,7 +133,9 @@ export default function RequerimientosCumplimientoPage() {
                 <CardTitle>Listado de Documentos Requeridos</CardTitle>
                 <CardDescription>Esta lista se solicitará a todos los subcontratistas en cada período de cumplimiento.</CardDescription>
             </div>
-            <Button onClick={() => { setCurrentReq(initialRequirementState); setIsReqModalOpen(true); }}><PlusCircle className="mr-2"/> Nuevo Requerimiento</Button>
+            {(role === 'admin_empresa' || role === 'superadmin') && (
+                <Button onClick={() => { setCurrentReq(initialRequirementState); setIsReqModalOpen(true); }}><PlusCircle className="mr-2"/> Nuevo Requerimiento</Button>
+            )}
         </CardHeader>
         <CardContent>
             <Table>
@@ -133,7 +144,9 @@ export default function RequerimientosCumplimientoPage() {
                         <TableHead>Nombre del Documento</TableHead>
                         <TableHead>Descripción</TableHead>
                         <TableHead>Obligatorio</TableHead>
-                        <TableHead className="text-right">Acciones</TableHead>
+                        {(role === 'admin_empresa' || role === 'superadmin') && (
+                            <TableHead className="text-right">Acciones</TableHead>
+                        )}
                     </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -147,9 +160,11 @@ export default function RequerimientosCumplimientoPage() {
                                 <TableCell className="font-medium">{req.nombre}</TableCell>
                                 <TableCell className="text-sm text-muted-foreground">{req.descripcion}</TableCell>
                                 <TableCell>{req.esObligatorio ? 'Sí' : 'No'}</TableCell>
-                                <TableCell className="text-right">
-                                    <Button variant="ghost" size="icon" onClick={() => { setCurrentReq(req); setIsReqModalOpen(true); }}><Edit className="h-4 w-4"/></Button>
-                                </TableCell>
+                                {(role === 'admin_empresa' || role === 'superadmin') && (
+                                    <TableCell className="text-right">
+                                        <Button variant="ghost" size="icon" onClick={() => { setCurrentReq(req); setIsReqModalOpen(true); }}><Edit className="h-4 w-4"/></Button>
+                                    </TableCell>
+                                )}
                             </TableRow>
                         ))
                     )}
@@ -158,34 +173,36 @@ export default function RequerimientosCumplimientoPage() {
         </CardContent>
       </Card>
       
-      <Dialog open={isReqModalOpen} onOpenChange={setIsReqModalOpen}>
-        <DialogContent>
-            <DialogHeader>
-                <DialogTitle>{currentReq.id ? 'Editar Requerimiento' : 'Nuevo Requerimiento'}</DialogTitle>
-            </DialogHeader>
-            <div className="py-4 space-y-4">
-                <div className="space-y-2">
-                    <Label>Nombre del Documento*</Label>
-                    <Input value={currentReq.nombre || ''} onChange={e => setCurrentReq(p => ({...p, nombre: e.target.value}))} />
+      {(role === 'admin_empresa' || role === 'superadmin') && (
+        <Dialog open={isReqModalOpen} onOpenChange={setIsReqModalOpen}>
+            <DialogContent>
+                <DialogHeader>
+                    <DialogTitle>{currentReq.id ? 'Editar Requerimiento' : 'Nuevo Requerimiento'}</DialogTitle>
+                </DialogHeader>
+                <div className="py-4 space-y-4">
+                    <div className="space-y-2">
+                        <Label>Nombre del Documento*</Label>
+                        <Input value={currentReq.nombre || ''} onChange={e => setCurrentReq(p => ({...p, nombre: e.target.value}))} />
+                    </div>
+                    <div className="space-y-2">
+                        <Label>Descripción Breve</Label>
+                        <Input value={currentReq.descripcion || ''} onChange={e => setCurrentReq(p => ({...p, descripcion: e.target.value}))} />
+                    </div>
+                    <div className="flex items-center space-x-2">
+                        <Switch id="es-obligatorio" checked={currentReq.esObligatorio} onCheckedChange={c => setCurrentReq(p => ({...p, esObligatorio: c}))} />
+                        <Label htmlFor="es-obligatorio">Este documento es obligatorio para cumplir</Label>
+                    </div>
                 </div>
-                <div className="space-y-2">
-                    <Label>Descripción Breve</Label>
-                    <Input value={currentReq.descripcion || ''} onChange={e => setCurrentReq(p => ({...p, descripcion: e.target.value}))} />
-                </div>
-                <div className="flex items-center space-x-2">
-                    <Switch id="es-obligatorio" checked={currentReq.esObligatorio} onCheckedChange={c => setCurrentReq(p => ({...p, esObligatorio: c}))} />
-                    <Label htmlFor="es-obligatorio">Este documento es obligatorio para cumplir</Label>
-                </div>
-            </div>
-            <DialogFooter>
-                <Button variant="ghost" onClick={() => setIsReqModalOpen(false)}>Cancelar</Button>
-                <Button onClick={handleReqSave} disabled={isPending}>
-                     {isPending && <Loader2 className="animate-spin mr-2"/>}
-                    {currentReq.id ? 'Guardar Cambios' : 'Crear Requerimiento'}
-                </Button>
-            </DialogFooter>
-        </DialogContent>
-      </Dialog>
+                <DialogFooter>
+                    <Button variant="ghost" onClick={() => setIsReqModalOpen(false)}>Cancelar</Button>
+                    <Button onClick={handleReqSave} disabled={isPending}>
+                         {isPending && <Loader2 className="animate-spin mr-2"/>}
+                        {currentReq.id ? 'Guardar Cambios' : 'Crear Requerimiento'}
+                    </Button>
+                </DialogFooter>
+            </DialogContent>
+        </Dialog>
+      )}
     </div>
   );
 }

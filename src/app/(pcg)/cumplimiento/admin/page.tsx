@@ -17,7 +17,7 @@ export default function AdminCumplimientoPage() {
 
     useEffect(() => {
         if (!loading) {
-            if (role !== 'admin_empresa' && role !== 'superadmin') {
+            if (!['admin_empresa', 'superadmin', 'jefe_obra'].includes(role)) {
                 router.replace('/dashboard');
             }
             if (!isComplianceEnabled && role !== 'superadmin') {
@@ -52,7 +52,7 @@ export default function AdminCumplimientoPage() {
         );
     }
 
-    if (role !== 'admin_empresa' && role !== 'superadmin') {
+    if (!['admin_empresa', 'superadmin', 'jefe_obra'].includes(role)) {
         return null;
     }
 
@@ -61,27 +61,31 @@ export default function AdminCumplimientoPage() {
             title: "Revisión de Documentos",
             description: "Revisa y aprueba los documentos mensuales de tus subcontratistas.",
             href: "/cumplimiento/revision",
-            icon: FileCheck
+            icon: FileCheck,
+            roles: ['admin_empresa', 'superadmin']
         },
         {
             title: "Documentos Requeridos",
             description: "Define la lista de documentos que se solicitarán mensualmente a los subcontratistas.",
             href: "/cumplimiento/admin/programa",
-            icon: ListChecks
+            icon: ListChecks,
+            roles: ['admin_empresa', 'superadmin', 'jefe_obra']
         },
         {
             title: "Calendario Anual",
             description: "Ajusta las fechas de corte, revisión y pago para cada mes del año.",
             href: "/cumplimiento/admin/calendario",
-            icon: Calendar
+            icon: Calendar,
+            roles: ['admin_empresa', 'superadmin', 'jefe_obra']
         },
         {
             title: "Gestionar Subcontratistas",
             description: "Añade, desactiva y gestiona el acceso de tus empresas subcontratistas.",
             href: "/cumplimiento/admin/subcontratistas",
-            icon: Users
+            icon: Users,
+            roles: ['admin_empresa', 'superadmin']
         }
-    ];
+    ].filter(action => action.roles.includes(role));
 
     return (
         <div className="space-y-6">
