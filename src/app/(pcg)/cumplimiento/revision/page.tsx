@@ -35,7 +35,7 @@ function SubmissionStatusBadge({ estado }: { estado: EntregaDocumento['estado'] 
         'Aprobado': 'bg-green-100 text-green-800 border-green-300',
         'Observado': 'bg-red-100 text-red-800 border-red-300',
     };
-    return <Badge className={statusMap[estado] || 'bg-gray-100'}>{estado}</Badge>;
+    return <Badge className={cn("font-semibold", statusMap[estado] || 'bg-gray-100')}>{estado}</Badge>;
 }
 
 function OverallStatusBadge({ status }: { status: string }) {
@@ -145,11 +145,10 @@ export default function RevisionPage() {
     }, [subcontractors, submissions, requirements, complianceStatuses]);
 
     const submissionsBySubcontractor = useMemo(() => {
-        const pendingSubmissions = submissions.filter(s => s.estado === 'Cargado');
-        return subcontractors.map(sub => ({
-            subcontractor: sub,
-            submissions: pendingSubmissions.filter(s => s.subcontractorId === sub.id)
-        })).filter(group => group.submissions.length > 0);
+        return subcontractors.reduce((acc, sub) => {
+            acc[sub.id] = submissions.filter(s => s.subcontractorId === sub.id);
+            return acc;
+        }, {} as Record<string, EntregaDocumento[]>);
     }, [submissions, subcontractors]);
     
     const handleUpdateStatus = async (decision: 'Aprobado' | 'Observado') => {
@@ -209,34 +208,67 @@ export default function RevisionPage() {
                 <Card>
                     <CardHeader>
                         <CardTitle>Estado de Cumplimiento del Período</CardTitle>
-                        <CardDescription>Resumen del estado de todos los subcontratistas para el período seleccionado.</CardDescription>
+                        <CardDescription>Resumen del estado de todos los subcontratistas para el período seleccionado. Haz clic para ver el detalle.</CardDescription>
                     </CardHeader>
                     <CardContent>
-                        <Table>
-                            <TableHeader>
-                                <TableRow>
-                                    <TableHead>Subcontratista</TableHead>
-                                    <TableHead>Estado General</TableHead>
-                                    <TableHead className="w-[300px]">Progreso (Obligatorios Aprobados)</TableHead>
-                                </TableRow>
-                            </TableHeader>
-                            <TableBody>
-                                {complianceSummary.length === 0 ? (
-                                     <TableRow><TableCell colSpan={3} className="h-24 text-center">No hay subcontratistas activos para este período.</TableCell></TableRow>
-                                ) : complianceSummary.map(item => (
-                                    <TableRow key={item.subcontractor.id} className={item.hasPendingSubmissions ? 'bg-blue-50' : ''}>
-                                        <TableCell className="font-medium">{item.subcontractor.razonSocial}</TableCell>
-                                        <TableCell><OverallStatusBadge status={item.status} /></TableCell>
-                                        <TableCell>
-                                            <div className="flex items-center gap-2">
-                                                <Progress value={(item.approvedCount / (item.mandatoryCount || 1)) * 100} className="w-[60%]" />
+                       {complianceSummary.length === 0 ? (
+                            <div className="text-center py-10 text-muted-foreground">No hay subcontratistas activos para este período.</div>
+                       ) : (
+                        <Accordion type="multiple" className="w-full">
+                            {complianceSummary.map(item => {
+                                const subSubmissions = submissionsBySubcontractor[item.subcontractor.id] || [];
+                                return (
+                                <AccordionItem value={item.subcontractor.id} key={item.subcontractor.id}>
+                                    <AccordionTrigger className="hover:no-underline p-4 rounded-lg data-[state=open]:bg-muted/50" asChild>
+                                        <div className="grid grid-cols-3 items-center w-full cursor-pointer">
+                                            <div className="font-medium text-left">{item.subcontractor.razonSocial}</div>
+                                            <div className="text-center"><OverallStatusBadge status={item.status} /></div>
+                                            <div className="flex items-center gap-2 justify-end">
+                                                <Progress value={(item.approvedCount / (item.mandatoryCount || 1)) * 100} className="w-[60%] h-2" />
                                                 <span className="text-xs text-muted-foreground font-semibold">{item.approvedCount}/{item.mandatoryCount}</span>
                                             </div>
-                                        </TableCell>
-                                    </TableRow>
-                                ))}
-                            </TableBody>
-                        </Table>
+                                        </div>
+                                    </AccordionTrigger>
+                                    <AccordionContent className="p-2">
+                                        <div className="border rounded-md bg-background p-4">
+                                            <h4 className="font-semibold mb-2">Detalle de Documentos</h4>
+                                            <Table>
+                                                <TableHeader>
+                                                    <TableRow>
+                                                        <TableHead>Requisito</TableHead>
+                                                        <TableHead>Estado</TableHead>
+                                                        <TableHead>Fecha Carga</TableHead>
+                                                        <TableHead className="text-right">Acciones</TableHead>
+                                                    </TableRow>
+                                                </TableHeader>
+                                                <TableBody>
+                                                     {requirements.map(req => {
+                                                        const submission = subSubmissions.find(s => s.requirementId === req.id);
+                                                        return (
+                                                            <TableRow key={req.id}>
+                                                                <TableCell className="font-medium">{req.nombre}</TableCell>
+                                                                <TableCell>
+                                                                    {submission ? <SubmissionStatusBadge estado={submission.estado} /> : <Badge variant="outline">Pendiente</Badge>}
+                                                                </TableCell>
+                                                                <TableCell>{submission ? submission.fechaCarga.toLocaleDateString('es-CL') : '-'}</TableCell>
+                                                                <TableCell className="text-right">
+                                                                     {submission && (
+                                                                        <Button variant="outline" size="sm" asChild>
+                                                                            <a href={submission.fileUrl} target="_blank" rel="noopener noreferrer"><FileDown className="mr-2 h-4 w-4"/> Ver Archivo</a>
+                                                                        </Button>
+                                                                    )}
+                                                                </TableCell>
+                                                            </TableRow>
+                                                        )
+                                                     })}
+                                                </TableBody>
+                                            </Table>
+                                        </div>
+                                    </AccordionContent>
+                                </AccordionItem>
+                            )})}
+                        </Accordion>
+                       )}
                     </CardContent>
                 </Card>
 
@@ -246,9 +278,12 @@ export default function RevisionPage() {
                         <CardDescription>Documentos pendientes de tu revisión para el período seleccionado.</CardDescription>
                     </CardHeader>
                     <CardContent>
-                        {submissionsBySubcontractor.length === 0 ? <p className="text-center text-muted-foreground p-8">¡Bandeja de entrada limpia! No hay documentos pendientes de revisión.</p> : (
-                            <Accordion type="multiple" defaultValue={submissionsBySubcontractor.map(s => s.subcontractor.id)}>
-                                {submissionsBySubcontractor.map(({ subcontractor, submissions }) => (
+                        {submissions.filter(s => s.estado === 'Cargado').length === 0 ? <p className="text-center text-muted-foreground p-8">¡Bandeja de entrada limpia! No hay documentos pendientes de revisión.</p> : (
+                            <Accordion type="multiple" defaultValue={subcontractors.map(s => s.id)}>
+                                {subcontractors.map((subcontractor) => {
+                                    const pendingSubmissions = submissions.filter(s => s.subcontractorId === subcontractor.id && s.estado === 'Cargado');
+                                    if(pendingSubmissions.length === 0) return null;
+                                    return (
                                     <AccordionItem value={subcontractor.id} key={subcontractor.id}>
                                         <AccordionTrigger className="text-lg font-semibold">{subcontractor.razonSocial}</AccordionTrigger>
                                         <AccordionContent>
@@ -257,19 +292,17 @@ export default function RevisionPage() {
                                                     <TableRow>
                                                         <TableHead>Documento</TableHead>
                                                         <TableHead>Fecha Carga</TableHead>
-                                                        <TableHead>Estado</TableHead>
                                                         <TableHead className="text-right">Acciones</TableHead>
                                                     </TableRow>
                                                 </TableHeader>
                                                 <TableBody>
-                                                    {submissions.map(sub => (
+                                                    {pendingSubmissions.map(sub => (
                                                         <TableRow key={sub.id}>
                                                             <TableCell className="font-medium">
                                                                 {sub.nombreDocumentoSnapshot}
                                                                 {sub.comentario && <p className="text-xs text-muted-foreground mt-1 italic">"{sub.comentario}"</p>}
                                                             </TableCell>
                                                             <TableCell>{sub.fechaCarga.toLocaleString('es-CL')}</TableCell>
-                                                            <TableCell><SubmissionStatusBadge estado={sub.estado}/></TableCell>
                                                             <TableCell className="text-right space-x-2">
                                                                 <Button variant="outline" size="sm" asChild><a href={sub.fileUrl} target="_blank" rel="noopener noreferrer"><FileDown className="mr-2 h-4 w-4"/> Ver Archivo</a></Button>
                                                                 <Button variant="default" size="sm" onClick={() => { setCurrentSubmission(sub); handleUpdateStatus('Aprobado')}}><Check className="mr-2 h-4 w-4"/>Aprobar</Button>
@@ -281,7 +314,7 @@ export default function RevisionPage() {
                                             </Table>
                                         </AccordionContent>
                                     </AccordionItem>
-                                ))}
+                                )})}
                             </Accordion>
                         )}
                     </CardContent>
