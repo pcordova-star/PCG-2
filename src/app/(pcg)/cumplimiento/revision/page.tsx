@@ -17,7 +17,7 @@ import { useToast } from '@/hooks/use-toast';
 import { collection, query, where, orderBy, onSnapshot, getDocs, doc } from 'firebase/firestore';
 import { firebaseDb } from '@/lib/firebaseClient';
 import { EntregaDocumento, Subcontractor, RequisitoDocumento } from '@/types/pcg';
-import { ArrowLeft, Loader2, Check, X, FileDown, Inbox } from 'lucide-react';
+import { ArrowLeft, Loader2, Check, X, FileDown, Inbox, Clock, Circle, CheckCircle, XCircle } from 'lucide-react';
 import Link from 'next/link';
 import { Progress } from "@/components/ui/progress";
 import { cn } from '@/lib/utils';
@@ -30,22 +30,39 @@ interface CompliancePeriod {
 }
 
 function SubmissionStatusBadge({ estado }: { estado: EntregaDocumento['estado'] }) {
-    const statusMap = {
-        'Cargado': 'bg-blue-100 text-blue-800 border-blue-300',
-        'Aprobado': 'bg-green-100 text-green-800 border-green-300',
-        'Observado': 'bg-red-100 text-red-800 border-red-300',
+    const statusMap: Record<EntregaDocumento['estado'], { className: string, icon: React.ElementType }> = {
+        'Cargado': { className: 'bg-blue-100 text-blue-800 border-blue-300', icon: Clock },
+        'Aprobado': { className: 'bg-green-100 text-green-800 border-green-300', icon: Check },
+        'Observado': { className: 'bg-red-100 text-red-800 border-red-300', icon: X },
     };
-    return <Badge className={cn("font-semibold", statusMap[estado] || 'bg-gray-100')}>{estado}</Badge>;
+    const config = statusMap[estado];
+    if (!config) return <Badge variant="outline">{estado}</Badge>;
+    
+    const Icon = config.icon;
+    return (
+        <Badge className={cn("font-semibold", config.className)}>
+            <Icon className="mr-1 h-3 w-3"/>
+            {estado}
+        </Badge>
+    );
 }
 
 function OverallStatusBadge({ status }: { status: string }) {
-    const statusMap: Record<string, string> = {
-        'Cumple': 'bg-green-100 text-green-800 border-green-300',
-        'No Cumple': 'bg-red-100 text-red-800 border-red-300',
-        'En Revisión': 'bg-blue-100 text-blue-800 border-blue-300',
-        'Pendiente': 'bg-gray-100 text-gray-800 border-gray-300'
+    const statusMap: Record<string, { className: string; icon: React.ElementType }> = {
+        'Cumple': { className: 'bg-green-100 text-green-800 border-green-300', icon: CheckCircle },
+        'No Cumple': { className: 'bg-red-100 text-red-800 border-red-300', icon: XCircle },
+        'En Revisión': { className: 'bg-blue-100 text-blue-800 border-blue-300 animate-pulse', icon: Clock },
+        'Pendiente': { className: 'bg-gray-100 text-gray-800 border-gray-300', icon: Circle },
     };
-    return <Badge className={cn(statusMap[status] || 'bg-gray-100', 'font-semibold')}>{status}</Badge>;
+    const config = statusMap[status] || { className: 'bg-gray-100', icon: Circle };
+    const Icon = config.icon;
+
+    return (
+        <Badge className={cn('font-semibold', config.className)}>
+            <Icon className="mr-1 h-3 w-3"/>
+            {status}
+        </Badge>
+    );
 }
 
 
@@ -219,7 +236,10 @@ export default function RevisionPage() {
                                 const subSubmissions = submissionsBySubcontractor[item.subcontractor.id] || [];
                                 return (
                                 <AccordionItem value={item.subcontractor.id} key={item.subcontractor.id}>
-                                    <AccordionTrigger className="hover:no-underline p-4 rounded-lg data-[state=open]:bg-muted/50">
+                                    <AccordionTrigger className={cn(
+                                        "hover:no-underline p-4 rounded-lg",
+                                        item.hasPendingSubmissions ? "bg-blue-50 hover:bg-blue-100/80" : "data-[state=open]:bg-muted/50"
+                                    )}>
                                         <div className="grid grid-cols-3 items-center w-full cursor-pointer">
                                             <div className="font-medium text-left">{item.subcontractor.razonSocial}</div>
                                             <div className="text-center"><OverallStatusBadge status={item.status} /></div>
