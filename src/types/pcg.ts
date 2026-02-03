@@ -26,6 +26,7 @@ export interface Company {
   feature_risk_prevention_enabled?: boolean;
   feature_operational_checklists_enabled?: boolean;
   feature_document_control_enabled?: boolean;
+  feature_access_control_enabled?: boolean;
   createdAt: Date | Timestamp;
   updatedAt?: Date | Timestamp;
   [key: string]: any; // Para permitir acceso dinámico a feature flags

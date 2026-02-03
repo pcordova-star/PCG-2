@@ -32,6 +32,7 @@ import {
   BellRing,
   Users,
   GitCompareArrows,
+  UserCheck,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useEffect, useState, useMemo, Suspense } from 'react';
@@ -178,6 +179,17 @@ const allMainModules = [
     linkText: 'Ir a Prevención',
     roles: ['superadmin', 'admin_empresa', 'jefe_obra', 'prevencionista'],
     featureFlag: 'feature_risk_prevention_enabled'
+  },
+  {
+    id: 'control-acceso',
+    title: 'Control de Acceso',
+    description: 'Gestiona la inducción de seguridad para visitas, proveedores e inspectores a través de un portal con código QR.',
+    href: '/prevencion/capacitacion/induccion-acceso',
+    icon: UserCheck,
+    linkText: 'Gestionar Accesos',
+    tooltip: 'Controla el acceso seguro de personal externo a tus obras.',
+    roles: ['superadmin', 'admin_empresa', 'jefe_obra', 'prevencionista'],
+    featureFlag: 'feature_access_control_enabled'
   },
   {
     id: 'documentos',
