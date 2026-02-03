@@ -3,11 +3,11 @@
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { ArrowLeft, Check, GanttChartSquare, HardHat, ShieldCheck, Sparkles, DollarSign, ListChecks, BookCopy, Users, BrainCircuit } from "lucide-react";
+import { ArrowLeft, Check, GanttChartSquare, HardHat, ShieldCheck, Sparkles, DollarSign, ListChecks, BookCopy, Users, BrainCircuit, GitCompareArrows, UserCheck } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 
-const PriceCard = ({ title, price, description, features, icon: Icon, isFeatured = false }: { title: string, price: string, description: string, features: string[], icon: React.ElementType, isFeatured?: boolean }) => (
+const PriceCard = ({ title, price, description, features, icon: Icon, isFeatured = false }: { title: string, price: string, description: string, features: { title: string, desc: string }[], icon: React.ElementType, isFeatured?: boolean }) => (
     <Card className={`flex flex-col ${isFeatured ? 'border-primary shadow-lg' : ''}`}>
         <CardHeader className="items-center text-center">
             <div className={`p-4 rounded-full bg-primary/10 mb-4`}>
@@ -21,11 +21,14 @@ const PriceCard = ({ title, price, description, features, icon: Icon, isFeatured
                 <span className="text-4xl font-bold">{price}</span>
                 <span className="text-muted-foreground"> UF/mes + IVA</span>
             </div>
-            <ul className="space-y-2 text-sm">
+            <ul className="space-y-4 text-sm">
                 {features.map((feature, index) => (
-                    <li key={index} className="flex items-start gap-2">
-                        <Check className="h-4 w-4 mt-0.5 text-green-500 flex-shrink-0" />
-                        <span className="text-muted-foreground">{feature}</span>
+                    <li key={index} className="flex items-start gap-3">
+                        <Check className="h-4 w-4 mt-1 text-green-500 flex-shrink-0" />
+                        <div>
+                           <p className="font-semibold">{feature.title}</p>
+                           <p className="text-muted-foreground text-xs">{feature.desc}</p>
+                        </div>
                     </li>
                 ))}
             </ul>
@@ -38,13 +41,13 @@ const PriceCard = ({ title, price, description, features, icon: Icon, isFeatured
 
 const PremiumModuleCard = ({ title, price, description, icon: Icon }: { title: string, price: string, description: string, icon: React.ElementType }) => (
     <Card>
-        <CardHeader className="flex-row items-center gap-4">
-            <div className="p-3 bg-primary/10 rounded-full">
+        <CardHeader className="flex-row items-start gap-4">
+            <div className="p-3 bg-primary/10 rounded-full mt-1">
                 <Icon className="h-6 w-6 text-primary" />
             </div>
             <div>
                 <CardTitle className="text-lg">{title}</CardTitle>
-                <CardDescription className="text-xs">{description}</CardDescription>
+                <CardDescription className="text-sm mt-1">{description}</CardDescription>
             </div>
         </CardHeader>
         <CardFooter className="flex justify-end items-center gap-4">
@@ -68,12 +71,11 @@ export default function PreciosPage() {
             description: "La base para gestionar tus obras de principio a fin.",
             icon: GanttChartSquare,
             features: [
-                "Gestión de Obras Ilimitadas",
-                "Itemizados y Presupuestos",
-                "Programación de Obra (Gantt y Curva S)",
-                "Generación de Estados de Pago",
-                "Requerimientos de Información (RDI)",
-                "Usuarios ilimitados",
+                { title: "Gestión de Obras", desc: "Centraliza la información maestra de cada proyecto. Asigna responsables, define mandantes, y adjunta contratos." },
+                { title: "Itemizados y Presupuestos", desc: "Crea y administra tu catálogo de APU. Genera itemizados detallados para cada obra para un control de costos estandarizado." },
+                { title: "Programación de Obras", desc: "Planifica tu proyecto con un Gantt interactivo, define la ruta crítica y visualiza el avance real vs. el programado con la Curva S." },
+                { title: "Generación de Estados de Pago", desc: "Automatiza la creación de informes de avance financiero basados en el progreso físico real registrado en la programación." },
+                { title: "Requerimientos de Información (RDI)", desc: "Digitaliza y formaliza la comunicación con mandantes, proyectistas y subcontratos, manteniendo una trazabilidad completa." },
             ]
         },
         {
@@ -83,23 +85,23 @@ export default function PreciosPage() {
             icon: ShieldCheck,
             isFeatured: true,
             features: [
-                "Dashboard de Prevención (KPIs)",
-                "Generación de Programa de Prevención (PPR)",
-                "Gestión de Empresas Contratistas (DS44)",
-                "Ingreso de Personal y Documentación (DS44)",
-                "Investigación de Incidentes y Accidentes (IPER)",
-                "Checklists de Seguridad",
+                 { title: "Dashboard de Prevención", desc: "Panel visual con indicadores clave (KPIs) de accidentabilidad, frecuencia y gravedad para una visión gerencial." },
+                 { title: "Programa de Prevención de Riesgos (PPR)", desc: "Genera automáticamente el documento PPR de cada obra, integrando IPER, plan de capacitación y charlas." },
+                 { title: "Gestión de Contratistas (DS44)", desc: "Controla el cumplimiento documental de empresas externas y monitorea quiénes están al día para autorizar su ingreso." },
+                 { title: "Ingreso de Personal (DS44)", desc: "Administra el ciclo de vida de cada trabajador, desde su registro hasta la verificación de su documentación de seguridad." },
+                 { title: "IPER y Gestión de Incidentes", desc: "Registra, investiga y gestiona la matriz IPER con enfoque de género, y documenta incidentes con metodologías como Árbol de Causas o 5 Porqués." },
+                 { title: "Checklists de Seguridad", desc: "Digitaliza tus inspecciones de seguridad, crea plantillas personalizadas y registra con fotos y firma digital." },
             ]
         }
     ];
     
     const modulosPremium = [
-        { title: "Cumplimiento Legal (MCLP)", description: "Gestiona la documentación mensual de subcontratistas.", icon: ShieldCheck },
-        { title: "Checklists Operacionales", description: "Crea y gestiona checklists para calidad y protocolos.", icon: ListChecks },
-        { title: "Control Documental (ISO)", description: "Administra documentos corporativos y por proyecto.", icon: BookCopy },
-        { title: "Control de Acceso (QR)", description: "Portal de inducción QR para visitas y proveedores.", icon: Users },
-        { title: "Análisis de Planos (IA)", description: "Cubicaciones de referencia usando IA.", icon: BrainCircuit },
-        { title: "Comparación de Planos (IA)", description: "Detecta diferencias e impactos entre versiones.", icon: Sparkles },
+        { title: "Cumplimiento Legal (MCLP)", description: "Automatiza la gestión documental laboral de tus subcontratistas. Permite que cada uno suba su información a un portal dedicado para tu revisión y aprobación, clave para liberar sus estados de pago.", icon: ShieldCheck },
+        { title: "Checklists Operacionales", description: "Expande el control de calidad más allá de la seguridad. Crea formularios digitales para protocolos de entrega, control de hormigonado, inspección de terminaciones y cualquier otro proceso operativo.", icon: ListChecks },
+        { title: "Control Documental (ISO)", description: "Implementa un sistema de gestión documental alineado con ISO 9001. Administra versiones de procedimientos y políticas, y controla su distribución a las obras con registro de recepción.", icon: BookCopy },
+        { title: "Control de Acceso (QR)", description: "Ofrece un portal de auto-atención para visitas y proveedores. Al escanear un QR en la entrada, completan una inducción básica de seguridad desde su teléfono, agilizando el acceso.", icon: UserCheck },
+        { title: "Análisis de Planos con IA", description: "Sube un plano en PDF o imagen y recibe una cubicación de referencia para partidas clave como superficies, m² de muros y losas. Ideal para validaciones rápidas.", icon: BrainCircuit },
+        { title: "Comparación de Planos con IA", description: "Detecta automáticamente las diferencias entre dos versiones de un plano, cuantifica el impacto en la cubicación y genera un árbol de consecuencias por especialidad.", icon: GitCompareArrows },
     ];
 
     return (
@@ -111,7 +113,7 @@ export default function PreciosPage() {
                 <div>
                     <h1 className="text-4xl font-bold font-headline tracking-tight">Planes y Precios</h1>
                     <p className="mt-2 text-lg text-muted-foreground">
-                        Elige el plan que se adapte a tus necesidades. Todos nuestros planes incluyen usuarios ilimitados.
+                        Elige el plan que se adapte a tus necesidades. Todos nuestros planes incluyen usuarios y obras ilimitadas.
                     </p>
                 </div>
             </header>
