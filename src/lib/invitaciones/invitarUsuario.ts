@@ -10,6 +10,8 @@ export type InvitarUsuarioParams = {
   empresaNombre: string;
   roleDeseado: RolInvitado;
   creadoPorUid?: string;
+  subcontractorId?: string;
+  subcontractorNombre?: string;
 };
 
 
@@ -41,6 +43,8 @@ export async function invitarUsuario(params: InvitarUsuarioParams): Promise<void
         empresaId: params.empresaId,
         empresaNombre: params.empresaNombre,
         roleDeseado: params.roleDeseado,
+        subcontractorId: params.subcontractorId || null,
+        subcontractorNombre: params.subcontractorNombre || null,
         estado: "pendiente",
         creadoPorUid: params.creadoPorUid || "sistema", // UID del admin que invita
         createdAt: serverTimestamp(),
@@ -50,8 +54,7 @@ export async function invitarUsuario(params: InvitarUsuarioParams): Promise<void
     const platformUrl = process.env.APP_BASE_URL ?? process.env.NEXT_PUBLIC_APP_BASE_URL ?? "http://localhost:3000";
     const logoUrl = `${platformUrl}/logo.png`;
 
-    const mailRef = collection(firebaseDb, "mail");
-    await addDoc(mailRef, {
+    await addDoc(collection(firebaseDb, "mail"), {
         to: [params.email],
         message: {
         subject: `Invitación para unirte a ${params.empresaNombre} en PCG`,

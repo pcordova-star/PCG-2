@@ -44,6 +44,8 @@ export default function ContratistaPortalPage() {
     const [currentPeriod, setCurrentPeriod] = useState<ComplianceCalendarMonth | null>(null);
     const [requirements, setRequirements] = useState<MergedRequirement[]>([]);
     const [pageLoading, setPageLoading] = useState(true);
+    const [pageError, setPageError] = useState<string | null>(null);
+
 
     const [files, setFiles] = useState<Record<string, File | null>>({});
     const [uploading, setUploading] = useState<Record<string, boolean>>({});
@@ -67,11 +69,21 @@ export default function ContratistaPortalPage() {
     }, [companyId, periodKey]);
 
     const fetchData = useCallback(async () => {
-        if (!companyId || !periodId || !subcontractorId || !user) {
+        if (loading) return;
+
+        if (role === 'contratista' && !subcontractorId) {
+            setPageError("Tu cuenta de contratista no está correctamente configurada. Falta la asociación a una empresa subcontratista. Por favor, contacta al administrador.");
             setPageLoading(false);
             return;
         }
 
+        if (!companyId || !periodId || !user) {
+            if(role === 'contratista') setPageError("Faltan datos de sesión para cargar el portal.");
+            setPageLoading(false);
+            return;
+        }
+        
+        setPageError(null);
         setPageLoading(true);
         try {
             const token = await user.getIdToken();
@@ -104,10 +116,11 @@ export default function ContratistaPortalPage() {
         } catch (error) {
             console.error(error);
             toast({ variant: 'destructive', title: 'Error', description: 'No se pudieron cargar los requisitos del período.' });
+            setPageError('No se pudieron cargar los requisitos del período. Intenta recargar la página.');
         } finally {
             setPageLoading(false);
         }
-    }, [companyId, periodId, subcontractorId, user, periodKey, toast]);
+    }, [companyId, periodId, subcontractorId, user, periodKey, toast, loading, role]);
 
 
     useEffect(() => {
@@ -155,6 +168,19 @@ export default function ContratistaPortalPage() {
     
     if (role !== 'contratista' && role !== 'superadmin') {
         return null;
+    }
+
+    if (pageError) {
+        return (
+            <Card className="border-destructive">
+                <CardHeader>
+                    <CardTitle className="text-destructive">Error de Configuración</CardTitle>
+                </CardHeader>
+                <CardContent>
+                    <p className="text-destructive">{pageError}</p>
+                </CardContent>
+            </Card>
+        );
     }
 
     return (

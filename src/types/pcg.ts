@@ -78,6 +78,8 @@ export interface UserInvitation {
     empresaId: string;
     empresaNombre: string;
     roleDeseado: RolInvitado;
+    subcontractorId?: string;
+    subcontractorNombre?: string;
     estado: "pendiente" | "aceptada" | "revocada" | "pendiente_auth" | "activado";
     creadoPorUid: string;
     createdAt: Date | Timestamp;
@@ -500,7 +502,7 @@ export interface RequisitoDocumento {
 export interface EntregaDocumento {
     id: string;
     periodo: string; // "YYYY-MM"
-    requisitoId: string;
+    requirementId: string;
     subcontratistaId: string;
     fileUrl: string;
     storagePath: string;

@@ -31,7 +31,7 @@ async function activateUserFromInvitation(firebaseUser: User): Promise<{role: Us
   const q = query(
     collection(db, "invitacionesUsuarios"),
     where("email", "==", email),
-    where("estado", "==", "pendiente"), // El estado correcto para una invitación nueva es 'pendiente'
+    where("estado", "in", ["pendiente", "pendiente_auth"]),
     limit(1)
   );
 
@@ -54,15 +54,16 @@ async function activateUserFromInvitation(firebaseUser: User): Promise<{role: Us
     email: email,
     role: invitationData.roleDeseado,
     empresaId: invitationData.empresaId,
+    subcontractorId: invitationData.subcontractorId || null,
     activo: true,
     createdAt: serverTimestamp(),
     updatedAt: serverTimestamp(),
-    mustChangePassword: true, // Forzar cambio en la primera activación
+    mustChangePassword: true, 
   }, { merge: true });
 
   // 2. Actualizar la invitación a 'activado'
   batch.update(invitationDoc.ref, {
-    estado: "activado", // Cambiado de 'activada' a 'activado' para consistencia
+    estado: "activado",
     uid: firebaseUser.uid,
     activatedAt: serverTimestamp(),
   });
@@ -181,7 +182,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
                 if (userRole === 'none') {
                     if (pathname !== '/sin-acceso') router.replace('/sin-acceso');
                 } else if (isPublicPage || isChangingPassword) {
-                    const targetPath = userRole === 'cliente' ? '/cliente' : (userRole === 'contratista' ? '/cumplimiento/contratista/dashboard' : '/dashboard');
+                    const targetPath = userRole === 'cliente' ? '/cliente' : (userRole === 'contratista' ? '/cumplimiento/contratista' : '/dashboard');
                     router.replace(targetPath);
                 }
             }
