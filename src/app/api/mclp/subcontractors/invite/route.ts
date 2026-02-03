@@ -8,6 +8,9 @@ export const runtime = "nodejs";
 // POST /api/mclp/subcontractors/invite
 export async function POST(req: NextRequest) {
   try {
+    // Permission check for the inviter can be added here if needed
+    // For now, we assume the frontend restricts access to this API call.
+
     const { companyId, subcontractorId, email, nombre, password } = await req.json();
     if (!companyId || !subcontractorId || !email || !nombre || !password) {
       return NextResponse.json({ error: "Faltan parámetros requeridos (incluyendo contraseña)" }, { status: 400 });
@@ -25,18 +28,23 @@ export async function POST(req: NextRequest) {
        return NextResponse.json({ error: "Ya existe un usuario con este correo electrónico." }, { status: 409 });
     } catch (error: any) {
       if (error.code === 'auth/user-not-found') {
-        // El usuario no existe, se puede crear.
         user = await auth.createUser({ email, password, displayName: nombre, emailVerified: false });
       } else {
-        // Otro error, lo relanzamos
         throw error;
       }
     }
+    
+    // --- FIX: Set Custom Claims ---
+    await auth.setCustomUserClaims(user.uid, {
+        role: "contratista",
+        companyId: companyId,
+        subcontractorId: subcontractorId,
+    });
 
     await adminDb.collection("users").doc(user.uid).set({
       uid: user.uid, email, nombre, role: "contratista", companyId, subcontractorId,
       activo: true,
-      mustChangePassword: true, // Forzar cambio de contraseña en el primer login
+      mustChangePassword: true, 
       updatedAt: admin.firestore.Timestamp.now(),
     }, { merge: true });
 

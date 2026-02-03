@@ -29,9 +29,10 @@ export default function SetClaimPage() {
   const [error, setError] = useState<string | null>(null);
 
   // Datos del formulario
-  const [targetUid, setTargetUid] = useState("9Bmvi7VxSgMTrT5T3YWYtM0WbD2");
+  const [targetUid, setTargetUid] = useState("");
   const [targetRole, setTargetRole] = useState("admin_empresa");
-  const [targetCompanyId, setTargetCompanyId] = useState("ips_construccion");
+  const [targetCompanyId, setTargetCompanyId] = useState("");
+  const [targetSubcontractorId, setTargetSubcontractorId] = useState("");
   const [tokenRefreshed, setTokenRefreshed] = useState(false);
 
 
@@ -53,6 +54,7 @@ export default function SetClaimPage() {
         uid: targetUid,
         role: targetRole,
         companyId: targetCompanyId,
+        subcontractorId: targetSubcontractorId || null, // Enviar null si está vacío
       });
       setResult(response.data);
       toast({
@@ -83,22 +85,26 @@ export default function SetClaimPage() {
         <CardHeader>
           <CardTitle>Asignación de Custom Claims (Debug)</CardTitle>
           <CardDescription>
-            Esta página asigna un `role` y `companyId` a un usuario por su UID. 
-            Recuerda que el usuario afectado debe <strong>cerrar y volver a iniciar sesión</strong> para que los cambios surtan efecto en su sesión.
+            Esta página asigna un `role`, `companyId` y opcionalmente `subcontractorId` a un usuario por su UID. 
+            El usuario afectado debe <strong>cerrar y volver a iniciar sesión</strong> para que los cambios surtan efecto en su token.
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
             <div className="space-y-2">
-                <Label htmlFor="uid">UID del Usuario</Label>
-                <Input id="uid" value={targetUid} onChange={e => setTargetUid(e.target.value)} />
+                <Label htmlFor="uid">UID del Usuario*</Label>
+                <Input id="uid" value={targetUid} onChange={e => setTargetUid(e.target.value)} placeholder="UID de Firebase Auth del usuario"/>
             </div>
              <div className="space-y-2">
-                <Label htmlFor="role">Rol</Label>
-                <Input id="role" value={targetRole} onChange={e => setTargetRole(e.target.value)} />
+                <Label htmlFor="role">Rol*</Label>
+                <Input id="role" value={targetRole} onChange={e => setTargetRole(e.target.value)} placeholder="Ej: admin_empresa, contratista"/>
             </div>
              <div className="space-y-2">
-                <Label htmlFor="companyId">ID de la Empresa</Label>
-                <Input id="companyId" value={targetCompanyId} onChange={e => setTargetCompanyId(e.target.value)} />
+                <Label htmlFor="companyId">ID de la Empresa*</Label>
+                <Input id="companyId" value={targetCompanyId} onChange={e => setTargetCompanyId(e.target.value)} placeholder="ID de la empresa principal"/>
+            </div>
+             <div className="space-y-2">
+                <Label htmlFor="subcontractorId">ID del Subcontratista (Opcional)</Label>
+                <Input id="subcontractorId" value={targetSubcontractorId} onChange={e => setTargetSubcontractorId(e.target.value)} placeholder="Solo para usuarios con rol 'contratista'"/>
             </div>
 
             <Button onClick={handleSetClaim} disabled={loading} className="w-full">
@@ -110,7 +116,7 @@ export default function SetClaimPage() {
                 <Alert variant="default" className="bg-green-50 border-green-200">
                     <AlertTitle className="font-bold text-green-800">Token Actualizado</AlertTitle>
                     <AlertDescription className="text-green-700">
-                        El token de autenticación ha sido refrescado. Ya puedes utilizar las funciones de administrador. Si el problema persiste, cierra sesión y vuelve a ingresar.
+                        El token de autenticación ha sido refrescado para tu sesión actual. El usuario afectado debe cerrar sesión y volver a ingresar.
                     </AlertDescription>
                 </Alert>
             )}
