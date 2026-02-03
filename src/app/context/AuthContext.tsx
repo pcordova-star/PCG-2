@@ -160,11 +160,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
                 userSubcontractorId = userData.subcontractorId || null;
                 mustChangePassword = !!userData.mustChangePassword;
             } else {
-                // The user doc doesn't exist, try to activate from an invitation.
-                // The onSnapshot will re-trigger once the document is created by activateUserFromInvitation.
-                await activateUserFromInvitation(firebaseUser);
-                // We don't return here. We let the snapshot listener run its course,
-                // it will soon be re-invoked with the newly created document.
+                const activationResult = await activateUserFromInvitation(firebaseUser);
+                // After activation, the onSnapshot listener will be re-triggered with the new document.
+                // We return here to wait for the new snapshot and avoid processing with incomplete data.
+                if (activationResult.role !== 'none') {
+                    return;
+                }
             }
             
             setRole(userRole);
@@ -192,6 +193,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             setLoading(false);
             setUser(null);
             setRole('none');
+            setCompanyId(null);
             setSubcontractorId(null);
         });
 
@@ -199,7 +201,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     });
 
     return () => unsubAuth();
-  }, [pathname, router]);
+}, [pathname, router]);
 
 
   useEffect(() => {
