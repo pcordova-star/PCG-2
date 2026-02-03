@@ -14,6 +14,7 @@ import { es } from "date-fns/locale";
 import { useToast } from "@/hooks/use-toast";
 import { Input } from "@/components/ui/input";
 import { uploadDocumentSubmission } from "@/lib/mclp/submissions/uploadSubmission";
+import { Textarea } from "@/components/ui/textarea";
 
 type MergedRequirement = RequisitoDocumento & {
   submission?: EntregaDocumento;
@@ -48,6 +49,7 @@ export default function ContratistaPortalPage() {
 
 
     const [files, setFiles] = useState<Record<string, File | null>>({});
+    const [comments, setComments] = useState<Record<string, string>>({});
     const [uploading, setUploading] = useState<Record<string, boolean>>({});
 
     useEffect(() => {
@@ -96,8 +98,11 @@ export default function ContratistaPortalPage() {
                 fetch(`/api/mclp/submissions?companyId=${companyId}&periodId=${periodId}&subcontractorId=${subcontractorId}`, { headers })
             ]);
 
-            if (!calendarRes.ok || !reqsRes.ok || !subsRes.ok) {
-                throw new Error('No se pudieron cargar todos los datos de cumplimiento.');
+            if (!calendarRes.ok) {
+                 throw new Error('No se pudieron cargar los datos del calendario.');
+            }
+            if (!reqsRes.ok || !subsRes.ok) {
+                 throw new Error('No se pudieron cargar los datos de cumplimiento.');
             }
 
             const calendarYear: ComplianceCalendarMonth[] = await calendarRes.json();
@@ -115,8 +120,8 @@ export default function ContratistaPortalPage() {
 
         } catch (error) {
             console.error(error);
-            toast({ variant: 'destructive', title: 'Error', description: 'No se pudieron cargar los requisitos del período.' });
-            setPageError('No se pudieron cargar los requisitos del período. Intenta recargar la página.');
+            toast({ variant: 'destructive', title: 'Error', description: 'No se pudieron cargar los datos del período. Intenta recargar la página.' });
+            setPageError('No se pudieron cargar los datos del período. Intenta recargar la página.');
         } finally {
             setPageLoading(false);
         }
@@ -130,9 +135,14 @@ export default function ContratistaPortalPage() {
      const handleFileChange = (reqId: string, file: File | null) => {
         setFiles(prev => ({...prev, [reqId]: file }));
     };
+    
+    const handleCommentChange = (reqId: string, comment: string) => {
+        setComments(prev => ({ ...prev, [reqId]: comment }));
+    };
 
     const handleUpload = async (req: MergedRequirement) => {
         const file = files[req.id];
+        const comentario = comments[req.id] || '';
         if (!file || !user || !companyId || !subcontractorId || !periodId) {
             toast({ variant: 'destructive', title: 'Error', description: 'Faltan datos para la subida.'});
             return;
@@ -148,7 +158,8 @@ export default function ContratistaPortalPage() {
                 requirementId: req.id,
                 nombreDocumentoSnapshot: req.nombre,
                 file: file,
-                uid: user.uid
+                uid: user.uid,
+                comentario: comentario,
             });
 
              toast({ title: 'Éxito', description: `Documento "${req.nombre}" subido correctamente.` });
@@ -233,27 +244,40 @@ export default function ContratistaPortalPage() {
                         <div className="space-y-4">
                             {requirements.map(req => (
                                 <Card key={req.id} className={req.submission?.estado === 'Observado' ? 'border-red-300' : ''}>
-                                    <CardContent className="p-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-                                        <div className="flex-1">
-                                            <p className="font-medium">{req.nombre}</p>
-                                             {req.submission?.estado === 'Observado' && (
-                                                <div className="mt-2 text-xs text-red-600 bg-red-50 p-2 rounded-md border border-red-200">
-                                                    <p className="font-bold flex items-center gap-1"><AlertTriangle className="h-3 w-3"/> Observación del administrador:</p>
-                                                    <p className="italic pl-2">{req.submission.revision?.comentario || 'Sin comentario.'}</p>
-                                                </div>
-                                            )}
+                                    <CardContent className="p-4 space-y-4">
+                                        <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-2">
+                                            <div className="flex-1">
+                                                <p className="font-medium">{req.nombre}</p>
+                                                <p className="text-sm text-muted-foreground">{req.descripcion || 'Documento requerido para el período.'}</p>
+                                            </div>
+                                            <div className="flex-shrink-0">
+                                                <FileStatusBadge submission={req.submission} />
+                                            </div>
                                         </div>
-                                        <div className="flex items-center gap-4 flex-shrink-0">
-                                            <FileStatusBadge submission={req.submission} />
-                                             {(!req.submission || req.submission.estado === 'Observado') && (
+
+                                        {req.submission?.estado === 'Observado' && (
+                                            <div className="text-xs text-red-600 bg-red-50 p-3 rounded-md border border-red-200">
+                                                <p className="font-bold flex items-center gap-1"><AlertTriangle className="h-4 w-4"/> Observación del administrador:</p>
+                                                <p className="italic pl-2 mt-1">{req.submission.revision?.comentario || 'Sin comentario.'}</p>
+                                            </div>
+                                        )}
+
+                                        {(!req.submission || req.submission.estado === 'Observado') && (
+                                            <div className="border-t pt-4 space-y-3">
                                                 <div className="flex items-center gap-2">
                                                     <Input id={`file-${req.id}`} type="file" className="h-9 text-xs" onChange={e => handleFileChange(req.id, e.target.files ? e.target.files[0] : null)} />
                                                     <Button size="sm" onClick={() => handleUpload(req)} disabled={!files[req.id] || uploading[req.id]}>
                                                         {uploading[req.id] ? <Loader2 className="h-4 w-4 animate-spin"/> : <Upload className="h-4 w-4"/>}
                                                     </Button>
                                                 </div>
-                                            )}
-                                        </div>
+                                                <Textarea
+                                                    placeholder="Añadir un comentario opcional para el revisor..."
+                                                    className="text-sm"
+                                                    value={comments[req.id] || ''}
+                                                    onChange={e => handleCommentChange(req.id, e.target.value)}
+                                                />
+                                            </div>
+                                        )}
                                     </CardContent>
                                 </Card>
                             ))}

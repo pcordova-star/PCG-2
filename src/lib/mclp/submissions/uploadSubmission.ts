@@ -12,6 +12,7 @@ type UploadParams = {
   nombreDocumentoSnapshot: string;
   file: File;
   uid: string;
+  comentario?: string;
 };
 
 export async function uploadDocumentSubmission(params: UploadParams) {
@@ -57,6 +58,7 @@ export async function uploadDocumentSubmission(params: UploadParams) {
     fechaCarga: serverTimestamp(),
     cargadoPorUid: params.uid,
     estado: "Cargado",
+    comentario: params.comentario || null,
     ultimaRevision: null,
   };
   

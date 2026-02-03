@@ -191,7 +191,7 @@ export default function RevisionPage() {
             </Card>
 
             {loading ? <div className="text-center p-8"><Loader2 className="animate-spin"/> Cargando...</div> 
-            : submissionsBySubcontractor.length === 0 ? <p className="text-center text-muted-foreground p-8">No hay documentos cargados para este período aún.</p>
+            : submissionsBySubcontractor.length === 0 ? <p className="text-center text-muted-foreground p-8">No hay documentos cargados para este período aún.</p> 
             : (
                 <Accordion type="multiple" defaultValue={submissionsBySubcontractor.map(s => s.subcontractor.id)}>
                     {submissionsBySubcontractor.map(({ subcontractor, submissions }) => (
@@ -210,7 +210,12 @@ export default function RevisionPage() {
                                     <TableBody>
                                         {submissions.map(sub => (
                                             <TableRow key={sub.id}>
-                                                <TableCell className="font-medium">{sub.nombreDocumentoSnapshot}</TableCell>
+                                                <TableCell className="font-medium">
+                                                    {sub.nombreDocumentoSnapshot}
+                                                    {sub.comentario && (
+                                                        <p className="text-xs text-muted-foreground mt-1 italic">"{sub.comentario}"</p>
+                                                    )}
+                                                </TableCell>
                                                 <TableCell>{sub.fechaCarga.toLocaleString('es-CL')}</TableCell>
                                                 <TableCell><SubmissionStatusBadge estado={sub.estado}/></TableCell>
                                                 <TableCell className="text-right space-x-2">

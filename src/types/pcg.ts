@@ -503,19 +503,21 @@ export interface EntregaDocumento {
     id: string;
     periodo: string; // "YYYY-MM"
     requirementId: string;
+    nombreDocumentoSnapshot: string;
     subcontratistaId: string;
     fileUrl: string;
     storagePath: string;
     fechaCarga: Timestamp;
     cargadoPorUid: string;
     estado: 'Cargado' | 'Aprobado' | 'Observado';
+    comentario?: string;
     revision?: {
         id: string;
         fecha: Timestamp;
         revisadoPorUid: string;
         decision: 'Aprobado' | 'Observado';
         comentario?: string;
-    }
+    };
 }
 
 export interface RevisionDocumento {
@@ -548,13 +550,14 @@ export interface ComplianceCalendar {
 export interface ComplianceCalendarMonth {
   id: string; // YYYY-MM
   month: string; // "2026-03"
-  corteCarga: Timestamp;
-  limiteRevision: Timestamp;
-  fechaPago: Timestamp;
+  corteCarga: string;
+  limiteRevision: string;
+  fechaPago: string;
   editable: boolean;
   createdAt: Timestamp;
   updatedAt: Timestamp;
 }
+
 
 // RDI Types
 export interface Rdi {
