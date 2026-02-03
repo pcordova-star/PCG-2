@@ -46,7 +46,7 @@ Instrucciones:
 const impactosPrompt = ai.definePrompt(
   {
     name: 'arbolImpactosPrompt',
-    model: 'googleai/gemini-1.5-flash-latest',
+    model: 'googleai/gemini-2.0-flash',
     input: { schema: ImpactoInputSchema },
     output: { schema: ArbolImpactosOutputSchema },
     prompt: impactoPromptText,

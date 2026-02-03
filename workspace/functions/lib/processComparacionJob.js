@@ -46,56 +46,55 @@ const node_fetch_1 = __importDefault(require("node-fetch"));
 const storage_1 = require("./lib/storage");
 const adminApp = (0, firebaseAdmin_1.getAdminApp)();
 const db = adminApp.firestore();
-// --- Prompts para cada agente especializado (actualizados para ser más estrictos) ---
-const diffPromptText = `Eres un experto en interpretación de planos de construcción.
-Tu tarea es comparar dos imágenes: Plano A (versión original) y Plano B (versión modificada).
-Debes identificar todas las diferencias visuales, geométricas, textuales y de anotaciones entre ambos.
-A continuación se presentan el Plano A y luego el Plano B.
+// --- Prompts para cada agente especializado (reescritos para ser más estrictos) ---
+const diffPromptText = `Analyze the two provided images, Plano A (original) and Plano B (modified). Your task is to identify all differences.
+Your output MUST be a single, valid JSON object and nothing else. Do not include markdown, comments, or any text outside of the JSON structure.
+The JSON object must conform to the following structure:
+{
+  "elementos": [
+    {
+      "tipo": "agregado" | "eliminado" | "modificado",
+      "descripcion": "string",
+      "ubicacion": "string (optional)"
+    }
+  ],
+  "resumen": "string"
+}`;
+const cubicacionPromptText = `Analyze the two provided images, Plano A (original) and Plano B (modified), to detect variations in construction quantities.
+Your output MUST be a single, valid JSON object and nothing else. Do not include markdown, comments, or any text outside of the JSON structure.
+The JSON object must conform to the following structure:
+{
+  "partidas": [
+    {
+      "partida": "string",
+      "unidad": "string",
+      "cantidadA": "number | null",
+      "cantidadB": "number | null",
+      "diferencia": "number",
+      "observaciones": "string (optional)"
+    }
+  ],
+  "resumen": "string"
+}`;
+const impactoPromptText = `Analyze the provided images (Plano A and B) and the context JSON to generate a hierarchical tree of technical impacts.
+The context is:
+{{CONTEXT_JSON}}
 
-Instrucciones:
-1.  Analiza detalladamente ambas imágenes.
-2.  Para cada diferencia encontrada, crea un objeto "DiffElemento".
-3.  Clasifica cada diferencia en "tipo" como 'agregado', 'eliminado' o 'modificado'.
-4.  Describe el cambio de forma clara y concisa en el campo "descripcion".
-5.  Si es aplicable, indica la ubicación aproximada del cambio en el campo "ubicacion".
-6.  Genera un "resumen" conciso de los cambios más importantes.
-7.  IMPORTANTE: Tu respuesta DEBE SER EXCLUSIVAMENTE un objeto JSON válido. No incluyas texto, explicaciones, ni \`\`\`json markdown. La respuesta completa debe ser el objeto JSON, comenzando con { y terminando con }.`;
-const cubicacionPromptText = `Eres un experto en cubicación y presupuestos de construcción.
-Tu tarea es analizar dos versiones de un plano, Plano A (original) y Plano B (modificado), para detectar variaciones en las cantidades de obra.
-A continuación se presentan el Plano A y luego el Plano B.
-
-Instrucciones:
-1.  Compara las dos imágenes y detecta cambios que afecten las cantidades de obra (superficies, volúmenes, longitudes, unidades).
-2.  Para cada "partida" afectada, genera un objeto "CubicacionPartida".
-3.  Define la "unidad" correspondiente (m2, m3, ml, u, kg, etc.).
-4.  Indica la cantidad en el Plano A ("cantidadA") y en el Plano B ("cantidadB"). Si una cantidad no existe o no es aplicable (ej. en un elemento nuevo), déjala como null.
-5.  Calcula la "diferencia" (cantidadB - cantidadA).
-6.  Agrega "observaciones" si es necesario para aclarar un cálculo o suposición.
-7.  Genera un "resumen" de las variaciones más significativas.
-8.  IMPORTANTE: Tu respuesta DEBE SER EXCLUSIVAMENTE un objeto JSON válido. No incluyas texto, explicaciones, ni \`\`\`json markdown. La respuesta completa debe ser el objeto JSON, comenzando con { y terminando con }.`;
-const impactoPromptText = `Eres un Jefe de Proyectos experto con 20 años de experiencia coordinando especialidades.
-Tu tarea es analizar las diferencias entre dos planos para generar un árbol jerárquico de impactos técnicos.
-A continuación se presentan el Plano A y luego el Plano B, junto con contexto adicional.
-
-Contexto Adicional (Resultados de análisis previos):
----
-RESUMEN DE DIFERENCIAS TÉCNICAS:
-{{diffContext.resumen}}
-
-RESUMEN DE VARIACIONES DE CUBICACIÓN:
-{{cubicacionContext.resumen}}
----
-
-Instrucciones:
-1.  Basado en el contexto y las imágenes, identifica los cambios primarios (usualmente en arquitectura).
-2.  Para cada cambio, analiza su efecto en cascada sobre otras especialidades en el orden: arquitectura -> estructura -> electricidad -> sanitarias -> climatización.
-3.  Crea un nodo "ImpactoNode" para cada especialidad afectada.
-4.  Describe el "impactoDirecto" y el "impactoIndirecto" (cómo afecta a otras áreas).
-5.  Evalúa la "severidad" como "baja", "media" o "alta".
-6.  Identifica el principal "riesgo" (ej: "Sobrecosto", "Atraso", "Incompatibilidad").
-7.  Lista "consecuencias" y "recomendaciones".
-8.  Si un impacto genera otros, anídalos en "subImpactos".
-9.  IMPORTANTE: Tu respuesta DEBE SER EXCLUSIVAMENTE un objeto JSON válido. No incluyas texto, explicaciones, ni \`\`\`json markdown. La respuesta completa debe ser el objeto JSON, comenzando con { y terminando con }.`;
+Your output MUST be a single, valid JSON object and nothing else. Do not include markdown, comments, or any text outside of the JSON structure.
+The JSON object must conform to the following structure:
+{
+  "impactos": [
+    {
+      "especialidad": "string",
+      "impactoDirecto": "string",
+      "severidad": "baja" | "media" | "alta",
+      "riesgo": "string (optional)",
+      "consecuencias": ["string"],
+      "recomendaciones": ["string"],
+      "subImpactos": [ "..." ]
+    }
+  ]
+}`;
 /**
  * Limpia una cadena que se espera contenga JSON, eliminando los delimitadores de markdown
  * y extrayendo solo el objeto JSON principal.
@@ -116,7 +115,7 @@ function cleanJsonString(rawString) {
 }
 // --- Función para llamar a la API de Gemini (actualizada) ---
 async function callGeminiAPI(apiKey, parts) {
-    const geminiEndpoint = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`;
+    const geminiEndpoint = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent?key=${apiKey}`;
     const response = await (0, node_fetch_1.default)(geminiEndpoint, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -186,8 +185,11 @@ exports.processComparacionJob = functions
             updatedAt: admin.firestore.FieldValue.serverTimestamp()
         });
         // 3. Ejecutar análisis de Impactos con el contexto de los anteriores
-        let impactoPromptFinal = impactoPromptText.replace('{{diffContext.resumen}}', diffResult.resumen || 'N/A');
-        impactoPromptFinal = impactoPromptFinal.replace('{{cubicacionContext.resumen}}', cubicacionResult.resumen || 'N/A');
+        const contextForImpact = {
+            diff_resumen: diffResult.resumen || 'N/A',
+            cubicacion_resumen: cubicacionResult.resumen || 'N/A',
+        };
+        const impactoPromptFinal = impactoPromptText.replace('{{CONTEXT_JSON}}', JSON.stringify(contextForImpact));
         const impactosResult = await callGeminiAPI(apiKey, [{ text: impactoPromptFinal }, planoA_part, planoB_part]);
         // 4. Finalizar
         await jobRef.update({
