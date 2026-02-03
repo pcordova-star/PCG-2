@@ -66,21 +66,8 @@ export default function PreciosPage() {
 
     const planesBase = [
         {
-            title: "Plan Operaciones",
-            price: "6,5",
-            description: "La base para gestionar tus obras de principio a fin.",
-            icon: GanttChartSquare,
-            features: [
-                { title: "Gestión de Obras", desc: "Centraliza la información maestra de cada proyecto. Asigna responsables, define mandantes, y adjunta contratos." },
-                { title: "Itemizados y Presupuestos", desc: "Crea y administra tu catálogo de APU. Genera itemizados detallados para cada obra para un control de costos estandarizado." },
-                { title: "Programación de Obras", desc: "Planifica tu proyecto con un Gantt interactivo, define la ruta crítica y visualiza el avance real vs. el programado con la Curva S." },
-                { title: "Generación de Estados de Pago", desc: "Automatiza la creación de informes de avance financiero basados en el progreso físico real registrado en la programación." },
-                { title: "Requerimientos de Información (RDI)", desc: "Digitaliza y formaliza la comunicación con mandantes, proyectistas y subcontratos, manteniendo una trazabilidad completa." },
-            ]
-        },
-        {
             title: "Plan Prevención de Riesgos",
-            price: "6,5",
+            price: "5,5",
             description: "Digitaliza y automatiza todo el sistema de gestión de seguridad.",
             icon: ShieldCheck,
             isFeatured: false,
@@ -91,6 +78,19 @@ export default function PreciosPage() {
                  { title: "Ingreso de Personal (DS44)", desc: "Administra el ciclo de vida de cada trabajador, desde su registro hasta la verificación de su documentación de seguridad." },
                  { title: "IPER y Gestión de Incidentes", desc: "Registra, investiga y gestiona la matriz IPER con enfoque de género, y documenta incidentes con metodologías como Árbol de Causas o 5 Porqués." },
                  { title: "Checklists de Seguridad", desc: "Digitaliza tus inspecciones de seguridad, crea plantillas personalizadas y registra con fotos y firma digital." },
+            ]
+        },
+        {
+            title: "Plan Operaciones",
+            price: "7,5",
+            description: "La base para gestionar tus obras de principio a fin.",
+            icon: GanttChartSquare,
+            features: [
+                { title: "Gestión de Obras", desc: "Centraliza la información maestra de cada proyecto. Asigna responsables, define mandantes, y adjunta contratos." },
+                { title: "Itemizados y Presupuestos", desc: "Crea y administra tu catálogo de APU. Genera itemizados detallados para cada obra para un control de costos estandarizado." },
+                { title: "Programación de Obras", desc: "Planifica tu proyecto con un Gantt interactivo, define la ruta crítica y visualiza el avance real vs. el programado con la Curva S." },
+                { title: "Generación de Estados de Pago", desc: "Automatiza la creación de informes de avance financiero basados en el progreso físico real registrado en la programación." },
+                { title: "Requerimientos de Información (RDI)", desc: "Digitaliza y formaliza la comunicación con mandantes, proyectistas y subcontratos, manteniendo una trazabilidad completa." },
             ]
         },
         {
