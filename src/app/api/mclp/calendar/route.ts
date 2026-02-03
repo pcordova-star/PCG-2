@@ -54,7 +54,7 @@ export async function GET(req: NextRequest) {
             return NextResponse.json({ error: "companyId y year son requeridos" }, { status: 400 });
         }
 
-        const allowedReadRoles = ['superadmin', 'admin_empresa', 'jefe_obra'];
+        const allowedReadRoles = ['superadmin', 'admin_empresa', 'jefe_obra', 'contratista'];
         if (!allowedReadRoles.includes(userRole)) {
             return NextResponse.json({ error: "Permission Denied: Insufficient role." }, { status: 403 });
         }
