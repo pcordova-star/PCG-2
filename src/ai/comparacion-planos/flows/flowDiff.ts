@@ -19,7 +19,7 @@ Instrucciones:
 4.  Describe el cambio de forma clara y concisa en el campo "descripcion".
 5.  Si es aplicable, indica la ubicación aproximada del cambio en el campo "ubicacion".
 6.  Genera un "resumen" conciso de los cambios más importantes.
-7.  Tu respuesta DEBE SER EXCLUSIVAMENTE un objeto JSON válido que siga la siguiente estructura, sin texto adicional, explicaciones ni formato markdown fuera del JSON.`;
+7.  IMPORTANTE: Tu respuesta DEBE SER EXCLUSIVAMENTE un objeto JSON válido que siga la estructura de salida. No incluyas texto, explicaciones, ni \`\`\`json markdown. La respuesta completa debe ser el objeto JSON, comenzando con { y terminando con }.`;
 
 
 const DiffInputSchema = z.object({
@@ -32,10 +32,13 @@ type DiffInput = z.infer<typeof DiffInputSchema>;
 const diffPrompt = ai.definePrompt(
   {
     name: 'diffTecnicoPrompt',
-    model: 'googleai/gemini-2.0-flash',
+    model: 'googleai/gemini-1.5-flash-latest',
     input: { schema: DiffInputSchema },
     output: { schema: DiffTecnicoOutputSchema },
     prompt: diffPromptText,
+    config: {
+      temperature: 0.1,
+    }
   },
 );
 

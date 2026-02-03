@@ -13,8 +13,6 @@ const CubicacionInputSchema = z.object({
 type CubicacionInput = z.infer<typeof CubicacionInputSchema>;
 
 
-// El texto del prompt se maneja en el archivo .txt.
-// Aquí solo definimos el prompt con su schema.
 const cubicacionPromptText = `Eres un experto en cubicación y presupuestos de construcción.
 Tu tarea es analizar dos versiones de un plano, Plano A (original) y Plano B (modificado), para detectar variaciones en las cantidades de obra.
 
@@ -29,16 +27,19 @@ Instrucciones:
 5.  Calcula la "diferencia" (cantidadB - cantidadA).
 6.  Agrega "observaciones" si es necesario para aclarar un cálculo o suposición.
 7.  Genera un "resumen" de las variaciones más significativas.
-8.  Tu respuesta DEBE SER EXCLUSIVAMENTE un objeto JSON válido que siga el esquema de salida, sin texto adicional.`;
+8.  IMPORTANTE: Tu respuesta DEBE SER EXCLUSIVAMENTE un objeto JSON válido, sin texto adicional, explicaciones, ni \`\`\`json markdown. La respuesta completa debe ser el objeto JSON, comenzando con { y terminando con }.`;
 
 
 const cubicacionPrompt = ai.definePrompt(
   {
     name: 'cubicacionDiferencialPrompt',
-    model: 'googleai/gemini-2.0-flash',
+    model: 'googleai/gemini-1.5-flash-latest',
     input: { schema: CubicacionInputSchema },
     output: { schema: CubicacionDiferencialOutputSchema },
     prompt: cubicacionPromptText,
+    config: {
+      temperature: 0.1,
+    }
   },
 );
 

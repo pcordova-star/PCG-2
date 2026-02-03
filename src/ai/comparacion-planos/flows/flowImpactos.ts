@@ -39,17 +39,20 @@ Instrucciones:
 6.  Identifica el principal "riesgo" (ej: "Sobrecosto", "Atraso", "Incompatibilidad").
 7.  Lista "consecuencias" y "recomendaciones".
 8.  Si un impacto genera otros, anídalos en "subImpactos".
-9.  Tu respuesta DEBE SER EXCLUSIVAMENTE un objeto JSON válido con la estructura de salida, sin texto adicional.`;
+9.  IMPORTANTE: Tu respuesta DEBE SER EXCLUSIVAMENTE un objeto JSON válido que siga la estructura de salida. No incluyas texto, explicaciones, ni \`\`\`json markdown. La respuesta completa debe ser el objeto JSON, comenzando con { y terminando con }.`;
 
 
 // Prompt para el árbol de impactos
 const impactosPrompt = ai.definePrompt(
   {
     name: 'arbolImpactosPrompt',
-    model: 'googleai/gemini-2.0-flash',
+    model: 'googleai/gemini-1.5-flash-latest',
     input: { schema: ImpactoInputSchema },
     output: { schema: ArbolImpactosOutputSchema },
     prompt: impactoPromptText,
+    config: {
+      temperature: 0.1,
+    }
   },
 );
 
