@@ -31,10 +31,10 @@ export function DisabledModuleCard({ title, description, icon: Icon, moduleId }:
     try {
         const idToken = await user.getIdToken();
         
-        // URL de la función HTTP de 2da Gen (CORREGIDA)
-        const FUNCTION_URL = "https://requestmoduleactivation-3uw4oqhaxq-tl.a.run.app";
+        // URL de la API Route local
+        const API_URL = "/api/request-module-activation";
         
-        const response = await fetch(FUNCTION_URL, {
+        const response = await fetch(API_URL, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',

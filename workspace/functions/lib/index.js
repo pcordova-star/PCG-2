@@ -4,7 +4,7 @@
  * Punto de entrada UNIFICADO de Cloud Functions.
  */
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.mclpDailyScheduler = exports.notifyDocumentDistribution = exports.requestModuleActivation = exports.registrarAvanceRapido = exports.deactivateCompanyUser = exports.checkUserExistsByEmail = exports.setSuperAdminClaim = exports.setCompanyClaims = exports.processComparacionJob = exports.processPresupuestoPdf = exports.analizarPlano = exports.createCompanyUser = void 0;
+exports.mclpDailyScheduler = exports.notifyDocumentDistribution = exports.registrarAvanceRapido = exports.deactivateCompanyUser = exports.checkUserExistsByEmail = exports.setSuperAdminClaim = exports.setCompanyClaims = exports.processComparacionJob = exports.processPresupuestoPdf = exports.analizarPlano = exports.createCompanyUser = void 0;
 // --- HTTP ---
 var createCompanyUser_1 = require("./createCompanyUser");
 Object.defineProperty(exports, "createCompanyUser", { enumerable: true, get: function () { return createCompanyUser_1.createCompanyUser; } });
@@ -26,8 +26,6 @@ Object.defineProperty(exports, "deactivateCompanyUser", { enumerable: true, get:
 // --- Funciones operacionales ---
 var registrarAvanceRapido_1 = require("./registrarAvanceRapido");
 Object.defineProperty(exports, "registrarAvanceRapido", { enumerable: true, get: function () { return registrarAvanceRapido_1.registrarAvanceRapido; } });
-var requestModuleActivation_1 = require("./requestModuleActivation");
-Object.defineProperty(exports, "requestModuleActivation", { enumerable: true, get: function () { return requestModuleActivation_1.requestModuleActivation; } });
 var notifyDocumentDistribution_1 = require("./notifyDocumentDistribution");
 Object.defineProperty(exports, "notifyDocumentDistribution", { enumerable: true, get: function () { return notifyDocumentDistribution_1.notifyDocumentDistribution; } });
 // --- Scheduler (cron) ---
