@@ -181,17 +181,6 @@ const allMainModules = [
     featureFlag: 'feature_risk_prevention_enabled'
   },
   {
-    id: 'control-acceso',
-    title: 'Control de Acceso',
-    description: 'Gestiona la inducción de seguridad para visitas, proveedores e inspectores a través de un portal con código QR.',
-    href: '/prevencion/capacitacion/induccion-acceso',
-    icon: UserCheck,
-    linkText: 'Gestionar Accesos',
-    tooltip: 'Controla el acceso seguro de personal externo a tus obras.',
-    roles: ['superadmin', 'admin_empresa', 'jefe_obra', 'prevencionista'],
-    featureFlag: 'feature_access_control_enabled'
-  },
-  {
     id: 'documentos',
     title: 'Control Documental',
     description: 'Administra documentos corporativos y documentos aplicados a cada obra (ISO 9001).',
@@ -261,6 +250,16 @@ const quickAccessModules = [
         color: 'yellow' as const,
         roles: ['superadmin', 'admin_empresa', 'contratista'],
         featureFlag: 'feature_compliance_module_enabled'
+    },
+    {
+        id: 'control-acceso',
+        title: 'Control de Acceso',
+        description: 'Portal de inducción con código QR para visitas y proveedores.',
+        href: '/prevencion/capacitacion/induccion-acceso',
+        icon: UserCheck,
+        color: 'pink' as const,
+        roles: ['superadmin', 'admin_empresa', 'jefe_obra', 'prevencionista'],
+        featureFlag: 'feature_access_control_enabled'
     }
 ];
 
@@ -431,7 +430,7 @@ export default function DashboardPage() {
   }, [user, role, companyId, authLoading, isPrevencionista]);
   
   const handleQuickAccessClick = (target: string) => {
-    if (['/rdi', '/cubicacion/analisis-planos', '/cumplimiento', '/comparacion-planos/historial'].includes(target)) {
+    if (['/rdi', '/cubicacion/analisis-planos', '/cumplimiento', '/comparacion-planos/historial', '/prevencion/capacitacion/induccion-acceso'].includes(target)) {
         router.push(target);
         return;
     }

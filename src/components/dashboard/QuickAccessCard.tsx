@@ -10,7 +10,7 @@ interface QuickAccessCardProps {
   title: string;
   description: string;
   icon: LucideIcon;
-  color: 'orange' | 'blue' | 'green' | 'purple' | 'yellow';
+  color: 'orange' | 'blue' | 'green' | 'purple' | 'yellow' | 'pink';
   onClick: () => void;
   isPremium?: boolean;
 }
@@ -22,6 +22,7 @@ export function QuickAccessCard({ title, description, icon: Icon, color, onClick
     green: 'bg-green-500 hover:bg-green-600 text-white',
     purple: 'bg-purple-500 hover:bg-purple-600 text-white',
     yellow: 'bg-yellow-500 hover:bg-yellow-600 text-white',
+    pink: 'bg-pink-500 hover:bg-pink-600 text-white',
   };
 
   const iconColorClasses = {
@@ -30,6 +31,7 @@ export function QuickAccessCard({ title, description, icon: Icon, color, onClick
       green: 'text-green-200',
       purple: 'text-purple-200',
       yellow: 'text-yellow-200',
+      pink: 'text-pink-200',
   }
 
   return (
