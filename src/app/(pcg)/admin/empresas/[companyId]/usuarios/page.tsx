@@ -26,6 +26,7 @@ const rolesDisponibles: { value: RolInvitado, label: string }[] = [
     { value: 'jefe_obra', label: 'Jefe de Obra' },
     { value: 'prevencionista', label: 'Prevencionista' },
     { value: 'cliente', label: 'Cliente (Solo lectura)' },
+    { value: 'revisor_cumplimiento', label: 'Revisor de Cumplimiento' },
 ];
 
 export default function AdminEmpresaUsuariosPage() {

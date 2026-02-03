@@ -152,6 +152,7 @@ service cloud.firestore {
           && (
             resource.data.subcontractorId == subcontractorId()
             || role() == 'admin_empresa'
+            || role() == 'revisor_cumplimiento'
           );
 
         allow create: if isSignedIn()
@@ -160,7 +161,7 @@ service cloud.firestore {
           && request.resource.data.subcontractorId == subcontractorId();
 
         allow update: if isSignedIn()
-          && role() == 'admin_empresa';
+          && (role() == 'admin_empresa' || role() == 'revisor_cumplimiento');
 
         allow delete: if false;
 
@@ -174,7 +175,7 @@ service cloud.firestore {
             );
 
           allow create: if isSignedIn()
-            && role() == 'admin_empresa';
+            && (role() == 'admin_empresa' || role() == 'revisor_cumplimiento');
 
           allow update, delete: if false;
         }
@@ -187,10 +188,11 @@ service cloud.firestore {
           && (
             role() == 'admin_empresa'
             || subcontractorId() == subcontractor
+            || role() == 'revisor_cumplimiento'
           );
 
         allow create, update: if isSignedIn()
-          && role() == 'admin_empresa';
+          && (role() == 'admin_empresa' || role() == 'revisor_cumplimiento');
 
         allow delete: if false;
       }

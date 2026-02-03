@@ -17,7 +17,7 @@ export default function AdminCumplimientoPage() {
 
     useEffect(() => {
         if (!loading) {
-            if (!['admin_empresa', 'superadmin', 'jefe_obra'].includes(role)) {
+            if (!['admin_empresa', 'superadmin', 'jefe_obra', 'revisor_cumplimiento'].includes(role)) {
                 router.replace('/dashboard');
             }
             if (!isComplianceEnabled && role !== 'superadmin') {
@@ -52,7 +52,7 @@ export default function AdminCumplimientoPage() {
         );
     }
 
-    if (!['admin_empresa', 'superadmin', 'jefe_obra'].includes(role)) {
+    if (!['admin_empresa', 'superadmin', 'jefe_obra', 'revisor_cumplimiento'].includes(role)) {
         return null;
     }
 
@@ -62,7 +62,7 @@ export default function AdminCumplimientoPage() {
             description: "Revisa y aprueba los documentos mensuales de tus subcontratistas.",
             href: "/cumplimiento/revision",
             icon: FileCheck,
-            roles: ['admin_empresa', 'superadmin']
+            roles: ['admin_empresa', 'superadmin', 'revisor_cumplimiento']
         },
         {
             title: "Documentos Requeridos",

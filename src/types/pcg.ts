@@ -66,7 +66,7 @@ export interface AppUser {
 }
 
 
-export type RolInvitado = "admin_empresa" | "jefe_obra" | "prevencionista" | "cliente" | "contratista"; // Se añade el nuevo rol
+export type RolInvitado = "admin_empresa" | "jefe_obra" | "prevencionista" | "cliente" | "contratista" | "revisor_cumplimiento"; // Se añade el nuevo rol
 /**
  * Representa una invitación para unirse a una empresa.
  * Almacenada en la colección `invitacionesUsuarios`.
