@@ -22,7 +22,8 @@ import {
   ChevronsRight,
   LogOut,
   User,
-  GanttChartSquare
+  GanttChartSquare,
+  Sparkles,
 } from "lucide-react";
 import { useSidebarStore } from "@/hooks/use-sidebar-store";
 import { cn } from "@/lib/utils";
@@ -44,6 +45,7 @@ interface NavItem {
 
 const navItems: NavItem[] = [
   { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard, roles: ['superadmin', 'admin_empresa', 'jefe_obra', 'prevencionista'] },
+  { href: "/precios", label: "Planes y Precios", icon: DollarSign, roles: ['superadmin', 'admin_empresa'] },
   { href: "/obras", label: "Obras", icon: HardHat, roles: ['superadmin', 'admin_empresa', 'jefe_obra', 'prevencionista'] },
   {
     href: "/operaciones",
