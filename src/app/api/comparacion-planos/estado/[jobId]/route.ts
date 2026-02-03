@@ -55,6 +55,7 @@ export async function GET(req: Request, { params }: { params: { jobId: string } 
         errorMessage: jobData.errorMessage || null,
         createdAt: createdAtISO,
         updatedAt: updatedAtISO,
+        reportUrl: jobData.reportUrl || null,
     };
     
     return NextResponse.json(responseData);

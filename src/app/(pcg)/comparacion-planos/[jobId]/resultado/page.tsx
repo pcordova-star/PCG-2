@@ -6,7 +6,7 @@ import ResumenEjecutivo from "@/components/comparacion-planos/ResumenEjecutivo";
 import ResultadoArbolImpactos from "@/components/comparacion-planos/ResultadoArbolImpactos";
 import ResultadoCubicacion from "@/components/comparacion-planos/ResultadoCubicacion";
 import ResultadoDiffTecnico from "@/components/comparacion-planos/ResultadoDiffTecnico";
-import { Loader2, ShieldAlert, ArrowLeft, Download, FileText, RefreshCw } from 'lucide-react';
+import { Loader2, ShieldAlert, ArrowLeft, Download, FileText, RefreshCw, Save } from 'lucide-react';
 import { ComparacionPlanosOutput, ComparacionError } from '@/types/comparacion-planos';
 import { useAuth } from '@/context/AuthContext';
 import { useRouter } from 'next/navigation';
@@ -15,6 +15,9 @@ import { Button } from '@/components/ui/button';
 import Link from 'next/link';
 import { useToast } from '@/hooks/use-toast';
 import { exportAnalisisToPdf } from '@/lib/comparacion-planos/exportToPdf';
+import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
+import { doc, updateDoc } from 'firebase/firestore';
+import { firebaseDb, firebaseStorage } from '@/lib/firebaseClient';
 
 
 type JobData = {
@@ -22,13 +25,14 @@ type JobData = {
     status: string;
     results: ComparacionPlanosOutput | null;
     errorMessage: ComparacionError | null;
+    reportUrl?: string;
 };
 
 export default function ResultadoPage({ params }: { params: { jobId: string } }) {
     const [jobData, setJobData] = useState<JobData | null>(null);
     const [loading, setLoading] = useState(true);
     const [isReanalyzing, setIsReanalyzing] = useState(false);
-    const [isDownloadingPdf, setIsDownloadingPdf] = useState(false);
+    const [isSavingPdf, setIsSavingPdf] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const { user, company, role, loading: authLoading } = useAuth();
     const router = useRouter();
@@ -105,23 +109,34 @@ export default function ResultadoPage({ params }: { params: { jobId: string } })
         link.click();
     };
 
-    const handleDownloadPdf = async () => {
-        if (!jobData?.results) return;
-        setIsDownloadingPdf(true);
+    const handleSavePdf = async () => {
+        if (!jobData?.results || !params.jobId) return;
+        setIsSavingPdf(true);
         try {
             const pdfBuffer = await exportAnalisisToPdf({ jobId: params.jobId, results: jobData.results });
-            const blob = new Blob([pdfBuffer], { type: "application/pdf" });
-            const url = URL.createObjectURL(blob);
-            const a = document.createElement("a");
-            a.href = url;
-            a.download = `analisis_${params.jobId}.pdf`;
-            a.click();
-            URL.revokeObjectURL(url);
-        } catch (err) {
-            console.error("Error al generar PDF:", err);
-            toast({ variant: 'destructive', title: 'Error', description: 'No se pudo generar el PDF.' });
+            const pdfBlob = new Blob([pdfBuffer], { type: "application/pdf" });
+
+            const storagePath = `comparacion-planos/${params.jobId}/reporte_comparativo_${Date.now()}.pdf`;
+            const storageRef = ref(firebaseStorage, storagePath);
+            await uploadBytes(storageRef, pdfBlob);
+            const downloadUrl = await getDownloadURL(storageRef);
+
+            const jobRef = doc(firebaseDb, 'comparacionPlanosJobs', params.jobId);
+            await updateDoc(jobRef, {
+                reportUrl: downloadUrl,
+                reportStoragePath: storagePath,
+            });
+
+            setJobData(prev => prev ? ({ ...prev, reportUrl: downloadUrl }) : null);
+            
+            toast({ title: "Reporte Guardado", description: "El informe PDF ha sido guardado en la plataforma." });
+            window.open(downloadUrl, '_blank');
+
+        } catch (err: any) {
+            console.error("Error al guardar el PDF:", err);
+            toast({ variant: 'destructive', title: 'Error', description: 'No se pudo generar y guardar el PDF.' });
         } finally {
-            setIsDownloadingPdf(false);
+            setIsSavingPdf(false);
         }
     };
 
@@ -192,10 +207,18 @@ export default function ResultadoPage({ params }: { params: { jobId: string } })
                 </div>
                  <div className="flex flex-wrap gap-2">
                     <Button variant="outline" onClick={handleDownloadJson}><Download className="mr-2"/>Descargar JSON</Button>
-                    <Button variant="secondary" onClick={handleDownloadPdf} disabled={isDownloadingPdf}>
-                        {isDownloadingPdf ? <Loader2 className="mr-2 animate-spin"/> : <FileText className="mr-2"/>}
-                        Descargar PDF
-                    </Button>
+                     {jobData.reportUrl ? (
+                        <Button asChild>
+                            <Link href={jobData.reportUrl} target="_blank">
+                                <FileText className="mr-2 h-4 w-4"/> Ver Reporte Guardado
+                            </Link>
+                        </Button>
+                    ) : (
+                        <Button variant="secondary" onClick={handleSavePdf} disabled={isSavingPdf}>
+                            {isSavingPdf ? <Loader2 className="mr-2 animate-spin h-4 w-4"/> : <Save className="mr-2 h-4 w-4"/>}
+                            Guardar Reporte
+                        </Button>
+                    )}
                     <Button onClick={handleReanalyse} disabled={isReanalyzing}>
                          {isReanalyzing ? <Loader2 className="mr-2 animate-spin"/> : <RefreshCw className="mr-2"/>}
                         Re-analizar

@@ -110,6 +110,8 @@ export interface ComparacionPlanosJob {
     status: ComparacionJobStatus;
     planoA_storagePath?: string;
     planoB_storagePath?: string;
-    errorMessage?: ComparacionError | null; // Almacenará el error si el estado es 'error'
+    errorMessage?: ComparacionError | null;
     results?: Partial<ComparacionPlanosOutput>;
+    reportUrl?: string;
+    reportStoragePath?: string;
 }
