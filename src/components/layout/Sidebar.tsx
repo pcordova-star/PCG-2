@@ -132,7 +132,7 @@ export default function Sidebar() {
             if (!isCollapsed) {
                 setCollapsed(true);
             }
-        }, 30000); // 30 segundos
+        }, 5000); // 5 segundos
     };
 
     const events: (keyof WindowEventMap)[] = ['mousemove', 'keydown', 'mousedown', 'touchstart'];
