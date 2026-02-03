@@ -103,9 +103,11 @@ export default function InduccionAccesoPage() {
   return (
     <section className="space-y-6 max-w-4xl mx-auto">
       <header className="space-y-2">
-        <Button variant="outline" size="sm" onClick={() => router.push('/prevencion/capacitacion')}>
-          <ArrowLeft className="mr-2 h-4 w-4" />
-          Volver a Capacitación
+        <Button variant="outline" size="sm" asChild>
+            <Link href="/dashboard">
+                <ArrowLeft className="mr-2 h-4 w-4" />
+                Volver al Dashboard
+            </Link>
         </Button>
         <h1 className="text-3xl font-bold font-headline tracking-tight">
           Inducción de acceso a faena – Visitas
