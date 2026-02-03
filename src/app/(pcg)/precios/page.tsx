@@ -79,19 +79,6 @@ export default function PreciosPage() {
             ]
         },
         {
-            title: "Plan Pro",
-            price: "10",
-            description: "Acceso total. Todos los módulos operativos, de prevención y de IA incluidos.",
-            icon: Sparkles,
-            isFeatured: true,
-            features: [
-                { title: "Todo en Plan Operaciones", desc: "Gestión de obras, presupuestos, programación, estados de pago y RDI." },
-                { title: "Todo en Plan Prevención", desc: "PPR, DS44 (empresas y personal), IPER, incidentes y checklists de seguridad." },
-                { title: "Todos los Módulos Premium", desc: "Incluye Cumplimiento Legal, Checklists Operacionales, Control Documental, Acceso con QR, Análisis y Comparación de Planos con IA." },
-                { title: "Soporte Prioritario", desc: "Asistencia preferencial para optimizar el uso de la plataforma." },
-            ]
-        },
-        {
             title: "Plan Prevención de Riesgos",
             price: "6,5",
             description: "Digitaliza y automatiza todo el sistema de gestión de seguridad.",
@@ -105,6 +92,19 @@ export default function PreciosPage() {
                  { title: "IPER y Gestión de Incidentes", desc: "Registra, investiga y gestiona la matriz IPER con enfoque de género, y documenta incidentes con metodologías como Árbol de Causas o 5 Porqués." },
                  { title: "Checklists de Seguridad", desc: "Digitaliza tus inspecciones de seguridad, crea plantillas personalizadas y registra con fotos y firma digital." },
             ]
+        },
+        {
+            title: "Plan Pro",
+            price: "10",
+            description: "Acceso total. Todos los módulos operativos, de prevención y de IA incluidos.",
+            icon: Sparkles,
+            isFeatured: true,
+            features: [
+                { title: "Todo en Plan Operaciones", desc: "Gestión de obras, presupuestos, programación, estados de pago y RDI." },
+                { title: "Todo en Plan Prevención", desc: "PPR, DS44 (empresas y personal), IPER, incidentes y checklists de seguridad." },
+                { title: "Todos los Módulos Premium", desc: "Incluye Cumplimiento Legal, Checklists Operacionales, Control Documental, Acceso con QR, Análisis y Comparación de Planos con IA." },
+                { title: "Soporte Prioritario", desc: "Asistencia preferencial para optimizar el uso de la plataforma." },
+            ]
         }
     ];
     
@@ -113,7 +113,7 @@ export default function PreciosPage() {
         { title: "Checklists Operacionales", description: "Expande el control de calidad más allá de la seguridad. Crea formularios digitales para protocolos de entrega, control de hormigonado, inspección de terminaciones y cualquier otro proceso operativo.", icon: ListChecks },
         { title: "Control Documental (ISO)", description: "Implementa un sistema de gestión documental alineado con ISO 9001. Administra versiones de procedimientos y políticas, y controla su distribución a las obras con registro de recepción.", icon: BookCopy },
         { title: "Control de Acceso (QR)", description: "Ofrece un portal de auto-atención para visitas y proveedores. Al escanear un QR en la entrada, completan una inducción básica de seguridad desde su teléfono, agilizando el acceso.", icon: UserCheck },
-        { title: "Análisis de Planos con IA", description: "Sube un plano en PDF o imagen y recibe una cubicación de referencia para partidas clave como superficies, m² de muros y losas. Ideal para validaciones rápidas.", icon: BrainCircuit },
+        { title: "Análisis de Planos con IA", description: "Sube un plano y recibe una cubicación de referencia generada por Inteligencia Artificial para partidas clave como superficies, m² de muros y losas. Ideal para validaciones rápidas.", icon: BrainCircuit },
         { title: "Comparación de Planos con IA", description: "Detecta automáticamente las diferencias entre dos versiones de un plano, cuantifica el impacto en la cubicación y genera un árbol de consecuencias por especialidad.", icon: GitCompareArrows },
     ];
 
