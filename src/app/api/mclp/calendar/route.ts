@@ -42,7 +42,10 @@ export async function GET(req: NextRequest) {
             return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
         }
         const token = authorization.split("Bearer ")[1];
-        await admin.auth().verifyIdToken(token);
+        const decodedToken = await admin.auth().verifyIdToken(token);
+
+        const userRole = (decodedToken as any).role;
+        const userCompanyId = (decodedToken as any).companyId;
 
         const companyId = req.nextUrl.searchParams.get("companyId");
         const yearStr = req.nextUrl.searchParams.get("year");
@@ -50,6 +53,15 @@ export async function GET(req: NextRequest) {
         if (!companyId || !yearStr) {
             return NextResponse.json({ error: "companyId y year son requeridos" }, { status: 400 });
         }
+
+        const allowedReadRoles = ['superadmin', 'admin_empresa', 'jefe_obra'];
+        if (!allowedReadRoles.includes(userRole)) {
+            return NextResponse.json({ error: "Permission Denied: Insufficient role." }, { status: 403 });
+        }
+        if (userRole !== 'superadmin' && userCompanyId !== companyId) {
+             return NextResponse.json({ error: "Permission Denied: User does not belong to the requested company." }, { status: 403 });
+        }
+
         const year = parseInt(yearStr, 10);
         await ensureMclpEnabled(companyId);
 

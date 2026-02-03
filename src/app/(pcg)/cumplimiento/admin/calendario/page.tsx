@@ -17,6 +17,7 @@ import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { Badge } from '@/components/ui/badge';
 import Link from 'next/link';
+import { UserRole } from '@/lib/roles';
 
 interface EditMonthState {
   id: string;
@@ -25,8 +26,10 @@ interface EditMonthState {
   fechaPago: Date;
 }
 
-async function fetchCalendarData(companyId: string, year: number) {
-    const res = await fetch(`/api/mclp/calendar?companyId=${companyId}&year=${year}`);
+async function fetchCalendarData(companyId: string, year: number, token: string) {
+    const res = await fetch(`/api/mclp/calendar?companyId=${companyId}&year=${year}`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+    });
     if (!res.ok) {
         const errorData = await res.json();
         throw new Error(errorData.error || 'Failed to fetch calendar data');
@@ -34,10 +37,13 @@ async function fetchCalendarData(companyId: string, year: number) {
     return res.json();
 }
 
-async function updateCalendarMonth(companyId: string, year: number, monthId: string, data: any) {
+async function updateCalendarMonth(companyId: string, year: number, monthId: string, data: any, token: string) {
     const res = await fetch('/api/mclp/calendar/update', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+        },
         body: JSON.stringify({ companyId, year, monthId, data }),
     });
      if (!res.ok) {
@@ -48,8 +54,9 @@ async function updateCalendarMonth(companyId: string, year: number, monthId: str
 }
 
 
-function MonthCard({ month, onEdit }: { month: ComplianceCalendarMonth, onEdit: (month: ComplianceCalendarMonth) => void }) {
+function MonthCard({ month, onEdit, userRole }: { month: ComplianceCalendarMonth, onEdit: (month: ComplianceCalendarMonth) => void, userRole: UserRole }) {
   const isEditable = month.editable;
+  const canEditRole = userRole === 'superadmin' || userRole === 'admin_empresa';
 
   return (
     <Card className={!isEditable ? 'bg-muted/50 border-dashed' : ''}>
@@ -65,7 +72,7 @@ function MonthCard({ month, onEdit }: { month: ComplianceCalendarMonth, onEdit: 
         <div className="flex justify-between"><span>💰 Fecha pago:</span><span className="font-semibold">{format(new Date(month.fechaPago), "dd 'de' MMM", { locale: es })}</span></div>
       </CardContent>
       <CardFooter>
-        <Button size="sm" variant="outline" className="w-full" disabled={!isEditable} onClick={() => onEdit(month)}>
+        <Button size="sm" variant="outline" className="w-full" disabled={!isEditable || !canEditRole} onClick={() => onEdit(month)}>
             <Edit className="mr-2 h-4 w-4"/> Editar Fechas
         </Button>
       </CardFooter>
@@ -136,7 +143,7 @@ function EditMonthDialog({ month, isOpen, onClose, onSave }: { month: EditMonthS
 }
 
 export default function CalendarioMclpPage() {
-    const { companyId } = useAuth();
+    const { companyId, user, role } = useAuth();
     const { toast } = useToast();
     const [isPending, startTransition] = useTransition();
     
@@ -146,11 +153,12 @@ export default function CalendarioMclpPage() {
     const [editingMonth, setEditingMonth] = useState<EditMonthState | null>(null);
 
     const loadCalendar = (targetYear: number) => {
-        if (!companyId) return;
+        if (!companyId || !user) return;
         setLoading(true);
         startTransition(async () => {
             try {
-                const data = await fetchCalendarData(companyId, targetYear);
+                const token = await user.getIdToken();
+                const data = await fetchCalendarData(companyId, targetYear, token);
                 setMonths(data);
             } catch (error: any) {
                 toast({ variant: 'destructive', title: 'Error', description: error.message });
@@ -163,7 +171,7 @@ export default function CalendarioMclpPage() {
 
     useEffect(() => {
         loadCalendar(year);
-    }, [companyId, year]);
+    }, [companyId, year, user]);
 
     const handleEditMonth = (month: ComplianceCalendarMonth) => {
         setEditingMonth({
@@ -175,7 +183,7 @@ export default function CalendarioMclpPage() {
     }
     
     const handleSaveMonth = async (data: EditMonthState) => {
-        if (!companyId) return;
+        if (!companyId || !user) return;
 
         if (data.corteCarga >= data.limiteRevision || data.limiteRevision >= data.fechaPago) {
             toast({ variant: 'destructive', title: 'Fechas inválidas', description: 'El orden debe ser: Corte Carga < Límite Revisión < Fecha Pago.' });
@@ -184,11 +192,12 @@ export default function CalendarioMclpPage() {
 
         startTransition(async () => {
             try {
+                const token = await user.getIdToken();
                 await updateCalendarMonth(companyId, year, data.id, {
                     corteCarga: data.corteCarga.toISOString(),
                     limiteRevision: data.limiteRevision.toISOString(),
                     fechaPago: data.fechaPago.toISOString()
-                });
+                }, token);
                 toast({ title: 'Éxito', description: 'Fechas del mes actualizadas.' });
                 setEditingMonth(null);
                 loadCalendar(year); // Re-fetch
@@ -238,7 +247,7 @@ export default function CalendarioMclpPage() {
                 </Card>
             ) : (
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-                    {months.map(month => <MonthCard key={month.id} month={month} onEdit={handleEditMonth} />)}
+                    {months.map(month => <MonthCard key={month.id} month={month} onEdit={handleEditMonth} userRole={role} />)}
                 </div>
             )}
             
