@@ -79,11 +79,24 @@ export default function PreciosPage() {
             ]
         },
         {
+            title: "Plan Pro",
+            price: "10",
+            description: "Acceso total. Todos los módulos operativos, de prevención y de IA incluidos.",
+            icon: Sparkles,
+            isFeatured: true,
+            features: [
+                { title: "Todo en Plan Operaciones", desc: "Gestión de obras, presupuestos, programación, estados de pago y RDI." },
+                { title: "Todo en Plan Prevención", desc: "PPR, DS44 (empresas y personal), IPER, incidentes y checklists de seguridad." },
+                { title: "Todos los Módulos Premium", desc: "Incluye Cumplimiento Legal, Checklists Operacionales, Control Documental, Acceso con QR, Análisis y Comparación de Planos con IA." },
+                { title: "Soporte Prioritario", desc: "Asistencia preferencial para optimizar el uso de la plataforma." },
+            ]
+        },
+        {
             title: "Plan Prevención de Riesgos",
             price: "6,5",
             description: "Digitaliza y automatiza todo el sistema de gestión de seguridad.",
             icon: ShieldCheck,
-            isFeatured: true,
+            isFeatured: false,
             features: [
                  { title: "Dashboard de Prevención", desc: "Panel visual con indicadores clave (KPIs) de accidentabilidad, frecuencia y gravedad para una visión gerencial." },
                  { title: "Programa de Prevención de Riesgos (PPR)", desc: "Genera automáticamente el documento PPR de cada obra, integrando IPER, plan de capacitación y charlas." },
@@ -120,7 +133,7 @@ export default function PreciosPage() {
 
             <section>
                 <h2 className="text-3xl font-bold text-center mb-8">Planes Base</h2>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-8 max-w-4xl mx-auto">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-8 max-w-7xl mx-auto">
                     {planesBase.map((plan) => <PriceCard key={plan.title} {...plan} />)}
                 </div>
             </section>
