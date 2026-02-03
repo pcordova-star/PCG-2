@@ -47,24 +47,37 @@ exports.setCompanyClaims = functions
     }
     const requester = await auth.getUser(context.auth.uid);
     if (requester.customClaims?.role !== "superadmin") {
-        throw new functions.https.HttpsError("permission-denied", "Solo SUPER_ADMIN puede asignar empresa a un usuario.");
+        throw new functions.https.HttpsError("permission-denied", "Solo SUPER_ADMIN puede asignar claims.");
     }
-    const { uid, companyId } = data || {};
-    if (!uid || !companyId) {
-        throw new functions.https.HttpsError("invalid-argument", "Debes proporcionar uid y companyId.");
+    const { uid, role, companyId, subcontractorId } = data || {};
+    if (!uid || !role || !companyId) {
+        throw new functions.https.HttpsError("invalid-argument", "Debes proporcionar uid, role y companyId.");
     }
     try {
-        await auth.setCustomUserClaims(uid, {
-            role: "company_user",
+        const claims = {
+            role,
             companyId,
-        });
+        };
+        // Solo añadir subcontractorId si se proporciona y el rol es 'contratista'
+        if (role === 'contratista' && subcontractorId) {
+            claims.subcontractorId = subcontractorId;
+        }
+        await auth.setCustomUserClaims(uid, claims);
+        // Actualizar también el documento en Firestore para consistencia
+        const userDocRef = adminApp.firestore().collection('users').doc(uid);
+        await userDocRef.set({
+            role,
+            empresaId: companyId,
+            subcontractorId: claims.subcontractorId || null,
+        }, { merge: true });
         return {
             status: "ok",
             message: `Claims asignados correctamente al usuario ${uid}.`,
+            claimsSet: claims,
         };
     }
     catch (error) {
-        throw new functions.https.HttpsError("internal", "Error al asignar company claims.", error.message);
+        throw new functions.https.HttpsError("internal", "Error al asignar los claims.", error.message);
     }
 });
 //# sourceMappingURL=setCompanyClaims.js.map

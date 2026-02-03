@@ -22,11 +22,11 @@ import { UserRole } from "@/lib/roles";
 import { AppUser, UserInvitation, Company } from "@/types/pcg";
 
 
-async function activateUserFromInvitation(firebaseUser: User): Promise<{role: UserRole, companyId: string | null}> {
+async function activateUserFromInvitation(firebaseUser: User): Promise<{role: UserRole, companyId: string | null, subcontractorId: string | null}> {
   const db = firebaseDb;
   const email = firebaseUser.email?.toLowerCase().trim();
 
-  if (!email) return { role: 'none', companyId: null };
+  if (!email) return { role: 'none', companyId: null, subcontractorId: null };
 
   const q = query(
     collection(db, "invitacionesUsuarios"),
@@ -39,7 +39,7 @@ async function activateUserFromInvitation(firebaseUser: User): Promise<{role: Us
 
   if (invitationSnap.empty) {
     console.log(`No hay invitación pendiente para ${email}.`);
-    return { role: 'none', companyId: null };
+    return { role: 'none', companyId: null, subcontractorId: null };
   }
 
   const invitationDoc = invitationSnap.docs[0];
@@ -71,7 +71,7 @@ async function activateUserFromInvitation(firebaseUser: User): Promise<{role: Us
   await batch.commit();
 
   console.log(`Usuario ${email} activado con rol ${invitationData.roleDeseado} en empresa ${invitationData.empresaId}. Se requiere cambio de contraseña.`);
-  return { role: invitationData.roleDeseado, companyId: invitationData.empresaId };
+  return { role: invitationData.roleDeseado, companyId: invitationData.empresaId, subcontractorId: invitationData.subcontractorId || null };
 }
 
 
@@ -141,11 +141,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             return;
         }
 
-        setUser(firebaseUser);
         const userDocRef = doc(firebaseDb, "users", firebaseUser.uid);
 
         const unsubUserDoc = onSnapshot(userDocRef, async (userDocSnap) => {
-            setLoading(true);
             let userRole: UserRole = 'none';
             let userCompanyId: string | null = null;
             let userSubcontractorId: string | null = null;
@@ -161,17 +159,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
                 mustChangePassword = !!userData.mustChangePassword;
             } else {
                 const activationResult = await activateUserFromInvitation(firebaseUser);
+                // After activation, this onSnapshot listener will be re-triggered with the new document.
+                // We return here to wait for the new snapshot.
                 if (activationResult.role !== 'none') {
                     return;
                 }
             }
             
+            setUser(firebaseUser);
             setRole(userRole);
             setCompanyId(userCompanyId);
             setSubcontractorId(userSubcontractorId);
-            setLoading(false);
+            setLoading(false); // Only set loading to false AFTER all user data is resolved
 
-            const isPublicPage = ['/', '/login/usuario', '/login/cliente', '/accept-invite'].includes(pathname) || pathname.startsWith('/public');
+            const isPublicPage = ['/', '/login/usuario', '/login/cliente', '/accept-invite', '/terminos', '/sin-acceso'].includes(pathname) || pathname.startsWith('/public');
             const isChangingPassword = pathname === '/cambiar-password';
 
             if (mustChangePassword) {
@@ -188,10 +189,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             }
         }, (error) => {
             console.error("Error escuchando el documento del usuario:", error);
-            setLoading(false);
             setUser(null);
             setRole('none');
+            setCompanyId(null);
             setSubcontractorId(null);
+            setLoading(false);
         });
 
         return () => unsubUserDoc();
