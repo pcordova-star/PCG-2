@@ -115,7 +115,7 @@ function cleanJsonString(rawString) {
 }
 // --- Función para llamar a la API de Gemini (actualizada) ---
 async function callGeminiAPI(apiKey, parts) {
-    const geminiEndpoint = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent?key=${apiKey}`;
+    const geminiEndpoint = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`;
     const response = await (0, node_fetch_1.default)(geminiEndpoint, {
         method: "POST",
         headers: { "Content-Type": "application/json" },

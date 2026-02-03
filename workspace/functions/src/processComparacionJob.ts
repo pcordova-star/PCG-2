@@ -9,48 +9,23 @@ import { getPlanoAsDataUri } from './lib/storage';
 const adminApp = getAdminApp();
 const db = adminApp.firestore();
 
-// --- Prompts para cada agente especializado (reescritos para ser más estrictos) ---
+// --- Prompt monolítico para una sola llamada a la IA ---
+const monolithicPromptText = `You are a construction project analysis expert. Your task is to compare two plan versions, "Plano A" (original) and "Plano B" (modified), and provide a comprehensive analysis report.
 
-const diffPromptText = `Analyze the two provided images, Plano A (original) and Plano B (modified). Your task is to identify all differences.
-Your output MUST be a single, valid JSON object and nothing else. Do not include markdown, comments, or any text outside of the JSON structure.
+Your output MUST BE EXCLUSIVELY a single, valid JSON object without any additional text, comments, or markdown.
+
 The JSON object must conform to the following structure:
 {
-  "elementos": [
-    {
-      "tipo": "agregado" | "eliminado" | "modificado",
-      "descripcion": "string",
-      "ubicacion": "string (optional)"
-    }
-  ],
-  "resumen": "string"
-}`;
-
-const cubicacionPromptText = `Analyze the two provided images, Plano A (original) and Plano B (modified), to detect variations in construction quantities.
-Your output MUST be a single, valid JSON object and nothing else. Do not include markdown, comments, or any text outside of the JSON structure.
-The JSON object must conform to the following structure:
-{
-  "partidas": [
-    {
-      "partida": "string",
-      "unidad": "string",
-      "cantidadA": "number | null",
-      "cantidadB": "number | null",
-      "diferencia": "number",
-      "observaciones": "string (optional)"
-    }
-  ],
-  "resumen": "string"
-}`;
-
-const impactoPromptText = `Analyze the provided images (Plano A and B) and the context JSON to generate a hierarchical tree of technical impacts.
-The context is:
-{{CONTEXT_JSON}}
-
-Your output MUST be a single, valid JSON object and nothing else. Do not include markdown, comments, or any text outside of the JSON structure.
-The JSON object must conform to the following structure:
-{
-  "impactos": [
-    {
+  "diffTecnico": {
+    "elementos": [{"tipo": "agregado" | "eliminado" | "modificado", "descripcion": "string", "ubicacion": "string (optional)"}],
+    "resumen": "string"
+  },
+  "cubicacionDiferencial": {
+    "partidas": [{"partida": "string", "unidad": "string", "cantidadA": "number | null", "cantidadB": "number | null", "diferencia": "number", "observaciones": "string (optional)"}],
+    "resumen": "string"
+  },
+  "arbolImpactos": {
+    "impactos": [{
       "especialidad": "string",
       "impactoDirecto": "string",
       "severidad": "baja" | "media" | "alta",
@@ -58,9 +33,16 @@ The JSON object must conform to the following structure:
       "consecuencias": ["string"],
       "recomendaciones": ["string"],
       "subImpactos": [ "..." ]
-    }
-  ]
-}`;
+    }]
+  }
+}
+
+INSTRUCTIONS FOR EACH SECTION:
+1.  **diffTecnico**: Identify all visual, geometric, and textual differences. Classify each as 'agregado', 'eliminado', or 'modificado'.
+2.  **cubicacionDiferencial**: Detect changes affecting quantities (areas, volumes, lengths, units). For each affected item, calculate the difference.
+3.  **arbolImpactos**: Based on the differences YOU found by comparing the images, generate a hierarchical tree of technical impacts. Analyze the cascade effect on specialties in the order: arquitectura -> estructura -> electricidad -> sanitarias -> climatización.
+`;
+
 
 /**
  * Limpia una cadena que se espera contenga JSON, eliminando los delimitadores de markdown
@@ -69,18 +51,12 @@ The JSON object must conform to the following structure:
  * @returns Una cadena JSON limpia.
  */
 function cleanJsonString(rawString: string): string {
-    // 1. Quitar bloques de código Markdown (```json ... ```)
     let cleaned = rawString.replace(/```json/g, "").replace(/```/g, "");
-
-    // 2. Encontrar el primer '{' y el último '}' para ignorar texto basura al inicio/final
     const startIndex = cleaned.indexOf("{");
     const endIndex = cleaned.lastIndexOf("}");
-
     if (startIndex === -1 || endIndex === -1 || endIndex < startIndex) {
         throw new Error("No se encontró un objeto JSON válido en la respuesta de la IA.");
     }
-    
-    // 3. Extraer la subcadena que parece ser el JSON
     return cleaned.substring(startIndex, endIndex + 1);
 }
 
@@ -94,7 +70,7 @@ async function callGeminiAPI(apiKey: string, parts: any[]) {
             contents: [{ parts }],
             generationConfig: {
               response_mime_type: "application/json",
-              temperature: 0.1, // Reducir creatividad para un JSON más consistente
+              temperature: 0.1,
             },
         }),
     });
@@ -109,7 +85,6 @@ async function callGeminiAPI(apiKey: string, parts: any[]) {
     if (!rawJson)
         throw new Error("La respuesta de Gemini no contiene texto JSON válido.");
     
-    // Limpiar la respuesta antes de parsear
     const cleanedJson = cleanJsonString(rawJson);
     return JSON.parse(cleanedJson);
 }
@@ -125,7 +100,7 @@ export const processComparacionJob = functions
         const jobDataBefore = change.before.data();
 
         if (jobDataAfter.status !== 'queued_for_analysis' || jobDataBefore.status === 'queued_for_analysis') {
-            return; // No es el trigger que buscamos
+            return; 
         }
 
         logger.info(`[${jobId}] Iniciando análisis de comparación de planos...`);
@@ -144,8 +119,8 @@ export const processComparacionJob = functions
                 throw new Error("Rutas de almacenamiento de planos no encontradas en el job.");
             }
 
-            // 1. Descargar planos
             await jobRef.update({ status: 'processing', updatedAt: admin.firestore.FieldValue.serverTimestamp() });
+
             const [planoA, planoB] = await Promise.all([
                 getPlanoAsDataUri(planoA_storagePath),
                 getPlanoAsDataUri(planoB_storagePath)
@@ -154,37 +129,19 @@ export const processComparacionJob = functions
             const planoA_part = { inline_data: { mime_type: planoA.mimeType, data: planoA.data } };
             const planoB_part = { inline_data: { mime_type: planoB.mimeType, data: planoB.data } };
 
-            // 2. Ejecutar análisis de Diff y Cubicación en paralelo
-            await jobRef.update({ status: 'analyzing-diff', updatedAt: admin.firestore.FieldValue.serverTimestamp() });
-            const [diffResult, cubicacionResult] = await Promise.all([
-                callGeminiAPI(apiKey, [ {text: diffPromptText}, planoA_part, planoB_part ]),
-                callGeminiAPI(apiKey, [ {text: cubicacionPromptText}, planoA_part, planoB_part ])
-            ]);
-            
-            await jobRef.update({ 
-                'results.diffTecnico': diffResult,
-                'results.cubicacionDiferencial': cubicacionResult,
-                 status: 'generating-impactos',
-                 updatedAt: admin.firestore.FieldValue.serverTimestamp()
-            });
+            await jobRef.update({ status: 'running_ai', updatedAt: admin.firestore.FieldValue.serverTimestamp() });
 
-            // 3. Ejecutar análisis de Impactos con el contexto de los anteriores
-            const contextForImpact = {
-                diff_resumen: diffResult.resumen || 'N/A',
-                cubicacion_resumen: cubicacionResult.resumen || 'N/A',
-            };
-            const impactoPromptFinal = impactoPromptText.replace('{{CONTEXT_JSON}}', JSON.stringify(contextForImpact));
+            // Ejecutar el análisis monolítico con una sola llamada
+            const analysisResult = await callGeminiAPI(apiKey, [{ text: monolithicPromptText }, planoA_part, planoB_part]);
             
-            const impactosResult = await callGeminiAPI(apiKey, [ {text: impactoPromptFinal}, planoA_part, planoB_part ]);
-            
-            // 4. Finalizar
+            // Finalizar guardando el resultado completo
             await jobRef.update({
-                'results.arbolImpactos': impactosResult,
+                results: analysisResult,
                 status: 'completed',
                 updatedAt: admin.firestore.FieldValue.serverTimestamp(),
             });
             
-            logger.info(`[${jobId}] Análisis de comparación completado exitosamente.`);
+            logger.info(`[${jobId}] Análisis de comparación completado exitosamente con un solo agente.`);
 
         } catch (error: any) {
             logger.error(`[${jobId}] Error durante el análisis:`, error);
