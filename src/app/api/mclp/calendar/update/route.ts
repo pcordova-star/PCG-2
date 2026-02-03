@@ -1,6 +1,6 @@
 // src/app/api/mclp/calendar/update/route.ts
 import { NextRequest, NextResponse } from "next/server";
-import admin, { adminDb, Timestamp as AdminTimestamp } from "@/server/firebaseAdmin";
+import admin, { adminDb, FieldValue, Timestamp as AdminTimestamp } from "@/server/firebaseAdmin";
 import { ensureMclpEnabled } from "@/server/lib/mclp/ensureMclpEnabled";
 
 export const runtime = "nodejs";
@@ -50,7 +50,7 @@ export async function POST(req: NextRequest) {
             corteCarga: AdminTimestamp.fromDate(new Date(data.corteCarga)),
             limiteRevision: AdminTimestamp.fromDate(new Date(data.limiteRevision)),
             fechaPago: AdminTimestamp.fromDate(new Date(data.fechaPago)),
-            updatedAt: adminDb.FieldValue.serverTimestamp(),
+            updatedAt: FieldValue.serverTimestamp(),
         });
 
         return NextResponse.json({ success: true, id: periodId });
