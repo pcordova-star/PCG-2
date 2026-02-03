@@ -141,11 +141,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             return;
         }
 
-        setUser(firebaseUser);
         const userDocRef = doc(firebaseDb, "users", firebaseUser.uid);
 
         const unsubUserDoc = onSnapshot(userDocRef, async (userDocSnap) => {
-            setLoading(true);
             let userRole: UserRole = 'none';
             let userCompanyId: string | null = null;
             let userSubcontractorId: string | null = null;
@@ -161,19 +159,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
                 mustChangePassword = !!userData.mustChangePassword;
             } else {
                 const activationResult = await activateUserFromInvitation(firebaseUser);
-                // After activation, the onSnapshot listener will be re-triggered with the new document.
-                // We return here to wait for the new snapshot and avoid processing with incomplete data.
+                // After activation, this onSnapshot listener will be re-triggered with the new document.
+                // We return here to wait for the new snapshot.
                 if (activationResult.role !== 'none') {
                     return;
                 }
             }
             
+            setUser(firebaseUser);
             setRole(userRole);
             setCompanyId(userCompanyId);
             setSubcontractorId(userSubcontractorId);
-            setLoading(false);
+            setLoading(false); // Only set loading to false AFTER all user data is resolved
 
-            const isPublicPage = ['/', '/login/usuario', '/login/cliente', '/accept-invite'].includes(pathname) || pathname.startsWith('/public');
+            const isPublicPage = ['/', '/login/usuario', '/login/cliente', '/accept-invite', '/terminos', '/sin-acceso'].includes(pathname) || pathname.startsWith('/public');
             const isChangingPassword = pathname === '/cambiar-password';
 
             if (mustChangePassword) {
@@ -190,11 +189,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             }
         }, (error) => {
             console.error("Error escuchando el documento del usuario:", error);
-            setLoading(false);
             setUser(null);
             setRole('none');
             setCompanyId(null);
             setSubcontractorId(null);
+            setLoading(false);
         });
 
         return () => unsubUserDoc();
