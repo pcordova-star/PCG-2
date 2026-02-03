@@ -12,7 +12,7 @@ import { Label } from '@/components/ui/label';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Badge } from '@/components/ui/badge';
-import { PlusCircle, Edit, Trash2 } from 'lucide-react';
+import { PlusCircle, Edit, Trash2, ArrowLeft } from 'lucide-react';
 import Link from 'next/link';
 import { collection, addDoc, getDocs, doc, updateDoc, deleteDoc, serverTimestamp, query, orderBy, writeBatch } from 'firebase/firestore';
 import { firebaseDb } from '@/lib/firebaseClient';
@@ -192,6 +192,9 @@ export default function AdminEmpresasPage() {
 
     return (
         <div className="space-y-6">
+            <Button asChild variant="outline" size="sm">
+              <Link href="/admin/dashboard"><ArrowLeft className="mr-2 h-4 w-4" />Volver al Dashboard</Link>
+            </Button>
             <header className="flex items-center justify-between">
                 <div>
                     <h1 className="text-2xl font-bold">Gestión de Empresas</h1>
