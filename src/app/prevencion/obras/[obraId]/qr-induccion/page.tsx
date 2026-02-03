@@ -77,7 +77,7 @@ export default function QrInduccionPage() {
 
   return (
     <div className="min-h-screen bg-muted flex flex-col items-center justify-center p-4">
-      <div className="bg-card shadow rounded-lg p-8 max-w-md w-full text-center">
+      <div className="print-only bg-card shadow rounded-lg p-8 max-w-md w-full text-center">
         <h1 className="text-2xl font-bold text-primary mb-2">
           QR – Inducción de Acceso a Faena
         </h1>
@@ -104,7 +104,7 @@ export default function QrInduccionPage() {
              <p className="text-xs text-muted-foreground">Generando URL...</p>
         )}
 
-        <div className="mt-8 flex flex-col sm:flex-row gap-2 justify-center">
+        <div className="mt-8 flex flex-col sm:flex-row gap-2 justify-center no-print">
            <Button onClick={() => window.print()} disabled={!url}>Imprimir QR</Button>
            <Button variant="outline" asChild>
                 <Link href="/prevencion/capacitacion/induccion-acceso">
