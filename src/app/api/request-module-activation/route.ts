@@ -1,7 +1,6 @@
 // src/app/api/request-module-activation/route.ts
 import { NextRequest, NextResponse } from "next/server";
 import admin from "@/server/firebaseAdmin";
-import * as logger from "firebase-functions/logger";
 
 export async function POST(req: NextRequest) {
     try {
@@ -18,7 +17,7 @@ export async function POST(req: NextRequest) {
         let companyId = (decodedToken as any).companyId;
 
         if (!companyId) {
-            logger.info(`companyId no encontrado en los claims para UID ${uid}. Buscando en Firestore...`);
+            console.log(`companyId no encontrado en los claims para UID ${uid}. Buscando en Firestore...`);
             const userDoc = await admin.firestore().collection("users").doc(uid).get();
             if (userDoc.exists) {
                 companyId = userDoc.data()?.empresaId;
@@ -56,7 +55,7 @@ export async function POST(req: NextRequest) {
             status: "pending",
         });
 
-        logger.info(`Solicitud de activación registrada: ${requestRef.id}`);
+        console.log(`Solicitud de activación registrada: ${requestRef.id}`);
         
         await db.collection("mail").add({
             to: [SUPERADMIN_EMAIL],
@@ -76,7 +75,7 @@ export async function POST(req: NextRequest) {
         return NextResponse.json({ success: true, message: "Solicitud registrada y notificada." });
 
     } catch (error: any) {
-        logger.error("[API /request-module-activation] Error:", error);
+        console.error("[API /request-module-activation] Error:", error);
          if (error.code === 'auth/id-token-expired' || error.code === 'auth/argument-error') {
             return NextResponse.json({ error: 'Token de autenticación inválido o expirado.' }, { status: 401 });
         }
