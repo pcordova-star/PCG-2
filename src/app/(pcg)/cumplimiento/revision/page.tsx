@@ -219,7 +219,7 @@ export default function RevisionPage() {
                                 const subSubmissions = submissionsBySubcontractor[item.subcontractor.id] || [];
                                 return (
                                 <AccordionItem value={item.subcontractor.id} key={item.subcontractor.id}>
-                                    <AccordionTrigger className="hover:no-underline p-4 rounded-lg data-[state=open]:bg-muted/50" asChild>
+                                    <AccordionTrigger className="hover:no-underline p-4 rounded-lg data-[state=open]:bg-muted/50">
                                         <div className="grid grid-cols-3 items-center w-full cursor-pointer">
                                             <div className="font-medium text-left">{item.subcontractor.razonSocial}</div>
                                             <div className="text-center"><OverallStatusBadge status={item.status} /></div>
