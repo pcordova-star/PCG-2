@@ -42,7 +42,7 @@ export async function POST(req: NextRequest) {
     });
 
     await adminDb.collection("users").doc(user.uid).set({
-      uid: user.uid, email, nombre, role: "contratista", companyId, subcontractorId,
+      uid: user.uid, email, nombre, role: "contratista", empresaId: companyId, subcontractorId,
       activo: true,
       mustChangePassword: true, 
       updatedAt: admin.firestore.Timestamp.now(),
