@@ -1,19 +1,20 @@
+// src/lib/induccionAccesoFaena.ts
 import {
-  collection,
-  addDoc,
+  doc,
+  setDoc,
+  getDoc,
   serverTimestamp,
+  addDoc,
+  collection,
+  Timestamp,
 } from "firebase/firestore";
 import { firebaseDb } from "./firebaseClient";
 
-// 👉 Datos comunes del evento (lo que comparten los 3 formularios)
 export interface InduccionAccesoFaena {
   id?: string;
-
-  // Datos de la obra
   obraId: string;
-  obraNombre: string;
-
-  // Datos de la persona
+  obraNombre?: string;
+  generadorId?: string | null;
   tipoVisita: "VISITA" | "PROVEEDOR" | "INSPECTOR" | "OTRO";
   nombreCompleto: string;
   rut: string;
@@ -21,34 +22,38 @@ export interface InduccionAccesoFaena {
   cargo: string;
   telefono: string;
   correo: string;
-
-  // Datos de ingreso
-  fechaIngreso: string; // formato "YYYY-MM-DD"
-  horaIngreso: string;  // formato "HH:mm"
-
-  // Preguntas de comprensión (pueden ser tipo SI/NO)
-  respuestaPregunta1: "SI" | "NO";
-  respuestaPregunta2: "SI" | "NO";
-  respuestaPregunta3: "SI" | "NO";
-
-  // Aceptaciones
+  fechaIngreso: string;
+  horaIngreso: string;
+  respuestaPregunta1?: "SI" | "NO";
+  respuestaPregunta2?: "SI" | "NO";
+  respuestaPregunta3?: "SI" | "NO";
   aceptaReglamento: boolean;
   aceptaEpp: boolean;
   aceptaTratamientoDatos: boolean;
-
-  // Firma digital (data URL en base64, opcional)
   firmaDataUrl?: string;
-
-  createdAt?: any;
+  origenRegistro?: "panel" | "qr";
+  createdAt?: Timestamp;
 }
 
-
 export async function guardarInduccionAccesoFaena(
-  data: Omit<InduccionAccesoFaena, "id" | "createdAt">
+  data: Omit<InduccionAccesoFaena, "id" | "createdAt" | "origenRegistro">
 ): Promise<string> {
   const colRef = collection(firebaseDb, "induccionesAccesoFaena");
   const docRef = await addDoc(colRef, {
     ...data,
+    origenRegistro: "panel",
+    createdAt: serverTimestamp(),
+  });
+  return docRef.id;
+}
+
+export async function guardarInduccionQR(
+  data: Omit<InduccionAccesoFaena, "id" | "createdAt" | "origenRegistro">
+): Promise<string> {
+  const colRef = collection(firebaseDb, "induccionesAccesoFaena");
+  const docRef = await addDoc(colRef, {
+    ...data,
+    origenRegistro: "qr",
     createdAt: serverTimestamp(),
   });
   return docRef.id;

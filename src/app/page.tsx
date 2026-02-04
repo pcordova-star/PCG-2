@@ -1,7 +1,7 @@
 // src/app/page.tsx
 "use client";
 
-import React, { useState, useEffect, FormEvent, useRef } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
@@ -414,10 +414,12 @@ export default function WelcomePage() {
                     <PcgLogo size={120} />
                   </div>
                 </motion.div>
-                <p className="font-semibold text-primary-foreground/80 tracking-wider">PLATAFORMA DE CONTROL Y GESTIÓN</p>
                 <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold tracking-tighter text-shadow-lg mt-2">
-                Datos reales para decisiones operativas.
+                    Software de Gestión de Obras para Constructoras en Chile
                 </h1>
+                <p className="mt-6 text-lg text-primary-foreground/90 max-w-3xl mx-auto">
+                    Centraliza operaciones, prevención de riesgos (DS44) y control de subcontratistas en una sola plataforma. Potencia tus proyectos con IA para optimizar costos y plazos.
+                </p>
                 <div className="mt-8 flex justify-center gap-4">
                 <Button size="lg" asChild>
                     <a href="mailto:paulo@ipsconstruccion.cl?subject=Solicitud%20de%20Demo%20de%20PCG">Agendar Demo</a>
@@ -473,7 +475,7 @@ export default function WelcomePage() {
               <ModuleCard icon={HardHat} title="Gestión de Obras" description="Centraliza toda la información de tus proyectos. Asigna responsables, define datos maestros, gestiona contratos y mantén un registro documental ordenado y accesible desde cualquier lugar." href="/obras" />
               <ModuleCard icon={DollarSign} title="Presupuestos" description="Conecta tus análisis de precios unitarios con la programación y el avance real. Genera presupuestos dinámicos, controla costos y proyecta flujos de caja con precisión." href="/operaciones/presupuestos" />
               <ModuleCard icon={GanttChartSquare} title="Programación" description="Visualiza tu proyecto con una Curva S que compara el avance programado vs. el real. Registra el progreso diario y detecta desviaciones a tiempo para tomar acciones correctivas." href="/operaciones/programacion" />
-              <ModuleCard icon={ShieldCheck} title="Prevención de Riesgos" description="Digitaliza la gestión de seguridad. Administra la documentación de contratistas (DS44), realiza inspecciones, registra IPER y gestiona incidentes desde un solo lugar." href="/prevencion" />
+              <ModuleCard icon={ShieldCheck} title="Prevención de Riesgos" description="Digitaliza la gestión de seguridad. Administra la documentación de contratistas (DS44), realiza inspecciones, registra IPER y gestiona incidentes desde un solo lugar." href="/software-prevencion-riesgos-construccion" />
             </div>
           </div>
         </section>

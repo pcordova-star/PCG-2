@@ -1,4 +1,4 @@
-// src/app/(pcg)/operaciones/page.tsx
+// src/app/operaciones/page.tsx
 import { redirect } from 'next/navigation';
 
 // This page created a route conflict. It now redirects to the main dashboard.
