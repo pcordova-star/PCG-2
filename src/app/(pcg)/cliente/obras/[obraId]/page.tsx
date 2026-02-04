@@ -88,14 +88,17 @@ function ClienteObraPageInner() {
                 const obraData = obraDoc.data() as Obra;
                 
                 // Security check:
-                // If it's NOT a preview, the user MUST be a client and their email must match.
-                if (!isPreview && (role !== 'cliente' || obraData.clienteEmail.toLowerCase() !== user.email?.toLowerCase())) {
+                // A user can view the page if:
+                // 1. It's a preview link.
+                // 2. They are a superadmin.
+                // 3. Their email matches the 'clienteEmail' field for the project.
+                const isSuperAdmin = role === 'superadmin';
+                const isAssignedDirector = user.email && obraData.clienteEmail && user.email.toLowerCase() === obraData.clienteEmail.toLowerCase();
+                
+                if (!isPreview && !isSuperAdmin && !isAssignedDirector) {
                     setError("No tienes permiso para ver esta obra.");
                     return null;
                 }
-                
-                // If it IS a preview, the user can be anyone logged in (admin, etc.),
-                // so we bypass the client-specific check.
 
                 const actsSnap = await getDocs(collection(firebaseDb, "obras", obraId, "actividades"));
                 const programadas = actsSnap.size;
