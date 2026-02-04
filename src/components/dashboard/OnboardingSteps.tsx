@@ -1,3 +1,4 @@
+// src/components/dashboard/OnboardingSteps.tsx
 "use client";
 import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
@@ -9,11 +10,16 @@ export function OnboardingSteps() {
   const [visible, setVisible] = useState(false);
 
   useEffect(() => {
+    // Solo mostrar en el lado del cliente
     const completed = localStorage.getItem(ONBOARDING_KEY) === "true";
-    if (!completed) setVisible(true);
+    if (!completed) {
+      setVisible(true);
+    }
   }, []);
 
-  if (!visible) return null;
+  if (!visible) {
+    return null;
+  }
 
   const handleClose = () => {
     localStorage.setItem(ONBOARDING_KEY, "true");
@@ -21,9 +27,9 @@ export function OnboardingSteps() {
   };
 
   return (
-    <div className="rounded-xl border bg-white shadow-sm p-4 md:p-6 flex flex-col gap-4">
+    <div className="rounded-xl border bg-card shadow-sm p-4 md:p-6 flex flex-col gap-4">
       <div className="flex justify-between items-center">
-        <h2 className="text-lg font-semibold">Flujo de trabajo PCG</h2>
+        <h2 className="text-lg font-semibold">Flujo de Trabajo Recomendado en PCG</h2>
         <Button
           onClick={handleClose}
           variant="ghost"
@@ -35,17 +41,13 @@ export function OnboardingSteps() {
         </Button>
       </div>
       <div className="flex flex-col md:flex-row items-stretch md:items-center gap-4 md:gap-6">
-        {/* Paso 1 */}
-        <StepItem step="1" title="Crear obra" description="Registra la obra con sus datos básicos." />
+        <StepItem step="1" title="Crear Obra" description="Registra la obra y sus datos maestros para empezar." />
         <Arrow />
-        {/* Paso 2 */}
-        <StepItem step="2" title="Cargar presupuesto" description="Carga partidas, costos y recursos." />
+        <StepItem step="2" title="Itemizado" description="Crea o importa el presupuesto de costos del proyecto." />
         <Arrow />
-        {/* Paso 3 */}
-        <StepItem step="3" title="Programar obra" description="Define plazos y secuencia de actividades." />
+        <StepItem step="3" title="Programación" description="Define las actividades, plazos y ruta crítica en un Gantt." />
         <Arrow />
-        {/* Paso 4 */}
-        <StepItem step="4" title="Prevención de Riesgos" description="Controla IPER, incidentes y documentación." />
+        <StepItem step="4" title="Avances y Pagos" description="Registra el progreso diario y genera los Estados de Pago." />
       </div>
     </div>
   );

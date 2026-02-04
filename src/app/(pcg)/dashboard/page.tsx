@@ -49,6 +49,7 @@ import { ObraSelectionModal } from '@/components/dashboard/ObraSelectionModal';
 import { useRouter } from 'next/navigation';
 import { Badge } from '@/components/ui/badge';
 import { motion } from 'framer-motion';
+import { OnboardingSteps } from '@/components/dashboard/OnboardingSteps';
 
 // Definición de tipos para los nuevos items del mural
 type ActivityItem = {
@@ -553,6 +554,8 @@ export default function DashboardPage() {
                 </div>
             )}
         </header>
+
+        <OnboardingSteps />
 
          {isPrevencionista ? (
              <QuickAccessCard
