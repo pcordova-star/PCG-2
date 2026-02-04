@@ -147,7 +147,7 @@ export default function ControlSubcontratistasPage() {
                 <section className="bg-muted rounded-lg p-8 text-center">
                      <h2 className="text-2xl font-bold">El Impacto Financiero: Estados de Pago sin Fricción</h2>
                      <p className="mt-3 max-w-2xl mx-auto text-muted-foreground">
-                        Un subcontratista acreditado es un estado de pago que se puede cursar. Al automatizar la validación documental, PCG elimina la principal barrera para el flujo de pagos, mejorando la relación con tus colaboradores y asegurando la continuidad de los trabajos.
+                        Un subcontratista acreditado es un estado de pago que se puede cursar. Al automatizar la validación documental, un software de control de subcontratistas como PCG elimina la principal barrera para el flujo de pagos, mejorando la relación con tus colaboradores y asegurando la continuidad de los trabajos.
                     </p>
                 </section>
 

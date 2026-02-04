@@ -27,7 +27,6 @@ export default function sitemap(): MetadataRoute.Sitemap {
     '/control-subcontratistas-ds44',
     '/software-prevencion-riesgos-construccion',
     '/software-estados-de-pago-construccion',
-    // ...aquí se agregarían futuras páginas SEO a medida que se creen
   ];
 
   const seoUrls = seoRoutes.map((route) => ({

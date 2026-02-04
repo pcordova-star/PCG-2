@@ -22,9 +22,9 @@ export default function OperacionesPage() {
     {
       title: "Estados de Pago",
       description: "Gestiona y visualiza el avance económico de tus obras en base a los contratos y avances registrados.",
-      href: "/operaciones/estados-de-pago",
+      href: "/software-estados-de-pago-construccion",
       icon: DollarSign,
-      linkText: "Ir a Estados de Pago"
+      linkText: "Conocer Más"
     },
      {
       title: "Listas de Chequeo / Formularios",

@@ -1,7 +1,7 @@
 // src/app/page.tsx
 "use client";
 
-import React, { useState, useEffect, FormEvent, useRef } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
