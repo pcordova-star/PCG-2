@@ -8,6 +8,12 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { Badge } from '@/components/ui/badge';
 
+export const metadata = {
+  title: "Software para Control de Subcontratistas y Cumplimiento DS44 | PCG",
+  description:
+    "Automatiza el control documental de subcontratistas y cumple con el DS44 en Chile. Libera estados de pago a tiempo y reduce riesgos legales con PCG.",
+};
+
 export default function ControlSubcontratistasPage() {
     const router = useRouter();
 
