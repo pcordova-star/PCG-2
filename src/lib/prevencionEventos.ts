@@ -4,18 +4,71 @@ import {
   getDoc,
   serverTimestamp,
   addDoc,
-  collection
+  collection,
+  Timestamp,
 } from "firebase/firestore";
 import { firebaseDb } from "./firebaseClient";
-import { Timestamp } from "firebase/firestore";
 
-// 👉 Datos comunes del evento (lo que comparten los 3 formularios)
+// --- INICIO: Contenido movido desde induccionAccesoFaena.ts ---
+
+export interface InduccionAccesoFaena {
+  id?: string;
+  obraId: string;
+  obraNombre?: string;
+  generadorId?: string | null;
+  tipoVisita: "VISITA" | "PROVEEDOR" | "INSPECTOR" | "OTRO";
+  nombreCompleto: string;
+  rut: string;
+  empresa: string;
+  cargo: string;
+  telefono: string;
+  correo: string;
+  fechaIngreso: string;
+  horaIngreso: string;
+  respuestaPregunta1?: "SI" | "NO";
+  respuestaPregunta2?: "SI" | "NO";
+  respuestaPregunta3?: "SI" | "NO";
+  aceptaReglamento: boolean;
+  aceptaEpp: boolean;
+  aceptaTratamientoDatos: boolean;
+  firmaDataUrl?: string;
+  origenRegistro?: "panel" | "qr";
+  createdAt?: Timestamp;
+}
+
+export async function guardarInduccionAccesoFaena(
+  data: Omit<InduccionAccesoFaena, "id" | "createdAt" | "origenRegistro">
+): Promise<string> {
+  const colRef = collection(firebaseDb, "induccionesAccesoFaena");
+  const docRef = await addDoc(colRef, {
+    ...data,
+    origenRegistro: "panel",
+    createdAt: serverTimestamp(),
+  });
+  return docRef.id;
+}
+
+export async function guardarInduccionQR(
+  data: Omit<InduccionAccesoFaena, "id" | "createdAt" | "origenRegistro">
+): Promise<string> {
+  const colRef = collection(firebaseDb, "induccionesAccesoFaena");
+  const docRef = await addDoc(colRef, {
+    ...data,
+    origenRegistro: "qr",
+    createdAt: serverTimestamp(),
+  });
+  return docRef.id;
+}
+
+// --- FIN: Contenido movido desde induccionAccesoFaena.ts ---
+
+
 export interface EventoBaseData {
   obraId: string;
   eventoId: string;
   fechaEvento?: string;
   lugar?: string;
-  tipoEvento?: string; // accidente, incidente, cuasi, etc.
+  tipoEvento?: string;
   descripcionBreve?: string;
   trabajadorInvolucrado?: string;
   creadoPor?: string;
@@ -53,16 +106,11 @@ export interface PlanAccionData {
   observacionesSeguimiento?: string;
 }
 
-// Se importa la interfaz desde el archivo centralizado
-import { InduccionAccesoFaena } from "./induccionAccesoFaena";
-// También exportamos el tipo para mantener la compatibilidad con otros archivos que lo usen.
-export type { InduccionAccesoFaena };
 
 function eventoDocRef(obraId: string, eventoId: string) {
   return doc(firebaseDb, "obras", obraId, "eventosRiesgosos", eventoId);
 }
 
-// 🔹 Guardar / actualizar la parte IER (sin pisar lo demás)
 export async function guardarIER(
   base: EventoBaseData,
   ier: IERData
@@ -83,7 +131,6 @@ export async function guardarIER(
   );
 }
 
-// 🔹 Guardar / actualizar la parte de Investigación
 export async function guardarInvestigacion(
   obraId: string,
   eventoId: string,
@@ -103,7 +150,6 @@ export async function guardarInvestigacion(
   );
 }
 
-// 🔹 Guardar / actualizar la parte de Plan de Acción
 export async function guardarPlanAccion(
   obraId: string,
   eventoId: string,
@@ -123,7 +169,6 @@ export async function guardarPlanAccion(
   );
 }
 
-// 🔹 Leer todo el evento (con las 3 partes si existen)
 export async function cargarEventoCompleto(
   obraId: string,
   eventoId: string
@@ -133,7 +178,3 @@ export async function cargarEventoCompleto(
   if (!snap.exists()) return null;
   return snap.data();
 }
-
-// Las funciones de inducción han sido movidas a su propio archivo `induccionAccesoFaena.ts`
-// para evitar duplicidad y posibles errores de importación circular.
-export { guardarInduccionAccesoFaena, guardarInduccionQR } from "./induccionAccesoFaena";
