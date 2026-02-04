@@ -1,10 +1,9 @@
-
 'use client';
 
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { useRouter } from 'next/navigation';
-import { collection, getDocs, query, collectionGroup, orderBy, limit } from 'firebase/firestore';
+import { collection, getDocs, query, where, collectionGroup, orderBy, limit } from 'firebase/firestore';
 import { firebaseDb } from '@/lib/firebaseClient';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
@@ -45,6 +44,7 @@ export default function AdminDashboardPage() {
   const [recentObras, setRecentObras] = useState<Obra[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [pendingRequestsCount, setPendingRequestsCount] = useState(0);
 
   useEffect(() => {
     if (authLoading) return;
@@ -60,10 +60,11 @@ export default function AdminDashboardPage() {
       setLoading(true);
       setError(null);
       try {
-        const [companiesSnap, obrasSnap, usersSnap] = await Promise.all([
+        const [companiesSnap, obrasSnap, usersSnap, requestsSnap] = await Promise.all([
           getDocs(collection(firebaseDb, 'companies')),
           getDocs(query(collectionGroup(firebaseDb, 'obras'), orderBy('creadoEn', 'desc'), limit(10))),
-          getDocs(collection(firebaseDb, 'users'))
+          getDocs(collection(firebaseDb, 'users')),
+          getDocs(query(collection(firebaseDb, 'moduleActivationRequests'), where('status', '==', 'pending')))
         ]);
         
         const totalEmpresas = companiesSnap.size;
@@ -71,6 +72,7 @@ export default function AdminDashboardPage() {
         const totalUsuarios = usersSnap.size;
 
         setSummary({ totalEmpresas, totalObras, totalUsuarios });
+        setPendingRequestsCount(requestsSnap.size);
 
         const companyMap = new Map(companiesSnap.docs.map(doc => [doc.id, doc.data().nombreFantasia || doc.data().nombre]));
         
@@ -119,7 +121,12 @@ export default function AdminDashboardPage() {
 
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-5">
         {adminCards.map(card => (
-          <Card key={card.title} className="flex flex-col">
+          <Card key={card.title} className="flex flex-col relative">
+            {card.title === "Solicitudes" && pendingRequestsCount > 0 && (
+                <div className="absolute -top-2 -right-2 flex h-5 w-5 items-center justify-center rounded-full bg-red-600 text-white text-xs font-bold animate-pulse z-10">
+                    {pendingRequestsCount}
+                </div>
+            )}
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium">{card.title}</CardTitle>
               <card.icon className="h-4 w-4 text-muted-foreground" />
