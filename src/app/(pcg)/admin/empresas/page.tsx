@@ -1,4 +1,3 @@
-
 "use client";
 
 import React, { useState, useEffect, FormEvent } from 'react';
@@ -316,7 +315,7 @@ export default function AdminEmpresasPage() {
                         <DialogHeader>
                             <DialogTitle>{currentCompany?.id ? "Editar Empresa" : "Crear Nueva Empresa"}</DialogTitle>
                         </DialogHeader>
-                        <div className="grid gap-4 py-4 md:grid-cols-2">
+                        <div className="grid gap-4 py-4 md:grid-cols-2 max-h-[65vh] overflow-y-auto pr-4">
                             <div className="space-y-2"><Label>Nombre Fantasía*</Label><Input name="nombreFantasia" value={currentCompany?.nombreFantasia || ''} onChange={handleFormChange} /></div>
                             <div className="space-y-2"><Label>Razón Social*</Label><Input name="razonSocial" value={currentCompany?.razonSocial || ''} onChange={handleFormChange} /></div>
                             <div className="space-y-2"><Label>RUT*</Label><Input name="rut" value={currentCompany?.rut || ''} onChange={handleFormChange} /></div>
