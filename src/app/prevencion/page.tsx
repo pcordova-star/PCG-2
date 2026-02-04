@@ -20,11 +20,11 @@ export default function PrevencionPage() {
       linkText: "Gestionar PPR"
     },
     {
-      title: "Empresas contratistas – DS44",
-      description: "Registrar y evaluar el cumplimiento de requisitos DS44 de empresas contratistas y subcontratistas por obra.",
-      href: "/prevencion/empresas-contratistas",
+      title: "Control de Subcontratistas y DS44",
+      description: "Automatiza la gestión documental y el cumplimiento de requisitos del DS44 para empresas contratistas y subcontratistas.",
+      href: "/control-subcontratistas-ds44",
       icon: Building,
-      linkText: "Ir a Empresas contratistas"
+      linkText: "Conocer Más"
     },
     {
       title: "Ingreso de personal – DS44",
