@@ -34,12 +34,14 @@ import {
 } from "lucide-react";
 import { Progress } from "@/components/ui/progress";
 import { useRouter } from "next/navigation";
+import { differenceInDays } from "date-fns";
 
 interface ObraConKPIs extends Obra {
   kpis: {
     rdiAbiertos: number;
     hallazgosAbiertos: number;
   };
+  avanceProgramadoLineal: number;
 }
 
 export default function DirectorioDashboardPage() {
@@ -84,12 +86,33 @@ export default function DirectorioDashboardPage() {
             getDocs(hallazgosQuery),
           ]);
 
+          // Calculate linear projected progress
+          let avanceProgramadoLineal = 0;
+          if (obra.fechaInicio && obra.fechaTermino) {
+              const inicio = new Date(obra.fechaInicio + 'T00:00:00');
+              const fin = new Date(obra.fechaTermino + 'T00:00:00');
+              const hoy = new Date();
+              
+              if (hoy < inicio) {
+                  avanceProgramadoLineal = 0;
+              } else if (hoy > fin) {
+                  avanceProgramadoLineal = 100;
+              } else {
+                  const totalDias = differenceInDays(fin, inicio);
+                  const diasPasados = differenceInDays(hoy, inicio);
+                  if (totalDias > 0) {
+                      avanceProgramadoLineal = (diasPasados / totalDias) * 100;
+                  }
+              }
+          }
+
           return {
             ...obra,
             kpis: {
               rdiAbiertos: rdiSnap.size,
               hallazgosAbiertos: hallazgosSnap.size,
             },
+            avanceProgramadoLineal: Math.min(100, avanceProgramadoLineal),
           };
         });
 
@@ -172,7 +195,7 @@ export default function DirectorioDashboardPage() {
                 <TableHeader>
                     <TableRow>
                         <TableHead>Proyecto</TableHead>
-                        <TableHead className="w-[200px]">Avance Físico</TableHead>
+                        <TableHead className="w-[250px]">Avance (Real/Prog.)</TableHead>
                         <TableHead className="text-center">RDI Abiertos</TableHead>
                         <TableHead className="text-center">Hallazgos Abiertos</TableHead>
                         <TableHead className="text-right">Acciones</TableHead>
@@ -182,10 +205,22 @@ export default function DirectorioDashboardPage() {
                     {filteredObras.map(obra => (
                         <TableRow key={obra.id}>
                             <TableCell className="font-medium">{obra.nombreFaena}</TableCell>
-                            <TableCell>
-                                <div className="flex items-center gap-2">
-                                    <Progress value={obra.avanceAcumulado ?? 0} className="h-2" />
-                                    <span className="font-mono text-xs w-12 text-right">{obra.avanceAcumulado?.toFixed(1) ?? '0.0'}%</span>
+                            <TableCell className="min-w-[250px]">
+                                <div className="flex flex-col gap-1.5">
+                                    <div className="flex items-center gap-2 w-full" title="Avance Físico Real Registrado">
+                                        <span className="text-xs w-10 text-muted-foreground text-left">Real:</span>
+                                        <Progress value={obra.avanceAcumulado ?? 0} className="h-2" />
+                                        <span className="font-mono text-xs w-12 text-right">
+                                            {(obra.avanceAcumulado ?? 0).toFixed(1)}%
+                                        </span>
+                                    </div>
+                                    <div className="flex items-center gap-2 w-full" title="Avance Programado (Lineal)">
+                                        <span className="text-xs w-10 text-muted-foreground text-left">Prog:</span>
+                                        <Progress value={obra.avanceProgramadoLineal ?? 0} className="h-2 bg-slate-200" indicatorClassName="bg-slate-400" />
+                                        <span className="font-mono text-xs w-12 text-right">
+                                            {(obra.avanceProgramadoLineal ?? 0).toFixed(1)}%
+                                        </span>
+                                    </div>
                                 </div>
                             </TableCell>
                             <TableCell className="text-center">
