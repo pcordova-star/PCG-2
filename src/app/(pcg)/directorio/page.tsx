@@ -89,8 +89,8 @@ export default function DirectorioDashboardPage() {
           // Calculate linear projected progress
           let avanceProgramadoLineal = 0;
           if (obra.fechaInicio && obra.fechaTermino) {
-              const inicio = new Date(obra.fechaInicio + 'T00:00:00');
-              const fin = new Date(obra.fechaTermino + 'T00:00:00');
+              const inicio = (obra.fechaInicio as any).toDate ? (obra.fechaInicio as any).toDate() : new Date(obra.fechaInicio + 'T00:00:00');
+              const fin = (obra.fechaTermino as any).toDate ? (obra.fechaTermino as any).toDate() : new Date(obra.fechaTermino + 'T00:00:00');
               const hoy = new Date();
               
               if (hoy < inicio) {
