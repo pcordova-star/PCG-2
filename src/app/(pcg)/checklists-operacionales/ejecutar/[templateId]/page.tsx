@@ -17,7 +17,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Loader2, ArrowLeft, Save, Upload, X } from 'lucide-react';
 import { OperationalChecklistTemplate, Obra } from '@/types/pcg';
 import { defaultSectores, defaultElementos } from '@/lib/checklists/catalogos';
-import SignaturePad from '@/app/prevencion/hallazgos/components/SignaturePad';
+import SignaturePad from '@/app/(pcg)/prevencion/hallazgos/components/SignaturePad';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 
 interface HeaderData {
