@@ -33,6 +33,7 @@ import {
   Users,
   GitCompareArrows,
   UserCheck,
+  BarChart,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useEffect, useState, useMemo, Suspense } from 'react';
@@ -261,6 +262,16 @@ const quickAccessModules = [
         color: 'pink' as const,
         roles: ['superadmin', 'admin_empresa', 'jefe_obra', 'prevencionista'],
         featureFlag: 'feature_access_control_enabled'
+    },
+    {
+        id: 'acceso-director',
+        title: 'Acceso Director',
+        description: 'Dashboard gerencial para directores con vista consolidada de las obras designadas.',
+        href: '/directorio',
+        icon: BarChart,
+        color: 'purple' as const,
+        roles: ['superadmin', 'admin_empresa'],
+        featureFlag: 'feature_director_dashboard_enabled'
     }
 ];
 
@@ -431,7 +442,7 @@ export default function DashboardPage() {
   }, [user, role, companyId, authLoading, isPrevencionista]);
   
   const handleQuickAccessClick = (target: string) => {
-    if (['/rdi', '/cubicacion/analisis-planos', '/cumplimiento', '/comparacion-planos/historial', '/prevencion/capacitacion/induccion-acceso'].includes(target)) {
+    if (['/rdi', '/cubicacion/analisis-planos', '/cumplimiento', '/comparacion-planos/historial', '/prevencion/capacitacion/induccion-acceso', '/directorio'].includes(target)) {
         router.push(target);
         return;
     }

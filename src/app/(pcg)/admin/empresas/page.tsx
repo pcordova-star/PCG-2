@@ -113,6 +113,7 @@ export default function AdminEmpresasPage() {
             feature_operational_checklists_enabled: false,
             feature_document_control_enabled: false,
             feature_access_control_enabled: false,
+            feature_director_dashboard_enabled: false,
         });
         setDialogOpen(true);
         setError(null);
@@ -147,6 +148,7 @@ export default function AdminEmpresasPage() {
             feature_operational_checklists_enabled: currentCompany.feature_operational_checklists_enabled || false,
             feature_document_control_enabled: currentCompany.feature_document_control_enabled || false,
             feature_access_control_enabled: currentCompany.feature_access_control_enabled || false,
+            feature_director_dashboard_enabled: currentCompany.feature_director_dashboard_enabled || false,
         };
 
         try {
@@ -244,12 +246,13 @@ export default function AdminEmpresasPage() {
                                 <TableHead>M. Checklists</TableHead>
                                 <TableHead>M. Documental</TableHead>
                                 <TableHead>M. Acceso</TableHead>
+                                <TableHead>M. Acceso Director</TableHead>
                                 <TableHead className="text-right">Acciones</TableHead>
                             </TableRow>
                         </TableHeader>
                         <TableBody>
                             {loading ? (
-                                <TableRow><TableCell colSpan={11} className="text-center h-24">Cargando empresas...</TableCell></TableRow>
+                                <TableRow><TableCell colSpan={12} className="text-center h-24">Cargando empresas...</TableCell></TableRow>
                             ) : empresas.map((emp) => (
                                 <TableRow key={emp.id}>
                                     <TableCell className="font-medium">{emp.nombreFantasia}</TableCell>
@@ -288,6 +291,11 @@ export default function AdminEmpresasPage() {
                                     <TableCell>
                                         <Badge variant={emp.feature_access_control_enabled ? 'default' : 'outline'}>
                                             {emp.feature_access_control_enabled ? 'On' : 'Off'}
+                                        </Badge>
+                                    </TableCell>
+                                    <TableCell>
+                                        <Badge variant={emp.feature_director_dashboard_enabled ? 'default' : 'outline'}>
+                                            {emp.feature_director_dashboard_enabled ? 'On' : 'Off'}
                                         </Badge>
                                     </TableCell>
                                     <TableCell className="text-right">
@@ -383,6 +391,10 @@ export default function AdminEmpresasPage() {
                                 <div className="flex items-center space-x-2">
                                     <Checkbox id="feature_access_control_enabled" name="feature_access_control_enabled" checked={currentCompany?.feature_access_control_enabled} onCheckedChange={(checked) => handleFormChange({ target: { name: 'feature_access_control_enabled', value: '', type: 'checkbox', checked: !!checked } } as any)} />
                                     <Label htmlFor="feature_access_control_enabled">Módulo de Control de Acceso (QR Visitas)</Label>
+                                </div>
+                                <div className="flex items-center space-x-2">
+                                    <Checkbox id="feature_director_dashboard_enabled" name="feature_director_dashboard_enabled" checked={currentCompany?.feature_director_dashboard_enabled} onCheckedChange={(checked) => handleFormChange({ target: { name: 'feature_director_dashboard_enabled', value: '', type: 'checkbox', checked: !!checked } } as any)} />
+                                    <Label htmlFor="feature_director_dashboard_enabled">Módulo de Acceso Director</Label>
                                 </div>
                             </div>
                             {error && <p className="text-sm font-medium text-destructive col-span-2">{error}</p>}
