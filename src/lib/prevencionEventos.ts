@@ -20,7 +20,6 @@ export interface EventoBaseData {
   creadoPor?: string;
 }
 
-// 👉 Datos específicos de cada formulario
 export interface IERData {
   fechaInforme?: string;
   horaInforme?: string;
@@ -53,37 +52,10 @@ export interface PlanAccionData {
   observacionesSeguimiento?: string;
 }
 
-// Interfaz para la inducción
-export interface InduccionAccesoFaena {
-  id?: string;
-  obraId: string;
-  obraNombre?: string;
-  generadorId?: string | null; // ID del usuario que generó el QR (admin/prevencionista)
-
-  tipoVisita: "VISITA" | "PROVEEDOR" | "INSPECTOR" | "OTRO";
-  nombreCompleto: string;
-  rut: string;
-  empresa: string;
-  cargo: string;
-  telefono: string;
-  correo: string;
-
-  fechaIngreso: string; // yyyy-mm-dd
-  horaIngreso: string;   // hh:mm
-
-  respuestaPregunta1?: "SI" | "NO";
-  respuestaPregunta2?: "SI" | "NO";
-  respuestaPregunta3?: "SI" | "NO";
-
-  aceptaReglamento: boolean;
-  aceptaEpp: boolean;
-  aceptaTratamientoDatos: boolean;
-
-  firmaDataUrl?: string; // imagen de la firma en base64 (opcional)
-  origenRegistro?: "panel" | "qr";
-  createdAt?: any;
-}
-
+// Se importa la interfaz desde el archivo centralizado
+import { InduccionAccesoFaena } from "./induccionAccesoFaena";
+// También exportamos el tipo para mantener la compatibilidad con otros archivos que lo usen.
+export type { InduccionAccesoFaena };
 
 function eventoDocRef(obraId: string, eventoId: string) {
   return doc(firebaseDb, "obras", obraId, "eventosRiesgosos", eventoId);
@@ -161,28 +133,6 @@ export async function cargarEventoCompleto(
   return snap.data();
 }
 
-// 🔹 Guardar inducción desde el panel de administrador
-export async function guardarInduccionAccesoFaena(
-  data: Omit<InduccionAccesoFaena, "id" | "createdAt" | "origenRegistro">
-): Promise<string> {
-  const colRef = collection(firebaseDb, "induccionesAccesoFaena");
-  const docRef = await addDoc(colRef, {
-    ...data,
-    origenRegistro: "panel",
-    createdAt: serverTimestamp(),
-  });
-  return docRef.id;
-}
-
-// 🔹 Guardar inducción desde el QR público
-export async function guardarInduccionQR(
-  data: Omit<InduccionAccesoFaena, "id" | "createdAt" | "origenRegistro">
-): Promise<string> {
-  const colRef = collection(firebaseDb, "induccionesAccesoFaena");
-  const docRef = await addDoc(colRef, {
-    ...data,
-    origenRegistro: "qr",
-    createdAt: serverTimestamp(),
-  });
-  return docRef.id;
-}
+// Las funciones de inducción han sido movidas a su propio archivo `induccionAccesoFaena.ts`
+// para evitar duplicidad y posibles errores de importación circular.
+export { guardarInduccionAccesoFaena, guardarInduccionQR } from "./induccionAccesoFaena";

@@ -11,7 +11,8 @@ export interface InduccionAccesoFaena {
 
   // Datos de la obra
   obraId: string;
-  obraNombre: string;
+  obraNombre?: string;
+  generadorId?: string | null;
 
   // Datos de la persona
   tipoVisita: "VISITA" | "PROVEEDOR" | "INSPECTOR" | "OTRO";
@@ -23,13 +24,13 @@ export interface InduccionAccesoFaena {
   correo: string;
 
   // Datos de ingreso
-  fechaIngreso: string; // formato "YYYY-MM-DD"
-  horaIngreso: string;  // formato "HH:mm"
+  fechaIngreso: string; // yyyy-mm-dd
+  horaIngreso: string;  // hh:mm
 
   // Preguntas de comprensión (pueden ser tipo SI/NO)
-  respuestaPregunta1: "SI" | "NO";
-  respuestaPregunta2: "SI" | "NO";
-  respuestaPregunta3: "SI" | "NO";
+  respuestaPregunta1?: "SI" | "NO";
+  respuestaPregunta2?: "SI" | "NO";
+  respuestaPregunta3?: "SI" | "NO";
 
   // Aceptaciones
   aceptaReglamento: boolean;
@@ -38,17 +39,32 @@ export interface InduccionAccesoFaena {
 
   // Firma digital (data URL en base64, opcional)
   firmaDataUrl?: string;
+  origenRegistro?: "panel" | "qr";
 
   createdAt?: any;
 }
 
 
 export async function guardarInduccionAccesoFaena(
-  data: Omit<InduccionAccesoFaena, "id" | "createdAt">
+  data: Omit<InduccionAccesoFaena, "id" | "createdAt" | "origenRegistro">
 ): Promise<string> {
   const colRef = collection(firebaseDb, "induccionesAccesoFaena");
   const docRef = await addDoc(colRef, {
     ...data,
+    origenRegistro: "panel",
+    createdAt: serverTimestamp(),
+  });
+  return docRef.id;
+}
+
+// 🔹 Guardar inducción desde el QR público
+export async function guardarInduccionQR(
+  data: Omit<InduccionAccesoFaena, "id" | "createdAt" | "origenRegistro">
+): Promise<string> {
+  const colRef = collection(firebaseDb, "induccionesAccesoFaena");
+  const docRef = await addDoc(colRef, {
+    ...data,
+    origenRegistro: "qr",
     createdAt: serverTimestamp(),
   });
   return docRef.id;

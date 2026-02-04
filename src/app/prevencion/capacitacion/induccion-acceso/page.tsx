@@ -12,7 +12,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import { ArrowLeft, QrCode } from "lucide-react";
-import { InduccionAccesoFaena } from "@/lib/prevencionEventos";
+import { InduccionAccesoFaena } from "@/lib/induccionAccesoFaena"; // ACTUALIZADO
 import { useAuth } from "@/context/AuthContext";
 import { Label } from "@/components/ui/label";
 import { useRouter } from 'next/navigation';
