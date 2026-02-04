@@ -475,7 +475,7 @@ export default function WelcomePage() {
               <ModuleCard icon={HardHat} title="Gestión de Obras" description="Centraliza toda la información de tus proyectos. Asigna responsables, define datos maestros, gestiona contratos y mantén un registro documental ordenado y accesible desde cualquier lugar." href="/obras" />
               <ModuleCard icon={DollarSign} title="Presupuestos" description="Conecta tus análisis de precios unitarios con la programación y el avance real. Genera presupuestos dinámicos, controla costos y proyecta flujos de caja con precisión." href="/operaciones/presupuestos" />
               <ModuleCard icon={GanttChartSquare} title="Programación" description="Visualiza tu proyecto con una Curva S que compara el avance programado vs. el real. Registra el progreso diario y detecta desviaciones a tiempo para tomar acciones correctivas." href="/operaciones/programacion" />
-              <ModuleCard icon={ShieldCheck} title="Prevención de Riesgos" description="Digitaliza la gestión de seguridad. Administra la documentación de contratistas (DS44), realiza inspecciones, registra IPER y gestiona incidentes desde un solo lugar." href="/prevencion" />
+              <ModuleCard icon={ShieldCheck} title="Prevención de Riesgos" description="Digitaliza la gestión de seguridad. Administra la documentación de contratistas (DS44), realiza inspecciones, registra IPER y gestiona incidentes desde un solo lugar." href="/software-prevencion-riesgos-construccion" />
             </div>
           </div>
         </section>
