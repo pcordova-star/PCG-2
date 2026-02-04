@@ -1,3 +1,4 @@
+
 // src/app/cliente/obras/[obraId]/page.tsx
 "use client";
 
@@ -195,9 +196,9 @@ function ClienteObraPageInner() {
       <header className="space-y-2 border-b pb-4 print:border-b-2 print:border-black">
         <div className="flex items-center gap-4">
             <Button asChild variant="outline" size="icon" className="no-print">
-              <Link href="/obras">
+              <Link href="/directorio">
                 <ArrowLeft className="h-4 w-4" />
-                <span className="sr-only">Volver al listado de obras</span>
+                <span className="sr-only">Volver al dashboard del directorio</span>
               </Link>
             </Button>
             <h1 className="text-3xl font-bold tracking-tight text-primary print:text-2xl">
