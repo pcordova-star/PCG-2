@@ -7,6 +7,7 @@ import {
   collection
 } from "firebase/firestore";
 import { firebaseDb } from "./firebaseClient";
+import { Timestamp } from "firebase/firestore";
 
 // 👉 Datos comunes del evento (lo que comparten los 3 formularios)
 export interface EventoBaseData {
