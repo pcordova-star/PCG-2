@@ -33,9 +33,23 @@ export default function sitemap(): MetadataRoute.Sitemap {
   const seoUrls = seoRoutes.map((route) => ({
     url: `${baseUrl}${route}`,
     lastModified: new Date().toISOString(),
-    changeFrequency: 'weekly' as const, // Se actualizan más seguido que las páginas estáticas
-    priority: 0.9, // Muy alta prioridad, son páginas de conversión
+    changeFrequency: 'weekly' as const, 
+    priority: 0.9, 
   }));
 
-  return [...staticUrls, ...seoUrls];
+  // Artículos del blog
+  const blogRoutes = [
+    '/blog/checklist-ds44-documentos-subcontratistas',
+    '/blog/errores-estados-de-pago-construccion',
+  ];
+
+  const blogUrls = blogRoutes.map((route) => ({
+    url: `${baseUrl}${route}`,
+    lastModified: new Date().toISOString(),
+    changeFrequency: 'monthly' as const,
+    priority: 0.8, // Importantes para construir autoridad
+  }));
+
+
+  return [...staticUrls, ...seoUrls, ...blogUrls];
 }

@@ -3,7 +3,7 @@
 
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { ArrowLeft, CheckCircle, FileWarning, Clock, GanttChartSquare, DollarSign, RefreshCw, Link as LinkIcon } from 'lucide-react';
+import { ArrowLeft, CheckCircle, FileWarning, Clock, GanttChartSquare, DollarSign, RefreshCw, Link as LinkIcon, BookOpen } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { Badge } from '@/components/ui/badge';
@@ -123,6 +123,21 @@ export default function EstadosDePagoPage() {
                             </div>
                         </div>
                     </div>
+                </section>
+
+                 <section>
+                    <Card className="bg-muted/30">
+                        <CardHeader className="items-center text-center">
+                            <BookOpen className="h-8 w-8 text-primary"/>
+                            <CardTitle>Aprende a Evitar los Errores Clásicos</CardTitle>
+                            <CardDescription>Lee nuestro artículo detallado y descubre los 5 errores más comunes en la confección de Estados de Pago y cómo una plataforma digital los previene.</CardDescription>
+                        </CardHeader>
+                        <CardFooter className="justify-center">
+                            <Button asChild>
+                                <Link href="/blog/errores-estados-de-pago-construccion">Leer Artículo del Blog</Link>
+                            </Button>
+                        </CardFooter>
+                    </Card>
                 </section>
 
                 <section>
