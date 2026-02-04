@@ -11,8 +11,9 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
-import { Loader2 } from 'lucide-react';
+import { Loader2, ArrowLeft } from 'lucide-react';
 import { Company } from '@/types/pcg';
+import Link from 'next/link';
 
 type Obra = {
   id: string;
@@ -110,6 +111,9 @@ export default function AdminGlobalObrasPage() {
 
   return (
     <div className="space-y-6">
+       <Button asChild variant="outline" size="sm">
+        <Link href="/admin/dashboard"><ArrowLeft className="mr-2 h-4 w-4" />Volver al Dashboard</Link>
+      </Button>
       <header>
         <h1 className="text-2xl font-bold">Panel Global de Obras</h1>
         <p className="text-muted-foreground">Supervisa y gestiona todas las obras registradas en la plataforma.</p>
