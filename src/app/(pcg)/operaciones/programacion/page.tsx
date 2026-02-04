@@ -1074,52 +1074,58 @@ function ProgramacionPageInner() {
 
       <Card>
         <CardHeader className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-            <div>
-                <CardTitle>Actividades Programadas</CardTitle>
-                <CardDescription>{cargandoActividades ? "Cargando..." : `Mostrando ${actividadesFiltradas.length} de ${actividades.length} actividades.`}</CardDescription>
-            </div>
-            <div className="flex flex-wrap gap-2">
-                 <input type="file" ref={fileInputRef} onChange={handleFileSelect} className="hidden" accept=".xlsx, .xls, .csv"/>
-                 <Button onClick={() => fileInputRef.current?.click()} variant="outline" disabled={!obraSeleccionadaId || isProcessingImport}>
-                    {isProcessingImport ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <FileUp className="mr-2 h-4 w-4"/>}
-                    Importar desde Excel
-                 </Button>
-                 <Button onClick={handleExport} variant="outline" disabled={actividades.length === 0}>
-                    <FileDown className="mr-2 h-4 w-4"/> Exportar para Programar
-                 </Button>
-                 <Button onClick={handleOpenImportDialog} variant="outline" disabled={!obraSeleccionadaId}>
-                    <FileDown className="mr-2 h-4 w-4" />
-                    Importar desde Presupuesto
+          <div>
+            <CardTitle>Actividades Programadas</CardTitle>
+            <CardDescription>{cargandoActividades ? "Cargando..." : `Mostrando ${actividadesFiltradas.length} de ${actividades.length} actividades.`}</CardDescription>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            <input type="file" ref={fileInputRef} onChange={handleFileSelect} className="hidden" accept=".xlsx, .xls, .csv"/>
+            <Button onClick={() => fileInputRef.current?.click()} variant="outline" disabled={!obraSeleccionadaId || isProcessingImport}>
+              {isProcessingImport ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <FileUp className="mr-2 h-4 w-4"/>}
+              Importar desde Excel
+            </Button>
+            <Button onClick={handleExport} variant="outline" disabled={actividades.length === 0}>
+              <FileDown className="mr-2 h-4 w-4"/> Exportar para Programar
+            </Button>
+            <Button onClick={handleOpenImportDialog} variant="outline" disabled={!obraSeleccionadaId}>
+              <FileDown className="mr-2 h-4 w-4" />
+              Importar desde Presupuesto
+            </Button>
+            <Button onClick={() => handleOpenDialog()}>
+              <PlusCircle className="mr-2 h-4 w-4" />
+              Nueva Actividad
+            </Button>
+            <AlertDialog>
+              <AlertDialogTrigger asChild>
+                <Button variant="destructive" disabled={!obraSeleccionadaId || actividades.length === 0}>
+                  <RefreshCw className="mr-2 h-4 w-4" />
+                  Reiniciar Programación
                 </Button>
-                <Button onClick={() => handleOpenDialog()}>
-                    <PlusCircle className="mr-2 h-4 w-4" />
-                    Nueva Actividad
-                </Button>
-                 <AlertDialog>
-                    <AlertDialogTrigger asChild>
-                        <Button variant="destructive" disabled={!obraSeleccionadaId || actividades.length === 0}>
-                            <RefreshCw className="mr-2 h-4 w-4" />
-                            Reiniciar Programación
-                        </Button>
-                    </AlertDialogTrigger>
-                    <AlertDialogContent>
-                        <AlertDialogHeader>
-                            <AlertDialogTitle>¿Está seguro de reiniciar la programación?</AlertDialogTitle>
-                            <AlertDialogDescription>
-                                Esta acción eliminará TODAS las actividades y avances diarios de la obra seleccionada. Es irreversible. Los Estados de Pago generados previamente NO se eliminarán.
-                            </AlertDialogDescription>
-                        </AlertDialogHeader>
-                        <AlertDialogFooter>
-                            <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                            <AlertDialogAction onClick={handleResetProgramacion}>Sí, reiniciar programación</AlertDialogAction>
-                        </AlertDialogFooter>
-                    </AlertDialogContent>
-                </AlertDialog>
-            </div>
+              </AlertDialogTrigger>
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>¿Está seguro de reiniciar la programación?</AlertDialogTitle>
+                  <AlertDialogDescription>
+                    Esta acción eliminará TODAS las actividades y avances diarios de la obra seleccionada. Es irreversible. Los Estados de Pago generados previamente NO se eliminarán.
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                  <AlertDialogAction onClick={handleResetProgramacion}>Sí, reiniciar programación</AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
+          </div>
         </CardHeader>
-        <CardContent className="p-0">
-            <div className="overflow-x-auto">
-                <Table>
+        <Accordion type="single" collapsible className="w-full" defaultValue="program-table">
+          <AccordionItem value="program-table" className="border-t">
+            <AccordionTrigger className="px-6 py-3 text-sm font-medium hover:no-underline text-muted-foreground [&[data-state=open]>svg]:text-primary">
+              Ver / Ocultar programa de actividades
+            </AccordionTrigger>
+            <AccordionContent>
+              <CardContent className="p-0">
+                <div className="overflow-x-auto">
+                  <Table>
                     <TableHeader>
                       <TableRow>
                         <TableHead className="w-[30%]">Actividad</TableHead>
@@ -1190,9 +1196,12 @@ function ProgramacionPageInner() {
                         <TableRow><TableCell colSpan={11} className="text-center text-muted-foreground py-8">No hay actividades que coincidan con los filtros.</TableCell></TableRow>
                     )}
                     </TableBody>
-                </Table>
-            </div>
-        </CardContent>
+                  </Table>
+                </div>
+              </CardContent>
+            </AccordionContent>
+          </AccordionItem>
+        </Accordion>
       </Card>
       
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
