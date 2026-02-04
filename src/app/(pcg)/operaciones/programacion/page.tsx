@@ -152,7 +152,7 @@ type CurvaSDataPoint = {
 
 // --- Componente Curva S ---
 function CurvaSChart({ actividades, avances, montoTotalContrato }: { actividades: ActividadProgramada[], avances: AvanceDiario[], montoTotalContrato: number }) {
-  const data = useMemo(() => {
+  const data = (() => {
     if (!actividades.length) return [];
 
     const fechasInicio = actividades.map(a => new Date(a.fechaInicio + 'T00:00:00')).filter(d => !isNaN(d.getTime()));
@@ -231,7 +231,7 @@ function CurvaSChart({ actividades, avances, montoTotalContrato }: { actividades
     }
 
     return dataCurva;
-  }, [actividades, avances, montoTotalContrato]);
+  })();
 
   if (!data.length) {
     return (
