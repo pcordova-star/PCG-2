@@ -7,8 +7,8 @@ import { Suspense } from "react";
 import { Toaster } from "@/components/ui/toaster";
 
 export const metadata = {
-  title: "PCG Plataforma",
-  description: "Gestión de Obras y Prevención"
+  title: "PCG | Software de Gestión de Obras para Constructoras en Chile",
+  description: "Centraliza operaciones, prevención de riesgos (DS44) y control de subcontratistas. Potenciado con IA para optimizar costos y plazos en tus proyectos.",
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

@@ -414,10 +414,12 @@ export default function WelcomePage() {
                     <PcgLogo size={120} />
                   </div>
                 </motion.div>
-                <p className="font-semibold text-primary-foreground/80 tracking-wider">PLATAFORMA DE CONTROL Y GESTIÓN</p>
                 <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold tracking-tighter text-shadow-lg mt-2">
-                Datos reales para decisiones operativas.
+                    Software de Gestión de Obras para Constructoras en Chile
                 </h1>
+                <p className="mt-6 text-lg text-primary-foreground/90 max-w-3xl mx-auto">
+                    Centraliza operaciones, prevención de riesgos (DS44) y control de subcontratistas en una sola plataforma. Potencia tus proyectos con IA para optimizar costos y plazos.
+                </p>
                 <div className="mt-8 flex justify-center gap-4">
                 <Button size="lg" asChild>
                     <a href="mailto:paulo@ipsconstruccion.cl?subject=Solicitud%20de%20Demo%20de%20PCG">Agendar Demo</a>
