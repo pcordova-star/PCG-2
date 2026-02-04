@@ -1,3 +1,4 @@
+// src/app/(pcg)/admin/empresas/page.tsx
 "use client";
 
 import React, { useState, useEffect, FormEvent } from 'react';
@@ -43,7 +44,7 @@ export default function AdminEmpresasPage() {
     const router = useRouter();
     const { toast } = useToast();
 
-    const [empresas, setEmpresas] = useState<Company[]>([]);
+    const [empresas, setEmpresas] = useState<(Company & { subcontractorCount: number })[]>([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
 
@@ -60,24 +61,41 @@ export default function AdminEmpresasPage() {
     useEffect(() => {
         if (!isSuperAdmin) return;
 
-        async function fetchCompanies() {
+        async function fetchCompaniesAndSubcontractors() {
             setLoading(true);
             try {
-                const q = query(collection(firebaseDb, "companies"), orderBy("createdAt", "desc"));
-                const querySnapshot = await getDocs(q);
-                const companiesData = querySnapshot.docs.map(doc => ({
+                // Fetch all companies and subcontractors in parallel
+                const [companiesSnap, subcontractorsSnap] = await Promise.all([
+                    getDocs(query(collection(firebaseDb, "companies"), orderBy("createdAt", "desc"))),
+                    getDocs(collection(firebaseDb, "subcontractors"))
+                ]);
+                
+                // Count subcontractors per company
+                const subCounts = new Map<string, number>();
+                subcontractorsSnap.docs.forEach(doc => {
+                    const companyId = doc.data().companyId;
+                    if (companyId) {
+                        subCounts.set(companyId, (subCounts.get(companyId) || 0) + 1);
+                    }
+                });
+
+                // Map company data and add subcontractor count
+                const companiesData = companiesSnap.docs.map(doc => ({
                     id: doc.id,
-                    ...doc.data()
-                } as Company));
+                    ...doc.data(),
+                    subcontractorCount: subCounts.get(doc.id) || 0,
+                } as Company & { subcontractorCount: number }));
+
                 setEmpresas(companiesData);
+
             } catch (err: any) {
-                console.error("Error fetching companies:", err);
-                setError("No se pudieron cargar las empresas.");
+                console.error("Error fetching data:", err);
+                setError("No se pudieron cargar los datos de empresas o subcontratistas.");
             } finally {
                 setLoading(false);
             }
         }
-        fetchCompanies();
+        fetchCompaniesAndSubcontractors();
     }, [isSuperAdmin]);
 
     const handleOpenDialog = (company: Partial<Company> | null = null) => {
@@ -135,18 +153,19 @@ export default function AdminEmpresasPage() {
             if (currentCompany.id) {
                 const docRef = doc(firebaseDb, "companies", currentCompany.id);
                 await updateDoc(docRef, { ...dataToSave, updatedAt: serverTimestamp() });
-                setEmpresas(empresas.map(emp => emp.id === currentCompany!.id ? { ...emp, ...dataToSave } as Company : emp));
+                setEmpresas(empresas.map(emp => emp.id === currentCompany!.id ? { ...emp, ...dataToSave } as Company & { subcontractorCount: number } : emp));
             } else {
                 const docRef = await addDoc(collection(firebaseDb, "companies"), {
                     ...dataToSave,
                     createdAt: serverTimestamp(),
                     updatedAt: serverTimestamp(),
                 });
-                const nuevaEmpresa: Company = {
+                const nuevaEmpresa: Company & { subcontractorCount: number } = {
                     id: docRef.id,
                     ...dataToSave,
+                    subcontractorCount: 0,
                     createdAt: new Date(),
-                } as Company;
+                } as Company & { subcontractorCount: number };
                 setEmpresas([nuevaEmpresa, ...empresas]);
             }
             setDialogOpen(false);
@@ -217,6 +236,7 @@ export default function AdminEmpresasPage() {
                             <TableRow>
                                 <TableHead>Nombre Fantasía</TableHead>
                                 <TableHead>RUT</TableHead>
+                                <TableHead>Subcontratos</TableHead>
                                 <TableHead>M. Cumplimiento</TableHead>
                                 <TableHead>M. Análisis IA</TableHead>
                                 <TableHead>M. Comparación IA</TableHead>
@@ -229,11 +249,12 @@ export default function AdminEmpresasPage() {
                         </TableHeader>
                         <TableBody>
                             {loading ? (
-                                <TableRow><TableCell colSpan={10} className="text-center h-24">Cargando empresas...</TableCell></TableRow>
+                                <TableRow><TableCell colSpan={11} className="text-center h-24">Cargando empresas...</TableCell></TableRow>
                             ) : empresas.map((emp) => (
                                 <TableRow key={emp.id}>
                                     <TableCell className="font-medium">{emp.nombreFantasia}</TableCell>
                                     <TableCell>{emp.rut}</TableCell>
+                                    <TableCell className="font-medium text-center">{emp.subcontractorCount}</TableCell>
                                     <TableCell>
                                         <Badge variant={emp.feature_compliance_module_enabled ? 'default' : 'outline'}>
                                             {emp.feature_compliance_module_enabled ? 'On' : 'Off'}
