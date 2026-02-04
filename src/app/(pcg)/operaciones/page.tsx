@@ -19,6 +19,13 @@ export default function OperacionesPage() {
       icon: BookCopy,
       linkText: "Ir a Itemizados"
     },
+    {
+      title: "Estados de Pago",
+      description: "Gestiona y visualiza el avance económico de tus obras en base a los contratos y avances registrados.",
+      href: "/operaciones/estados-de-pago",
+      icon: DollarSign,
+      linkText: "Ir a Estados de Pago"
+    },
      {
       title: "Listas de Chequeo / Formularios",
       description: "Crea y gestiona plantillas de checklists para inspecciones y controles de calidad o procesos operativos.",
