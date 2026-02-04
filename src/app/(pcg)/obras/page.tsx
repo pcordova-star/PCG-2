@@ -321,7 +321,7 @@ export default function ObrasPage() {
                            <Button variant="outline" size="sm" asChild>
                             <Link href={`/cliente/obras/${obra.id}?preview=true`} target="_blank">
                               <LinkIcon className="mr-2 h-3 w-3" />
-                              Ver Panel Cliente
+                              Ver Panel Director
                             </Link>
                           </Button>
                           {canManageObras && (
@@ -382,8 +382,11 @@ export default function ObrasPage() {
                 <Input id="direccion" name="direccion" value={currentObra?.direccion || ""} onChange={handleFormChange} required />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="clienteEmail">Email Cliente*</Label>
-                <Input id="clienteEmail" name="clienteEmail" type="email" value={currentObra?.clienteEmail || ""} onChange={handleFormChange} required />
+                <Label htmlFor="clienteEmail">Email Director*</Label>
+                <Input id="clienteEmail" name="clienteEmail" type="email" value={currentObra?.clienteEmail || ""} onChange={handleFormChange} required placeholder="email@directorio.com" />
+                <p className="text-xs text-muted-foreground pt-1">
+                    Este email se usará para dar acceso al Panel de Director. Por ahora, ingresa un solo correo.
+                </p>
               </div>
                <div className="space-y-2">
                 <Label htmlFor="jefeObraNombre">Administrador de obra</Label>
