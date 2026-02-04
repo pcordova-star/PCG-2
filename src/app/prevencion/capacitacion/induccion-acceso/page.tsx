@@ -12,7 +12,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import { ArrowLeft, QrCode } from "lucide-react";
-import { InduccionAccesoFaena } from "@/lib/induccionAccesoFaena"; // ACTUALIZADO
+import { InduccionAccesoFaena } from "@/lib/induccionAccesoFaena";
 import { useAuth } from "@/context/AuthContext";
 import { Label } from "@/components/ui/label";
 import { useRouter } from 'next/navigation';
@@ -169,7 +169,8 @@ export default function InduccionAccesoPage() {
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Fecha</TableHead>
+                  <TableHead>Fecha Ingreso</TableHead>
+                  <TableHead>Fecha Creación</TableHead>
                   <TableHead>Nombre</TableHead>
                   <TableHead>RUT</TableHead>
                   <TableHead>Empresa</TableHead>
@@ -181,6 +182,7 @@ export default function InduccionAccesoPage() {
                 {inducciones.map((induccion) => (
                   <TableRow key={induccion.id}>
                     <TableCell>{induccion.fechaIngreso}</TableCell>
+                    <TableCell>{new Date(induccion.createdAt).toLocaleString('es-CL')}</TableCell>
                     <TableCell>{induccion.nombreCompleto}</TableCell>
                     <TableCell>{induccion.rut}</TableCell>
                     <TableCell>{induccion.empresa}</TableCell>
