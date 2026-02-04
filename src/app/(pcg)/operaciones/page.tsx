@@ -1,8 +1,7 @@
-// src/app/operaciones/page.tsx
+// src/app/(pcg)/operaciones/page.tsx
 import { redirect } from 'next/navigation';
 
-// This page created a route conflict with /(pcg)/operaciones/page.tsx.
-// It has been replaced with a permanent redirect to avoid build errors.
+// This page created a route conflict. It now redirects to the main dashboard.
 export default function OperacionesRedirectPage() {
-  redirect('/(pcg)/operaciones');
+  redirect('/dashboard');
 }
