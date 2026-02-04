@@ -84,7 +84,7 @@ export default function ChecklistDs44Page() {
                             titulo="Certificado de Cotizaciones Previsionales"
                             descripcion="Comprueba el pago de AFP, Salud (Fonasa/Isapre) y Seguro de Cesantía del mes anterior al trabajado. Indispensable para la Ley de Subcontratación."
                         />
-                        <DocumentoItem 
+                         <DocumentoItem 
                             numero="04"
                             titulo="Examen de Aptitud Vigente"
                             descripcion="También conocido como Examen Médico Pre-Ocupacional, debe ser específico para los riesgos del cargo (ej. altura física, espacios confinados)."
