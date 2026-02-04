@@ -1,4 +1,4 @@
-// src/app/(pcg)/operaciones/programacion/page.tsx
+// src/app/operaciones/programacion/page.tsx
 
 "use client";
 
@@ -315,6 +315,55 @@ function ProgramacionPageInner() {
   const montoTotalContrato = useMemo(() => {
     return actividades.reduce((sum, act) => sum + ((act.cantidad || 0) * (act.precioContrato || 0)), 0);
   }, [actividades]);
+
+  const { avanceReal, avanceProgramado, desviacion } = useMemo(() => {
+    if (!actividades.length || montoTotalContrato === 0) {
+        return { avanceReal: 0, avanceProgramado: 0, desviacion: 0 };
+    }
+
+    // 1. Calcular Avance REAL
+    const costoRealAcumulado = actividades.reduce((total, act) => {
+        const avanceInfo = avancesPorActividad[act.id];
+        if (!avanceInfo) return total;
+        const costoActividad = (act.cantidad || 0) * (act.precioContrato || 0);
+        return total + (costoActividad * (avanceInfo.porcentajeAcumulado / 100));
+    }, 0);
+    const avanceReal = (costoRealAcumulado / montoTotalContrato) * 100;
+
+    // 2. Calcular Avance PROGRAMADO a hoy
+    const hoy = new Date();
+    hoy.setHours(0, 0, 0, 0);
+
+    let costoProgramadoAcumulado = 0;
+    actividades.forEach(act => {
+        const totalPartida = (act.cantidad || 0) * (act.precioContrato || 0);
+        if (totalPartida === 0 || !act.fechaInicio || !act.fechaFin) return;
+        
+        const inicioAct = new Date(act.fechaInicio + 'T00:00:00');
+        const finAct = new Date(act.fechaFin + 'T00:00:00');
+        if (inicioAct > finAct) return;
+
+        if (hoy >= finAct) { // Actividad ya debería estar terminada
+            costoProgramadoAcumulado += totalPartida;
+        } else if (hoy >= inicioAct) { // Actividad en curso
+            const duracion = differenceInDays(finAct, inicioAct) + 1;
+            const diasTranscurridos = differenceInDays(hoy, inicioAct) + 1;
+            const avanceActividad = diasTranscurridos / duracion;
+            costoProgramadoAcumulado += totalPartida * avanceActividad;
+        }
+        // Si hoy < inicioAct, no se añade nada.
+    });
+
+    const avanceProgramado = (costoProgramadoAcumulado / montoTotalContrato) * 100;
+
+    const desviacion = avanceReal - avanceProgramado;
+
+    return { 
+        avanceReal: isNaN(avanceReal) ? 0 : avanceReal, 
+        avanceProgramado: isNaN(avanceProgramado) ? 0 : avanceProgramado, 
+        desviacion 
+    };
+}, [actividades, avancesPorActividad, montoTotalContrato]);
 
   const actividadesConPeso = useMemo(() => {
     if (montoTotalContrato === 0) {
@@ -974,6 +1023,32 @@ function ProgramacionPageInner() {
                         </SelectContent>
                     </Select>
                 </div>
+            </div>
+        </CardContent>
+      </Card>
+      
+       <Card>
+        <CardHeader>
+          <CardTitle>Estado Actual del Proyecto</CardTitle>
+          <CardDescription>Comparación del avance real con el programado a la fecha de hoy.</CardDescription>
+        </CardHeader>
+        <CardContent className="grid grid-cols-1 md:grid-cols-3 gap-4 text-center">
+            <div>
+                <p className="text-sm font-semibold text-muted-foreground">Avance Real</p>
+                <p className="text-4xl font-bold text-blue-600">{avanceReal.toFixed(1)}%</p>
+            </div>
+            <div>
+                <p className="text-sm font-semibold text-muted-foreground">Avance Programado</p>
+                <p className="text-4xl font-bold">{avanceProgramado.toFixed(1)}%</p>
+            </div>
+            <div>
+                <p className="text-sm font-semibold text-muted-foreground">Desviación</p>
+                <p className={`text-4xl font-bold ${desviacion >= -0.1 ? 'text-green-600' : 'text-red-600'}`}>
+                    {desviacion >= 0 ? '+' : ''}{desviacion.toFixed(1)}%
+                </p>
+                <Badge variant={desviacion >= -1 ? (desviacion > 1 ? 'default' : 'secondary') : 'destructive'} className="mt-1">
+                  {desviacion > 1 ? "Adelantado" : desviacion < -1 ? "Atrasado" : "Al día"}
+                </Badge>
             </div>
         </CardContent>
       </Card>
