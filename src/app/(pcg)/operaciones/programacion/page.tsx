@@ -67,7 +67,6 @@ import { Badge } from "@/components/ui/badge";
 import Link from "next/link";
 import { FilePlus2, FileText, Trash2, Edit, PlusCircle, Camera, Download, X, DollarSign, FileDown, ArrowLeft, RefreshCw, Loader2, FileUp } from 'lucide-react';
 import { Switch } from "@/components/ui/switch";
-import RegistrarAvanceForm from "./components/RegistrarAvanceForm";
 import RegistroFotograficoForm from "./components/RegistroFotograficoForm";
 import { useActividadAvance } from "./hooks/useActividadAvance";
 import {
@@ -215,7 +214,9 @@ function CurvaSChart({ actividades, avances, montoTotalContrato }: { actividades
         
         acumuladoProgramado += (costosProgramadosDiarios[fechaStr] || 0);
         
-        acumuladoReal += (costosRealesDiarios[fechaStr] || 0);
+        if (dia <= hoy) {
+          acumuladoReal += (costosRealesDiarios[fechaStr] || 0);
+        }
 
         const porcentajeProgramado = montoTotalContrato > 0 ? Math.min(100, (acumuladoProgramado / montoTotalContrato) * 100) : 0;
         
@@ -310,6 +311,10 @@ function ProgramacionPageInner() {
   // Estados para los filtros de la tabla de actividades
   const [filtroNombre, setFiltroNombre] = useState('');
   const [filtroEstado, setFiltroEstado] = useState('todos');
+
+  // Estados para el registro de avance inline
+  const [inlineAvance, setInlineAvance] = useState<Record<string, { cantidad: string; comentario: string }>>({});
+  const [isSavingAvance, setIsSavingAvance] = useState<Record<string, boolean>>({});
 
 
   const montoTotalContrato = useMemo(() => {
@@ -960,6 +965,74 @@ function ProgramacionPageInner() {
     }
   }
 
+  const handleInlineAvanceChange = (actividadId: string, field: 'cantidad' | 'comentario', value: string) => {
+    setInlineAvance(prev => ({
+        ...prev,
+        [actividadId]: {
+            ...(prev[actividadId] || { cantidad: '', comentario: '' }),
+            [field]: value
+        }
+    }));
+  };
+  
+  const handleRegistrarAvanceInline = async (actividadId: string) => {
+    if (!user || !obraSeleccionadaId) return;
+
+    const avanceData = inlineAvance[actividadId];
+    if (!avanceData || !avanceData.cantidad || !avanceData.cantidad.trim()) {
+        toast({ variant: 'destructive', title: 'Error', description: 'La cantidad es requerida.' });
+        return;
+    }
+
+    setIsSavingAvance(prev => ({ ...prev, [actividadId]: true }));
+    const cantidadNum = parseFloat(avanceData.cantidad);
+
+    try {
+        const obraRef = doc(firebaseDb, "obras", obraSeleccionadaId);
+        const avancesRef = collection(obraRef, "avancesDiarios");
+        const actividad = actividades.find(a => a.id === actividadId);
+
+        await runTransaction(firebaseDb, async (tx) => {
+            const obraSnap = await tx.get(obraRef);
+            if (!obraSnap.exists()) throw new Error("La obra no existe.");
+
+            tx.set(doc(avancesRef), {
+                obraId: obraSeleccionadaId,
+                actividadId,
+                cantidadEjecutada: cantidadNum,
+                comentario: avanceData.comentario || "",
+                fecha: serverTimestamp(),
+                creadoPor: { uid: user.uid, displayName: user.displayName || user.email },
+                visibleCliente: true,
+                tipoRegistro: 'CANTIDAD',
+            });
+            
+            if (actividad && actividad.cantidad > 0) {
+                const obraData = obraSnap.data();
+                const totalActividades = actividades.length;
+                if(totalActividades > 0) {
+                    const pesoActividad = 1 / totalActividades;
+                    const avanceParcialActividad = (cantidadNum / actividad.cantidad);
+                    const avancePonderadoDelDia = avanceParcialActividad * pesoActividad * 100;
+                    if (!isNaN(avancePonderadoDelDia)) {
+                        const nuevoAvanceAcumulado = Math.min(100, (obraData.avanceAcumulado || 0) + avancePonderadoDelDia);
+                        tx.update(obraRef, { avanceAcumulado: nuevoAvanceAcumulado, ultimaActualizacion: serverTimestamp() });
+                    }
+                }
+            }
+        });
+
+        toast({ title: 'Éxito', description: 'Avance registrado correctamente.' });
+        setInlineAvance(prev => ({ ...prev, [actividadId]: { cantidad: '', comentario: '' } }));
+        
+    } catch (error: any) {
+        console.error("Error al registrar avance:", error);
+        toast({ variant: 'destructive', title: 'Error', description: error.message });
+    } finally {
+        setIsSavingAvance(prev => ({ ...prev, [actividadId]: false }));
+    }
+  };
+
 
   
   if (loadingAuth) return <p className="text-sm text-muted-foreground">Cargando sesión...</p>;
@@ -1139,10 +1212,11 @@ function ProgramacionPageInner() {
                         <TableHead className="hidden md:table-cell">Fin</TableHead>
                         <TableHead>Estado</TableHead>
                         <TableHead className="text-right">Acciones</TableHead>
+                        <TableHead className="w-[280px] text-center">Registrar Avance</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                    {cargandoActividades ? <TableRow><TableCell colSpan={11} className="text-center">Cargando...</TableCell></TableRow> : 
+                    {cargandoActividades ? <TableRow><TableCell colSpan={12} className="text-center">Cargando...</TableCell></TableRow> : 
                     actividadesFiltradas.length > 0 ? (actividadesFiltradas.map((act) => {
                       const total = (act.cantidad ?? 0) * (act.precioContrato ?? 0);
                       const avanceInfo = avancesPorActividad[act.id];
@@ -1190,10 +1264,47 @@ function ProgramacionPageInner() {
                                   </AlertDialog>
                                 </div>
                             </TableCell>
+                             <TableCell className="bg-slate-50 p-1 align-top border-l">
+                                <div className="p-1 space-y-2">
+                                    <div className="flex gap-2 items-start">
+                                        <div className="flex-1 space-y-1">
+                                            <Label htmlFor={`cantidad-${act.id}`} className="text-xs font-normal px-1">Cantidad</Label>
+                                            <Input
+                                                id={`cantidad-${act.id}`}
+                                                type="number"
+                                                placeholder={`Un.: ${act.unidad || ''}`}
+                                                value={inlineAvance[act.id]?.cantidad || ''}
+                                                onChange={(e) => handleInlineAvanceChange(act.id, 'cantidad', e.target.value)}
+                                                className="h-8 text-sm"
+                                                disabled={isSavingAvance[act.id]}
+                                            />
+                                        </div>
+                                        <div className="flex-1 space-y-1">
+                                            <Label htmlFor={`comentario-${act.id}`} className="text-xs font-normal px-1">Comentario</Label>
+                                            <Input
+                                                id={`comentario-${act.id}`}
+                                                placeholder="Opcional..."
+                                                value={inlineAvance[act.id]?.comentario || ''}
+                                                onChange={(e) => handleInlineAvanceChange(act.id, 'comentario', e.target.value)}
+                                                className="h-8 text-sm"
+                                                disabled={isSavingAvance[act.id]}
+                                            />
+                                        </div>
+                                    </div>
+                                    <Button 
+                                        size="sm" 
+                                        className="w-full h-8 mt-1"
+                                        onClick={() => handleRegistrarAvanceInline(act.id)}
+                                        disabled={!inlineAvance[act.id]?.cantidad || !inlineAvance[act.id]?.cantidad.trim() || isSavingAvance[act.id]}
+                                    >
+                                      {isSavingAvance[act.id] ? <Loader2 className="animate-spin" /> : "Registrar"}
+                                    </Button>
+                                </div>
+                            </TableCell>
                         </TableRow>
                       )
                     })) : (
-                        <TableRow><TableCell colSpan={11} className="text-center text-muted-foreground py-8">No hay actividades que coincidan con los filtros.</TableCell></TableRow>
+                        <TableRow><TableCell colSpan={12} className="text-center text-muted-foreground py-8">No hay actividades que coincidan con los filtros.</TableCell></TableRow>
                     )}
                     </TableBody>
                   </Table>
@@ -1316,18 +1427,15 @@ function ProgramacionPageInner() {
         </header>
         <div className="grid gap-6">
           {obraSeleccionadaId && (
-             <Tabs defaultValue="cantidad" className="w-full">
-                <TabsList>
-                  <TabsTrigger value="cantidad">Avance con Cantidad</TabsTrigger>
-                  <TabsTrigger value="foto">Solo Registro Fotográfico</TabsTrigger>
-                </TabsList>
-                <TabsContent value="cantidad">
-                  <RegistrarAvanceForm obraId={obraSeleccionadaId} actividades={actividades} onAvanceRegistrado={refetchAvances} />
-                </TabsContent>
-                <TabsContent value="foto">
-                   <RegistroFotograficoForm obras={obras} actividades={actividades} onRegistroGuardado={refetchAvances} />
-                </TabsContent>
-              </Tabs>
+            <Card>
+              <CardHeader>
+                <CardTitle>Registro Fotográfico Rápido</CardTitle>
+                <CardDescription>Sube una foto como evidencia de un hito o avance, sin asociarlo a una cantidad específica.</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <RegistroFotograficoForm obras={obras} actividades={actividades} onRegistroGuardado={refetchAvances} />
+              </CardContent>
+            </Card>
           )}
 
           {!cargandoAvances && avances.length > 0 && (
