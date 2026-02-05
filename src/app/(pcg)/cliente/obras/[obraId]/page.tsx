@@ -15,6 +15,7 @@ import { Button } from '@/components/ui/button';
 import { collection, getDocs, query, where, orderBy, doc, getDoc, limit } from 'firebase/firestore';
 import { firebaseDb } from '@/lib/firebaseClient';
 import { useAuth } from '@/context/AuthContext';
+import { differenceInDays, isAfter } from 'date-fns';
 
 type Obra = {
     id: string;
@@ -23,6 +24,23 @@ type Obra = {
     mandante: string;
     clienteEmail: string;
     [key: string]: any; 
+};
+
+// --- Tipos para cálculos de avance ---
+type ActividadProgramada = {
+    id: string;
+    nombreActividad: string;
+    fechaInicio: string;
+    fechaFin: string;
+    precioContrato: number; 
+    cantidad: number;
+    estado?: string;
+};
+type AvanceDiario = {
+  id: string;
+  actividadId: string;
+  fecha: { toDate: () => Date };
+  cantidadEjecutada?: number;
 };
 
 type Avance = {
@@ -39,7 +57,8 @@ type PublicObraData = {
   direccion: string;
   mandante: string;
   contacto: { email: string };
-  avanceAcumulado: number;
+  avanceReal: number;
+  avanceProgramado: number;
   ultimaActualizacion: string | null;
   actividades: { programadas: number; completadas: number };
   avancesPublicados: Avance[];
@@ -89,10 +108,6 @@ function ClienteObraPageInner() {
                 const obraData = obraDoc.data() as Obra;
                 
                 // Security check:
-                // A user can view the page if:
-                // 1. It's a preview link.
-                // 2. They are a superadmin.
-                // 3. Their email matches the 'clienteEmail' field for the project.
                 const isSuperAdmin = role === 'superadmin';
                 const isAssignedDirector = user.email && obraData.clienteEmail && user.email.toLowerCase() === obraData.clienteEmail.toLowerCase();
                 
@@ -101,18 +116,73 @@ function ClienteObraPageInner() {
                     return null;
                 }
 
-                const actsSnap = await getDocs(collection(firebaseDb, "obras", obraId, "actividades"));
-                const programadas = actsSnap.size;
-                const completadas = actsSnap.docs.filter(d => d.data().estado === 'Completada').length;
+                // --- Lógica de cálculo de avance ---
+                const actividadesRef = collection(firebaseDb, "obras", obraId, "actividades");
+                const avancesRef = collection(firebaseDb, "obras", obraId, "avancesDiarios");
+                
+                const [actividadesSnap, avancesSnap, avancesPublicadosSnap] = await Promise.all([
+                    getDocs(actividadesRef),
+                    getDocs(avancesRef),
+                    getDocs(query(
+                        collection(firebaseDb, "obras", obraId, "avancesDiarios"),
+                        where("visibleCliente", "==", true),
+                        orderBy("fecha", "desc"),
+                        limit(10)
+                    )),
+                ]);
 
-                const avSnap = await getDocs(query(
-                    collection(firebaseDb, "obras", obraId, "avancesDiarios"),
-                    where("visibleCliente", "==", true),
-                    orderBy("fecha", "desc"),
-                    limit(10)
-                ));
+                const actividades = actividadesSnap.docs.map(d => ({id: d.id, ...d.data()}) as ActividadProgramada);
+                const avances = avancesSnap.docs.map(d => ({id: d.id, ...d.data(), fecha: (d.data().fecha as any).toDate()}) as AvanceDiario);
+                
+                const programadas = actividades.length;
+                const completadas = actividades.filter(d => d.estado === 'Completada').length;
 
-                const avancesPublicados: Avance[] = avSnap.docs.map(d => {
+                const montoTotalContrato = actividades.reduce((sum, act) => sum + ((act.cantidad || 0) * (act.precioContrato || 0)), 0);
+
+                // Avance REAL (basado en costo)
+                const avancesPorActividad = new Map<string, number>();
+                avances.forEach(avance => {
+                    if (avance.actividadId && typeof avance.cantidadEjecutada === 'number') {
+                        avancesPorActividad.set(avance.actividadId, (avancesPorActividad.get(avance.actividadId) || 0) + avance.cantidadEjecutada);
+                    }
+                });
+                
+                const costoRealAcumulado = actividades.reduce((total, act) => {
+                    const cantidadEjecutada = avancesPorActividad.get(act.id) || 0;
+                    const avancePorcentaje = act.cantidad > 0 ? cantidadEjecutada / act.cantidad : 0;
+                    const costoActividad = (act.cantidad || 0) * (act.precioContrato || 0);
+                    return total + (costoActividad * Math.min(1, avancePorcentaje));
+                }, 0);
+                
+                const avanceReal = montoTotalContrato > 0 ? (costoRealAcumulado / montoTotalContrato) * 100 : 0;
+                
+                // Avance PROGRAMADO (basado en costo y tiempo)
+                const hoy = new Date();
+                hoy.setHours(0, 0, 0, 0);
+
+                let costoProgramadoAcumulado = 0;
+                actividades.forEach(act => {
+                    const totalPartida = (act.cantidad || 0) * (act.precioContrato || 0);
+                    if (totalPartida === 0 || !act.fechaInicio || !act.fechaFin) return;
+                    
+                    const inicioAct = new Date(act.fechaInicio + 'T00:00:00');
+                    const finAct = new Date(act.fechaFin + 'T00:00:00');
+                    if (inicioAct > finAct) return;
+
+                    if (isAfter(hoy, finAct)) {
+                        costoProgramadoAcumulado += totalPartida;
+                    } else if (hoy >= inicioAct) {
+                        const duracion = differenceInDays(finAct, inicioAct) + 1;
+                        const diasTranscurridos = differenceInDays(hoy, inicioAct) + 1;
+                        const avanceActividad = duracion > 0 ? diasTranscurridos / duracion : 0;
+                        costoProgramadoAcumulado += totalPartida * avanceActividad;
+                    }
+                });
+                
+                const avanceProgramado = montoTotalContrato > 0 ? (costoProgramadoAcumulado / montoTotalContrato) * 100 : 0;
+                // --- Fin lógica de cálculo ---
+
+                const avancesPublicados: Avance[] = avancesPublicadosSnap.docs.map(d => {
                     const x = d.data();
                     const fecha = x.fecha?.toDate ? x.fecha.toDate() : new Date(x.fecha);
                     return {
@@ -125,7 +195,6 @@ function ClienteObraPageInner() {
                 });
                 
                 const ultimoAvance = avancesPublicados[0];
-                const avanceAcumulado = obraData.avanceAcumulado ?? 0;
                 const ultimaActualizacion = ultimoAvance?.fecha ?? obraData.ultimaActualizacion?.toDate().toISOString() ?? null;
 
                 return {
@@ -134,7 +203,8 @@ function ClienteObraPageInner() {
                     direccion: obraData.direccion || '',
                     mandante: obraData.mandante || '',
                     contacto: { email: obraData.clienteEmail || '' },
-                    avanceAcumulado,
+                    avanceReal: isNaN(avanceReal) ? 0 : avanceReal,
+                    avanceProgramado: isNaN(avanceProgramado) ? 0 : avanceProgramado,
                     ultimaActualizacion,
                     actividades: { programadas, completadas },
                     avancesPublicados,
@@ -184,7 +254,8 @@ function ClienteObraPageInner() {
     direccion,
     mandante,
     contacto,
-    avanceAcumulado,
+    avanceReal,
+    avanceProgramado,
     ultimaActualizacion,
     actividades,
     avancesPublicados
@@ -223,12 +294,20 @@ function ClienteObraPageInner() {
       <div className="grid gap-4 md:grid-cols-3 print:grid-cols-3">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Avance Acumulado</CardTitle>
+            <CardTitle className="text-sm font-medium">Avance Real vs. Programado</CardTitle>
             <Percent className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-5xl font-bold">{(avanceAcumulado ?? 0).toFixed(1)}%</div>
-            <p className="text-xs text-muted-foreground">Progreso total del proyecto</p>
+             <div className="grid grid-cols-2 gap-4 pt-2 text-center">
+                <div>
+                    <div className="text-4xl font-bold text-blue-600">{(avanceReal ?? 0).toFixed(1)}%</div>
+                    <p className="text-xs text-muted-foreground">Avance Real</p>
+                </div>
+                 <div>
+                    <div className="text-4xl font-bold">{(avanceProgramado ?? 0).toFixed(1)}%</div>
+                    <p className="text-xs text-muted-foreground">Avance Programado</p>
+                </div>
+            </div>
           </CardContent>
         </Card>
         <Card>
