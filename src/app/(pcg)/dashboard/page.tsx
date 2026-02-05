@@ -36,7 +36,7 @@ import {
   BarChart,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { useEffect, useState, useMemo, Suspense } from 'react';
+import { useEffect, useState, useMemo, Suspense, useRef } from 'react';
 import { collection, getDocs, query, where, doc, getDoc, collectionGroup, limit, orderBy } from 'firebase/firestore';
 import { firebaseDb } from '@/lib/firebaseClient';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -45,7 +45,7 @@ import { Company, Obra, Hallazgo, Rdi, AvanceDiario, Presupuesto } from '@/types
 import { PcgLogo } from '@/components/branding/PcgLogo';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { QuickAccessCard } from '@/components/dashboard/QuickAccessCard';
-import { DisabledModuleCard } from '@/components/dashboard/DisabledModuleCard'; // NUEVO
+import { DisabledModuleCard } from '@/components/dashboard/DisabledModuleCard';
 import { ObraSelectionModal } from '@/components/dashboard/ObraSelectionModal';
 import { useRouter } from 'next/navigation';
 import { Badge } from '@/components/ui/badge';
@@ -64,58 +64,6 @@ type ActivityItem = {
   valor?: string;
   estado?: string;
   href: string;
-};
-
-// Nuevo componente para las tarjetas de actividad
-const ActivityCard = ({ item }: { item: ActivityItem }) => {
-  const config = {
-    rdi: {
-      icon: MessageSquare,
-      color: "blue",
-    },
-    avance: {
-      icon: TrendingUp,
-      color: "green",
-    },
-    edp: {
-      icon: DollarSign,
-      color: "purple",
-    },
-    hallazgo: {
-      icon: Siren,
-      color: "orange"
-    }
-  };
-
-  const Icon = config[item.type].icon;
-  const color = config[item.type].color;
-
-  return (
-    <motion.div
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.3 }}
-      className="flex items-start gap-4 p-4 border-l-4 rounded-r-lg bg-card shadow-sm hover:bg-muted/50"
-      style={{ borderColor: `hsl(var(--${color}))` }}
-    >
-      <div className={`p-2 bg-${color}-100 rounded-full`}>
-        <Icon className={`h-6 w-6 text-${color}-600`} />
-      </div>
-      <div className="flex-1">
-        <div className="flex justify-between items-center">
-            <p className="font-semibold text-sm">{item.titulo}</p>
-            {item.estado && <Badge variant="outline">{item.estado}</Badge>}
-        </div>
-        <p className="text-xs text-muted-foreground">{item.obraNombre} - {item.fecha.toLocaleDateString('es-CL')}</p>
-        <div className="flex justify-between items-end mt-2">
-            <p className="text-sm text-muted-foreground">{item.descripcion}</p>
-            {item.valor && <p className="text-sm font-bold text-primary">{item.valor}</p>}
-        </div>
-       <Button asChild variant="ghost" size="sm">
-            <Link href={item.href}>Ver</Link>
-        </Button>
-    </motion.div>
-  );
 };
 
 
@@ -531,6 +479,64 @@ export default function DashboardPage() {
     
     return <div key={mod.title}>{card}</div>;
   }
+  
+    // Nuevo componente para las tarjetas de actividad
+    const ActivityCard = ({ item }: { item: ActivityItem }) => {
+        const config = {
+          rdi: { icon: MessageSquare, color: "blue" as const },
+          avance: { icon: TrendingUp, color: "green" as const },
+          edp: { icon: DollarSign, color: "purple" as const },
+          hallazgo: { icon: Siren, color: "orange" as const }
+        };
+      
+        const itemConfig = config[item.type];
+        const Icon = itemConfig.icon;
+      
+        const borderClass = item.type === 'rdi' ? 'border-primary' :
+                            item.type === 'avance' ? 'border-green-600' :
+                            item.type === 'edp' ? 'border-purple-600' :
+                            'border-destructive';
+
+        const iconContainerClass = item.type === 'rdi' ? 'bg-blue-100' :
+                                   item.type === 'avance' ? 'bg-green-100' :
+                                   item.type === 'edp' ? 'bg-purple-100' :
+                                   'bg-destructive/10';
+
+        const iconClass = item.type === 'rdi' ? 'text-blue-600' :
+                          item.type === 'avance' ? 'text-green-600' :
+                          item.type === 'edp' ? 'text-purple-600' :
+                          'text-destructive';
+      
+        return (
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.3 }}
+            className={cn(
+              "flex items-start gap-4 p-4 border-l-4 rounded-r-lg bg-card shadow-sm hover:bg-muted/50",
+              borderClass
+            )}
+          >
+            <div className={cn("p-2 rounded-full", iconContainerClass)}>
+              <Icon className={cn("h-6 w-6", iconClass)} />
+            </div>
+            <div className="flex-1">
+              <div className="flex justify-between items-center">
+                  <p className="font-semibold text-sm">{item.titulo}</p>
+                  {item.estado && <Badge variant="outline">{item.estado}</Badge>}
+              </div>
+              <p className="text-xs text-muted-foreground">{item.obraNombre} - {item.fecha.toLocaleDateString('es-CL')}</p>
+              <div className="flex justify-between items-end mt-2">
+                  <p className="text-sm text-muted-foreground">{item.descripcion}</p>
+                  {item.valor && <p className="text-sm font-bold text-primary">{item.valor}</p>}
+              </div>
+             <Button asChild variant="ghost" size="sm">
+                  <Link href={item.href}>Ver</Link>
+              </Button>
+          </div>
+          </motion.div>
+        );
+      };
 
   return (
     <div className="min-h-screen bg-slate-50">
