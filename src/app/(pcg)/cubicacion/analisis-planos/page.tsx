@@ -218,7 +218,7 @@ export default function AnalisisPlanosPage() {
             <Card>
                 <CardHeader><CardTitle>3. Notas adicionales (opcional)</CardTitle></CardHeader>
                 <CardContent>
-                    <Textarea placeholder="Ej: Analizar solo muros de hormigón armado. La altura de piso a cielo es 2.4m..." value={notas} onChange={e => setNotas(e.target.value)} />
+                    <Textarea placeholder="Ej: Cantidad de puertas tipo A. Analizar solo muros de hormigón armado. La altura de piso a cielo es 2.4m..." value={notas} onChange={e => setNotas(e.target.value)} />
                 </CardContent>
             </Card>
         </div>
