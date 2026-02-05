@@ -37,8 +37,12 @@ export default function AnalisisPlanosPage() {
   const { user, company, companyId } = useAuth();
   
   const [opciones, setOpciones] = useState<OpcionesAnalisis>({
-    superficieUtil: false, m2Muros: false, m2Losas: false,
-    m2Revestimientos: false, instalacionesHidraulicas: false, instalacionesElectricas: false,
+    enfierraduras: false,
+    moldajes: false,
+    hormigon: false,
+    pavimentos: false,
+    instalacionesSanitarias: false,
+    instalacionesElectricas: false,
   });
 
   const [planoFile, setPlanoFile] = useState<File | null>(null);
@@ -198,8 +202,11 @@ export default function AnalisisPlanosPage() {
                             <Label key={key} className="flex items-center gap-2 p-3 border rounded-md hover:bg-muted/50 cursor-pointer">
                                 <Checkbox checked={opciones[key as keyof OpcionesAnalisis]} onCheckedChange={() => handleCheckboxChange(key as keyof OpcionesAnalisis)} />
                                 <span>{{
-                                    superficieUtil: 'Superficie útil', m2Muros: 'm² de Muros', m2Losas: 'm² de Losas',
-                                    m2Revestimientos: 'm² de Revestimientos', instalacionesHidraulicas: 'Inst. Hidráulicas',
+                                    enfierraduras: 'Enfierraduras',
+                                    moldajes: 'Moldajes',
+                                    hormigon: 'Hormigón',
+                                    pavimentos: 'Pavimentos',
+                                    instalacionesSanitarias: 'Inst. Sanitarias',
                                     instalacionesElectricas: 'Inst. Eléctricas'
                                 }[key]}</span>
                             </Label>
@@ -211,7 +218,7 @@ export default function AnalisisPlanosPage() {
             <Card>
                 <CardHeader><CardTitle>3. Notas adicionales (opcional)</CardTitle></CardHeader>
                 <CardContent>
-                    <Textarea placeholder="Ej: La altura de piso a cielo es 2.4m. La escala del plano es 1:50..." value={notas} onChange={e => setNotas(e.target.value)} />
+                    <Textarea placeholder="Ej: Analizar solo muros de hormigón armado. La altura de piso a cielo es 2.4m..." value={notas} onChange={e => setNotas(e.target.value)} />
                 </CardContent>
             </Card>
         </div>

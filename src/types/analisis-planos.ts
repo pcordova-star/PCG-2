@@ -4,11 +4,11 @@ import { z } from 'zod';
 
 // Esquema para las opciones de análisis que el usuario puede seleccionar.
 export const OpcionesAnalisisSchema = z.object({
-  superficieUtil: z.boolean().describe("Calcular la superficie útil por cada recinto identificado."),
-  m2Muros: z.boolean().describe("Estimar los metros cuadrados totales de muros."),
-  m2Losas: z.boolean().describe("Estimar los metros cuadrados totales de losas."),
-  m2Revestimientos: z.boolean().describe("Estimar los metros cuadrados de revestimientos en zonas húmedas como baños y cocinas."),
-  instalacionesHidraulicas: z.boolean().describe("Analizar instalaciones hidráulicas (agua potable / alcantarillado)."),
+  enfierraduras: z.boolean().describe("Estimar la cubicación de enfierraduras (kg o ton)."),
+  moldajes: z.boolean().describe("Estimar la superficie de moldajes (m²)."),
+  hormigon: z.boolean().describe("Estimar el volumen de hormigón (m³)."),
+  pavimentos: z.boolean().describe("Estimar la superficie de pavimentos, diferenciando por tipo si es posible."),
+  instalacionesSanitarias: z.boolean().describe("Analizar instalaciones sanitarias (agua potable / alcantarillado)."),
   instalacionesElectricas: z.boolean().describe("Analizar instalaciones eléctricas (potencia / iluminación)."),
 });
 export type OpcionesAnalisis = z.infer<typeof OpcionesAnalisisSchema>;
@@ -45,7 +45,7 @@ export type AnalisisPlanoInput = z.infer<typeof AnalisisPlanoInputSchema>;
 const ElementoAnalizadoSchema = z.object({
     type: z.string().describe("El tipo de elemento analizado (ej: Losa, Muro, Recinto, Revestimiento, Instalación Hidráulica)."),
     name: z.string().describe("Nombre o descripción del elemento (ej: Losa nivel 1, Muros perimetrales, Baño depto tipo A, Punto de luz tipo A)."),
-    unit: z.string().describe("Unidad de medida de la cantidad estimada (ej: m², m³, m, unidad)."),
+    unit: z.string().describe("Unidad de medida de la cantidad estimada (ej: m², m³, ml, 'u')."),
     estimatedQuantity: z.number().describe("La cantidad numérica estimada para el elemento."),
     confidence: z.number().min(0).max(1).describe("Un valor de 0 a 1 que representa la confianza de la IA en la estimación."),
     notes: z.string().describe("Aclaraciones o supuestos utilizados por la IA para la estimación."),
