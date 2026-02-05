@@ -95,11 +95,16 @@ export default function EstadosDePagoPage() {
         const unsub = onSnapshot(q, (snapshot) => {
             const edpData = snapshot.docs.map(doc => {
                 const data = doc.data();
-                const fecha = data.fechaGeneracion; // Firestore Timestamp
+                const fecha = data.fechaGeneracion;
+                // Robustly convert to a Date object
+                const finalDate = (fecha && typeof fecha.toDate === 'function') 
+                    ? fecha.toDate() 
+                    : (fecha instanceof Date ? fecha : new Date());
+
                 return {
                     id: doc.id,
                     ...data,
-                    fechaGeneracion: fecha ? fecha.toDate() : new Date() // Always a Date object
+                    fechaGeneracion: finalDate
                 } as EstadoDePago;
             });
             setEstadosDePago(edpData);
