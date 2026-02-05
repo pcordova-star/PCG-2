@@ -155,7 +155,7 @@ const allMainModules = [
     id: 'estados_de_pago',
     title: 'Estados de Pago',
     description: 'Gestiona y visualiza el avance económico de tus obras en base a los contratos y avances registrados.',
-    href: '/operaciones/estados-de-pago',
+    href: '/operaciones/programacion',
     icon: DollarSign,
     linkText: 'Ir a Estados de Pago',
     tooltip: 'Necesitas una obra con programación y avances para usar este módulo.',
