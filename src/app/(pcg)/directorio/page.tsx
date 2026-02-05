@@ -7,7 +7,7 @@ import Link from "next/link";
 import { useAuth } from "@/context/AuthContext";
 import { collection, query, where, getDocs, doc } from "firebase/firestore";
 import { firebaseDb } from "@/lib/firebaseClient";
-import { Obra } from "@/types/pcg";
+import { Obra, ActividadProgramada, AvanceDiario } from "@/types/pcg";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -35,14 +35,15 @@ import {
 } from "lucide-react";
 import { Progress } from "@/components/ui/progress";
 import { useRouter } from "next/navigation";
-import { differenceInDays } from "date-fns";
+import { differenceInDays, isAfter } from "date-fns";
 
 interface ObraConKPIs extends Obra {
   kpis: {
     rdiAbiertos: number;
     hallazgosAbiertos: number;
   };
-  avanceProgramadoLineal: number;
+  avanceProgramado: number;
+  avanceReal: number;
 }
 
 export default function DirectorioDashboardPage() {
@@ -82,35 +83,62 @@ export default function DirectorioDashboardPage() {
             where("estado", "==", "abierto")
           );
 
-          const [rdiSnap, hallazgosSnap] = await Promise.all([
+          const actividadesRef = collection(firebaseDb, "obras", obra.id, "actividades");
+          const avancesRef = collection(firebaseDb, "obras", obra.id, "avancesDiarios");
+          
+          const [rdiSnap, hallazgosSnap, actividadesSnap, avancesSnap] = await Promise.all([
             getDocs(rdiQuery),
             getDocs(hallazgosQuery),
+            getDocs(actividadesRef),
+            getDocs(avancesRef)
           ]);
 
-          // --- Inicia la corrección aquí ---
-          let avanceProgramadoLineal = 0;
-          if (obra.fechaInicio && obra.fechaTermino) {
-            // Manejar tanto Timestamps de Firestore como strings
-            const inicio = (obra.fechaInicio as any).toDate ? (obra.fechaInicio as any).toDate() : new Date(obra.fechaInicio);
-            const fin = (obra.fechaTermino as any).toDate ? (obra.fechaTermino as any).toDate() : new Date(obra.fechaTermino);
-            const hoy = new Date();
-            
-            // Validar que las fechas son válidas antes de calcular
-            if (!isNaN(inicio.getTime()) && !isNaN(fin.getTime()) && inicio <= fin) {
-              if (hoy < inicio) {
-                avanceProgramadoLineal = 0;
-              } else if (hoy > fin) {
-                avanceProgramadoLineal = 100;
-              } else {
-                const totalDias = differenceInDays(fin, inicio);
-                const diasPasados = differenceInDays(hoy, inicio);
-                if (totalDias > 0) {
-                  avanceProgramadoLineal = (diasPasados / totalDias) * 100;
-                }
+          const actividades = actividadesSnap.docs.map(d => ({id: d.id, ...d.data()}) as ActividadProgramada);
+          const avances = avancesSnap.docs.map(d => ({id: d.id, ...d.data(), fecha: (d.data().fecha as any).toDate()}) as AvanceDiario & {fecha: Date});
+          
+          const montoTotalContrato = actividades.reduce((sum, act) => sum + ((act.cantidad || 0) * (act.precioContrato || 0)), 0);
+
+          // --- Avance REAL (basado en costo) ---
+          const avancesPorActividad = new Map<string, number>();
+          avances.forEach(avance => {
+              if (avance.actividadId && typeof avance.cantidadEjecutada === 'number') {
+                  avancesPorActividad.set(avance.actividadId, (avancesPorActividad.get(avance.actividadId) || 0) + avance.cantidadEjecutada);
               }
-            }
-          }
-          // --- Termina la corrección ---
+          });
+          
+          const costoRealAcumulado = actividades.reduce((total, act) => {
+              const cantidadEjecutada = avancesPorActividad.get(act.id) || 0;
+              const avancePorcentaje = act.cantidad > 0 ? cantidadEjecutada / act.cantidad : 0;
+              const costoActividad = (act.cantidad || 0) * (act.precioContrato || 0);
+              return total + (costoActividad * Math.min(1, avancePorcentaje));
+          }, 0);
+          
+          const avanceReal = montoTotalContrato > 0 ? (costoRealAcumulado / montoTotalContrato) * 100 : 0;
+          
+          // --- Avance PROGRAMADO (basado en costo y tiempo) ---
+          const hoy = new Date();
+          hoy.setHours(0, 0, 0, 0);
+
+          let costoProgramadoAcumulado = 0;
+          actividades.forEach(act => {
+              const totalPartida = (act.cantidad || 0) * (act.precioContrato || 0);
+              if (totalPartida === 0 || !act.fechaInicio || !act.fechaFin) return;
+              
+              const inicioAct = new Date(act.fechaInicio + 'T00:00:00');
+              const finAct = new Date(act.fechaFin + 'T00:00:00');
+              if (inicioAct > finAct) return;
+
+              if (isAfter(hoy, finAct)) {
+                  costoProgramadoAcumulado += totalPartida;
+              } else if (hoy >= inicioAct) {
+                  const duracion = differenceInDays(finAct, inicioAct) + 1;
+                  const diasTranscurridos = differenceInDays(hoy, inicioAct) + 1;
+                  const avanceActividad = duracion > 0 ? diasTranscurridos / duracion : 0;
+                  costoProgramadoAcumulado += totalPartida * avanceActividad;
+              }
+          });
+          
+          const avanceProgramado = montoTotalContrato > 0 ? (costoProgramadoAcumulado / montoTotalContrato) * 100 : 0;
 
           return {
             ...obra,
@@ -118,7 +146,8 @@ export default function DirectorioDashboardPage() {
               rdiAbiertos: rdiSnap.size,
               hallazgosAbiertos: hallazgosSnap.size,
             },
-            avanceProgramadoLineal: Math.min(100, avanceProgramadoLineal),
+            avanceReal: isNaN(avanceReal) ? 0 : avanceReal,
+            avanceProgramado: isNaN(avanceProgramado) ? 0 : avanceProgramado,
           };
         });
 
@@ -215,16 +244,16 @@ export default function DirectorioDashboardPage() {
                                 <div className="flex flex-col gap-1.5">
                                     <div className="flex items-center gap-2 w-full" title="Avance Físico Real Registrado">
                                         <span className="text-xs w-10 text-muted-foreground text-left">Real:</span>
-                                        <Progress value={obra.avanceAcumulado ?? 0} className="h-2" />
+                                        <Progress value={obra.avanceReal ?? 0} className="h-2" />
                                         <span className="font-mono text-xs w-12 text-right">
-                                            {(obra.avanceAcumulado ?? 0).toFixed(1)}%
+                                            {(obra.avanceReal ?? 0).toFixed(1)}%
                                         </span>
                                     </div>
-                                    <div className="flex items-center gap-2 w-full" title="Avance Programado (Lineal)">
+                                    <div className="flex items-center gap-2 w-full" title="Avance Programado (Según cronograma)">
                                         <span className="text-xs w-10 text-muted-foreground text-left">Prog:</span>
-                                        <Progress value={obra.avanceProgramadoLineal ?? 0} className="h-2 bg-slate-200" indicatorClassName="bg-slate-400" />
+                                        <Progress value={obra.avanceProgramado ?? 0} className="h-2 bg-slate-200" indicatorClassName="bg-slate-400" />
                                         <span className="font-mono text-xs w-12 text-right">
-                                            {(obra.avanceProgramadoLineal ?? 0).toFixed(1)}%
+                                            {(obra.avanceProgramado ?? 0).toFixed(1)}%
                                         </span>
                                     </div>
                                 </div>
