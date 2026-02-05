@@ -34,9 +34,10 @@ import {
   GitCompareArrows,
   UserCheck,
   BarChart,
+  ArrowRight,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { useEffect, useState, useMemo, Suspense, useRef } from 'react';
+import { useEffect, useState, useMemo, Suspense, useRef, useCallback } from 'react';
 import { collection, getDocs, query, where, doc, getDoc, collectionGroup, limit, orderBy } from 'firebase/firestore';
 import { firebaseDb } from '@/lib/firebaseClient';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -242,6 +243,55 @@ function getRoleName(role: string) {
     };
     return roles[role] || role;
 }
+
+const ActivityCard = ({ item }: { item: ActivityItem }) => {
+    const config = {
+      rdi: { icon: MessageSquare, colorName: "blue" as const },
+      avance: { icon: TrendingUp, colorName: "green" as const },
+      edp: { icon: DollarSign, colorName: "purple" as const },
+      hallazgo: { icon: Siren, colorName: "orange" as const }
+    };
+     const colorStyles = {
+        blue: { border: 'border-blue-500', bg: 'bg-blue-100', icon: 'text-blue-600' },
+        green: { border: 'border-green-500', bg: 'bg-green-100', icon: 'text-green-600' },
+        purple: { border: 'border-purple-500', bg: 'bg-purple-100', icon: 'text-purple-600' },
+        orange: { border: 'border-orange-500', bg: 'bg-orange-100', icon: 'text-orange-600' }
+    };
+  
+    const itemConfig = config[item.type];
+    const styles = colorStyles[itemConfig.colorName];
+    const Icon = itemConfig.icon;
+  
+    return (
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.3 }}
+        className={cn(
+          "flex items-start gap-4 p-4 border-l-4 rounded-r-lg bg-card shadow-sm hover:bg-muted/50",
+          styles.border
+        )}
+      >
+        <div className={cn("p-2 rounded-full", styles.bg)}>
+          <Icon className={cn("h-6 w-6", styles.icon)} />
+        </div>
+        <div className="flex-1">
+          <div className="flex justify-between items-center">
+              <p className="font-semibold text-sm">{item.titulo}</p>
+              {item.estado && <Badge variant="outline">{item.estado}</Badge>}
+          </div>
+          <p className="text-xs text-muted-foreground">{item.obraNombre} - {item.fecha.toLocaleDateString('es-CL')}</p>
+          <div className="flex justify-between items-end mt-2">
+              <p className="text-sm text-muted-foreground">{item.descripcion}</p>
+              {item.valor && <p className="text-sm font-bold text-primary">{item.valor}</p>}
+          </div>
+         <Button asChild variant="ghost" size="sm">
+              <Link href={item.href}><ArrowRight className="h-4 w-4 mr-2"/>Ver Detalle</Link>
+          </Button>
+      </div>
+      </motion.div>
+    );
+};
 
 
 export default function DashboardPage() {
@@ -480,64 +530,6 @@ export default function DashboardPage() {
     return <div key={mod.title}>{card}</div>;
   }
   
-    // Nuevo componente para las tarjetas de actividad
-    const ActivityCard = ({ item }: { item: ActivityItem }) => {
-        const config = {
-          rdi: { icon: MessageSquare, color: "blue" as const },
-          avance: { icon: TrendingUp, color: "green" as const },
-          edp: { icon: DollarSign, color: "purple" as const },
-          hallazgo: { icon: Siren, color: "orange" as const }
-        };
-      
-        const itemConfig = config[item.type];
-        const Icon = itemConfig.icon;
-      
-        const borderClass = item.type === 'rdi' ? 'border-primary' :
-                            item.type === 'avance' ? 'border-green-600' :
-                            item.type === 'edp' ? 'border-purple-600' :
-                            'border-destructive';
-
-        const iconContainerClass = item.type === 'rdi' ? 'bg-blue-100' :
-                                   item.type === 'avance' ? 'bg-green-100' :
-                                   item.type === 'edp' ? 'bg-purple-100' :
-                                   'bg-destructive/10';
-
-        const iconClass = item.type === 'rdi' ? 'text-blue-600' :
-                          item.type === 'avance' ? 'text-green-600' :
-                          item.type === 'edp' ? 'text-purple-600' :
-                          'text-destructive';
-      
-        return (
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.3 }}
-            className={cn(
-              "flex items-start gap-4 p-4 border-l-4 rounded-r-lg bg-card shadow-sm hover:bg-muted/50",
-              borderClass
-            )}
-          >
-            <div className={cn("p-2 rounded-full", iconContainerClass)}>
-              <Icon className={cn("h-6 w-6", iconClass)} />
-            </div>
-            <div className="flex-1">
-              <div className="flex justify-between items-center">
-                  <p className="font-semibold text-sm">{item.titulo}</p>
-                  {item.estado && <Badge variant="outline">{item.estado}</Badge>}
-              </div>
-              <p className="text-xs text-muted-foreground">{item.obraNombre} - {item.fecha.toLocaleDateString('es-CL')}</p>
-              <div className="flex justify-between items-end mt-2">
-                  <p className="text-sm text-muted-foreground">{item.descripcion}</p>
-                  {item.valor && <p className="text-sm font-bold text-primary">{item.valor}</p>}
-              </div>
-             <Button asChild variant="ghost" size="sm">
-                  <Link href={item.href}>Ver</Link>
-              </Button>
-          </div>
-          </motion.div>
-        );
-      };
-
   return (
     <div className="min-h-screen bg-slate-50">
       <div className="flex flex-col gap-4 md:gap-6 p-4 md:p-6">
