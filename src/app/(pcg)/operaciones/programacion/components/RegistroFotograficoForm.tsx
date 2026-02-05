@@ -19,23 +19,26 @@ interface RegistroFotograficoFormProps {
     obras: Obra[];
     actividades: ActividadProgramada[];
     onRegistroGuardado: () => void;
+    obraId?: string;
 }
 
-export default function RegistroFotograficoForm({ obras, actividades, onRegistroGuardado }: RegistroFotograficoFormProps) {
+export default function RegistroFotograficoForm({ obras, actividades, onRegistroGuardado, obraId }: RegistroFotograficoFormProps) {
     const { user } = useAuth();
     const { toast } = useToast();
 
-    const [selectedObraId, setSelectedObraId] = useState('');
+    const [selectedObraId, setSelectedObraId] = useState(obraId || '');
     const [actividadId, setActividadId] = useState('');
     const [comentario, setComentario] = useState('');
     const [foto, setFoto] = useState<File | null>(null);
     const [loading, setLoading] = useState(false);
 
     useEffect(() => {
-        if (obras.length > 0 && !selectedObraId) {
+        if (obraId) {
+            setSelectedObraId(obraId);
+        } else if (obras.length > 0 && !selectedObraId) {
             setSelectedObraId(obras[0].id);
         }
-    }, [obras, selectedObraId]);
+    }, [obraId, obras, selectedObraId]);
 
     const actividadesFiltradas = actividades.filter(a => a.obraId === selectedObraId);
 
@@ -104,15 +107,17 @@ export default function RegistroFotograficoForm({ obras, actividades, onRegistro
             </CardHeader>
             <CardContent>
                 <form onSubmit={handleSubmit} className="space-y-4">
-                     <div className="space-y-2">
-                        <Label htmlFor="obra-foto">Obra</Label>
-                        <Select value={selectedObraId} onValueChange={setSelectedObraId}>
-                            <SelectTrigger id="obra-foto"><SelectValue placeholder="Seleccione obra..." /></SelectTrigger>
-                            <SelectContent>
-                                {obras.map(o => <SelectItem key={o.id} value={o.id}>{o.nombreFaena}</SelectItem>)}
-                            </SelectContent>
-                        </Select>
-                    </div>
+                     {!obraId && (
+                        <div className="space-y-2">
+                            <Label htmlFor="obra-foto">Obra</Label>
+                            <Select value={selectedObraId} onValueChange={setSelectedObraId}>
+                                <SelectTrigger id="obra-foto"><SelectValue placeholder="Seleccione obra..." /></SelectTrigger>
+                                <SelectContent>
+                                    {obras.map(o => <SelectItem key={o.id} value={o.id}>{o.nombreFaena}</SelectItem>)}
+                                </SelectContent>
+                            </Select>
+                        </div>
+                     )}
                     <div className="space-y-2">
                         <Label htmlFor="actividad-foto">Actividad Asociada (Opcional)</Label>
                         <Select value={actividadId} onValueChange={setActividadId} disabled={!selectedObraId}>

@@ -1433,7 +1433,11 @@ function ProgramacionPageInner() {
                 <CardDescription>Sube una foto como evidencia de un hito o avance, sin asociarlo a una cantidad específica.</CardDescription>
               </CardHeader>
               <CardContent>
-                <RegistroFotograficoForm obras={obras} actividades={actividades} onRegistroGuardado={refetchAvances} />
+                <RegistroFotograficoForm 
+                  obraId={obraSeleccionadaId}
+                  obras={obras} 
+                  actividades={actividades} 
+                  onRegistroGuardado={refetchAvances} />
               </CardContent>
             </Card>
           )}
