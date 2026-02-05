@@ -111,7 +111,6 @@ const ActivityCard = ({ item }: { item: ActivityItem }) => {
             <p className="text-sm text-muted-foreground">{item.descripcion}</p>
             {item.valor && <p className="text-sm font-bold text-primary">{item.valor}</p>}
         </div>
-      </div>
        <Button asChild variant="ghost" size="sm">
             <Link href={item.href}>Ver</Link>
         </Button>
@@ -155,7 +154,7 @@ const allMainModules = [
     id: 'estados_de_pago',
     title: 'Estados de Pago',
     description: 'Gestiona y visualiza el avance económico de tus obras en base a los contratos y avances registrados.',
-    href: '/operaciones/programacion',
+    href: '/operaciones/estados-de-pago',
     icon: DollarSign,
     linkText: 'Ir a Estados de Pago',
     tooltip: 'Necesitas una obra con programación y avances para usar este módulo.',

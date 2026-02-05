@@ -1068,12 +1068,6 @@ function ProgramacionPageInner() {
                 </p>
             </div>
         </div>
-         {obraSeleccionadaId && (
-            <Button variant="secondary" onClick={() => router.push(`/operaciones/estados-de-pago?obraId=${obraSeleccionadaId}`)}>
-                <DollarSign className="mr-2 h-4 w-4" />
-                Ver Estados de Pago
-            </Button>
-        )}
       </header>
 
       {error && <p className="text-sm font-medium text-destructive">{error}</p>}
