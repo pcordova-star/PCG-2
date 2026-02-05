@@ -1,3 +1,4 @@
+
 // src/app/(pcg)/directorio/page.tsx
 "use client";
 
@@ -86,25 +87,30 @@ export default function DirectorioDashboardPage() {
             getDocs(hallazgosQuery),
           ]);
 
-          // Calculate linear projected progress
+          // --- Inicia la corrección aquí ---
           let avanceProgramadoLineal = 0;
           if (obra.fechaInicio && obra.fechaTermino) {
-              const inicio = (obra.fechaInicio as any).toDate ? (obra.fechaInicio as any).toDate() : new Date(obra.fechaInicio);
-              const fin = (obra.fechaTermino as any).toDate ? (obra.fechaTermino as any).toDate() : new Date(obra.fechaTermino);
-              const hoy = new Date();
-              
+            // Manejar tanto Timestamps de Firestore como strings
+            const inicio = (obra.fechaInicio as any).toDate ? (obra.fechaInicio as any).toDate() : new Date(obra.fechaInicio);
+            const fin = (obra.fechaTermino as any).toDate ? (obra.fechaTermino as any).toDate() : new Date(obra.fechaTermino);
+            const hoy = new Date();
+            
+            // Validar que las fechas son válidas antes de calcular
+            if (!isNaN(inicio.getTime()) && !isNaN(fin.getTime()) && inicio <= fin) {
               if (hoy < inicio) {
-                  avanceProgramadoLineal = 0;
+                avanceProgramadoLineal = 0;
               } else if (hoy > fin) {
-                  avanceProgramadoLineal = 100;
+                avanceProgramadoLineal = 100;
               } else {
-                  const totalDias = differenceInDays(fin, inicio);
-                  const diasPasados = differenceInDays(hoy, inicio);
-                  if (totalDias > 0) {
-                      avanceProgramadoLineal = (diasPasados / totalDias) * 100;
-                  }
+                const totalDias = differenceInDays(fin, inicio);
+                const diasPasados = differenceInDays(hoy, inicio);
+                if (totalDias > 0) {
+                  avanceProgramadoLineal = (diasPasados / totalDias) * 100;
+                }
               }
+            }
           }
+          // --- Termina la corrección ---
 
           return {
             ...obra,
