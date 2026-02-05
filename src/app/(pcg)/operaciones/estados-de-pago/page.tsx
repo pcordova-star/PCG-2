@@ -3,7 +3,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
-import { collection, query, where, orderBy, onSnapshot, doc, getDoc, addDoc, serverTimestamp, getDocs, deleteDoc } from 'firebase/firestore';
+import { collection, query, where, orderBy, onSnapshot, doc, getDoc, addDoc, serverTimestamp, getDocs, deleteDoc, updateDoc } from 'firebase/firestore';
 import { firebaseDb } from '@/lib/firebaseClient';
 import { useAuth } from '@/context/AuthContext';
 import { useToast } from '@/hooks/use-toast';
@@ -11,7 +11,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from '@/components/ui/dialog';
-import { Loader2, PlusCircle, ArrowLeft, FileText, MoreVertical, Edit, Trash2 } from 'lucide-react';
+import { Loader2, PlusCircle, ArrowLeft, FileText, MoreVertical, Edit, Trash2, DollarSign } from 'lucide-react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Label } from '@/components/ui/label';
 import { Obra, ActividadProgramada, Company } from '@/types/pcg';
@@ -34,8 +34,12 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
+import { Badge } from '@/components/ui/badge';
+import { ScrollArea } from '@/components/ui/scroll-area';
 
 // Types needed for this page
+type EstadoDePagoStatus = 'borrador' | 'presentado' | 'pagado';
+
 type EstadoDePago = {
   id: string;
   correlativo: number;
@@ -47,9 +51,10 @@ type EstadoDePago = {
   iva: number;
   total: number; // This is the total FOR THIS PERIOD
   actividades: any[]; // simplified for now
+  status: EstadoDePagoStatus;
 };
 
-type NewEepData = Omit<EstadoDePago, 'id' | 'correlativo' | 'fechaGeneracion' | 'fechaDeCorte'>;
+type NewEepData = Omit<EstadoDePago, 'id' | 'correlativo' | 'fechaGeneracion' | 'fechaDeCorte' | 'status'>;
 
 function formatoMoneda(valor: number) {
     return new Intl.NumberFormat('es-CL', {
@@ -114,7 +119,6 @@ export default function EstadosDePagoPage() {
             const edpData = snapshot.docs.map(doc => {
                 const data = doc.data();
                 const fecha = data.fechaGeneracion;
-                // Robustly convert to a Date object
                 const finalDate = (fecha && typeof fecha.toDate === 'function') 
                     ? fecha.toDate() 
                     : (fecha instanceof Date ? fecha : new Date());
@@ -122,7 +126,8 @@ export default function EstadosDePagoPage() {
                 return {
                     id: doc.id,
                     ...data,
-                    fechaGeneracion: finalDate
+                    fechaGeneracion: finalDate,
+                    status: data.status || 'presentado', // Default for old documents
                 } as EstadoDePago;
             });
             setEstadosDePago(edpData);
@@ -204,7 +209,7 @@ export default function EstadosDePagoPage() {
         }
     };
     
-    const handleConfirmarYGuardarEdp = async () => {
+    const handleSaveEdp = async (status: EstadoDePagoStatus) => {
         if (!newEepData || !user || !selectedObraId) return;
         
         setIsGenerating(true);
@@ -215,6 +220,7 @@ export default function EstadosDePagoPage() {
 
             const nuevoEdp = {
                 ...newEepData,
+                status: status,
                 correlativo: nuevoCorrelativo,
                 fechaGeneracion: serverTimestamp(),
                 fechaDeCorte: new Date().toISOString().split('T')[0],
@@ -224,7 +230,7 @@ export default function EstadosDePagoPage() {
             
             await addDoc(edpCollectionRef, nuevoEdp);
 
-            toast({ title: `EDP N°${nuevoCorrelativo} guardado`, description: 'El nuevo estado de pago ha sido generado.' });
+            toast({ title: `EEP N°${nuevoCorrelativo} guardado como ${status}`, description: 'El nuevo estado de pago ha sido generado.' });
             setIsReviewModalOpen(false);
             setNewEepData(null);
         } catch (error: any) {
@@ -235,6 +241,17 @@ export default function EstadosDePagoPage() {
         }
     }
     
+    const handleUpdateStatus = async (edpId: string, status: EstadoDePagoStatus) => {
+        if (!selectedObraId) return;
+        try {
+            const edpRef = doc(firebaseDb, "obras", selectedObraId, "estadosDePago", edpId);
+            await updateDoc(edpRef, { status });
+            toast({ title: 'Estado actualizado', description: `El EEPP ha sido marcado como ${status}.` });
+        } catch (error: any) {
+            toast({ variant: 'destructive', title: 'Error', description: 'No se pudo actualizar el estado.' });
+        }
+    };
+
     const handleDownloadPdf = async (edp: EstadoDePago) => {
         const obra = obras.find(o => o.id === selectedObraId);
         if (!company || !obra) {
@@ -313,6 +330,7 @@ export default function EstadosDePagoPage() {
                                     <TableHead>Correlativo</TableHead>
                                     <TableHead>Fecha Generación</TableHead>
                                     <TableHead>Monto del Período</TableHead>
+                                    <TableHead>Estado</TableHead>
                                     <TableHead className="text-right">Acciones</TableHead>
                                 </TableRow>
                             </TableHeader>
@@ -322,6 +340,15 @@ export default function EstadosDePagoPage() {
                                         <TableCell>EDP-{String(edp.correlativo).padStart(3, '0')}</TableCell>
                                         <TableCell>{edp.fechaGeneracion.toLocaleDateString('es-CL')}</TableCell>
                                         <TableCell>{formatoMoneda(edp.total)}</TableCell>
+                                        <TableCell>
+                                            <Badge variant={
+                                                edp.status === 'pagado' ? 'default' :
+                                                edp.status === 'presentado' ? 'secondary' :
+                                                'outline'
+                                            }>
+                                                {edp.status}
+                                            </Badge>
+                                        </TableCell>
                                         <TableCell className="text-right">
                                             <DropdownMenu>
                                                 <DropdownMenuTrigger asChild>
@@ -338,6 +365,12 @@ export default function EstadosDePagoPage() {
                                                         <Edit className="mr-2 h-4 w-4" />
                                                         Editar
                                                     </DropdownMenuItem>
+                                                     {edp.status !== 'pagado' && (
+                                                        <DropdownMenuItem onClick={() => handleUpdateStatus(edp.id, 'pagado')}>
+                                                            <DollarSign className="mr-2 h-4 w-4" />
+                                                            Marcar como Pagado
+                                                        </DropdownMenuItem>
+                                                    )}
                                                     <DropdownMenuSeparator />
                                                     <AlertDialog>
                                                         <AlertDialogTrigger asChild>
@@ -381,15 +414,36 @@ export default function EstadosDePagoPage() {
             
             {/* Review Modal */}
             <Dialog open={isReviewModalOpen} onOpenChange={setIsReviewModalOpen}>
-                <DialogContent className="max-w-2xl">
+                <DialogContent className="max-w-4xl">
                     <DialogHeader>
-                        <DialogTitle>Revisar Nuevo Estado de Pago</DialogTitle>
+                        <DialogTitle>Revisar y Confirmar Nuevo Estado de Pago</DialogTitle>
                         <DialogDescription>
-                            Verifica los montos calculados antes de guardar el informe.
+                            Verifica los cálculos y el detalle de avance antes de guardar el informe.
                         </DialogDescription>
                     </DialogHeader>
                     {newEepData && (
-                        <div className="py-4 space-y-4">
+                        <div className="py-4 space-y-6">
+                            <ScrollArea className="h-72 w-full rounded-md border p-4">
+                                <Table>
+                                    <TableHeader>
+                                        <TableRow>
+                                            <TableHead>Actividad</TableHead>
+                                            <TableHead className="text-right">Avance (%)</TableHead>
+                                            <TableHead className="text-right">Monto Acumulado</TableHead>
+                                        </TableRow>
+                                    </TableHeader>
+                                    <TableBody>
+                                        {newEepData.actividades.map(act => (
+                                            <TableRow key={act.actividadId}>
+                                                <TableCell>{act.nombre}</TableCell>
+                                                <TableCell className="text-right">{act.porcentajeAvance.toFixed(1)}%</TableCell>
+                                                <TableCell className="text-right">{formatoMoneda(act.montoProyectado)}</TableCell>
+                                            </TableRow>
+                                        ))}
+                                    </TableBody>
+                                </Table>
+                            </ScrollArea>
+                            
                              <Table>
                                 <TableBody>
                                     <TableRow>
@@ -417,10 +471,14 @@ export default function EstadosDePagoPage() {
                         </div>
                     )}
                     <DialogFooter>
-                        <Button variant="ghost" onClick={() => setIsReviewModalOpen(false)}>Cancelar</Button>
-                        <Button onClick={handleConfirmarYGuardarEdp} disabled={isGenerating}>
+                        <Button variant="ghost" onClick={() => setIsReviewModalOpen(false)} disabled={isGenerating}>Cancelar</Button>
+                         <Button variant="secondary" onClick={() => handleSaveEdp('borrador')} disabled={isGenerating}>
                             {isGenerating && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                            Confirmar y Guardar EEPP
+                            Guardar como Borrador
+                        </Button>
+                        <Button onClick={() => handleSaveEdp('presentado')} disabled={isGenerating}>
+                            {isGenerating && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                            Guardar y Presentar
                         </Button>
                     </DialogFooter>
                 </DialogContent>
