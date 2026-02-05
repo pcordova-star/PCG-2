@@ -983,14 +983,30 @@ function ProgramacionPageInner() {
         toast({ variant: 'destructive', title: 'Error', description: 'La cantidad es requerida.' });
         return;
     }
+    
+    const cantidadNum = parseFloat(avanceData.cantidad);
+    const actividad = actividades.find(a => a.id === actividadId);
+    if (!actividad) return; // Should not happen
+    
+    const cantidadAcumuladaActual = avancesPorActividad[actividadId]?.cantidadAcumulada || 0;
+    const cantidadTotalProgramada = actividad.cantidad || 0;
+
+    if (cantidadAcumuladaActual + cantidadNum > cantidadTotalProgramada) {
+        const confirmacion = window.confirm(
+            `Alerta: Con esta cantidad (${cantidadNum.toLocaleString('es-CL')}), el avance acumulado (${(cantidadAcumuladaActual + cantidadNum).toLocaleString('es-CL')}) superará la cantidad programada (${cantidadTotalProgramada.toLocaleString('es-CL')}).\n\n¿Deseas continuar de todas formas?`
+        );
+        if (!confirmacion) {
+            return; // Stop if user cancels
+        }
+    }
+
 
     setIsSavingAvance(prev => ({ ...prev, [actividadId]: true }));
-    const cantidadNum = parseFloat(avanceData.cantidad);
 
     try {
         const obraRef = doc(firebaseDb, "obras", obraSeleccionadaId);
         const avancesRef = collection(obraRef, "avancesDiarios");
-        const actividad = actividades.find(a => a.id === actividadId);
+        // actividad is already defined above
 
         await runTransaction(firebaseDb, async (tx) => {
             const obraSnap = await tx.get(obraRef);
