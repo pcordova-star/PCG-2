@@ -95,11 +95,12 @@ export default function EstadosDePagoPage() {
         const unsub = onSnapshot(q, (snapshot) => {
             const edpData = snapshot.docs.map(doc => {
                 const data = doc.data();
+                const fecha = data.fechaGeneracion; // Firestore Timestamp
                 return {
                     id: doc.id,
                     ...data,
-                    fechaGeneracion: data.fechaGeneracion?.toDate()
-                } as EstadoDePago
+                    fechaGeneracion: fecha ? fecha.toDate() : new Date() // Always a Date object
+                } as EstadoDePago;
             });
             setEstadosDePago(edpData);
             setLoading(false);
@@ -277,7 +278,7 @@ export default function EstadosDePagoPage() {
                                 {estadosDePago.map(edp => (
                                     <TableRow key={edp.id}>
                                         <TableCell>EDP-{String(edp.correlativo).padStart(3, '0')}</TableCell>
-                                        <TableCell>{edp.fechaGeneracion instanceof Date ? edp.fechaGeneracion.toLocaleDateString('es-CL') : 'Fecha inválida'}</TableCell>
+                                        <TableCell>{edp.fechaGeneracion.toLocaleDateString('es-CL')}</TableCell>
                                         <TableCell>{formatoMoneda(edp.total)}</TableCell>
                                         <TableCell className="text-right">
                                             <Button variant="outline" size="sm" onClick={() => handleDownloadPdf(edp)}>
