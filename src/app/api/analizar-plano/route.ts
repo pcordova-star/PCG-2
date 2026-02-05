@@ -69,9 +69,10 @@ Analiza la imagen del plano adjunto y devuelve tu análisis EXCLUSIVAMENTE en fo
 No incluyas texto adicional ni formato markdown fuera del JSON. Tu respuesta debe ser un JSON parseable directamente.
 `;
     const URL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${API_KEY}`;
-    const match = photoDataUri.match(/^data:(image\/\w+);base64,(.*)$/);
+    
+    const match = photoDataUri.match(/^data:([a-zA-Z0-9]+\/[a-zA-Z0-9.-]+);base64,(.*)$/);
     if (!match) {
-        return NextResponse.json({ error: 'El formato del photoDataUri es inválido.' }, { status: 400 });
+        return NextResponse.json({ error: 'El formato del Data URI es inválido.' }, { status: 400 });
     }
     const mimeType = match[1];
     const base64Data = match[2];

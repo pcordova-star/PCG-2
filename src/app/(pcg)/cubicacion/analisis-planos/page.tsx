@@ -78,8 +78,16 @@ export default function AnalisisPlanosPage() {
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
+      if (!['image/jpeg', 'image/png', 'application/pdf'].includes(file.type)) {
+        toast({ variant: 'destructive', title: 'Archivo inválido', description: 'Por favor, sube un archivo JPG, PNG, o PDF.' });
+        setPlanoFile(null);
+        if (e.target) e.target.value = ''; // Limpiar el input
+        return;
+      }
       if (file.size > 10 * 1024 * 1024) {
         toast({ variant: 'destructive', title: 'Archivo demasiado grande', description: 'Por favor, sube un archivo de menos de 10MB.' });
+        setPlanoFile(null);
+        if (e.target) e.target.value = ''; // Limpiar el input
         return;
       }
       setPlanoFile(file);
@@ -89,7 +97,7 @@ export default function AnalisisPlanosPage() {
   const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
     if (!planoFile) {
-        setErrorAnalisis("Debes seleccionar un archivo de imagen.");
+        setErrorAnalisis("Debes seleccionar un archivo de imagen o PDF.");
         return;
     }
     if (!user) {
@@ -168,15 +176,15 @@ export default function AnalisisPlanosPage() {
             <Card>
                 <CardHeader>
                   <CardTitle>1. Sube tu plano</CardTitle>
-                  <CardDescription>Sube un archivo de imagen (JPG, PNG) de tu plano.</CardDescription>
+                  <CardDescription>Sube un archivo de imagen (JPG, PNG) o un PDF de tu plano.</CardDescription>
                 </CardHeader>
                 <CardContent>
                     <form onSubmit={handleSubmit} className="space-y-4">
-                        <Label htmlFor="plano-file">Archivo del plano (JPG, PNG, máx. 10MB)</Label>
-                        <Input id="plano-file" type="file" accept="image/jpeg, image/png" onChange={handleFileChange} />
+                        <Label htmlFor="plano-file">Archivo del plano (JPG, PNG, PDF, máx. 10MB)</Label>
+                        <Input id="plano-file" type="file" accept="image/jpeg, image/png, application/pdf" onChange={handleFileChange} />
                         <Button type="submit" size="sm" className="w-full" disabled={!planoFile || cargando}>
                             {cargando ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Wand2 className="mr-2 h-4 w-4" />}
-                            {cargando ? 'Analizando...' : 'Analizar Imagen'}
+                            {cargando ? 'Analizando...' : 'Analizar Archivo'}
                         </Button>
                     </form>
                 </CardContent>
