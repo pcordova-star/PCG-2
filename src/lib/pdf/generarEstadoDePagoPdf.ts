@@ -30,7 +30,10 @@ type EstadoDePago = {
   fechaDeCorte: string;
   totalAcumulado: number;
   totalAnterior: number;
-  subtotal: number;
+  totalNetoPeriodo: number;
+  gastosGeneralesPorcentaje: number;
+  gastosGenerales: number;
+  subtotalConGG: number;
   iva: number;
   total: number;
   actividades: ItemEstadoPago[];
@@ -139,9 +142,9 @@ export function generarEstadoDePagoPdf(
 
   cursorY = (doc as any).lastAutoTable.finalY + 10;
   
-  // Resumen final (UPDATED)
+  // Resumen final
   const colTotalX = 195;
-  const colLabelX = colTotalX - 60; // Adjusted for longer labels
+  const colLabelX = colTotalX - 60;
 
   doc.setFont("helvetica", "normal");
   doc.setFontSize(10);
@@ -150,13 +153,24 @@ export function generarEstadoDePagoPdf(
   doc.text(formatoMoneda(estadoDePago.totalAcumulado), colTotalX, cursorY, { align: "right" });
   cursorY += 6;
 
-  doc.text("(-) Descuento Avances Anteriores:", colLabelX, cursorY, { align: "right" });
+  doc.text("(-) Avance Acumulado Anterior:", colLabelX, cursorY, { align: "right" });
   doc.text(formatoMoneda(estadoDePago.totalAnterior), colTotalX, cursorY, { align: "right" });
-  cursorY += 6;
+  cursorY += 8;
+  doc.line(colLabelX - 5, cursorY - 3, colTotalX, cursorY - 3);
   
   doc.setFont("helvetica", "bold");
-  doc.text("Subtotal de Este Período:", colLabelX, cursorY, { align: "right" });
-  doc.text(formatoMoneda(estadoDePago.subtotal), colTotalX, cursorY, { align: "right" });
+  doc.text("Total Neto de Este Período:", colLabelX, cursorY, { align: "right" });
+  doc.text(formatoMoneda(estadoDePago.totalNetoPeriodo), colTotalX, cursorY, { align: "right" });
+  cursorY += 6;
+
+  doc.setFont("helvetica", "normal");
+  doc.text(`(+) Gastos Generales (${estadoDePago.gastosGeneralesPorcentaje}%):`, colLabelX, cursorY, { align: "right" });
+  doc.text(formatoMoneda(estadoDePago.gastosGenerales), colTotalX, cursorY, { align: "right" });
+  cursorY += 6;
+
+  doc.setFont("helvetica", "bold");
+  doc.text("Subtotal + GGyU:", colLabelX, cursorY, { align: "right" });
+  doc.text(formatoMoneda(estadoDePago.subtotalConGG), colTotalX, cursorY, { align: "right" });
   cursorY += 6;
 
   doc.setFont("helvetica", "normal");

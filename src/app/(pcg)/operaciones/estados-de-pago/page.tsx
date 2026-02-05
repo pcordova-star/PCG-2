@@ -3,7 +3,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
-import { collection, query, where, orderBy, onSnapshot, doc, getDocs, addDoc, serverTimestamp, deleteDoc, updateDoc } from 'firebase/firestore';
+import { collection, query, where, orderBy, onSnapshot, doc, getDocs, addDoc, serverTimestamp, deleteDoc, updateDoc, limit } from 'firebase/firestore';
 import { firebaseDb } from '@/lib/firebaseClient';
 import { useAuth } from '@/context/AuthContext';
 import { useToast } from '@/hooks/use-toast';
@@ -47,9 +47,12 @@ type EstadoDePago = {
   fechaDeCorte: string;
   totalAcumulado: number;
   totalAnterior: number;
-  subtotal: number;
+  totalNetoPeriodo: number;
+  gastosGeneralesPorcentaje: number;
+  gastosGenerales: number;
+  subtotalConGG: number;
   iva: number;
-  total: number; // This is the total FOR THIS PERIOD
+  total: number;
   actividades: any[]; // simplified for now
   status: EstadoDePagoStatus;
 };
@@ -127,6 +130,10 @@ export default function EstadosDePagoPage() {
                 return {
                     id: doc.id,
                     ...data,
+                    gastosGeneralesPorcentaje: data.gastosGeneralesPorcentaje ?? 0,
+                    gastosGenerales: data.gastosGenerales ?? 0,
+                    subtotalConGG: data.subtotalConGG ?? (data.totalNetoPeriodo || data.subtotal || 0),
+                    totalNetoPeriodo: data.totalNetoPeriodo ?? data.subtotal,
                     fechaGeneracion: finalDate,
                     status: data.status || 'presentado', // Default for old documents
                 } as EstadoDePago;
@@ -153,15 +160,26 @@ export default function EstadosDePagoPage() {
             const avancesRef = collection(obraRef, "avancesDiarios");
             const edpRef = collection(obraRef, "estadosDePago");
             
-            const [actividadesSnap, avancesSnap, edpSnap] = await Promise.all([
+            const [actividadesSnap, avancesSnap, edpSnap, presupuestoSnap] = await Promise.all([
                 getDocs(query(actividadesRef, orderBy("fechaInicio"))),
                 getDocs(query(avancesRef)),
-                getDocs(query(edpRef, orderBy("correlativo", "asc")))
+                getDocs(query(edpRef, orderBy("correlativo", "asc"))),
+                getDocs(query(collection(firebaseDb, "presupuestos"), where("obraId", "==", selectedObraId), orderBy("fechaCreacion", "desc"), limit(1)))
             ]);
 
             const actividades = actividadesSnap.docs.map(d => ({id: d.id, ...d.data()}) as ActividadProgramada);
             const avances = avancesSnap.docs.map(d => d.data());
             const edpsAnteriores = edpSnap.docs.map(d => d.data() as EstadoDePago);
+
+            let ggPorcentaje = 25; // Default GG
+            if (!presupuestoSnap.empty) {
+                const presupuestoData = presupuestoSnap.docs[0].data();
+                if (presupuestoData.gastosGeneralesPorcentaje !== undefined) {
+                    ggPorcentaje = presupuestoData.gastosGeneralesPorcentaje;
+                }
+            } else {
+                toast({ variant: "destructive", title: "Advertencia", description: "No se encontró presupuesto para esta obra. Se usará un 25% de Gastos Generales por defecto." });
+            }
 
             const avancesPorActividad = new Map<string, number>();
             avances.forEach(avance => {
@@ -186,18 +204,23 @@ export default function EstadosDePagoPage() {
             });
 
             const totalAcumulado = actividadesEDP.reduce((sum, act) => sum + act.montoProyectado, 0);
-            const totalAnterior = edpsAnteriores.reduce((sum, edp) => sum + edp.total, 0);
+            const avanceAcumuladoAnterior = edpsAnteriores.length > 0 ? edpsAnteriores[edpsAnteriores.length - 1].totalAcumulado : 0;
             
-            const subtotalEstePeriodo = totalAcumulado - totalAnterior;
-            const iva = subtotalEstePeriodo * 0.19;
-            const totalEstePeriodo = subtotalEstePeriodo + iva;
+            const totalNetoPeriodo = totalAcumulado - avanceAcumuladoAnterior;
+            const gastosGenerales = totalNetoPeriodo * (ggPorcentaje / 100);
+            const subtotalConGG = totalNetoPeriodo + gastosGenerales;
+            const iva = subtotalConGG * 0.19;
+            const total = subtotalConGG + iva;
             
             setNewEepData({
                 totalAcumulado,
-                totalAnterior,
-                subtotal: subtotalEstePeriodo,
+                totalAnterior: avanceAcumuladoAnterior,
+                totalNetoPeriodo,
+                gastosGeneralesPorcentaje: ggPorcentaje,
+                gastosGenerales,
+                subtotalConGG,
                 iva,
-                total: totalEstePeriodo,
+                total,
                 actividades: actividadesEDP,
             });
             setIsReviewModalOpen(true);
@@ -452,12 +475,20 @@ export default function EstadosDePagoPage() {
                                         <TableCell className="text-right">{formatoMoneda(newEepData.totalAcumulado)}</TableCell>
                                     </TableRow>
                                     <TableRow>
-                                        <TableCell className="text-muted-foreground">(-) Total Cobrado en EEPP Anteriores</TableCell>
+                                        <TableCell className="text-muted-foreground">(-) Avance Acumulado Anterior</TableCell>
                                         <TableCell className="text-right text-muted-foreground">{formatoMoneda(newEepData.totalAnterior)}</TableCell>
                                     </TableRow>
-                                     <TableRow className="font-bold border-t-2 border-primary">
-                                        <TableCell>Subtotal de Este Período</TableCell>
-                                        <TableCell className="text-right">{formatoMoneda(newEepData.subtotal)}</TableCell>
+                                     <TableRow className="font-semibold border-t-2 border-primary/20">
+                                        <TableCell>Total Neto de Este Período</TableCell>
+                                        <TableCell className="text-right">{formatoMoneda(newEepData.totalNetoPeriodo)}</TableCell>
+                                    </TableRow>
+                                    <TableRow>
+                                        <TableCell className="text-muted-foreground">(+) Gastos Generales ({newEepData.gastosGeneralesPorcentaje}%)</TableCell>
+                                        <TableCell className="text-right text-muted-foreground">{formatoMoneda(newEepData.gastosGenerales)}</TableCell>
+                                    </TableRow>
+                                     <TableRow className="font-bold">
+                                        <TableCell>Subtotal + GGyU</TableCell>
+                                        <TableCell className="text-right">{formatoMoneda(newEepData.subtotalConGG)}</TableCell>
                                     </TableRow>
                                      <TableRow>
                                         <TableCell>IVA (19%)</TableCell>
