@@ -3,7 +3,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
-import { collection, query, where, orderBy, onSnapshot, doc, getDoc, addDoc, serverTimestamp, getDocs } from 'firebase/firestore';
+import { collection, query, where, orderBy, onSnapshot, doc, getDoc, addDoc, serverTimestamp, getDocs, deleteDoc } from 'firebase/firestore';
 import { firebaseDb } from '@/lib/firebaseClient';
 import { useAuth } from '@/context/AuthContext';
 import { useToast } from '@/hooks/use-toast';
@@ -11,11 +11,29 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from '@/components/ui/dialog';
-import { Loader2, PlusCircle, ArrowLeft, FileText } from 'lucide-react';
+import { Loader2, PlusCircle, ArrowLeft, FileText, MoreVertical, Edit, Trash2 } from 'lucide-react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Label } from '@/components/ui/label';
 import { Obra, ActividadProgramada, Company } from '@/types/pcg';
 import { generarEstadoDePagoPdf } from '@/lib/pdf/generarEstadoDePagoPdf';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 
 // Types needed for this page
 type EstadoDePago = {
@@ -227,6 +245,25 @@ export default function EstadosDePagoPage() {
         generarEstadoDePagoPdf(company, obra, edp);
     };
 
+    const handleEditEdp = (edp: EstadoDePago) => {
+        toast({
+            title: "Función en desarrollo",
+            description: "La edición de EEPP estará disponible próximamente."
+        });
+    };
+
+    const handleDeleteEdp = async (edpId: string) => {
+        if (!selectedObraId) return;
+        try {
+            const edpRef = doc(firebaseDb, "obras", selectedObraId, "estadosDePago", edpId);
+            await deleteDoc(edpRef);
+            toast({ title: 'Estado de Pago eliminado', description: 'El EEPP ha sido eliminado. Los cálculos de EEPP futuros se ajustarán automáticamente.' });
+        } catch (error: any) {
+            console.error("Error al eliminar EEPP:", error);
+            toast({ variant: 'destructive', title: 'Error', description: 'No se pudo eliminar el estado de pago.' });
+        }
+    };
+
     return (
         <div className="space-y-6">
             <header className="flex items-center gap-4">
@@ -286,10 +323,53 @@ export default function EstadosDePagoPage() {
                                         <TableCell>{edp.fechaGeneracion.toLocaleDateString('es-CL')}</TableCell>
                                         <TableCell>{formatoMoneda(edp.total)}</TableCell>
                                         <TableCell className="text-right">
-                                            <Button variant="outline" size="sm" onClick={() => handleDownloadPdf(edp)}>
-                                                <FileText className="mr-2 h-4 w-4" />
-                                                Ver/Descargar PDF
-                                            </Button>
+                                            <DropdownMenu>
+                                                <DropdownMenuTrigger asChild>
+                                                    <Button variant="ghost" size="icon">
+                                                        <MoreVertical className="h-4 w-4" />
+                                                    </Button>
+                                                </DropdownMenuTrigger>
+                                                <DropdownMenuContent align="end">
+                                                    <DropdownMenuItem onClick={() => handleDownloadPdf(edp)}>
+                                                        <FileText className="mr-2 h-4 w-4" />
+                                                        Ver/Descargar PDF
+                                                    </DropdownMenuItem>
+                                                    <DropdownMenuItem onClick={() => handleEditEdp(edp)}>
+                                                        <Edit className="mr-2 h-4 w-4" />
+                                                        Editar
+                                                    </DropdownMenuItem>
+                                                    <DropdownMenuSeparator />
+                                                    <AlertDialog>
+                                                        <AlertDialogTrigger asChild>
+                                                            <DropdownMenuItem
+                                                                onSelect={(e) => e.preventDefault()}
+                                                                className="text-destructive focus:bg-destructive/10 focus:text-destructive"
+                                                            >
+                                                                <Trash2 className="mr-2 h-4 w-4" />
+                                                                Eliminar
+                                                            </DropdownMenuItem>
+                                                        </AlertDialogTrigger>
+                                                        <AlertDialogContent>
+                                                            <AlertDialogHeader>
+                                                                <AlertDialogTitle>¿Eliminar Estado de Pago?</AlertDialogTitle>
+                                                                <AlertDialogDescription>
+                                                                    Esta acción es permanente. Se eliminará el EEPP N°{edp.correlativo}.
+                                                                    Al generar un nuevo EEPP se considerará el historial actualizado.
+                                                                </AlertDialogDescription>
+                                                            </AlertDialogHeader>
+                                                            <AlertDialogFooter>
+                                                                <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                                                                <AlertDialogAction
+                                                                    className="bg-destructive hover:bg-destructive/90"
+                                                                    onClick={() => handleDeleteEdp(edp.id)}
+                                                                >
+                                                                    Confirmar Eliminación
+                                                                </AlertDialogAction>
+                                                            </AlertDialogFooter>
+                                                        </AlertDialogContent>
+                                                    </AlertDialog>
+                                                </DropdownMenuContent>
+                                            </DropdownMenu>
                                         </TableCell>
                                     </TableRow>
                                 ))}
