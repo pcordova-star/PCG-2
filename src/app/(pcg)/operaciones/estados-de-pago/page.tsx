@@ -10,6 +10,7 @@ import { useToast } from '@/hooks/use-toast';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from '@/components/ui/dialog';
 import { Loader2, PlusCircle, ArrowLeft, FileText } from 'lucide-react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Label } from '@/components/ui/label';
@@ -22,11 +23,23 @@ type EstadoDePago = {
   correlativo: number;
   fechaGeneracion: Date;
   fechaDeCorte: string;
-  total: number;
+  totalAcumulado: number;
+  totalAnterior: number;
   subtotal: number;
   iva: number;
+  total: number; // This is the total FOR THIS PERIOD
   actividades: any[]; // simplified for now
 };
+
+type NewEepData = Omit<EstadoDePago, 'id' | 'correlativo' | 'fechaGeneracion' | 'fechaDeCorte'>;
+
+function formatoMoneda(valor: number) {
+    return new Intl.NumberFormat('es-CL', {
+      style: 'currency',
+      currency: 'CLP',
+      maximumFractionDigits: 0,
+    }).format(valor);
+}
 
 export default function EstadosDePagoPage() {
     const { user, companyId, company, role } = useAuth();
@@ -38,6 +51,11 @@ export default function EstadosDePagoPage() {
     const [selectedObraId, setSelectedObraId] = useState('');
     const [estadosDePago, setEstadosDePago] = useState<EstadoDePago[]>([]);
     const [loading, setLoading] = useState(true);
+    const [isGenerating, setIsGenerating] = useState(false);
+    
+    // State for review modal
+    const [isReviewModalOpen, setIsReviewModalOpen] = useState(false);
+    const [newEepData, setNewEepData] = useState<NewEepData | null>(null);
 
     // Fetch obras
     useEffect(() => {
@@ -56,12 +74,12 @@ export default function EstadosDePagoPage() {
             const obraIdFromQuery = searchParams.get('obraId');
             if (obraIdFromQuery && obrasData.some(o => o.id === obraIdFromQuery)) {
                 setSelectedObraId(obraIdFromQuery);
-            } else if (obrasData.length > 0) {
+            } else if (obrasData.length > 0 && !selectedObraId) {
                 setSelectedObraId(obrasData[0].id);
             }
         });
         return () => unsub();
-    }, [companyId, role, searchParams]);
+    }, [companyId, role, searchParams, selectedObraId]);
 
     // Fetch estados de pago for selected obra
     useEffect(() => {
@@ -77,12 +95,10 @@ export default function EstadosDePagoPage() {
         const unsub = onSnapshot(q, (snapshot) => {
             const edpData = snapshot.docs.map(doc => {
                 const data = doc.data();
-                // Ensure fechaGeneracion is a Date object
-                const fechaGeneracionDate = data.fechaGeneracion?.toDate ? data.fechaGeneracion.toDate() : new Date(data.fechaGeneracion);
                 return {
                     id: doc.id,
                     ...data,
-                    fechaGeneracion: fechaGeneracionDate
+                    fechaGeneracion: data.fechaGeneracion?.toDate()
                 } as EstadoDePago
             });
             setEstadosDePago(edpData);
@@ -98,26 +114,25 @@ export default function EstadosDePagoPage() {
     const handleGenerarEdp = async () => {
         if (!selectedObraId || !user) return;
 
+        setIsGenerating(true);
         toast({ title: 'Generando EEPP...', description: 'Calculando avances y preparando el informe.' });
 
         try {
             const obraRef = doc(firebaseDb, "obras", selectedObraId);
             const actividadesRef = collection(obraRef, "actividades");
             const avancesRef = collection(obraRef, "avancesDiarios");
+            const edpRef = collection(obraRef, "estadosDePago");
             
-            const [obraSnap, actividadesSnap, avancesSnap] = await Promise.all([
-                getDoc(obraRef),
+            const [actividadesSnap, avancesSnap, edpSnap] = await Promise.all([
                 getDocs(query(actividadesRef, orderBy("fechaInicio"))),
-                getDocs(query(avancesRef))
+                getDocs(query(avancesRef)),
+                getDocs(query(edpRef, orderBy("correlativo", "asc")))
             ]);
 
-            if (!obraSnap.exists()) throw new Error("Obra no encontrada.");
-
-            const obraData = obraSnap.data() as Obra;
             const actividades = actividadesSnap.docs.map(d => ({id: d.id, ...d.data()}) as ActividadProgramada);
             const avances = avancesSnap.docs.map(d => d.data());
+            const edpsAnteriores = edpSnap.docs.map(d => d.data() as EstadoDePago);
 
-            // --- Logica de calculo (similar a la que movi al dashboard del director)
             const avancesPorActividad = new Map<string, number>();
             avances.forEach(avance => {
                 if (avance.actividadId && typeof avance.cantidadEjecutada === 'number') {
@@ -140,35 +155,61 @@ export default function EstadosDePagoPage() {
                 };
             });
 
-            const subtotal = actividadesEDP.reduce((sum, act) => sum + act.montoProyectado, 0);
-            const iva = subtotal * 0.19;
-            const total = subtotal + iva;
+            const totalAcumulado = actividadesEDP.reduce((sum, act) => sum + act.montoProyectado, 0);
+            const totalAnterior = edpsAnteriores.reduce((sum, edp) => sum + edp.total, 0);
+            
+            const subtotalEstePeriodo = totalAcumulado - totalAnterior;
+            const iva = subtotalEstePeriodo * 0.19;
+            const totalEstePeriodo = subtotalEstePeriodo + iva;
+            
+            setNewEepData({
+                totalAcumulado,
+                totalAnterior,
+                subtotal: subtotalEstePeriodo,
+                iva,
+                total: totalEstePeriodo,
+                actividades: actividadesEDP,
+            });
+            setIsReviewModalOpen(true);
 
-            const edpCollectionRef = collection(obraRef, "estadosDePago");
+        } catch (error: any) {
+            console.error("Error al generar EDP:", error);
+            toast({ variant: 'destructive', title: 'Error', description: error.message });
+        } finally {
+            setIsGenerating(false);
+        }
+    };
+    
+    const handleConfirmarYGuardarEdp = async () => {
+        if (!newEepData || !user || !selectedObraId) return;
+        
+        setIsGenerating(true);
+        try {
+            const edpCollectionRef = collection(firebaseDb, "obras", selectedObraId, "estadosDePago");
             const edpCountSnap = await getDocs(query(edpCollectionRef));
             const nuevoCorrelativo = edpCountSnap.size + 1;
 
             const nuevoEdp = {
+                ...newEepData,
                 correlativo: nuevoCorrelativo,
                 fechaGeneracion: serverTimestamp(),
                 fechaDeCorte: new Date().toISOString().split('T')[0],
-                subtotal,
-                iva,
-                total,
-                actividades: actividadesEDP,
                 generadoPorUid: user.uid,
                 obraId: selectedObraId
             };
             
             await addDoc(edpCollectionRef, nuevoEdp);
 
-            toast({ title: `EDP N°${nuevoCorrelativo} generado`, description: 'El nuevo estado de pago se ha guardado.' });
-
+            toast({ title: `EDP N°${nuevoCorrelativo} guardado`, description: 'El nuevo estado de pago ha sido generado.' });
+            setIsReviewModalOpen(false);
+            setNewEepData(null);
         } catch (error: any) {
-            console.error("Error al generar EDP:", error);
-            toast({ variant: 'destructive', title: 'Error', description: error.message });
+            console.error("Error al guardar EEPP:", error);
+            toast({ variant: 'destructive', title: 'Error', description: 'No se pudo guardar el estado de pago.' });
+        } finally {
+            setIsGenerating(false);
         }
-    };
+    }
     
     const handleDownloadPdf = async (edp: EstadoDePago) => {
         const obra = obras.find(o => o.id === selectedObraId);
@@ -177,10 +218,7 @@ export default function EstadosDePagoPage() {
             return;
         }
         
-        generarEstadoDePagoPdf(company, obra, {
-            ...edp,
-            fechaGeneracion: edp.fechaGeneracion.toISOString()
-        });
+        generarEstadoDePagoPdf(company, obra, edp);
     };
 
     return (
@@ -215,8 +253,9 @@ export default function EstadosDePagoPage() {
             <Card>
                 <CardHeader className="flex flex-row items-center justify-between">
                     <CardTitle>Historial de Estados de Pago</CardTitle>
-                    <Button onClick={handleGenerarEdp} disabled={!selectedObraId || loading}>
-                        <PlusCircle className="mr-2 h-4 w-4"/> Generar Nuevo EEPP
+                    <Button onClick={handleGenerarEdp} disabled={!selectedObraId || isGenerating}>
+                        {isGenerating ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <PlusCircle className="mr-2 h-4 w-4"/>}
+                        Generar Nuevo EEPP
                     </Button>
                 </CardHeader>
                 <CardContent>
@@ -230,7 +269,7 @@ export default function EstadosDePagoPage() {
                                 <TableRow>
                                     <TableHead>Correlativo</TableHead>
                                     <TableHead>Fecha Generación</TableHead>
-                                    <TableHead>Monto Total</TableHead>
+                                    <TableHead>Monto del Período</TableHead>
                                     <TableHead className="text-right">Acciones</TableHead>
                                 </TableRow>
                             </TableHeader>
@@ -238,8 +277,8 @@ export default function EstadosDePagoPage() {
                                 {estadosDePago.map(edp => (
                                     <TableRow key={edp.id}>
                                         <TableCell>EDP-{String(edp.correlativo).padStart(3, '0')}</TableCell>
-                                        <TableCell>{edp.fechaGeneracion.toLocaleDateString('es-CL')}</TableCell>
-                                        <TableCell>{new Intl.NumberFormat('es-CL', { style: 'currency', currency: 'CLP' }).format(edp.total)}</TableCell>
+                                        <TableCell>{edp.fechaGeneracion instanceof Date ? edp.fechaGeneracion.toLocaleDateString('es-CL') : 'Fecha inválida'}</TableCell>
+                                        <TableCell>{formatoMoneda(edp.total)}</TableCell>
                                         <TableCell className="text-right">
                                             <Button variant="outline" size="sm" onClick={() => handleDownloadPdf(edp)}>
                                                 <FileText className="mr-2 h-4 w-4" />
@@ -253,6 +292,53 @@ export default function EstadosDePagoPage() {
                     )}
                 </CardContent>
             </Card>
+            
+            {/* Review Modal */}
+            <Dialog open={isReviewModalOpen} onOpenChange={setIsReviewModalOpen}>
+                <DialogContent className="max-w-2xl">
+                    <DialogHeader>
+                        <DialogTitle>Revisar Nuevo Estado de Pago</DialogTitle>
+                        <DialogDescription>
+                            Verifica los montos calculados antes de guardar el informe.
+                        </DialogDescription>
+                    </DialogHeader>
+                    {newEepData && (
+                        <div className="py-4 space-y-4">
+                             <Table>
+                                <TableBody>
+                                    <TableRow>
+                                        <TableCell className="font-medium">Total Avance Acumulado a la Fecha</TableCell>
+                                        <TableCell className="text-right">{formatoMoneda(newEepData.totalAcumulado)}</TableCell>
+                                    </TableRow>
+                                    <TableRow>
+                                        <TableCell className="text-muted-foreground">(-) Total Cobrado en EEPP Anteriores</TableCell>
+                                        <TableCell className="text-right text-muted-foreground">{formatoMoneda(newEepData.totalAnterior)}</TableCell>
+                                    </TableRow>
+                                     <TableRow className="font-bold border-t-2 border-primary">
+                                        <TableCell>Subtotal de Este Período</TableCell>
+                                        <TableCell className="text-right">{formatoMoneda(newEepData.subtotal)}</TableCell>
+                                    </TableRow>
+                                     <TableRow>
+                                        <TableCell>IVA (19%)</TableCell>
+                                        <TableCell className="text-right">{formatoMoneda(newEepData.iva)}</TableCell>
+                                    </TableRow>
+                                     <TableRow className="text-lg font-extrabold bg-primary/10">
+                                        <TableCell>Total a Pagar en este EEPP</TableCell>
+                                        <TableCell className="text-right">{formatoMoneda(newEepData.total)}</TableCell>
+                                    </TableRow>
+                                </TableBody>
+                            </Table>
+                        </div>
+                    )}
+                    <DialogFooter>
+                        <Button variant="ghost" onClick={() => setIsReviewModalOpen(false)}>Cancelar</Button>
+                        <Button onClick={handleConfirmarYGuardarEdp} disabled={isGenerating}>
+                            {isGenerating && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                            Confirmar y Guardar EEPP
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
         </div>
     );
 }

@@ -22,11 +22,14 @@ type ItemEstadoPago = {
   montoProyectado: number;
 };
 
+// Updated Type
 type EstadoDePago = {
   id: string;
   correlativo: number;
-  fechaGeneracion: string;
+  fechaGeneracion: Date;
   fechaDeCorte: string;
+  totalAcumulado: number;
+  totalAnterior: number;
   subtotal: number;
   iva: number;
   total: number;
@@ -119,7 +122,7 @@ export function generarEstadoDePagoPdf(
 
   autoTable(doc, {
     startY: cursorY,
-    head: [['Ítem', 'Descripción', 'Cant.', 'Un.', 'P. Unitario', '% Avance', 'Monto a cobrar']],
+    head: [['Ítem', 'Descripción', 'Cant.', 'Un.', 'P. Unitario', '% Avance', 'Monto Acumulado']],
     body: body,
     theme: 'grid',
     headStyles: {
@@ -136,24 +139,34 @@ export function generarEstadoDePagoPdf(
 
   cursorY = (doc as any).lastAutoTable.finalY + 10;
   
-  // Resumen final
+  // Resumen final (UPDATED)
   const colTotalX = 195;
-  const colLabelX = colTotalX - 45;
+  const colLabelX = colTotalX - 60; // Adjusted for longer labels
 
   doc.setFont("helvetica", "normal");
   doc.setFontSize(10);
   
-  doc.text("Subtotal Neto:", colLabelX, cursorY, { align: "right" });
+  doc.text("Total Avance Acumulado a la Fecha:", colLabelX, cursorY, { align: "right" });
+  doc.text(formatoMoneda(estadoDePago.totalAcumulado), colTotalX, cursorY, { align: "right" });
+  cursorY += 6;
+
+  doc.text("(-) Descuento Avances Anteriores:", colLabelX, cursorY, { align: "right" });
+  doc.text(formatoMoneda(estadoDePago.totalAnterior), colTotalX, cursorY, { align: "right" });
+  cursorY += 6;
+  
+  doc.setFont("helvetica", "bold");
+  doc.text("Subtotal de Este Período:", colLabelX, cursorY, { align: "right" });
   doc.text(formatoMoneda(estadoDePago.subtotal), colTotalX, cursorY, { align: "right" });
   cursorY += 6;
 
+  doc.setFont("helvetica", "normal");
   doc.text("IVA (19%):", colLabelX, cursorY, { align: "right" });
   doc.text(formatoMoneda(estadoDePago.iva), colTotalX, cursorY, { align: "right" });
-  cursorY += 6;
+  cursorY += 8;
 
   doc.setFont("helvetica", "bold");
   doc.setFontSize(12);
-  doc.text("Total a Pagar:", colLabelX, cursorY, { align: "right" });
+  doc.text("Total a Pagar en este EEPP:", colLabelX, cursorY, { align: "right" });
   doc.text(formatoMoneda(estadoDePago.total), colTotalX, cursorY, { align: "right" });
   
   cursorY += 25;
