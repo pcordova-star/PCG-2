@@ -20,7 +20,7 @@ import { generarEstadoDePagoPdf } from '@/lib/pdf/generarEstadoDePagoPdf';
 type EstadoDePago = {
   id: string;
   correlativo: number;
-  fechaGeneracion: { toDate: () => Date };
+  fechaGeneracion: Date;
   fechaDeCorte: string;
   total: number;
   subtotal: number;
@@ -75,7 +75,15 @@ export default function EstadosDePagoPage() {
         const q = query(edpRef, orderBy("correlativo", "desc"));
 
         const unsub = onSnapshot(q, (snapshot) => {
-            const edpData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as EstadoDePago));
+            const edpData = snapshot.docs.map(doc => {
+                const data = doc.data();
+                const fechaGeneracionDate = data.fechaGeneracion?.toDate ? data.fechaGeneracion.toDate() : new Date();
+                return {
+                    id: doc.id,
+                    ...data,
+                    fechaGeneracion: fechaGeneracionDate
+                } as EstadoDePago
+            });
             setEstadosDePago(edpData);
             setLoading(false);
         }, (error) => {
@@ -170,7 +178,7 @@ export default function EstadosDePagoPage() {
         
         generarEstadoDePagoPdf(company, obra, {
             ...edp,
-            fechaGeneracion: edp.fechaGeneracion.toDate().toISOString()
+            fechaGeneracion: edp.fechaGeneracion.toISOString()
         });
     };
 
@@ -229,7 +237,7 @@ export default function EstadosDePagoPage() {
                                 {estadosDePago.map(edp => (
                                     <TableRow key={edp.id}>
                                         <TableCell>EDP-{String(edp.correlativo).padStart(3, '0')}</TableCell>
-                                        <TableCell>{edp.fechaGeneracion.toDate().toLocaleDateString('es-CL')}</TableCell>
+                                        <TableCell>{edp.fechaGeneracion.toLocaleDateString('es-CL')}</TableCell>
                                         <TableCell>{new Intl.NumberFormat('es-CL', { style: 'currency', currency: 'CLP' }).format(edp.total)}</TableCell>
                                         <TableCell className="text-right">
                                             <Button variant="outline" size="sm" onClick={() => handleDownloadPdf(edp)}>
