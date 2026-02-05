@@ -3,7 +3,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
-import { collection, query, where, orderBy, onSnapshot, doc, getDoc, addDoc, serverTimestamp, getDocs, deleteDoc, updateDoc } from 'firebase/firestore';
+import { collection, query, where, orderBy, onSnapshot, doc, getDocs, addDoc, serverTimestamp, deleteDoc, updateDoc } from 'firebase/firestore';
 import { firebaseDb } from '@/lib/firebaseClient';
 import { useAuth } from '@/context/AuthContext';
 import { useToast } from '@/hooks/use-toast';
@@ -119,6 +119,7 @@ export default function EstadosDePagoPage() {
             const edpData = snapshot.docs.map(doc => {
                 const data = doc.data();
                 const fecha = data.fechaGeneracion;
+                // Robust date handling
                 const finalDate = (fecha && typeof fecha.toDate === 'function') 
                     ? fecha.toDate() 
                     : (fecha instanceof Date ? fecha : new Date());
