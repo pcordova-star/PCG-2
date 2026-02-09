@@ -66,7 +66,6 @@ export default function InduccionAccesoPage() {
             setObras(obrasList);
             if (obrasList.length > 0 && !selectedObraId) {
                 setSelectedObraId(obrasList[0].id);
-                setFormData(prev => ({ ...prev, obraId: obrasList[0].id }));
             }
             setLoading(false);
         });
@@ -75,8 +74,8 @@ export default function InduccionAccesoPage() {
     
     useEffect(() => {
         if (selectedObraId) {
-            // Update QR code value when obra changes
-            const origin = typeof window !== 'undefined' ? window.location.origin : '';
+            // FIX: Use the public URL for the QR code, not the local origin.
+            const origin = process.env.NEXT_PUBLIC_BASE_URL || 'https://pcg-2.vercel.app';
             setQrValue(`${origin}/public/induccion/${selectedObraId}`);
 
             // Fetch recent inductions for this obra
