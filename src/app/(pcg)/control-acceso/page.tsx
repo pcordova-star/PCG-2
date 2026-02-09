@@ -13,8 +13,8 @@ import { firebaseDb } from '@/lib/firebaseClient';
 import { ArrowLeft, Download, Loader2, QrCode } from 'lucide-react';
 import Link from 'next/link';
 import QRCode from 'react-qr-code';
-import { saveAs } from 'file-saver';
 import { Obra, AccesoRegistro } from '@/types/pcg';
+import { useToast } from '@/hooks/use-toast';
 
 export default function ControlAccesoAdminPage() {
   const { companyId, role } = useAuth();
@@ -23,6 +23,7 @@ export default function ControlAccesoAdminPage() {
   const [registros, setRegistros] = useState<AccesoRegistro[]>([]);
   const [loading, setLoading] = useState(true);
   const [qrUrl, setQrUrl] = useState('');
+  const { toast } = useToast();
 
   useEffect(() => {
     if (!companyId && role !== 'superadmin') return;
@@ -72,22 +73,10 @@ export default function ControlAccesoAdminPage() {
   }, [selectedObraId]);
   
   const downloadQrCode = () => {
-    const svg = document.getElementById("qr-code-svg");
-    if (svg) {
-      const svgData = new XMLSerializer().serializeToString(svg);
-      const canvas = document.createElement("canvas");
-      const ctx = canvas.getContext("2d");
-      if (!ctx) return;
-      const img = new Image();
-      img.onload = () => {
-        canvas.width = img.width;
-        canvas.height = img.height;
-        ctx.drawImage(img, 0, 0);
-        const pngFile = canvas.toDataURL("image/png");
-        saveAs(pngFile, `qr-acceso-${obras.find(o=>o.id === selectedObraId)?.nombreFaena}.png`);
-      };
-      img.src = "data:image/svg+xml;base64," + btoa(svgData);
-    }
+    toast({
+      title: "Cómo descargar el QR",
+      description: "Haz clic derecho sobre el código QR y selecciona 'Guardar imagen como...' para descargarlo.",
+    });
   };
 
   return (
@@ -124,7 +113,7 @@ export default function ControlAccesoAdminPage() {
           </CardContent>
           <CardFooter>
             <Button onClick={downloadQrCode} disabled={!selectedObraId} className="w-full">
-              <Download className="mr-2 h-4 w-4"/> Descargar QR
+              <Download className="mr-2 h-4 w-4"/> Instrucciones de Descarga
             </Button>
           </CardFooter>
         </Card>
