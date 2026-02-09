@@ -664,31 +664,6 @@ export interface EmpresaContratista {
   fechaCreacion: Timestamp;
 }
 
-export interface InduccionAccesoFaena {
-  id?: string;
-  obraId: string;
-  obraNombre?: string;
-  generadorId?: string | null;
-  tipoVisita: "VISITA" | "PROVEEDOR" | "INSPECTOR" | "OTRO";
-  nombreCompleto: string;
-  rut: string;
-  empresa: string;
-  cargo: string;
-  telefono: string;
-  correo: string;
-  fechaIngreso: string;
-  horaIngreso: string;
-  respuestaPregunta1?: "SI" | "NO";
-  respuestaPregunta2?: "SI" | "NO";
-  respuestaPregunta3?: "SI" | "NO";
-  aceptaReglamento: boolean;
-  aceptaEpp: boolean;
-  aceptaTratamientoDatos: boolean;
-  firmaDataUrl?: string;
-  origenRegistro?: "panel" | "qr";
-  createdAt?: Timestamp;
-}
-
 export interface AccesoRegistro {
   id: string;
   obraId: string;
@@ -699,4 +674,23 @@ export interface AccesoRegistro {
   motivo: string;
   archivoUrl: string;
   createdAt: { toDate: () => Date };
+}
+
+// --- TIPOS PARA INDUCCIÓN CONTEXTUAL ---
+
+export interface InduccionContextualRegistro {
+  id: string;
+  obraId: string;
+  obraNombre: string;
+  userId: string;
+  rut: string;
+  nombreCompleto: string;
+  empresa: string;
+  inputUsuario: string; // Tarea declarada por el usuario
+  textoInduccionGenerado: string;
+  fechaGeneracion: Timestamp;
+  fechaPresentacion: Timestamp;
+  fechaConfirmacion: Timestamp;
+  jobId: string;
+  iaModel: string;
 }

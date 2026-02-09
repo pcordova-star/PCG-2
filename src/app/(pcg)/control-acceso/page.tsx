@@ -4,26 +4,33 @@
 import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Label } from '@/components/ui/label';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { useAuth } from '@/context/AuthContext';
 import { collection, query, where, orderBy, onSnapshot, getDocs } from 'firebase/firestore';
 import { firebaseDb } from '@/lib/firebaseClient';
-import { ArrowLeft, Download, Loader2 } from 'lucide-react';
+import { ArrowLeft, Download, Eye, Loader2 } from 'lucide-react';
 import Link from 'next/link';
 import QRCode from 'react-qr-code';
-import { Obra, AccesoRegistro } from '@/types/pcg';
+import { Obra, AccesoRegistro, InduccionContextualRegistro } from '@/types/pcg';
 import { useToast } from '@/hooks/use-toast';
 
 export default function ControlAccesoAdminPage() {
   const { companyId, role } = useAuth();
   const [obras, setObras] = useState<Obra[]>([]);
   const [selectedObraId, setSelectedObraId] = useState('');
-  const [registros, setRegistros] = useState<AccesoRegistro[]>([]);
-  const [loading, setLoading] = useState(true);
+  
+  const [registrosAcceso, setRegistrosAcceso] = useState<AccesoRegistro[]>([]);
+  const [registrosInduccion, setRegistrosInduccion] = useState<InduccionContextualRegistro[]>([]);
+  
+  const [loadingAcceso, setLoadingAcceso] = useState(true);
+  const [loadingInduccion, setLoadingInduccion] = useState(true);
   const [qrUrl, setQrUrl] = useState('');
   const { toast } = useToast();
+
+  const [selectedInduccion, setSelectedInduccion] = useState<InduccionContextualRegistro | null>(null);
 
   useEffect(() => {
     if (!companyId && role !== 'superadmin') return;
@@ -38,37 +45,49 @@ export default function ControlAccesoAdminPage() {
       const snapshot = await getDocs(q);
       const obrasList = snapshot.docs.map(doc => ({ id: doc.id, nombreFaena: doc.data().nombreFaena } as Obra));
       setObras(obrasList);
-      if (obrasList.length > 0) {
+      if (obrasList.length > 0 && !selectedObraId) {
         setSelectedObraId(obrasList[0].id);
       }
     };
     fetchObras();
-  }, [companyId, role]);
+  }, [companyId, role, selectedObraId]);
 
   useEffect(() => {
     if (selectedObraId) {
-      const publicAppUrl = 'https://pcgoperacion.com';
-      setQrUrl(`${publicAppUrl}/public/control-acceso/${selectedObraId}`);
+      setQrUrl(`https://pcgoperacion.com/public/control-acceso/${selectedObraId}`);
       
-      setLoading(true);
-      const q = query(
+      setLoadingAcceso(true);
+      const qAcceso = query(
         collection(firebaseDb, "controlAcceso"),
         where("obraId", "==", selectedObraId),
         orderBy("createdAt", "desc")
       );
-      const unsubscribe = onSnapshot(q, (snapshot) => {
-        const data = snapshot.docs.map(doc => ({
-          id: doc.id,
-          ...doc.data(),
-        } as AccesoRegistro));
-        setRegistros(data);
-        setLoading(false);
+      const unsubAcceso = onSnapshot(qAcceso, (snapshot) => {
+        setRegistrosAcceso(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as AccesoRegistro)));
+        setLoadingAcceso(false);
       });
-      return () => unsubscribe();
+
+      setLoadingInduccion(true);
+      const qInduccion = query(
+        collection(firebaseDb, "registrosInduccionContextual"),
+        where("obraId", "==", selectedObraId),
+        orderBy("fechaConfirmacion", "desc")
+      );
+      const unsubInduccion = onSnapshot(qInduccion, (snapshot) => {
+        setRegistrosInduccion(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as InduccionContextualRegistro)));
+        setLoadingInduccion(false);
+      });
+
+      return () => {
+        unsubAcceso();
+        unsubInduccion();
+      };
     } else {
-      setRegistros([]);
+      setRegistrosAcceso([]);
+      setRegistrosInduccion([]);
       setQrUrl('');
-      setLoading(false);
+      setLoadingAcceso(false);
+      setLoadingInduccion(false);
     }
   }, [selectedObraId]);
   
@@ -87,7 +106,7 @@ export default function ControlAccesoAdminPage() {
         </Button>
         <div>
           <h1 className="text-2xl font-bold">Control de Acceso a Obra</h1>
-          <p className="text-muted-foreground">Genera QR de auto-registro y revisa los ingresos a faena.</p>
+          <p className="text-muted-foreground">Genera QR de auto-registro, revisa ingresos a faena y audita las inducciones de IA.</p>
         </div>
       </header>
 
@@ -121,49 +140,111 @@ export default function ControlAccesoAdminPage() {
           </CardFooter>
         </Card>
 
-        <Card className="lg:col-span-2">
-          <CardHeader>
-            <CardTitle>Registros de Ingreso</CardTitle>
-            <CardDescription>Listado de las últimas personas que han ingresado a la obra seleccionada.</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Fecha</TableHead>
-                  <TableHead>Nombre</TableHead>
-                  <TableHead>RUT</TableHead>
-                  <TableHead>Empresa</TableHead>
-                  <TableHead>Motivo</TableHead>
-                  <TableHead className="text-right">Archivo</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {loading ? (
-                  <TableRow><TableCell colSpan={6} className="text-center h-24"><Loader2 className="animate-spin mx-auto" /></TableCell></TableRow>
-                ) : registros.length === 0 ? (
-                  <TableRow><TableCell colSpan={6} className="text-center h-24">No hay registros para esta obra.</TableCell></TableRow>
-                ) : (
-                  registros.map((reg) => (
-                    <TableRow key={reg.id}>
-                      <TableCell>{reg.createdAt.toDate().toLocaleDateString('es-CL')}</TableCell>
-                      <TableCell className="font-medium">{reg.nombre}</TableCell>
-                      <TableCell>{reg.rut}</TableCell>
-                      <TableCell>{reg.empresa}</TableCell>
-                       <TableCell>{reg.motivo}</TableCell>
-                      <TableCell className="text-right">
-                        <Button asChild variant="outline" size="sm">
-                          <a href={reg.archivoUrl} target="_blank" rel="noopener noreferrer">Ver</a>
-                        </Button>
-                      </TableCell>
-                    </TableRow>
-                  ))
-                )}
-              </TableBody>
-            </Table>
-          </CardContent>
-        </Card>
+        <div className="lg:col-span-2 space-y-6">
+            <Card>
+                <CardHeader>
+                    <CardTitle>Registros de Inducción Contextual (IA)</CardTitle>
+                    <CardDescription>Auditoría de las últimas micro-inducciones generadas por la IA para esta obra.</CardDescription>
+                </CardHeader>
+                <CardContent>
+                    <Table>
+                        <TableHeader>
+                            <TableRow>
+                                <TableHead>Fecha</TableHead>
+                                <TableHead>Nombre</TableHead>
+                                <TableHead>RUT</TableHead>
+                                <TableHead>Tarea Declarada</TableHead>
+                                <TableHead className="text-right">Acción</TableHead>
+                            </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                            {loadingInduccion ? (
+                                <TableRow><TableCell colSpan={5} className="text-center h-24"><Loader2 className="animate-spin mx-auto" /></TableCell></TableRow>
+                            ) : registrosInduccion.length === 0 ? (
+                                <TableRow><TableCell colSpan={5} className="text-center h-24">No hay registros de inducción para esta obra.</TableCell></TableRow>
+                            ) : (
+                                registrosInduccion.map((reg) => (
+                                    <TableRow key={reg.id}>
+                                        <TableCell>{reg.fechaConfirmacion.toDate().toLocaleDateString('es-CL')}</TableCell>
+                                        <TableCell className="font-medium">{reg.nombreCompleto}</TableCell>
+                                        <TableCell>{reg.rut}</TableCell>
+                                        <TableCell className="text-xs italic">"{reg.inputUsuario}"</TableCell>
+                                        <TableCell className="text-right">
+                                            <Button variant="outline" size="sm" onClick={() => setSelectedInduccion(reg)}>
+                                                <Eye className="mr-2 h-4 w-4"/> Ver Inducción
+                                            </Button>
+                                        </TableCell>
+                                    </TableRow>
+                                ))
+                            )}
+                        </TableBody>
+                    </Table>
+                </CardContent>
+            </Card>
+
+            <Card>
+                <CardHeader>
+                    <CardTitle>Registros de Ingreso</CardTitle>
+                    <CardDescription>Listado de las últimas personas que han ingresado a la obra seleccionada.</CardDescription>
+                </CardHeader>
+                <CardContent>
+                    <Table>
+                        <TableHeader>
+                            <TableRow>
+                                <TableHead>Fecha</TableHead>
+                                <TableHead>Nombre</TableHead>
+                                <TableHead>RUT</TableHead>
+                                <TableHead>Empresa</TableHead>
+                                <TableHead>Motivo</TableHead>
+                                <TableHead className="text-right">Archivo</TableHead>
+                            </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                            {loadingAcceso ? (
+                            <TableRow><TableCell colSpan={6} className="text-center h-24"><Loader2 className="animate-spin mx-auto" /></TableCell></TableRow>
+                            ) : registrosAcceso.length === 0 ? (
+                            <TableRow><TableCell colSpan={6} className="text-center h-24">No hay registros para esta obra.</TableCell></TableRow>
+                            ) : (
+                            registrosAcceso.map((reg) => (
+                                <TableRow key={reg.id}>
+                                <TableCell>{reg.createdAt.toDate().toLocaleDateString('es-CL')}</TableCell>
+                                <TableCell className="font-medium">{reg.nombre}</TableCell>
+                                <TableCell>{reg.rut}</TableCell>
+                                <TableCell>{reg.empresa}</TableCell>
+                                <TableCell>{reg.motivo}</TableCell>
+                                <TableCell className="text-right">
+                                    <Button asChild variant="outline" size="sm">
+                                    <a href={reg.archivoUrl} target="_blank" rel="noopener noreferrer">Ver</a>
+                                    </Button>
+                                </TableCell>
+                                </TableRow>
+                            ))
+                            )}
+                        </TableBody>
+                    </Table>
+                </CardContent>
+            </Card>
+        </div>
       </div>
+
+       <Dialog open={!!selectedInduccion} onOpenChange={() => setSelectedInduccion(null)}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Detalle de la Inducción</DialogTitle>
+            <DialogDescription>
+              Este fue el texto exacto que se le presentó al usuario.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="py-4 space-y-2 text-sm">
+            <p><strong>Usuario:</strong> {selectedInduccion?.nombreCompleto}</p>
+            <p><strong>Fecha:</strong> {selectedInduccion?.fechaConfirmacion?.toDate().toLocaleString('es-CL')}</p>
+            <p><strong>Tarea declarada:</strong> "{selectedInduccion?.inputUsuario}"</p>
+            <div className="mt-4 p-4 bg-muted rounded-md border text-muted-foreground whitespace-pre-wrap">
+              {selectedInduccion?.textoInduccionGenerado}
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
