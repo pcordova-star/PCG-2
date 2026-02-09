@@ -10,6 +10,7 @@ import {
   CardDescription,
   CardHeader,
   CardTitle,
+  CardFooter,
 } from '@/components/ui/card';
 import {
   HardHat,
@@ -152,6 +153,13 @@ const EstadoGeneral = ({ summary, isLoading }: { summary: any, isLoading: boolea
         );
     }
 
+    let hallazgosText;
+    if (summary?.hallazgosAbiertos > 0) {
+      hallazgosText = <>Se han reportado <strong className="text-foreground">{summary.hallazgosAbiertos}</strong> hallazgos de seguridad abiertos, de los cuales <strong className="text-red-600">{summary.hallazgosCriticos} son críticos</strong>.</>;
+    } else {
+      hallazgosText = <span className="text-green-600 font-semibold">¡Buen trabajo! No hay alertas de seguridad pendientes.</span>;
+    }
+
     return (
         <Card>
             <CardHeader><CardTitle>Estado General de la Operación</CardTitle></CardHeader>
@@ -160,7 +168,7 @@ const EstadoGeneral = ({ summary, isLoading }: { summary: any, isLoading: boolea
                     <p className="flex items-center gap-2"><HardHat className="h-5 w-5 text-primary" />Actualmente tienes <strong className="text-foreground">{summary?.obrasActivas ?? 0}</strong> obras activas.</p>
                     <p className="flex items-center gap-2">
                         {summary?.hallazgosAbiertos > 0 ? <AlertTriangle className="h-5 w-5 text-red-500" /> : <CheckCircle className="h-5 w-5 text-green-500" />}
-                        {summary?.hallazgosAbiertos > 0 ? <>Se han reportado <strong className="text-foreground">{summary.hallazgosAbiertos}</strong> hallazgos de seguridad abiertos, de los cuales <strong className="text-red-600">{summary.hallazgosCriticos} son críticos</strong>.</> : <span className="text-green-600 font-semibold">¡Buen trabajo! No hay alertas de seguridad pendientes.</span>}
+                        {hallazgosText}
                     </p>
                     <p className="flex items-center gap-2"><Users className="h-5 w-5 text-primary" />Hay un total de <strong className="text-foreground">{summary?.personasEnFaena ?? 0}</strong> personas en faena en este momento.</p>
                 </div>
@@ -170,27 +178,27 @@ const EstadoGeneral = ({ summary, isLoading }: { summary: any, isLoading: boolea
 };
 
 const AccionesRecomendadas = ({ actions }: { actions: RecommendedAction[] }) => {
-    if (actions.length === 0) return null;
-    return (
-        <div>
-            <h2 className="text-xl font-semibold mb-4">Acciones Recomendadas para Hoy</h2>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                {actions.map(action => (
-                    <Link key={action.id} href={action.href} className="block group">
-                        <Card className="h-full hover:border-primary hover:bg-primary/5 transition-all">
-                            <CardHeader className="flex-row items-center gap-4">
-                                <action.icon className="h-8 w-8 text-primary" />
-                                <div>
-                                    <CardTitle className="text-base">{action.title}</CardTitle>
-                                    <CardDescription>{action.description}</CardDescription>
-                                </div>
-                            </CardHeader>
-                        </Card>
-                    </Link>
-                ))}
-            </div>
-        </div>
-    );
+  if (actions.length === 0) return null;
+  return (
+    <div>
+      <h2 className="text-xl font-semibold mb-4">Acciones Recomendadas para Hoy</h2>
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        {actions.map(action => (
+          <Link key={action.id} href={action.href} className="block group">
+            <Card className="h-full hover:border-primary hover:bg-primary/5 transition-all">
+              <CardHeader className="flex-row items-center gap-4">
+                <action.icon className="h-8 w-8 text-primary" />
+                <div>
+                  <CardTitle className="text-base">{action.title}</CardTitle>
+                  <CardDescription>{action.description}</CardDescription>
+                </div>
+              </CardHeader>
+            </Card>
+          </Link>
+        ))}
+      </div>
+    </div>
+  );
 };
 
 
@@ -329,10 +337,10 @@ export default function DashboardPage() {
       </Card>
     );
     if (showTooltip || isObraCard) {
-      return ( <Tooltip key={mod.title}><TooltipTrigger asChild>{card}</TooltipTrigger><TooltipContent><p className="font-semibold">{mod.tooltip}</p></TooltipContent></Tooltip> );
+      return ( <Tooltip key={mod.id}><TooltipTrigger asChild>{card}</TooltipTrigger><TooltipContent><p className="font-semibold">{mod.tooltip}</p></TooltipContent></Tooltip> );
     }
-    return <div key={mod.title}>{card}</div>;
-  }
+    return <div key={mod.id}>{card}</div>;
+  };
   
   return (
     <div className="min-h-screen bg-slate-50">
@@ -394,5 +402,3 @@ export default function DashboardPage() {
     </div>
   );
 }
-
-    
