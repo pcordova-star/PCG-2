@@ -20,5 +20,5 @@ if (process.env.GOOGLE_GENAI_API_KEY) {
 export const ai = initializeGenkit({
   plugins,
   logLevel: "debug",
-  enableTracingAndMetrics: true,
+  enableTracingAndMetrics: false,
 });
