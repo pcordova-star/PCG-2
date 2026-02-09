@@ -7,7 +7,7 @@ import { collection, getDocs, query, where, collectionGroup, orderBy, limit } fr
 import { firebaseDb } from '@/lib/firebaseClient';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Building, HardHat, Users, Loader2, DollarSign, Settings, BellRing } from 'lucide-react';
+import { Building, HardHat, Users, Loader2, DollarSign, Settings, BellRing, UserCheck } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
@@ -33,6 +33,7 @@ const adminCards = [
     { title: "Solicitudes", href: "/admin/solicitudes", icon: BellRing, description: "Revisar solicitudes de activación de módulos." },
     { title: "Facturación", href: "/admin/facturacion", icon: DollarSign, description: "Calcular facturación estimada por empresa." },
     { title: "Configurar Precios", href: "/admin/pricing", icon: Settings, description: "Definir los precios globales de la plataforma." },
+    { title: "Control de Acceso", href: "/control-acceso", icon: UserCheck, description: "Generar códigos QR y auditar registros." },
 ]
 
 export default function AdminDashboardPage() {
@@ -119,7 +120,7 @@ export default function AdminDashboardPage() {
 
       {error && <p className="text-sm font-medium text-destructive">{error}</p>}
 
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-5">
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
         {adminCards.map(card => (
           <Card key={card.title} className="flex flex-col relative">
             {card.title === "Solicitudes" && pendingRequestsCount > 0 && (
