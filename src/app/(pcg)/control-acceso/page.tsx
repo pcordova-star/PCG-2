@@ -1,7 +1,7 @@
 // src/app/(pcg)/control-acceso/page.tsx
 "use client";
 
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -10,7 +10,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { useAuth } from '@/context/AuthContext';
 import { collection, query, where, orderBy, onSnapshot, getDocs } from 'firebase/firestore';
 import { firebaseDb } from '@/lib/firebaseClient';
-import { ArrowLeft, Download, Loader2, QrCode } from 'lucide-react';
+import { ArrowLeft, Download, Loader2 } from 'lucide-react';
 import Link from 'next/link';
 import QRCode from 'react-qr-code';
 import { Obra, AccesoRegistro } from '@/types/pcg';
