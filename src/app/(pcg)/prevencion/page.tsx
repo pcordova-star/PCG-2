@@ -1,7 +1,7 @@
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
-import { Users, Building, ClipboardPlus, BookUser, LayoutDashboard, ShieldAlert, ArrowLeft, Search, Siren, Settings, FileSignature } from 'lucide-react';
+import { Users, Building, ClipboardPlus, BookUser, LayoutDashboard, ShieldAlert, ArrowLeft, Search, Siren, Settings, FileSignature, UserCheck } from 'lucide-react';
 
 export default function PrevencionPage() {
   const modules = [
@@ -11,6 +11,13 @@ export default function PrevencionPage() {
       href: "/prevencion/panel",
       icon: LayoutDashboard,
       linkText: "Ir al Panel"
+    },
+    {
+      title: "Control de Acceso a Obra",
+      description: "Genera códigos QR y gestiona el registro de ingreso de visitas y proveedores a la faena.",
+      href: "/prevencion/control-acceso",
+      icon: UserCheck,
+      linkText: "Gestionar Accesos"
     },
     {
       title: "Programa de Prevención de Riesgos",

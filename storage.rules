@@ -25,6 +25,14 @@ service firebase.storage {
     function subcontractorId() {
       return userDoc().data.subcontractorId;
     }
+
+    // --- NUEVA REGLA PARA CONTROL DE ACCESO ---
+    match /control-acceso/{obraId}/{fileId} {
+      // El público (no autenticado) NO puede escribir. Solo el backend.
+      allow write: if false;
+      // Los usuarios autenticados de la empresa pueden leer los adjuntos.
+      allow read: if isSignedIn() && companyId() == firestore.get(/databases/(default)/documents/obras/$(obraId)).data.empresaId;
+    }
     
     match /projectDocuments/{projectId}/{fileId} {
       allow read: if request.auth != null;
