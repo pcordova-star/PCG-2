@@ -94,7 +94,6 @@ const quickAccessModules = [
     { id: 'comparacion-planos', title: 'Comparación de Planos (IA)', description: 'Detecta diferencias entre versiones de planos y evalúa impactos.', href: '/comparacion-planos/historial', icon: GitCompareArrows, color: 'purple' as const, roles: ['superadmin', 'admin_empresa', 'jefe_obra'], featureFlag: 'feature_plan_comparison_enabled' },
     { id: 'rdi', title: 'Requerimientos (RDI)', description: 'Crea y gestiona consultas de información (RDI) con mandantes, proyectistas o subcontratos.', href: '/rdi', icon: MessageSquare, color: 'green' as const, roles: ['superadmin', 'admin_empresa', 'jefe_obra'] },
     { id: 'cumplimiento-legal', title: 'Cumplimiento Legal', description: 'Gestiona la documentación mensual de subcontratistas para la aprobación de estados de pago.', href: '/cumplimiento', icon: ShieldCheck, color: 'yellow' as const, roles: ['superadmin', 'admin_empresa', 'contratista'], featureFlag: 'feature_compliance_module_enabled' },
-    { id: 'control-acceso', title: 'Control de Acceso', description: 'Portal de inducción con código QR para visitas y proveedores.', href: '/prevencion/capacitacion/induccion-acceso', icon: UserCheck, color: 'pink' as const, roles: ['superadmin', 'admin_empresa', 'jefe_obra', 'prevencionista'], featureFlag: 'feature_access_control_enabled' },
     { id: 'acceso-director', title: 'Acceso Director', description: 'Dashboard gerencial para directores con vista consolidada de las obras designadas.', href: '/directorio', icon: BarChart, color: 'purple' as const, roles: ['superadmin', 'admin_empresa'], featureFlag: 'feature_director_dashboard_enabled' }
 ];
 
@@ -371,7 +370,7 @@ export default function DashboardPage() {
   const filteredQuickAccessModules = quickAccessModules.filter(module => role !== 'superadmin' && role !== 'none' && module.roles.includes(role));
 
   const handleQuickAccessClick = (target: string) => {
-    const specialRoutes = ['/rdi', '/cubicacion/analisis-planos', '/cumplimiento', '/comparacion-planos/historial', '/prevencion/capacitacion/induccion-acceso', '/directorio'];
+    const specialRoutes = ['/rdi', '/cubicacion/analisis-planos', '/cumplimiento', '/comparacion-planos/historial', '/directorio'];
     if (specialRoutes.includes(target)) { router.push(target); return; }
     if (obras.length === 1) { router.push(`${target}?obraId=${obras[0].id}`); } else { setQuickAccessTarget(target); setIsObraModalOpen(true); }
   }

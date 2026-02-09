@@ -60,13 +60,6 @@ export default function PrevencionPage() {
       href: "/prevencion/safety-checklists",
       icon: FileSignature,
       linkText: "Gestionar Plantillas de Seguridad"
-    },
-    {
-      title: "Capacitación e inducciones",
-      description: "Módulo para gestionar inducciones de acceso a faena para visitas y capacitaciones internas. En este MVP partimos por la inducción de acceso mediante QR.",
-      href: "/prevencion/capacitacion",
-      icon: BookUser,
-      linkText: "Ir a Capacitación"
     }
   ];
 
