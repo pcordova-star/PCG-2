@@ -40,7 +40,7 @@ const initialFormState: FormDataState = {
   aceptaReglamento: true,
   aceptaEpp: true,
   aceptaTratamientoDatos: true,
-  firmaDataUrl: '',
+  firmaDataUrl: null,
 };
 
 export default function InduccionAccesoPage() {
@@ -94,12 +94,12 @@ export default function InduccionAccesoPage() {
         }
     }, [selectedObraId]);
 
-    const handleInputChange = (field: keyof typeof formData, value: string | boolean) => {
+    const handleInputChange = (field: keyof FormDataState, value: string | boolean) => {
         setFormData(prev => ({...prev, [field]: value}));
     };
 
     const handleSignatureChange = (dataUrl: string | null) => {
-        setFormData(prev => ({...prev, firmaDataUrl: dataUrl || ''}));
+        setFormData(prev => ({...prev, firmaDataUrl: dataUrl}));
     };
     
     const handleSubmit = async (e: FormEvent) => {
@@ -226,7 +226,7 @@ export default function InduccionAccesoPage() {
                             </div>
                             <div className="space-y-2">
                                 <Label>Firma del Visitante</Label>
-                                <SignaturePad onChange={handleSignatureChange} />
+                                <SignaturePad onChange={handleSignatureChange} onClear={() => handleSignatureChange(null)} />
                             </div>
                             <Button type="submit" disabled={isSaving || !selectedObraId}>
                                 {isSaving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <UserPlus className="mr-2 h-4 w-4" />}

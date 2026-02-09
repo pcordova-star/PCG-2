@@ -18,7 +18,6 @@ export default function SignaturePad({ onChange, onClear }: SignaturePadProps) {
     const canvas = canvasRef.current;
     if (!canvas) return;
 
-    // Set canvas dimensions based on container size
     const resizeCanvas = () => {
       const parent = canvas.parentElement;
       if (parent) {
@@ -27,7 +26,7 @@ export default function SignaturePad({ onChange, onClear }: SignaturePadProps) {
         const ctx = getContext();
         if (ctx) {
             ctx.strokeStyle = '#000';
-            ctx.lineWidth = 2;
+            ctx.lineWidth = 2.5; // Slightly thicker line for better feel
             ctx.lineCap = 'round';
             ctx.lineJoin = 'round';
         }
@@ -107,6 +106,7 @@ export default function SignaturePad({ onChange, onClear }: SignaturePadProps) {
     <div className="space-y-2">
       <canvas
         ref={canvasRef}
+        style={{ touchAction: 'none' }} // Prevents scrolling on mobile while signing
         className="w-full h-48 border rounded-md bg-white cursor-crosshair"
         onMouseDown={startDrawing}
         onMouseMove={draw}

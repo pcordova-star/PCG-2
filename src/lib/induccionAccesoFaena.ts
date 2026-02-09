@@ -33,15 +33,14 @@ export interface InduccionAccesoFaena {
   aceptaReglamento: boolean;
   aceptaEpp: boolean;
   aceptaTratamientoDatos: boolean;
-  firmaDataUrl?: string;
+  firmaDataUrl?: string | null; // Allow null
   origenRegistro?: "panel" | "qr";
   createdAt?: Timestamp;
 }
 
 async function uploadSignature(firmaDataUrl: string, obraId: string, rut: string): Promise<string> {
     if (!firmaDataUrl || !firmaDataUrl.startsWith('data:image/png;base64,')) {
-        // Asume que ya es una URL de storage si no es un data URI o es nulo
-        return firmaDataUrl;
+        throw new Error("Invalid signature data format.");
     }
     const storagePath = `firmas-induccion/${obraId}/${rut}_${Date.now()}.png`;
     const storageRef = ref(firebaseStorage, storagePath);
@@ -58,10 +57,8 @@ export async function guardarInduccionAccesoFaena(
   const { firmaDataUrl, ...restOfData } = data;
   let finalFirmaUrl: string | null = null;
 
-  if (firmaDataUrl && typeof firmaDataUrl === 'string' && firmaDataUrl.startsWith('data:')) {
+  if (firmaDataUrl) {
     finalFirmaUrl = await uploadSignature(firmaDataUrl, data.obraId, data.rut || 'sin_rut');
-  } else {
-    finalFirmaUrl = firmaDataUrl || null;
   }
 
   const docRef = await addDoc(colRef, {
@@ -81,11 +78,11 @@ export async function guardarInduccionQR(
   const { firmaDataUrl, ...restOfData } = data;
   let finalFirmaUrl: string | null = null;
   
-  if (firmaDataUrl && typeof firmaDataUrl === 'string' && firmaDataUrl.startsWith('data:')) {
-    finalFirmaUrl = await uploadSignature(firmaDataUrl, data.obraId, data.rut || 'sin_rut');
-  } else {
-    finalFirmaUrl = firmaDataUrl || null;
+  if (!firmaDataUrl) {
+    throw new Error("La firma es obligatoria para el registro.");
   }
+  
+  finalFirmaUrl = await uploadSignature(firmaDataUrl, data.obraId, data.rut || 'sin_rut');
 
   const docRef = await addDoc(colRef, {
     ...restOfData,
@@ -95,4 +92,3 @@ export async function guardarInduccionQR(
   });
   return docRef.id;
 }
-
