@@ -697,9 +697,9 @@ export interface InduccionContextualRegistro {
   };
   inductionText: string;
   audioPath: string;
-  audioUrl: string;
-  audioFormat: 'wav';
-  fechaGeneracion: Timestamp;
+  audioUrl?: string; // Se usará en el cliente para reproducir
+  audioFormat: 'mp3';
+  fechaGeneracion?: Timestamp;
   fechaPresentacion: Timestamp;
   fechaConfirmacion: Timestamp | null;
   jobId: string;

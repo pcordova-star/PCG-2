@@ -53,7 +53,7 @@ export async function POST(req: NextRequest) {
     const companyId = obraData.empresaId;
 
     // --- Ejecutar Flujo de IA + TTS ---
-    const { inductionText, audioPath } = await generateContextualInductionWithAudio.run({
+    const { inductionText, audioPath } = await generateContextualInductionWithAudio({
       obraId,
       obraNombre: obraData.nombreFaena,
       tipoObra: obraData.tipoObra || 'Edificación en altura',

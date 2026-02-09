@@ -10,12 +10,13 @@ import { Label } from '@/components/ui/label';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { useAuth } from '@/context/AuthContext';
 import { collection, query, where, orderBy, onSnapshot, getDocs } from 'firebase/firestore';
-import { firebaseDb } from '@/lib/firebaseClient';
+import { firebaseDb, firebaseStorage } from '@/lib/firebaseClient';
 import { ArrowLeft, Download, Eye, Loader2 } from 'lucide-react';
 import Link from 'next/link';
 import QRCode from 'react-qr-code';
 import { Obra, AccesoRegistro, InduccionContextualRegistro } from '@/types/pcg';
 import { useToast } from '@/hooks/use-toast';
+import { getDownloadURL, ref } from 'firebase/storage';
 
 export default function ControlAccesoAdminPage() {
   const { companyId, role } = useAuth();
@@ -31,6 +32,8 @@ export default function ControlAccesoAdminPage() {
   const { toast } = useToast();
 
   const [selectedInduccion, setSelectedInduccion] = useState<InduccionContextualRegistro | null>(null);
+  const [loadingAudio, setLoadingAudio] = useState(false);
+  const [audioUrl, setAudioUrl] = useState<string | null>(null);
 
   useEffect(() => {
     if (!companyId && role !== 'superadmin') return;
@@ -54,6 +57,7 @@ export default function ControlAccesoAdminPage() {
 
   useEffect(() => {
     if (selectedObraId) {
+      // Usar la URL de producción directamente
       setQrUrl(`https://pcgoperacion.com/public/control-acceso/${selectedObraId}`);
       
       setLoadingAcceso(true);
@@ -90,6 +94,24 @@ export default function ControlAccesoAdminPage() {
       setLoadingInduccion(false);
     }
   }, [selectedObraId]);
+
+  const handleOpenModal = async (induccion: InduccionContextualRegistro) => {
+    setSelectedInduccion(induccion);
+    setAudioUrl(null); // Reset
+    if (induccion.audioPath) {
+      setLoadingAudio(true);
+      try {
+        const audioRef = ref(firebaseStorage, induccion.audioPath);
+        const url = await getDownloadURL(audioRef);
+        setAudioUrl(url);
+      } catch (error) {
+        console.error("Error getting audio URL:", error);
+        toast({ variant: "destructive", title: "Error", description: "No se pudo cargar el audio." });
+      } finally {
+        setLoadingAudio(false);
+      }
+    }
+  };
   
   const downloadQrCode = () => {
     toast({
@@ -170,7 +192,7 @@ export default function ControlAccesoAdminPage() {
                                         <TableCell>{reg.persona?.rut || 'N/A'}</TableCell>
                                         <TableCell className="text-xs italic">"{reg.contexto?.descripcionTarea || 'N/A'}"</TableCell>
                                         <TableCell className="text-right">
-                                            <Button variant="outline" size="sm" onClick={() => setSelectedInduccion(reg)}>
+                                            <Button variant="outline" size="sm" onClick={() => handleOpenModal(reg)}>
                                                 <Eye className="mr-2 h-4 w-4"/> Ver Inducción
                                             </Button>
                                         </TableCell>
@@ -242,12 +264,17 @@ export default function ControlAccesoAdminPage() {
             <div className="mt-4 p-4 bg-muted rounded-md border text-muted-foreground whitespace-pre-wrap">
               {selectedInduccion?.inductionText}
             </div>
-             {selectedInduccion?.audioUrl && (
+             {selectedInduccion?.audioPath && (
                 <div className="mt-4">
                     <Label>Audio de la Inducción</Label>
-                    <audio controls src={selectedInduccion.audioUrl} className="w-full mt-1">
-                        Tu navegador no soporta el audio.
-                    </audio>
+                    {loadingAudio ? <Loader2 className="animate-spin mt-2"/> :
+                    audioUrl ? (
+                         <audio controls src={audioUrl} className="w-full mt-1">
+                            Tu navegador no soporta el audio.
+                        </audio>
+                    ) : (
+                        <p className="text-xs text-muted-foreground mt-1">No se pudo cargar el audio.</p>
+                    )}
                 </div>
             )}
           </div>

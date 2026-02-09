@@ -1,37 +1,32 @@
 // src/app/public/control-acceso/success/page.tsx
 "use client";
 
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
-import Link from "next/link";
-import { CheckCircle } from "lucide-react";
 import { PcgLogo } from "@/components/branding/PcgLogo";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card";
+import { CheckCircle } from "lucide-react";
+import Link from "next/link";
 
-export default function AccesoSuccessPage() {
+export default function SuccessPage() {
   return (
-    <div className="flex items-center justify-center min-h-screen bg-muted/40 p-4">
-      <Card className="w-full max-w-md">
-        <CardHeader className="text-center space-y-4">
-          <div className="mx-auto w-fit">
-            <PcgLogo />
+    <div className="min-h-screen bg-muted flex items-center justify-center p-4">
+      <Card className="w-full max-w-md text-center">
+        <CardHeader>
+          <div className="mx-auto w-fit mb-4">
+            <CheckCircle className="h-16 w-16 text-green-500" />
           </div>
-          <CardTitle className="text-2xl flex items-center justify-center gap-2">
-            <CheckCircle className="h-7 w-7 text-green-600" />
-            Registro Exitoso
-          </CardTitle>
+          <CardTitle className="text-2xl">¡Registro Completado!</CardTitle>
           <CardDescription>
-            Tus datos han sido recibidos correctamente.
+            Tu ingreso y la inducción de seguridad han sido registrados correctamente.
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <p className="text-center text-sm text-muted-foreground">
-            Has sido registrado para el ingreso a la obra. Por favor, avisa a tu contacto que has llegado.
+          <p className="text-muted-foreground">
+            Ya puedes ingresar a la obra. Que tengas una jornada segura y productiva.
           </p>
         </CardContent>
-        <CardFooter className="flex flex-col gap-4">
-          <p className="text-xs text-muted-foreground">
-            PCG - Plataforma de Control y Gestión
-          </p>
+        <CardFooter className="flex justify-center">
+             <PcgLogo size={80}/>
         </CardFooter>
       </Card>
     </div>
