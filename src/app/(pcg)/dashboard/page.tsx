@@ -308,66 +308,99 @@ export default function DashboardPage() {
 
   useEffect(() => {
     async function fetchDashboardData() {
-        if (!user || (!companyId && role !== 'superadmin')) {
-            setLoading(false);
-            return;
-        }
+        if (!user) return;
         setLoading(true);
+
         const isSuperAdmin = role === 'superadmin';
 
         try {
-            const obrasRef = collection(firebaseDb, 'obras');
-            const qObrasConstraints = isSuperAdmin ? [] : [where('empresaId', '==', companyId)];
-            const obrasQuery = query(obrasRef, ...qObrasConstraints);
-            const obrasSnap = await getDocs(obrasQuery);
-            const obrasList = obrasSnap.docs.map(doc => ({ id: doc.id, ...doc.data() } as Obra));
-            setObras(obrasList);
-            setHasObras(obrasList.length > 0);
-            const obrasIds = obrasList.map(doc => doc.id);
-            const obrasMap = new Map(obrasList.map(o => [o.id, o.nombreFaena]));
-
-            const obrasActivas = obrasList.length;
-            let personasEnFaena = 0;
-            let hallazgosAbiertos = 0;
-            let hallazgosCriticos = 0;
-            
-            const safeObrasIds = obrasIds.slice(0, 30);
             if (isSuperAdmin) {
-                const [personalSnap, hallazgosSnap] = await Promise.all([ getDocs(query(collectionGroup(firebaseDb, 'personal'), where('autorizado', '==', true))), getDocs(query(collectionGroup(firebaseDb, 'hallazgos'), where('estado', '==', 'abierto'))) ]);
-                personasEnFaena = personalSnap.size;
-                hallazgosAbiertos = hallazgosSnap.size;
-                hallazgosCriticos = hallazgosSnap.docs.filter(doc => doc.data().criticidad === 'alta').length;
-            } else if (safeObrasIds.length > 0) {
-                 const [personalSnap, hallazgosSnap] = await Promise.all([ getDocs(query(collectionGroup(firebaseDb, 'personal'), where('obraId', 'in', safeObrasIds), where('autorizado', '==', true))), getDocs(query(collectionGroup(firebaseDb, 'hallazgos'), where('obraId', 'in', safeObrasIds), where('estado', '==', 'abierto'))) ]);
-                personasEnFaena = personalSnap.size;
-                hallazgosAbiertos = hallazgosSnap.size;
-                hallazgosCriticos = hallazgosSnap.docs.filter(doc => doc.data().criticidad === 'alta').length;
-            }
-            setSummary({ obrasActivas, hallazgosAbiertos, hallazgosCriticos, formulariosPendientes: hallazgosAbiertos, personasEnFaena });
-            
-            if (obrasIds.length === 0) {
-                setMuralItems([]);
-                setLoading(false);
-                return;
-            }
-            
-            const canUseInQuery = safeObrasIds.length > 0;
-            if (isPrevencionista) {
-                const hallazgosQuery = canUseInQuery ? query(collectionGroup(firebaseDb, 'hallazgos'), where('obraId', 'in', safeObrasIds), orderBy('createdAt', 'desc'), limit(5)) : query(collectionGroup(firebaseDb, 'hallazgos'), orderBy('createdAt', 'desc'), limit(10));
-                const hallazgosSnap = await getDocs(hallazgosQuery);
-                const hallazgosItems: ActivityItem[] = hallazgosSnap.docs.map(d => ({ id: d.id, ...d.data() } as Hallazgo)).filter(h => obrasIds.includes(h.obraId)).map(h => ({ type: 'hallazgo', id: h.id!, obraId: h.obraId, obraNombre: obrasMap.get(h.obraId) || 'Obra desconocida', fecha: h.createdAt.toDate(), titulo: `Hallazgo: ${h.tipoRiesgo}`, descripcion: h.descripcion, estado: h.estado, href: `/prevencion/hallazgos/detalle/${h.id}` }));
+                // Superadmin: Fetch global data
+                const [obrasSnap, personalSnap, hallazgosSnap] = await Promise.all([
+                    getDocs(collection(firebaseDb, 'obras')),
+                    getDocs(query(collectionGroup(firebaseDb, 'personal'), where('autorizado', '==', true))),
+                    getDocs(query(collectionGroup(firebaseDb, 'hallazgos'), where('estado', '==', 'abierto'))),
+                ]);
+
+                const obrasActivas = obrasSnap.size;
+                const personasEnFaena = personalSnap.size;
+                const hallazgosAbiertos = hallazgosSnap.size;
+                const hallazgosCriticos = hallazgosSnap.docs.filter(doc => doc.data().criticidad === 'alta').length;
+
+                setSummary({ obrasActivas, hallazgosAbiertos, hallazgosCriticos, formulariosPendientes: hallazgosAbiertos, personasEnFaena });
+                
+                const obrasList = obrasSnap.docs.map(doc => ({ id: doc.id, ...doc.data() } as Obra));
+                setObras(obrasList);
+                setHasObras(obrasList.length > 0);
+
+                // Mural para Superadmin (puede ser global o no, por ahora global)
+                const hallazgosQuery = query(collectionGroup(firebaseDb, 'hallazgos'), orderBy('createdAt', 'desc'), limit(10));
+                const hallazgosResult = await getDocs(hallazgosQuery);
+                const obrasMap = new Map(obrasList.map(o => [o.id, o.nombreFaena]));
+                const hallazgosItems: ActivityItem[] = hallazgosResult.docs.map(d => ({ id: d.id, ...d.data() } as Hallazgo)).map(h => ({ type: 'hallazgo', id: h.id!, obraId: h.obraId, obraNombre: obrasMap.get(h.obraId) || 'Obra desconocida', fecha: h.createdAt.toDate(), titulo: `Hallazgo: ${h.tipoRiesgo}`, descripcion: h.descripcion, estado: h.estado, href: `/prevencion/hallazgos/detalle/${h.id}` }));
                 setMuralItems(hallazgosItems);
+            
+            } else if (companyId) {
+                // Logic for other roles (admin_empresa, jefe_obra, etc.)
+                const obrasRef = collection(firebaseDb, 'obras');
+                const qObrasConstraints = [where('empresaId', '==', companyId)];
+                const obrasQuery = query(obrasRef, ...qObrasConstraints);
+                const obrasSnap = await getDocs(obrasQuery);
+                const obrasList = obrasSnap.docs.map(doc => ({ id: doc.id, ...doc.data() } as Obra));
+                setObras(obrasList);
+                setHasObras(obrasList.length > 0);
+                const obrasIds = obrasList.map(doc => doc.id);
+
+                const obrasActivas = obrasList.length;
+                let personasEnFaena = 0;
+                let hallazgosAbiertos = 0;
+                let hallazgosCriticos = 0;
+
+                const safeObrasIds = obrasIds.slice(0, 30);
+                if (safeObrasIds.length > 0) {
+                    const [personalSnap, hallazgosSnap] = await Promise.all([
+                        getDocs(query(collectionGroup(firebaseDb, 'personal'), where('obraId', 'in', safeObrasIds), where('autorizado', '==', true))),
+                        getDocs(query(collectionGroup(firebaseDb, 'hallazgos'), where('obraId', 'in', safeObrasIds), where('estado', '==', 'abierto')))
+                    ]);
+                    personasEnFaena = personalSnap.size;
+                    hallazgosAbiertos = hallazgosSnap.size;
+                    hallazgosCriticos = hallazgosSnap.docs.filter(doc => doc.data().criticidad === 'alta').length;
+                }
+                setSummary({ obrasActivas, hallazgosAbiertos, hallazgosCriticos, formulariosPendientes: hallazgosAbiertos, personasEnFaena });
+                
+                const obrasMap = new Map(obrasList.map(o => [o.id, o.nombreFaena]));
+
+                if (obrasIds.length > 0) {
+                     if (isPrevencionista) {
+                        const hallazgosQuery = query(collectionGroup(firebaseDb, 'hallazgos'), where('obraId', 'in', safeObrasIds), orderBy('createdAt', 'desc'), limit(5));
+                        const hallazgosSnap = await getDocs(hallazgosQuery);
+                        const hallazgosItems: ActivityItem[] = hallazgosSnap.docs.map(d => ({ id: d.id, ...d.data() } as Hallazgo)).filter(h => obrasIds.includes(h.obraId)).map(h => ({ type: 'hallazgo', id: h.id!, obraId: h.obraId, obraNombre: obrasMap.get(h.obraId) || 'Obra desconocida', fecha: h.createdAt.toDate(), titulo: `Hallazgo: ${h.tipoRiesgo}`, descripcion: h.descripcion, estado: h.estado, href: `/prevencion/hallazgos/detalle/${h.id}` }));
+                        setMuralItems(hallazgosItems);
+                    } else {
+                        const rdiQuery = query(collectionGroup(firebaseDb, 'rdi'), where('obraId', 'in', safeObrasIds), orderBy('createdAt', 'desc'), limit(3));
+                        const avancesQuery = query(collectionGroup(firebaseDb, 'avancesDiarios'), where('obraId', 'in', safeObrasIds), orderBy('fecha', 'desc'), limit(3));
+                        const [rdiSnap, avancesSnap] = await Promise.all([ getDocs(rdiQuery), getDocs(avancesQuery) ]);
+                        let rdiItems: ActivityItem[] = rdiSnap.docs.map(d => ({ id: d.id, ...d.data() } as Rdi)).filter(rdi => obrasIds.includes(rdi.obraId)).map(rdi => ({ type: 'rdi', id: rdi.id, obraId: rdi.obraId, obraNombre: obrasMap.get(rdi.obraId) || 'Obra desconocida', fecha: rdi.createdAt.toDate(), titulo: `RDI: ${rdi.correlativo}`, descripcion: rdi.titulo, estado: rdi.estado, href: `/rdi/${rdi.obraId}/${rdi.id}` }));
+                        let avanceItems: ActivityItem[] = avancesSnap.docs.map(d => ({ id: d.id, ...d.data() } as AvanceDiario)).filter(avance => obrasIds.includes(avance.obraId)).map(avance => ({ type: 'avance', id: avance.id, obraId: avance.obraId, obraNombre: obrasMap.get(avance.obraId) || 'Obra desconocida', fecha: avance.fecha.toDate(), titulo: `Avance Diario`, descripcion: avance.comentario || 'Registro de avance.', valor: `${(avance.porcentajeAvance || 0).toFixed(1)}%`, href: `/operaciones/programacion?obraId=${avance.obraId}` }));
+                        const allItems = [...rdiItems, ...avanceItems];
+                        allItems.sort((a, b) => b.fecha.getTime() - a.fecha.getTime());
+                        setMuralItems(allItems.slice(0, 5));
+                    }
+                } else {
+                     setMuralItems([]);
+                }
             } else {
-                const rdiQuery = canUseInQuery ? query(collectionGroup(firebaseDb, 'rdi'), where('obraId', 'in', safeObrasIds), orderBy('createdAt', 'desc'), limit(3)) : query(collectionGroup(firebaseDb, 'rdi'), orderBy('createdAt', 'desc'), limit(10));
-                const avancesQuery = canUseInQuery ? query(collectionGroup(firebaseDb, 'avancesDiarios'), where('obraId', 'in', safeObrasIds), orderBy('fecha', 'desc'), limit(3)) : query(collectionGroup(firebaseDb, 'avancesDiarios'), orderBy('fecha', 'desc'), limit(10));
-                const [rdiSnap, avancesSnap] = await Promise.all([ getDocs(rdiQuery), getDocs(avancesQuery) ]);
-                let rdiItems: ActivityItem[] = rdiSnap.docs.map(d => ({ id: d.id, ...d.data() } as Rdi)).filter(rdi => obrasIds.includes(rdi.obraId)).map(rdi => ({ type: 'rdi', id: rdi.id, obraId: rdi.obraId, obraNombre: obrasMap.get(rdi.obraId) || 'Obra desconocida', fecha: rdi.createdAt.toDate(), titulo: `RDI: ${rdi.correlativo}`, descripcion: rdi.titulo, estado: rdi.estado, href: `/rdi/${rdi.obraId}/${rdi.id}` }));
-                let avanceItems: ActivityItem[] = avancesSnap.docs.map(d => ({ id: d.id, ...d.data() } as AvanceDiario)).filter(avance => obrasIds.includes(avance.obraId)).map(avance => ({ type: 'avance', id: avance.id, obraId: avance.obraId, obraNombre: obrasMap.get(avance.obraId) || 'Obra desconocida', fecha: avance.fecha.toDate(), titulo: `Avance Diario`, descripcion: avance.comentario || 'Registro de avance.', valor: `${(avance.porcentajeAvance || 0).toFixed(1)}%`, href: `/operaciones/programacion?obraId=${avance.obraId}` }));
-                const allItems = [...rdiItems, ...avanceItems];
-                allItems.sort((a, b) => b.fecha.getTime() - a.fecha.getTime());
-                setMuralItems(allItems.slice(0, 5));
+                // No companyId and not superadmin
+                setSummary({ obrasActivas: 0, hallazgosAbiertos: 0, hallazgosCriticos: 0, formulariosPendientes: 0, personasEnFaena: 0 });
+                setMuralItems([]);
             }
-        } catch (error) { console.error("Error fetching dashboard data:", error); setMuralItems([]); setSummary(null); } finally { setLoading(false); }
+        } catch (error) { 
+            console.error("Error fetching dashboard data:", error); 
+            setSummary(null);
+            setMuralItems([]); 
+        } finally { 
+            setLoading(false); 
+        }
     }
     
     if (!authLoading && user) {
