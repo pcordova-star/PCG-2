@@ -106,9 +106,12 @@ export default function ControlAccesoAdminPage() {
               </Select>
             </div>
             {qrUrl && (
-              <div className="p-4 bg-white rounded-lg border">
-                <QRCode id="qr-code-svg" value={qrUrl} size={200} />
-              </div>
+              <>
+                <div className="p-4 bg-white rounded-lg border">
+                  <QRCode id="qr-code-svg" value={qrUrl} size={200} />
+                </div>
+                <p className="text-xs text-muted-foreground mt-2 break-all">{qrUrl}</p>
+              </>
             )}
           </CardContent>
           <CardFooter>
