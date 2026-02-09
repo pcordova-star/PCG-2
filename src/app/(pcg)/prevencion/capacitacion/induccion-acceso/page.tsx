@@ -77,11 +77,9 @@ export default function InduccionAccesoPage() {
     
     useEffect(() => {
         if (selectedObraId) {
-            // Usa una URL pública para que el QR funcione fuera de la red de desarrollo.
-            const origin = "https://pcg-2.vercel.app";
+            const origin = process.env.NEXT_PUBLIC_BASE_URL || "https://pcg-2.vercel.app";
             setQrValue(`${origin}/public/induccion/${selectedObraId}`);
 
-            // Fetch recent inductions for this obra
             const inductionsQuery = query(
                 collection(firebaseDb, 'induccionesAccesoFaena'),
                 where('obraId', '==', selectedObraId),
@@ -98,6 +96,10 @@ export default function InduccionAccesoPage() {
 
     const handleInputChange = (field: keyof typeof formData, value: string | boolean) => {
         setFormData(prev => ({...prev, [field]: value}));
+    };
+
+    const handleSignatureChange = (dataUrl: string | null) => {
+        setFormData(prev => ({...prev, firmaDataUrl: dataUrl || ''}));
     };
     
     const handleSubmit = async (e: FormEvent) => {
@@ -224,7 +226,7 @@ export default function InduccionAccesoPage() {
                             </div>
                             <div className="space-y-2">
                                 <Label>Firma del Visitante</Label>
-                                <SignaturePad onChange={(dataUrl) => handleInputChange('firmaDataUrl', dataUrl || '')} />
+                                <SignaturePad onChange={handleSignatureChange} />
                             </div>
                             <Button type="submit" disabled={isSaving || !selectedObraId}>
                                 {isSaving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <UserPlus className="mr-2 h-4 w-4" />}

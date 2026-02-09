@@ -51,7 +51,7 @@ async function uploadSignature(firmaDataUrl: string, obraId: string, rut: string
 
 
 export async function guardarInduccionAccesoFaena(
-  data: Omit<InduccionAccesoFaena, "id" | "createdAt" | "origenRegistro">
+  data: Partial<InduccionAccesoFaena> & { obraId: string; generadorId: string }
 ): Promise<string> {
   const colRef = collection(firebaseDb, "induccionesAccesoFaena");
   
@@ -59,7 +59,7 @@ export async function guardarInduccionAccesoFaena(
   let finalFirmaUrl: string | null = null;
 
   if (firmaDataUrl && typeof firmaDataUrl === 'string' && firmaDataUrl.startsWith('data:')) {
-    finalFirmaUrl = await uploadSignature(firmaDataUrl, data.obraId, data.rut);
+    finalFirmaUrl = await uploadSignature(firmaDataUrl, data.obraId, data.rut || 'sin_rut');
   } else {
     finalFirmaUrl = firmaDataUrl || null;
   }
@@ -74,7 +74,7 @@ export async function guardarInduccionAccesoFaena(
 }
 
 export async function guardarInduccionQR(
-  data: Omit<InduccionAccesoFaena, "id" | "createdAt" | "origenRegistro">
+  data: Partial<InduccionAccesoFaena> & { obraId: string }
 ): Promise<string> {
   const colRef = collection(firebaseDb, "induccionesAccesoFaena");
 
@@ -82,7 +82,7 @@ export async function guardarInduccionQR(
   let finalFirmaUrl: string | null = null;
   
   if (firmaDataUrl && typeof firmaDataUrl === 'string' && firmaDataUrl.startsWith('data:')) {
-    finalFirmaUrl = await uploadSignature(firmaDataUrl, data.obraId, data.rut);
+    finalFirmaUrl = await uploadSignature(firmaDataUrl, data.obraId, data.rut || 'sin_rut');
   } else {
     finalFirmaUrl = firmaDataUrl || null;
   }
@@ -95,3 +95,4 @@ export async function guardarInduccionQR(
   });
   return docRef.id;
 }
+
