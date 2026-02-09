@@ -3,25 +3,30 @@ import { NextRequest, NextResponse } from "next/server";
 import admin from "@/server/firebaseAdmin";
 import { z } from "zod";
 import * as crypto from 'crypto';
+import { generarInduccionContextual } from "@/ai/flows/induccion-seguridad-contextual-flow";
+import { textToSpeech } from "@/ai/flows/tts-flow";
 
 const AccessRequestSchema = z.object({
   obraId: z.string().min(1),
   nombreCompleto: z.string().min(3),
   rut: z.string().min(8),
   empresa: z.string().min(2),
-  motivo: z.string().min(1),
+  motivo: z.string().min(5),
+  // Añadir campos de contexto para la IA que no son parte del formulario original pero necesarios
+  tipoObra: z.string().min(1),
+  tipoPersona: z.enum(['trabajador', 'subcontratista', 'visita']),
+  duracionIngreso: z.enum(['visita breve', 'jornada parcial', 'jornada completa']),
 });
 
 export const runtime = "nodejs";
 
 export async function POST(req: NextRequest) {
   try {
-    // AÑADIDO: Verificar que Firebase Admin SDK está inicializado.
     if (!admin.apps.length) {
-        console.error("Firebase Admin SDK no inicializado. Revisa las variables de entorno del servidor (FIREBASE_ADMIN_SERVICE_ACCOUNT).");
-        throw new Error("El servicio de backend no está configurado correctamente.");
+      console.error("Firebase Admin SDK no inicializado.");
+      throw new Error("El servicio de backend no está configurado correctamente.");
     }
-
+    
     const formData = await req.formData();
     const body = Object.fromEntries(formData.entries());
 
@@ -29,58 +34,90 @@ export async function POST(req: NextRequest) {
     if (!parsed.success) {
       return NextResponse.json({ error: "Datos de formulario inválidos.", details: parsed.error.flatten() }, { status: 400 });
     }
-    const { obraId, nombreCompleto, rut, empresa, motivo } = parsed.data;
+    
+    const { obraId, nombreCompleto, rut, empresa, motivo, tipoObra, tipoPersona, duracionIngreso } = parsed.data;
 
     const file = formData.get('archivo') as File | null;
     if (!file) {
       return NextResponse.json({ error: "El archivo adjunto es obligatorio." }, { status: 400 });
     }
-    const MAX_SIZE_MB = 10;
-    if (file.size > MAX_SIZE_MB * 1024 * 1024) {
-      return NextResponse.json({ error: `El archivo supera el límite de ${MAX_SIZE_MB}MB.` }, { status: 400 });
-    }
-
+    
     const db = admin.firestore();
     const bucket = admin.storage().bucket();
-    
-    // Get companyId from obra
+    const now = admin.firestore.Timestamp.now();
+
     const obraDoc = await db.collection('obras').doc(obraId).get();
     if (!obraDoc.exists) {
         return NextResponse.json({ error: "La obra no existe." }, { status: 404 });
     }
-    const companyId = obraDoc.data()?.empresaId;
-    if (!companyId) {
-        return NextResponse.json({ error: "La obra no está asociada a una empresa." }, { status: 500 });
-    }
-    
-    const fileBuffer = Buffer.from(await file.arrayBuffer());
-    
+    const obraData = obraDoc.data()!;
+    const companyId = obraData.empresaId;
+
+    // 1. Guardar el archivo de CI del usuario
     const fileExtension = file.name.split('.').pop() || 'bin';
-    const uniqueFilename = `${crypto.randomUUID()}.${fileExtension}`;
-    const storagePath = `control-acceso/${obraId}/${uniqueFilename}`;
-    
-    const storageFile = bucket.file(storagePath);
-    await storageFile.save(fileBuffer, {
-      metadata: { contentType: file.type },
+    const ciStoragePath = `control-acceso/${obraId}/${crypto.randomUUID()}.${fileExtension}`;
+    const ciFile = bucket.file(ciStoragePath);
+    await ciFile.save(Buffer.from(await file.arrayBuffer()), { metadata: { contentType: file.type } });
+    const ciFileUrl = ciFile.publicUrl();
+
+    // 2. Generar Inducción Textual
+    const { inductionText } = await generarInduccionContextual({
+      tipoObra: obraData.tipoObra || 'Edificación en altura',
+      nombreObra: obraData.nombreFaena,
+      tipoPersona,
+      descripcionTarea: motivo,
+      duracionIngreso,
+    });
+
+    // 3. Generar Audio (TTS)
+    let audioUrl = '';
+    let audioStoragePath = '';
+    try {
+        const { audioDataUri } = await textToSpeech(inductionText);
+        const audioBuffer = Buffer.from(audioDataUri.split(',')[1], 'base64');
+        audioStoragePath = `inducciones/${obraId}/${crypto.randomUUID()}.wav`;
+        const audioFile = bucket.file(audioStoragePath);
+        await audioFile.save(audioBuffer, { metadata: { contentType: 'audio/wav' } });
+        audioUrl = audioFile.publicUrl();
+    } catch(ttsError) {
+        console.error(`[TTS_ERROR] Fallo al generar audio para obra ${obraId}:`, ttsError);
+        // No detenemos el flujo, continuamos sin audio.
+    }
+
+
+    // 4. Crear el registro de evidencia
+    const evidenciaRef = db.collection("registrosInduccionContextual").doc();
+    await evidenciaRef.set({
+      obraId,
+      obraNombre: obraData.nombreFaena,
+      persona: { nombre: nombreCompleto, rut, empresa, tipo: tipoPersona },
+      contexto: { descripcionTarea: motivo, duracionIngreso },
+      inductionText,
+      audioPath: audioStoragePath || null,
+      audioUrl: audioUrl || null,
+      audioFormat: audioUrl ? "wav" : null,
+      jobId: "N/A",
+      iaModel: "gemini-2.0-flash",
+      createdAt: now,
+      fechaPresentacion: now,
+      fechaConfirmacion: null,
     });
     
-    const archivoUrl = storageFile.publicUrl();
+    // 5. Guardar el registro de acceso original
+    await db.collection("controlAcceso").add({
+      obraId, companyId,
+      nombre: nombreCompleto, rut, empresa, motivo,
+      archivoUrl: ciFileUrl, storagePath: ciStoragePath,
+      createdAt: now,
+      induccionContextualId: evidenciaRef.id,
+    });
 
-    const newRecord = {
-      obraId,
-      companyId, // Guardar el companyId para las reglas de seguridad
-      nombre: nombreCompleto,
-      rut,
-      empresa,
-      motivo,
-      archivoUrl,
-      storagePath,
-      createdAt: admin.firestore.FieldValue.serverTimestamp(),
-    };
-    
-    await db.collection("controlAcceso").add(newRecord);
-
-    return NextResponse.json({ success: true, message: "Registro de acceso guardado correctamente." });
+    return NextResponse.json({ 
+        success: true, 
+        inductionText, 
+        audioUrl,
+        evidenciaId: evidenciaRef.id
+    });
 
   } catch (error: any) {
     console.error("[API /control-acceso/submit] Error:", error);

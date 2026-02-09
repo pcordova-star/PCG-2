@@ -109,6 +109,8 @@ export interface Obra {
   ultimaActualizacion?: Timestamp | Date;
   creadoEn: Timestamp | Date;
   estado?: 'Activa' | 'Terminada' | 'Pausada' | 'Inactiva';
+  // Campo añadido para el contexto de la IA
+  tipoObra?: string;
 }
 
 export interface ActividadProgramada {
@@ -674,6 +676,7 @@ export interface AccesoRegistro {
   motivo: string;
   archivoUrl: string;
   createdAt: { toDate: () => Date };
+  induccionContextualId?: string;
 }
 
 // --- TIPOS PARA INDUCCIÓN CONTEXTUAL ---
@@ -682,15 +685,24 @@ export interface InduccionContextualRegistro {
   id: string;
   obraId: string;
   obraNombre: string;
-  userId: string;
-  rut: string;
-  nombreCompleto: string;
-  empresa: string;
-  inputUsuario: string; // Tarea declarada por el usuario
-  textoInduccionGenerado: string;
+  persona: {
+    nombre: string;
+    rut: string;
+    empresa: string;
+    tipo: 'trabajador' | 'subcontratista' | 'visita';
+  };
+  contexto: {
+    descripcionTarea: string;
+    duracionIngreso: 'visita breve' | 'jornada parcial' | 'jornada completa';
+  };
+  inductionText: string;
+  audioPath: string;
+  audioUrl: string;
+  audioFormat: 'wav';
   fechaGeneracion: Timestamp;
   fechaPresentacion: Timestamp;
-  fechaConfirmacion: Timestamp;
+  fechaConfirmacion: Timestamp | null;
   jobId: string;
   iaModel: string;
+  createdAt?: Timestamp;
 }

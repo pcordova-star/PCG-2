@@ -4,7 +4,7 @@
 import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Label } from '@/components/ui/label';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
@@ -43,7 +43,7 @@ export default function ControlAccesoAdminPage() {
         q = query(obrasRef, where("empresaId", "==", companyId), orderBy("nombreFaena"));
       }
       const snapshot = await getDocs(q);
-      const obrasList = snapshot.docs.map(doc => ({ id: doc.id, nombreFaena: doc.data().nombreFaena } as Obra));
+      const obrasList = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Obra));
       setObras(obrasList);
       if (obrasList.length > 0 && !selectedObraId) {
         setSelectedObraId(obrasList[0].id);
@@ -71,7 +71,7 @@ export default function ControlAccesoAdminPage() {
       const qInduccion = query(
         collection(firebaseDb, "registrosInduccionContextual"),
         where("obraId", "==", selectedObraId),
-        orderBy("fechaConfirmacion", "desc")
+        orderBy("createdAt", "desc")
       );
       const unsubInduccion = onSnapshot(qInduccion, (snapshot) => {
         setRegistrosInduccion(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as InduccionContextualRegistro)));
@@ -165,10 +165,10 @@ export default function ControlAccesoAdminPage() {
                             ) : (
                                 registrosInduccion.map((reg) => (
                                     <TableRow key={reg.id}>
-                                        <TableCell>{reg.fechaConfirmacion.toDate().toLocaleDateString('es-CL')}</TableCell>
-                                        <TableCell className="font-medium">{reg.nombreCompleto}</TableCell>
-                                        <TableCell>{reg.rut}</TableCell>
-                                        <TableCell className="text-xs italic">"{reg.inputUsuario}"</TableCell>
+                                        <TableCell>{reg.fechaConfirmacion?.toDate().toLocaleDateString('es-CL') || 'Pendiente'}</TableCell>
+                                        <TableCell className="font-medium">{reg.persona?.nombre || 'N/A'}</TableCell>
+                                        <TableCell>{reg.persona?.rut || 'N/A'}</TableCell>
+                                        <TableCell className="text-xs italic">"{reg.contexto?.descripcionTarea || 'N/A'}"</TableCell>
                                         <TableCell className="text-right">
                                             <Button variant="outline" size="sm" onClick={() => setSelectedInduccion(reg)}>
                                                 <Eye className="mr-2 h-4 w-4"/> Ver Inducción
@@ -235,13 +235,21 @@ export default function ControlAccesoAdminPage() {
               Este fue el texto exacto que se le presentó al usuario.
             </DialogDescription>
           </DialogHeader>
-          <div className="py-4 space-y-2 text-sm">
-            <p><strong>Usuario:</strong> {selectedInduccion?.nombreCompleto}</p>
+          <div className="py-4 space-y-4 text-sm">
+            <p><strong>Usuario:</strong> {selectedInduccion?.persona?.nombre}</p>
             <p><strong>Fecha:</strong> {selectedInduccion?.fechaConfirmacion?.toDate().toLocaleString('es-CL')}</p>
-            <p><strong>Tarea declarada:</strong> "{selectedInduccion?.inputUsuario}"</p>
+            <p><strong>Tarea declarada:</strong> "{selectedInduccion?.contexto?.descripcionTarea}"</p>
             <div className="mt-4 p-4 bg-muted rounded-md border text-muted-foreground whitespace-pre-wrap">
-              {selectedInduccion?.textoInduccionGenerado}
+              {selectedInduccion?.inductionText}
             </div>
+             {selectedInduccion?.audioUrl && (
+                <div className="mt-4">
+                    <Label>Audio de la Inducción</Label>
+                    <audio controls src={selectedInduccion.audioUrl} className="w-full mt-1">
+                        Tu navegador no soporta el audio.
+                    </audio>
+                </div>
+            )}
           </div>
         </DialogContent>
       </Dialog>

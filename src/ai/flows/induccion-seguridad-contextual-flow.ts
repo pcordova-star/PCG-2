@@ -20,8 +20,10 @@ export const InduccionContextualInputSchema = z.object({
 });
 export type InduccionContextualInput = z.infer<typeof InduccionContextualInputSchema>;
 
-// La salida es un texto simple.
-export const InduccionContextualOutputSchema = z.string();
+// La salida ahora es un objeto que contiene el texto de la inducción.
+export const InduccionContextualOutputSchema = z.object({
+  inductionText: z.string(),
+});
 export type InduccionContextualOutput = z.infer<typeof InduccionContextualOutputSchema>;
 
 // Definición del prompt de Genkit
@@ -30,7 +32,8 @@ const induccionPrompt = ai.definePrompt(
     name: 'induccionSeguridadContextualPrompt',
     model: 'googleai/gemini-2.0-flash', 
     input: { schema: InduccionContextualInputSchema },
-    output: { schema: InduccionContextualOutputSchema },
+    // El prompt sigue esperando un string, el flow se encarga de envolverlo.
+    output: { schema: z.string() }, 
     prompt: `Actúa como un Prevencionista de Riesgos chileno senior, con experiencia práctica en obras de construcción, faenas industriales y control de acceso a obra.
 
 Tu rol es generar una MICRO-INDUCCIÓN DE SEGURIDAD CONTEXTUAL, breve, clara y enfocada en los riesgos reales de la tarea inmediata que una persona va a realizar en una obra específica.
@@ -113,7 +116,11 @@ FORMATO DE SALIDA
 - Texto continuo.
 - Sin emojis.
 - Sin títulos en mayúsculas exageradas.
-- Listo para mostrarse en pantalla o convertirse en audio/video.`
+- Listo para mostrarse en pantalla o convertirse en audio/video.`,
+    config: {
+        temperature: 0.2,
+        maxOutputTokens: 2048,
+    }
   },
 );
 
@@ -131,7 +138,7 @@ const induccionContextualFlow = ai.defineFlow(
       throw new Error("La IA no generó una respuesta válida para la inducción.");
     }
 
-    return output;
+    return { inductionText: output };
   }
 );
 
