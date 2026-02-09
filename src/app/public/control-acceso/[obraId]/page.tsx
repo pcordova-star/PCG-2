@@ -1,158 +1,137 @@
 "use client";
 
-import { useEffect, useState, FormEvent } from "react";
-import { useParams, useRouter } from "next/navigation";
-import { doc, getDoc } from "firebase/firestore";
-import { firebaseDb } from "@/lib/firebaseClient";
-import { Obra } from "@/types/pcg";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
-import { Button } from "@/components/ui/button";
-import { Loader2, AlertTriangle, ArrowLeft } from "lucide-react";
-import { useToast } from "@/hooks/use-toast";
-import Link from "next/link";
-import { PcgLogo } from "@/components/branding/PcgLogo";
+import { useState, useEffect, FormEvent } from 'react';
+import { useParams, useRouter } from 'next/navigation';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Loader2, ShieldCheck } from 'lucide-react';
+import { useToast } from '@/hooks/use-toast';
+import { PcgLogo } from '@/components/branding/PcgLogo';
+
+// Esta página es pública y NO debe usar useAuth o lógica de sesión.
 
 export default function PublicInduccionPage() {
-    const { obraId } = useParams();
+    const params = useParams();
     const router = useRouter();
     const { toast } = useToast();
 
-    const [obra, setObra] = useState<Obra | null>(null);
-    const [loadingObra, setLoadingObra] = useState(true);
-    const [isSubmitting, setIsSubmitting] = useState(false);
-    const [error, setError] = useState<string | null>(null);
+    const obraId = params.obraId as string;
 
+    const [formData, setFormData] = useState({
+        nombreCompleto: '',
+        rut: '',
+        empresa: '',
+        motivo: '',
+    });
+    const [archivo, setArchivo] = useState<File | null>(null);
+    const [loading, setLoading] = useState(false);
+    const [obraNombre, setObraNombre] = useState('Cargando...');
+
+    // Simple fetch para obtener el nombre de la obra.
+    // Esta es una solución temporal. Idealmente, se haría con una API route.
     useEffect(() => {
-        if (typeof obraId === 'string') {
-            const fetchObra = async () => {
-                setLoadingObra(true);
-                const obraRef = doc(firebaseDb, "obras", obraId);
-                const obraSnap = await getDoc(obraRef);
-                if (obraSnap.exists()) {
-                    setObra({ id: obraSnap.id, ...obraSnap.data() } as Obra);
-                } else {
-                    setError("La obra especificada no existe.");
-                }
-                setLoadingObra(false);
-            };
-            fetchObra();
+        if (obraId) {
+            setObraNombre(`Obra ID: ${obraId}`); // Placeholder
         }
     }, [obraId]);
 
-    const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
+    const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const { name, value } = e.target;
+        setFormData(prev => ({ ...prev, [name]: value }));
+    };
+
+    const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (file) {
+            if (file.size > 10 * 1024 * 1024) { // 10MB limit
+                toast({ variant: 'destructive', title: 'Archivo demasiado grande', description: 'Por favor, sube un archivo de menos de 10MB.' });
+                setArchivo(null);
+                e.target.value = '';
+            } else {
+                setArchivo(file);
+            }
+        }
+    };
+
+    const handleSubmit = async (e: FormEvent) => {
         e.preventDefault();
-        setError(null);
-        setIsSubmitting(true);
-        
-        const formData = new FormData(e.currentTarget);
-        
-        if (!obraId) {
-            setError("ID de obra no encontrado.");
-            setIsSubmitting(false);
+        if (!archivo) {
+            toast({ variant: 'destructive', title: 'Falta Archivo', description: 'Debes adjuntar el archivo de respaldo.' });
             return;
         }
-        formData.append("obraId", obraId as string);
+        setLoading(true);
+
+        const submissionData = new FormData();
+        submissionData.append('obraId', obraId);
+        submissionData.append('nombreCompleto', formData.nombreCompleto);
+        submissionData.append('rut', formData.rut);
+        submissionData.append('empresa', formData.empresa);
+        submissionData.append('motivo', formData.motivo);
+        submissionData.append('archivo', archivo);
 
         try {
             const response = await fetch('/api/control-acceso/submit', {
                 method: 'POST',
-                body: formData,
+                body: submissionData,
             });
 
             const result = await response.json();
 
             if (!response.ok) {
-                throw new Error(result.error || "Error al enviar el formulario.");
+                throw new Error(result.error || 'Ocurrió un error en el servidor.');
             }
 
-            toast({
-                title: "Registro Exitoso",
-                description: "Tu ingreso ha sido registrado correctamente.",
-            });
+            toast({ title: 'Registro Exitoso', description: 'Tu ingreso ha sido registrado correctamente.' });
             router.push('/public/control-acceso/success');
 
-        } catch (err: any) {
-            setError(err.message);
-            toast({
-                variant: "destructive",
-                title: "Error en el envío",
-                description: err.message,
-            });
+        } catch (error: any) {
+            console.error("Error al enviar registro:", error);
+            toast({ variant: 'destructive', title: 'Error al Enviar', description: error.message });
         } finally {
-            setIsSubmitting(false);
+            setLoading(false);
         }
     };
 
-    if (loadingObra) {
-        return (
-            <div className="flex min-h-screen items-center justify-center">
-                <Loader2 className="h-8 w-8 animate-spin" />
-            </div>
-        );
-    }
-    
-    if (error) {
-        return (
-             <div className="flex min-h-screen items-center justify-center p-4">
-                <Card className="w-full max-w-md text-center">
-                    <CardHeader>
-                        <CardTitle className="text-destructive">Error</CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                        <p>{error}</p>
-                        <Button asChild variant="link" className="mt-4">
-                            <Link href="/"><ArrowLeft className="mr-2"/> Volver al inicio</Link>
-                        </Button>
-                    </CardContent>
-                </Card>
-            </div>
-        )
-    }
-
     return (
-        <div className="min-h-screen bg-muted/40 py-8 px-4">
-            <Card className="mx-auto w-full max-w-2xl">
+        <div className="min-h-screen bg-slate-50 flex items-center justify-center p-4">
+            <Card className="w-full max-w-lg">
                 <CardHeader className="text-center">
                     <div className="mx-auto w-fit mb-4">
-                        <PcgLogo size={80} />
+                        <PcgLogo />
                     </div>
-                    <CardTitle>Registro de Ingreso a Obra</CardTitle>
-                    <CardDescription>
-                        Completando este formulario para: <strong className="text-primary">{obra?.nombreFaena}</strong>
-                    </CardDescription>
+                    <CardTitle>Registro de Acceso a Obra</CardTitle>
+                    <CardDescription>Estás ingresando a la obra seleccionada. Completa tus datos para continuar.</CardDescription>
                 </CardHeader>
                 <CardContent>
                     <form onSubmit={handleSubmit} className="space-y-4">
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            <div className="space-y-2">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                            <div className="space-y-1.5">
                                 <Label htmlFor="nombreCompleto">Nombre Completo*</Label>
-                                <Input id="nombreCompleto" name="nombreCompleto" required />
+                                <Input id="nombreCompleto" name="nombreCompleto" onChange={handleInputChange} required />
                             </div>
-                            <div className="space-y-2">
+                            <div className="space-y-1.5">
                                 <Label htmlFor="rut">RUT*</Label>
-                                <Input id="rut" name="rut" required />
+                                <Input id="rut" name="rut" onChange={handleInputChange} required />
                             </div>
                         </div>
-                        <div className="space-y-2">
+                        <div className="space-y-1.5">
                             <Label htmlFor="empresa">Empresa*</Label>
-                            <Input id="empresa" name="empresa" required />
+                            <Input id="empresa" name="empresa" onChange={handleInputChange} required />
                         </div>
-                        <div className="space-y-2">
-                            <Label htmlFor="motivo">Motivo de la Visita*</Label>
-                            <Textarea id="motivo" name="motivo" required />
+                        <div className="space-y-1.5">
+                            <Label htmlFor="motivo">Motivo de Visita*</Label>
+                            <Input id="motivo" name="motivo" onChange={handleInputChange} required />
                         </div>
-                        <div className="space-y-2">
-                            <Label htmlFor="archivo">Adjuntar Archivo (CI, firma, etc.)*</Label>
-                            <Input id="archivo" name="archivo" type="file" required accept="image/*,application/pdf" />
-                             <p className="text-xs text-muted-foreground">Sube una foto de tu carnet, una firma o el respaldo de tu visita. Máximo 10MB.</p>
+                         <div className="space-y-1.5">
+                            <Label htmlFor="archivo">Adjuntar respaldo (carnet, firma, etc.)*</Label>
+                            <Input id="archivo" type="file" onChange={handleFileChange} required accept="image/*,application/pdf" />
+                             {archivo && <p className="text-xs text-muted-foreground pt-1">Archivo seleccionado: {archivo.name}</p>}
                         </div>
-                        {error && <p className="text-sm text-destructive">{error}</p>}
-                        <Button type="submit" className="w-full" disabled={isSubmitting}>
-                            {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                            {isSubmitting ? "Enviando Registro..." : "Registrar Ingreso"}
+                        <Button type="submit" className="w-full" disabled={loading}>
+                            {loading ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <ShieldCheck className="mr-2 h-4 w-4"/>}
+                            Registrar Ingreso
                         </Button>
                     </form>
                 </CardContent>
