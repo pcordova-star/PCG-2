@@ -1,3 +1,4 @@
+// src/app/(pcg)/dashboard/page.tsx
 "use client";
 
 import Link from 'next/link';
@@ -231,7 +232,6 @@ const adminCards = [
     { title: "Configurar Precios", href: "/admin/pricing", icon: Settings, description: "Definir los precios globales de la plataforma." },
 ];
 
-
 function getRoleName(role: string) {
     const roles: Record<string, string> = {
         superadmin: 'Super Administrador',
@@ -293,6 +293,62 @@ const ActivityCard = ({ item }: { item: ActivityItem }) => {
     );
 };
 
+function StatCard({ icon: Icon, title, value, subValue, color, isLoading }: { icon: React.ElementType, title: string, value: number, subValue?: string, color?: string, isLoading: boolean }) {
+  return (
+    <Card className="shadow-sm">
+      <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+        <CardTitle className="text-sm font-medium">{title}</CardTitle>
+        <Icon className="h-4 w-4 text-muted-foreground" />
+      </CardHeader>
+      <CardContent>
+        {isLoading ? (
+          <Skeleton className="h-10 w-24" />
+        ) : (
+          <>
+            <div className="text-4xl font-bold">{value}</div>
+            {subValue && <p className={cn("text-xs text-muted-foreground", color)}>{subValue}</p>}
+          </>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
+function DashboardStats({ summary, isLoading }: { summary: { obrasActivas: number; hallazgosAbiertos: number; hallazgosCriticos: number; formulariosPendientes: number; personasEnFaena: number; } | null, isLoading: boolean }) {
+  return (
+    <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+      <StatCard
+        icon={HardHat}
+        title="Obras Activas"
+        value={summary?.obrasActivas ?? 0}
+        isLoading={isLoading}
+      />
+      <StatCard
+        icon={AlertTriangle}
+        title="Hallazgos Abiertos"
+        value={summary?.hallazgosAbiertos ?? 0}
+        subValue={summary ? `${summary.hallazgosCriticos} críticos` : ''}
+        color="text-red-500"
+        isLoading={isLoading}
+      />
+      <StatCard
+        icon={ClipboardPlus}
+        title="Formularios Pendientes"
+        value={summary?.formulariosPendientes ?? 0}
+        subValue="Hoy"
+        isLoading={isLoading}
+      />
+      <StatCard
+        icon={Users}
+        title="Personal en Faena"
+        value={summary?.personasEnFaena ?? 0}
+        subValue="Ahora"
+        isLoading={isLoading}
+      />
+    </div>
+  );
+}
+
 
 export default function DashboardPage() {
   const { user, role, companyId, company, loading: authLoading } = useAuth();
@@ -304,6 +360,15 @@ export default function DashboardPage() {
   const [muralItems, setMuralItems] = useState<ActivityItem[]>([]);
   const [isObraModalOpen, setIsObraModalOpen] = useState(false);
   const [quickAccessTarget, setQuickAccessTarget] = useState('');
+  
+  const [summary, setSummary] = useState<{
+    obrasActivas: number;
+    hallazgosAbiertos: number;
+    hallazgosCriticos: number;
+    formulariosPendientes: number;
+    personasEnFaena: number;
+  } | null>(null);
+  const [loadingSummary, setLoadingSummary] = useState(true);
 
   const isPrevencionista = role === 'prevencionista';
   
@@ -329,12 +394,14 @@ export default function DashboardPage() {
 
   useEffect(() => {
     async function fetchDashboardData() {
-        if (!user || !companyId) {
+        if (!user || (!companyId && role !== 'superadmin')) {
             setLoading(false);
+            setLoadingSummary(false);
             return;
         }
 
         setLoading(true);
+        setLoadingSummary(true);
         const isSuperAdmin = role === 'superadmin';
 
         try {
@@ -349,17 +416,55 @@ export default function DashboardPage() {
             const obrasIds = obrasList.map(doc => doc.id);
             const obrasMap = new Map(obrasList.map(o => [o.id, o.nombreFaena]));
 
+            // --- SUMMARY DATA ---
+            const obrasActivas = obrasList.filter(o => o.estado === 'Activa').length;
+            let personasEnFaena = 0;
+            let hallazgosAbiertos = 0;
+            let hallazgosCriticos = 0;
+            
+            // Limit `in` queries to 30 elements
+            const safeObrasIds = obrasIds.slice(0, 30);
+
+            if (isSuperAdmin) {
+                const [personalSnap, hallazgosSnap] = await Promise.all([
+                    getDocs(query(collectionGroup(firebaseDb, 'personal'), where('autorizado', '==', true))),
+                    getDocs(query(collectionGroup(firebaseDb, 'hallazgos'), where('estado', '==', 'abierto')))
+                ]);
+                personasEnFaena = personalSnap.size;
+                hallazgosAbiertos = hallazgosSnap.size;
+                hallazgosCriticos = hallazgosSnap.docs.filter(doc => doc.data().criticidad === 'alta').length;
+            } else if (safeObrasIds.length > 0) {
+                 const [personalSnap, hallazgosSnap] = await Promise.all([
+                    getDocs(query(collectionGroup(firebaseDb, 'personal'), where('obraId', 'in', safeObrasIds), where('autorizado', '==', true))),
+                    getDocs(query(collectionGroup(firebaseDb, 'hallazgos'), where('obraId', 'in', safeObrasIds), where('estado', '==', 'abierto')))
+                ]);
+                personasEnFaena = personalSnap.size;
+                hallazgosAbiertos = hallazgosSnap.size;
+                hallazgosCriticos = hallazgosSnap.docs.filter(doc => doc.data().criticidad === 'alta').length;
+            }
+
+            setSummary({
+                obrasActivas,
+                hallazgosAbiertos,
+                hallazgosCriticos,
+                formulariosPendientes: hallazgosAbiertos,
+                personasEnFaena
+            });
+            // --- END SUMMARY DATA ---
+
+
             if (obrasIds.length === 0) {
                 setMuralItems([]);
                 setLoading(false);
+                setLoadingSummary(false);
                 return;
             }
             
-            const canUseInQuery = obrasIds.length > 0 && obrasIds.length <= 30;
+            const canUseInQuery = safeObrasIds.length > 0;
 
             if (isPrevencionista) {
                 const hallazgosQuery = canUseInQuery
-                  ? query(collectionGroup(firebaseDb, 'hallazgos'), where('obraId', 'in', obrasIds), orderBy('createdAt', 'desc'), limit(5))
+                  ? query(collectionGroup(firebaseDb, 'hallazgos'), where('obraId', 'in', safeObrasIds), orderBy('createdAt', 'desc'), limit(5))
                   : query(collectionGroup(firebaseDb, 'hallazgos'), orderBy('createdAt', 'desc'), limit(10));
                 
                 const hallazgosSnap = await getDocs(hallazgosQuery);
@@ -376,15 +481,15 @@ export default function DashboardPage() {
 
             } else {
                 const rdiQuery = canUseInQuery
-                  ? query(collectionGroup(firebaseDb, 'rdi'), where('obraId', 'in', obrasIds), orderBy('createdAt', 'desc'), limit(3))
+                  ? query(collectionGroup(firebaseDb, 'rdi'), where('obraId', 'in', safeObrasIds), orderBy('createdAt', 'desc'), limit(3))
                   : query(collectionGroup(firebaseDb, 'rdi'), orderBy('createdAt', 'desc'), limit(10));
 
                 const avancesQuery = canUseInQuery
-                  ? query(collectionGroup(firebaseDb, 'avancesDiarios'), where('obraId', 'in', obrasIds), orderBy('fecha', 'desc'), limit(3))
+                  ? query(collectionGroup(firebaseDb, 'avancesDiarios'), where('obraId', 'in', safeObrasIds), orderBy('fecha', 'desc'), limit(3))
                   : query(collectionGroup(firebaseDb, 'avancesDiarios'), orderBy('fecha', 'desc'), limit(10));
 
                 const edpQuery = canUseInQuery
-                  ? query(collectionGroup(firebaseDb, 'estadosDePago'), where('obraId', 'in', obrasIds), orderBy('creadoEn', 'desc'), limit(2))
+                  ? query(collectionGroup(firebaseDb, 'estadosDePago'), where('obraId', 'in', safeObrasIds), orderBy('creadoEn', 'desc'), limit(2))
                   : query(collectionGroup(firebaseDb, 'estadosDePago'), orderBy('creadoEn', 'desc'), limit(5));
 
                 const [rdiSnap, avancesSnap, edpSnap] = await Promise.all([
@@ -428,8 +533,10 @@ export default function DashboardPage() {
         } catch (error) {
             console.error("Error fetching dashboard data:", error);
             setMuralItems([]);
+            setSummary(null);
         } finally {
             setLoading(false);
+            setLoadingSummary(false);
         }
     }
 
@@ -562,6 +669,12 @@ export default function DashboardPage() {
                 </div>
             )}
         </header>
+
+        {role !== 'superadmin' && (
+          <div className="mt-2">
+            <DashboardStats summary={summary} isLoading={loadingSummary} />
+          </div>
+        )}
 
         <OnboardingSteps />
 

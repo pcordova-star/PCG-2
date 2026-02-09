@@ -108,6 +108,7 @@ export interface Obra {
   avanceAcumulado?: number;
   ultimaActualizacion?: Timestamp | Date;
   creadoEn: Timestamp | Date;
+  estado?: 'Activa' | 'Terminada' | 'Pausada' | 'Inactiva';
 }
 
 export interface ActividadProgramada {
