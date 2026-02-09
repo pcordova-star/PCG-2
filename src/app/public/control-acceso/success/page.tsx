@@ -1,30 +1,34 @@
-// src/app/public/control-acceso/success/page.tsx
+
 "use client";
 
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { CheckCircle } from "lucide-react";
-import Link from "next/link";
 import { PcgLogo } from "@/components/branding/PcgLogo";
+import Link from "next/link";
+import { Button } from "@/components/ui/button";
 
-export default function InductionSuccessPage() {
+export default function AccesoSuccessPage() {
     return (
-        <div className="min-h-screen bg-muted/40 p-4 flex items-center justify-center">
-            <Card className="w-full max-w-md text-center">
-                <CardHeader>
-                    <div className="mx-auto w-fit mb-4"><PcgLogo /></div>
-                    <CheckCircle className="mx-auto h-12 w-12 text-green-500" />
-                    <CardTitle className="pt-4">¡Registro Exitoso!</CardTitle>
-                    <CardDescription>Tu ingreso ha sido registrado correctamente.</CardDescription>
+        <div className="min-h-screen bg-slate-50 flex items-center justify-center p-4">
+             <Card className="w-full max-w-md text-center">
+                <CardHeader className="space-y-4">
+                    <div className="mx-auto w-fit">
+                        <PcgLogo />
+                    </div>
+                     <CheckCircle className="mx-auto h-12 w-12 text-green-500" />
+                    <CardTitle className="text-2xl">¡Registro Exitoso!</CardTitle>
+                    <CardDescription>
+                        Tu información ha sido enviada correctamente.
+                    </CardDescription>
                 </CardHeader>
                 <CardContent>
-                    <p className="text-sm text-muted-foreground">
-                        Por favor, preséntate en la portería o con el encargado de la obra para continuar con tu acceso.
+                    <p className="text-muted-foreground">
+                       Ya puedes presentarte en la portería para completar tu ingreso. Gracias por tu cooperación.
                     </p>
                 </CardContent>
-                <CardFooter>
-                    <Button asChild className="w-full" variant="outline">
-                        <Link href="/">Volver a la página principal</Link>
+                 <CardFooter>
+                    <Button variant="link" asChild className="mx-auto">
+                        <Link href="/">Volver al sitio principal</Link>
                     </Button>
                 </CardFooter>
             </Card>
