@@ -13,9 +13,10 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Edit, Trash2, PlusCircle, Link as LinkIcon, DollarSign, ArrowLeft, MessageSquare } from "lucide-react";
+import { Edit, Trash2, PlusCircle, Link as LinkIcon, DollarSign, ArrowLeft, MessageSquare, MoreVertical, Send } from "lucide-react";
 import Link from "next/link";
 import { useToast } from "@/hooks/use-toast";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 
 
 type Obra = {
@@ -240,6 +241,38 @@ export default function ObrasPage() {
     }
   };
 
+  const handleNotificarDirector = async (obra: Obra) => {
+    if (!user || !obra.clienteEmail) {
+      toast({ variant: 'destructive', title: 'Error', description: 'El director no tiene un email asignado en esta obra.' });
+      return;
+    }
+
+    try {
+      const token = await user.getIdToken();
+      const response = await fetch('/api/obras/notify-director', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          obraId: obra.id,
+          obraNombre: obra.nombreFaena,
+          clienteEmail: obra.clienteEmail,
+        }),
+      });
+
+      const result = await response.json();
+      if (!response.ok) {
+        throw new Error(result.error || 'No se pudo enviar la notificación.');
+      }
+
+      toast({ title: 'Notificación Enviada', description: `Se ha enviado un correo a ${obra.clienteEmail}.` });
+    } catch (error: any) {
+      toast({ variant: 'destructive', title: 'Error', description: error.message });
+    }
+  };
+
   if (loading) {
     return <p className="text-sm text-muted-foreground">Cargando sesión...</p>;
   }
@@ -309,50 +342,62 @@ export default function ObrasPage() {
                       <TableCell>{obra.jefeObraNombre}</TableCell>
                       <TableCell>{obra.prevencionistaNombre}</TableCell>
                       <TableCell className="text-right">
-                        <div className="flex justify-end gap-2">
-                          {role !== 'prevencionista' && (
-                            <Button variant="secondary" size="sm" asChild>
-                              <Link href={`/operaciones/presupuestos?obraId=${obra.id}`}>
-                                <DollarSign className="mr-2 h-3 w-3" />
-                                Crear Itemizado
-                              </Link>
-                            </Button>
-                          )}
-                           <Button variant="outline" size="sm" asChild>
-                            <Link href={`/cliente/obras/${obra.id}?preview=true`} target="_blank">
-                              <LinkIcon className="mr-2 h-3 w-3" />
-                              Ver Panel Director
-                            </Link>
-                          </Button>
-                          {canManageObras && (
-                            <>
-                              <Button variant="ghost" size="icon" onClick={() => handleOpenDialog(obra)}>
-                                <Edit className="h-4 w-4" />
-                                <span className="sr-only">Editar</span>
-                              </Button>
-                              <AlertDialog>
-                                <AlertDialogTrigger asChild>
-                                  <Button variant="ghost" size="icon" className="text-destructive hover:text-destructive">
-                                    <Trash2 className="h-4 w-4" />
-                                    <span className="sr-only">Eliminar</span>
-                                  </Button>
-                                </AlertDialogTrigger>
-                                <AlertDialogContent>
-                                  <AlertDialogHeader>
-                                    <AlertDialogTitle>¿Estás seguro de que deseas eliminar esta obra?</AlertDialogTitle>
-                                    <AlertDialogDescription>
-                                      Esta acción no se puede deshacer. Se eliminará permanentemente la obra &quot;{obra.nombreFaena}&quot; y todos sus datos asociados (actividades, avances, etc.).
-                                    </AlertDialogDescription>
-                                  </AlertDialogHeader>
-                                  <AlertDialogFooter>
-                                    <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                                    <AlertDialogAction onClick={() => handleDelete(obra.id)} className="bg-destructive hover:bg-destructive/90">Eliminar</AlertDialogAction>
-                                  </AlertDialogFooter>
-                                </AlertDialogContent>
-                              </AlertDialog>
-                            </>
-                          )}
-                        </div>
+                        <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                                <Button variant="ghost" size="icon">
+                                    <MoreVertical className="h-4 w-4" />
+                                </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end">
+                                <DropdownMenuItem onClick={() => handleNotificarDirector(obra)} disabled={!obra.clienteEmail}>
+                                    <Send className="mr-2 h-4 w-4" />
+                                    <span>Notificar Director</span>
+                                </DropdownMenuItem>
+                                <DropdownMenuItem asChild>
+                                    <Link href={`/cliente/obras/${obra.id}?preview=true`} target="_blank">
+                                        <LinkIcon className="mr-2 h-4 w-4" />
+                                        Ver Panel Director
+                                    </Link>
+                                </DropdownMenuItem>
+                                {role !== 'prevencionista' && (
+                                    <DropdownMenuItem asChild>
+                                      <Link href={`/operaciones/presupuestos?obraId=${obra.id}`}>
+                                        <DollarSign className="mr-2 h-4 w-4" />
+                                        Crear Itemizado
+                                      </Link>
+                                    </DropdownMenuItem>
+                                )}
+                                {canManageObras && (
+                                    <>
+                                        <DropdownMenuSeparator />
+                                        <DropdownMenuItem onClick={() => handleOpenDialog(obra)}>
+                                            <Edit className="mr-2 h-4 w-4" />
+                                            <span>Editar</span>
+                                        </DropdownMenuItem>
+                                        <AlertDialog>
+                                            <AlertDialogTrigger asChild>
+                                                <DropdownMenuItem onSelect={(e) => e.preventDefault()} className="text-destructive focus:text-destructive">
+                                                    <Trash2 className="mr-2 h-4 w-4" />
+                                                    <span>Eliminar</span>
+                                                </DropdownMenuItem>
+                                            </AlertDialogTrigger>
+                                            <AlertDialogContent>
+                                            <AlertDialogHeader>
+                                                <AlertDialogTitle>¿Estás seguro de que deseas eliminar esta obra?</AlertDialogTitle>
+                                                <AlertDialogDescription>
+                                                Esta acción no se puede deshacer. Se eliminará permanentemente la obra &quot;{obra.nombreFaena}&quot; y todos sus datos asociados (actividades, avances, etc.).
+                                                </AlertDialogDescription>
+                                            </AlertDialogHeader>
+                                            <AlertDialogFooter>
+                                                <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                                                <AlertDialogAction onClick={() => handleDelete(obra.id)} className="bg-destructive hover:bg-destructive/90">Eliminar</AlertDialogAction>
+                                            </AlertDialogFooter>
+                                            </AlertDialogContent>
+                                        </AlertDialog>
+                                    </>
+                                )}
+                            </DropdownMenuContent>
+                        </DropdownMenu>
                       </TableCell>
                     </TableRow>
                   ))
