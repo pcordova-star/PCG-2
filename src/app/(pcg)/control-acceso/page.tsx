@@ -46,7 +46,7 @@ export default function ControlAccesoAdminPage() {
 
   useEffect(() => {
     if (selectedObraId) {
-      const publicAppUrl = process.env.NEXT_PUBLIC_APP_BASE_URL || 'https://pcg-2.vercel.app';
+      const publicAppUrl = 'https://pcgoperacion.com';
       setQrUrl(`${publicAppUrl}/public/control-acceso/${selectedObraId}`);
       
       setLoading(true);

@@ -16,13 +16,12 @@ export type InvitarUsuarioParams = {
 
 
 function construirUrlInvitacion(invId: string, email: string): string {
-    const rawBaseUrl = process.env.APP_BASE_URL ?? process.env.NEXT_PUBLIC_APP_BASE_URL ?? "http://localhost:3000";
+    const appBaseUrl = "https://pcgoperacion.com";
     
-    if (!rawBaseUrl) {
-      throw new Error("La URL base de la aplicación no está configurada en las variables de entorno.");
+    if (!appBaseUrl) {
+      throw new Error("La URL base de la aplicación no está configurada.");
     }
   
-    const appBaseUrl = rawBaseUrl.replace(/\/+$/, "");
     return `${appBaseUrl}/accept-invite?invId=${encodeURIComponent(invId)}&email=${encodeURIComponent(email)}`;
 }
 
@@ -51,7 +50,7 @@ export async function invitarUsuario(params: InvitarUsuarioParams): Promise<void
     });
 
     const finalAcceptInviteUrl = construirUrlInvitacion(newInvitationRef.id, params.email);
-    const platformUrl = process.env.APP_BASE_URL ?? process.env.NEXT_PUBLIC_APP_BASE_URL ?? "http://localhost:3000";
+    const platformUrl = "https://pcgoperacion.com";
     const logoUrl = `${platformUrl}/logo.png`;
 
     await addDoc(collection(firebaseDb, "mail"), {
