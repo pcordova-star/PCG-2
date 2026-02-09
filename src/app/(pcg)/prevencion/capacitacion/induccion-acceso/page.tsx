@@ -20,9 +20,10 @@ import { useToast } from '@/hooks/use-toast';
 import { ArrowLeft, Loader2, UserPlus, Download } from 'lucide-react';
 import Link from 'next/link';
 import { Badge } from '@/components/ui/badge';
+import SignaturePad from '@/components/prevencion/hallazgos/components/SignaturePad';
 
 
-const initialFormState: Omit<InduccionAccesoFaena, 'id' | 'createdAt' | 'obraId' | 'obraNombre' | 'generadorId' | 'firmaDataUrl' | 'origenRegistro'> = {
+const initialFormState: Omit<InduccionAccesoFaena, 'id' | 'createdAt' | 'obraId' | 'obraNombre' | 'generadorId' | 'origenRegistro'> = {
   tipoVisita: 'VISITA',
   nombreCompleto: '',
   rut: '',
@@ -38,6 +39,7 @@ const initialFormState: Omit<InduccionAccesoFaena, 'id' | 'createdAt' | 'obraId'
   aceptaReglamento: true,
   aceptaEpp: true,
   aceptaTratamientoDatos: true,
+  firmaDataUrl: '',
 };
 
 export default function InduccionAccesoPage() {
@@ -50,7 +52,7 @@ export default function InduccionAccesoPage() {
     const [recentInductions, setRecentInductions] = useState<InduccionAccesoFaena[]>([]);
     const [loading, setLoading] = useState(true);
     
-    const [formData, setFormData] = useState<Omit<InduccionAccesoFaena, 'id' | 'createdAt' | 'obraId' | 'obraNombre' | 'generadorId' | 'firmaDataUrl' | 'origenRegistro'>>(initialFormState);
+    const [formData, setFormData] = useState<Omit<InduccionAccesoFaena, 'id' | 'createdAt' | 'obraId' | 'obraNombre' | 'generadorId' | 'origenRegistro'>>(initialFormState);
     const [isSaving, setIsSaving] = useState(false);
     
     const [qrValue, setQrValue] = useState('');
@@ -74,7 +76,6 @@ export default function InduccionAccesoPage() {
     
     useEffect(() => {
         if (selectedObraId) {
-            // FIX: Use the public URL for the QR code, not the local origin.
             const origin = process.env.NEXT_PUBLIC_BASE_URL || 'https://pcg-2.vercel.app';
             setQrValue(`${origin}/public/induccion/${selectedObraId}`);
 
@@ -99,8 +100,13 @@ export default function InduccionAccesoPage() {
     
     const handleSubmit = async (e: FormEvent) => {
         e.preventDefault();
-        if(!user) return;
+        if(!user || !selectedObraId) return;
         
+        if (!formData.firmaDataUrl) {
+            toast({ variant: 'destructive', title: 'Firma requerida', description: 'La firma del visitante es obligatoria.' });
+            return;
+        }
+
         setIsSaving(true);
         try {
             await guardarInduccionAccesoFaena({ ...formData, obraId: selectedObraId, generadorId: user.uid });
@@ -213,6 +219,10 @@ export default function InduccionAccesoPage() {
                                     <Label htmlFor="correo">Correo Electrónico</Label>
                                     <Input id="correo" type="email" value={formData.correo} onChange={(e) => handleInputChange('correo', e.target.value)} />
                                 </div>
+                            </div>
+                            <div className="space-y-2">
+                                <Label>Firma del Visitante</Label>
+                                <SignaturePad onChange={(dataUrl) => handleInputChange('firmaDataUrl', dataUrl)} />
                             </div>
                             <Button type="submit" disabled={isSaving || !selectedObraId}>
                                 {isSaving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <UserPlus className="mr-2 h-4 w-4" />}

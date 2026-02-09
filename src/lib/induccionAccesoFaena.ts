@@ -9,6 +9,9 @@ import {
   Timestamp,
 } from "firebase/firestore";
 import { firebaseDb } from "./firebaseClient";
+import { ref, uploadString, getDownloadURL } from "firebase/storage";
+import { firebaseStorage } from "./firebaseClient";
+
 
 export interface InduccionAccesoFaena {
   id?: string;
@@ -35,12 +38,31 @@ export interface InduccionAccesoFaena {
   createdAt?: Timestamp;
 }
 
+async function uploadSignature(firmaDataUrl: string, obraId: string, rut: string): Promise<string> {
+    if (!firmaDataUrl.startsWith('data:image/png;base64,')) {
+        // Asume que ya es una URL de storage si no es un data URI
+        return firmaDataUrl;
+    }
+    const storagePath = `firmas-induccion/${obraId}/${rut}_${Date.now()}.png`;
+    const storageRef = ref(firebaseStorage, storagePath);
+    await uploadString(storageRef, firmaDataUrl, 'data_url');
+    return await getDownloadURL(storageRef);
+}
+
+
 export async function guardarInduccionAccesoFaena(
   data: Omit<InduccionAccesoFaena, "id" | "createdAt" | "origenRegistro">
 ): Promise<string> {
   const colRef = collection(firebaseDb, "induccionesAccesoFaena");
+  
+  let finalFirmaUrl = data.firmaDataUrl || null;
+  if (data.firmaDataUrl && data.firmaDataUrl.startsWith('data:')) {
+      finalFirmaUrl = await uploadSignature(data.firmaDataUrl, data.obraId, data.rut);
+  }
+
   const docRef = await addDoc(colRef, {
     ...data,
+    firmaDataUrl: finalFirmaUrl,
     origenRegistro: "panel",
     createdAt: serverTimestamp(),
   });
@@ -51,8 +73,15 @@ export async function guardarInduccionQR(
   data: Omit<InduccionAccesoFaena, "id" | "createdAt" | "origenRegistro">
 ): Promise<string> {
   const colRef = collection(firebaseDb, "induccionesAccesoFaena");
+
+  let finalFirmaUrl = data.firmaDataUrl || null;
+  if (data.firmaDataUrl && data.firmaDataUrl.startsWith('data:')) {
+      finalFirmaUrl = await uploadSignature(data.firmaDataUrl, data.obraId, data.rut);
+  }
+
   const docRef = await addDoc(colRef, {
     ...data,
+    firmaDataUrl: finalFirmaUrl,
     origenRegistro: "qr",
     createdAt: serverTimestamp(),
   });
