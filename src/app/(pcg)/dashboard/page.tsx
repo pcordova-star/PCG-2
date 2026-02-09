@@ -92,7 +92,7 @@ const quickAccessModules = [
     { id: 'tour-step-avance-foto', title: 'Registro Fotográfico', description: 'Formulario rápido para dejar evidencia fotográfica de un hito o avance desde terreno.', href: '/operaciones/registro-fotografico', icon: Camera, color: 'orange' as const, roles: ['superadmin', 'admin_empresa', 'jefe_obra', 'prevencionista'] },
     { id: 'analisis-planos', title: 'Análisis de Planos (IA)', description: 'Carga un plano, selecciona qué cubicar y deja que la IA te entregue una estimación de referencia.', href: '/cubicacion/analisis-planos', icon: BrainCircuit, color: 'blue' as const, roles: ['superadmin', 'admin_empresa', 'jefe_obra'], featureFlag: 'feature_plan_analysis_enabled' },
     { id: 'comparacion-planos', title: 'Comparación de Planos (IA)', description: 'Detecta diferencias entre versiones de planos y evalúa impactos.', href: '/comparacion-planos/historial', icon: GitCompareArrows, color: 'purple' as const, roles: ['superadmin', 'admin_empresa', 'jefe_obra'], featureFlag: 'feature_plan_comparison_enabled' },
-    { id: 'control-acceso', title: 'Control de Acceso (QR)', description: 'Genera QR y revisa registros de ingreso para visitas y proveedores.', href: '/prevencion/control-acceso', icon: UserCheck, color: 'blue' as const, roles: ['superadmin', 'admin_empresa', 'prevencionista'], featureFlag: 'feature_access_control_enabled' },
+    { id: 'control-acceso', title: 'Control de Acceso (QR)', description: 'Genera QR y revisa registros de ingreso para visitas y proveedores.', href: '/control-acceso', icon: UserCheck, color: 'blue' as const, roles: ['superadmin', 'admin_empresa', 'prevencionista'], featureFlag: 'feature_access_control_enabled' },
     { id: 'rdi', title: 'Requerimientos (RDI)', description: 'Crea y gestiona consultas de información (RDI) con mandantes, proyectistas o subcontratos.', href: '/rdi', icon: MessageSquare, color: 'green' as const, roles: ['superadmin', 'admin_empresa', 'jefe_obra'] },
     { id: 'cumplimiento-legal', title: 'Cumplimiento Legal', description: 'Gestiona la documentación mensual de subcontratistas para la aprobación de estados de pago.', href: '/cumplimiento', icon: ShieldCheck, color: 'yellow' as const, roles: ['superadmin', 'admin_empresa', 'contratista'], featureFlag: 'feature_compliance_module_enabled' },
     { id: 'acceso-director', title: 'Acceso Director', description: 'Dashboard gerencial para directores con vista consolidada de las obras designadas.', href: '/directorio', icon: BarChart, color: 'purple' as const, roles: ['superadmin', 'admin_empresa'], featureFlag: 'feature_director_dashboard_enabled' }
@@ -371,7 +371,7 @@ export default function DashboardPage() {
   const filteredQuickAccessModules = quickAccessModules.filter(module => role !== 'superadmin' && role !== 'none' && module.roles.includes(role));
 
   const handleQuickAccessClick = (target: string) => {
-    const specialRoutes = ['/rdi', '/cubicacion/analisis-planos', '/cumplimiento', '/comparacion-planos/historial', '/directorio', '/prevencion/control-acceso'];
+    const specialRoutes = ['/rdi', '/cubicacion/analisis-planos', '/cumplimiento', '/comparacion-planos/historial', '/directorio', '/control-acceso'];
     if (specialRoutes.includes(target)) { router.push(target); return; }
     if (obras.length === 1) { router.push(`${target}?obraId=${obras[0].id}`); } else { setQuickAccessTarget(target); setIsObraModalOpen(true); }
   }

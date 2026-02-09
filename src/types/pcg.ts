@@ -691,6 +691,8 @@ export interface InduccionAccesoFaena {
 
 export interface AccesoRegistro {
   id: string;
+  obraId: string;
+  companyId: string;
   nombre: string;
   rut: string;
   empresa: string;

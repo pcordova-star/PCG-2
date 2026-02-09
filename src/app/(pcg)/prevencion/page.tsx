@@ -13,13 +13,6 @@ export default function PrevencionPage() {
       linkText: "Ir al Panel"
     },
     {
-      title: "Control de Acceso a Obra",
-      description: "Genera códigos QR y gestiona el registro de ingreso de visitas y proveedores a la faena.",
-      href: "/prevencion/control-acceso",
-      icon: UserCheck,
-      linkText: "Gestionar Accesos"
-    },
-    {
       title: "Programa de Prevención de Riesgos",
       description: "Define, gestiona y genera el PPR de cada obra, integrando IPER, charlas y planes de acción en un solo lugar.",
       href: "/prevencion/ppr",
@@ -32,13 +25,6 @@ export default function PrevencionPage() {
       href: "/control-subcontratistas-ds44",
       icon: Building,
       linkText: "Conocer Más"
-    },
-    {
-      title: "Ingreso de personal – DS44",
-      description: "Registrar el ingreso de trabajadores (propios y de subcontratos) a la obra según requisitos DS44.",
-      href: "/prevencion/ingreso-personal",
-      icon: Users,
-      linkText: "Ir a Ingreso de Personal"
     },
     {
       title: "DS44 – Mandante / Obra",

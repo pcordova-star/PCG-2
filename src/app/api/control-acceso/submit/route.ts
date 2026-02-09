@@ -19,14 +19,12 @@ export async function POST(req: NextRequest) {
     const formData = await req.formData();
     const body = Object.fromEntries(formData.entries());
 
-    // 1. Validar los datos de texto
     const parsed = AccessRequestSchema.safeParse(body);
     if (!parsed.success) {
       return NextResponse.json({ error: "Datos de formulario inválidos.", details: parsed.error.flatten() }, { status: 400 });
     }
     const { obraId, nombreCompleto, rut, empresa, motivo } = parsed.data;
 
-    // 2. Validar el archivo
     const file = formData.get('archivo') as File | null;
     if (!file) {
       return NextResponse.json({ error: "El archivo adjunto es obligatorio." }, { status: 400 });
@@ -36,9 +34,19 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: `El archivo supera el límite de ${MAX_SIZE_MB}MB.` }, { status: 400 });
     }
 
-    // 3. Subir archivo a Firebase Storage usando el SDK de Admin
     const db = admin.firestore();
     const bucket = admin.storage().bucket();
+    
+    // Get companyId from obra
+    const obraDoc = await db.collection('obras').doc(obraId).get();
+    if (!obraDoc.exists) {
+        return NextResponse.json({ error: "La obra no existe." }, { status: 404 });
+    }
+    const companyId = obraDoc.data()?.empresaId;
+    if (!companyId) {
+        return NextResponse.json({ error: "La obra no está asociada a una empresa." }, { status: 500 });
+    }
+    
     const fileBuffer = Buffer.from(await file.arrayBuffer());
     
     const fileExtension = file.name.split('.').pop() || 'bin';
@@ -50,18 +58,17 @@ export async function POST(req: NextRequest) {
       metadata: { contentType: file.type },
     });
     
-    // La URL se hace pública para lectura simple
     const archivoUrl = storageFile.publicUrl();
 
-    // 4. Guardar registro en Firestore
     const newRecord = {
       obraId,
+      companyId, // Guardar el companyId para las reglas de seguridad
       nombre: nombreCompleto,
       rut,
       empresa,
       motivo,
       archivoUrl,
-      storagePath, // Guardar la ruta para futura gestión
+      storagePath,
       createdAt: admin.firestore.FieldValue.serverTimestamp(),
     };
     

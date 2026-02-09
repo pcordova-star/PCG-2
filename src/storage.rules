@@ -1,0 +1,66 @@
+rules_version = '2';
+
+service firebase.storage {
+  match /b/{bucket}/o {
+    
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function userDoc() {
+      // Usamos firestore.get para leer el documento del usuario desde las reglas de Storage
+      return firestore.get(
+        /databases/(default)/documents/users/$(request.auth.uid)
+      );
+    }
+
+    function role() {
+      return userDoc().data.role;
+    }
+
+    function companyId() {
+      return userDoc().data.companyId;
+    }
+    
+    function subcontractorId() {
+      return userDoc().data.subcontractorId;
+    }
+
+    // --- NUEVA REGLA PARA CONTROL DE ACCESO ---
+    match /control-acceso/{obraId}/{fileId} {
+      // Solo el backend (Admin SDK) puede escribir. El cliente no puede.
+      allow write: if false;
+      // Lectura para usuarios autenticados de la empresa correspondiente a la obra.
+      allow read: if isSignedIn() && companyId() == firestore.get(/databases/(default)/documents/obras/$(obraId)).data.empresaId;
+    }
+    
+    match /projectDocuments/{projectId}/{fileId} {
+      allow read: if request.auth != null;
+      allow write: if request.auth != null &&
+                   request.resource.contentType == "application/pdf";
+    }
+
+    match /mclp/{company}/{period}/{sub}/{file} {
+      allow read: if isSignedIn()
+        && company == companyId()
+        && (
+          role() == 'admin_empresa'
+          || sub == subcontractorId()
+        );
+
+      allow write: if isSignedIn()
+        && role() == 'contratista'
+        && company == companyId()
+        && sub == subcontractorId();
+    }
+    
+    // Regla abierta para desarrollo - permitir escrituras autenticadas y preflights.
+    match /{allPaths=**} {
+      // Allow unauthenticated CORS preflight OPTIONS requests.
+      allow options: if true;
+      
+      // Require authentication for actual read/write operations.
+      allow read, write: if isSignedIn();
+    }
+  }
+}

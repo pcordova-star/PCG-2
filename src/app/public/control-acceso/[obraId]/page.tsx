@@ -1,154 +1,189 @@
-
+// src/app/public/control-acceso/[obraId]/page.tsx
 "use client";
-
 import { useState, useEffect, FormEvent } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { getDoc, doc } from 'firebase/firestore';
+import { doc, getDoc } from 'firebase/firestore';
 import { firebaseDb } from '@/lib/firebaseClient';
 import { Obra } from '@/types/pcg';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { PcgLogo } from '@/components/branding/PcgLogo';
 import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
-import { Loader2, ShieldCheck } from 'lucide-react';
+import { Loader2, ArrowLeft } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
-import { PcgLogo } from '@/components/branding/PcgLogo';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 
 export default function PublicControlAccesoPage() {
-    const params = useParams();
-    const router = useRouter();
-    const { toast } = useToast();
-    const obraId = params.obraId as string;
+  const params = useParams();
+  const router = useRouter();
+  const { toast } = useToast();
+  const obraId = params.obraId as string;
 
-    const [obra, setObra] = useState<Obra | null>(null);
-    const [loadingObra, setLoadingObra] = useState(true);
-    const [isSubmitting, setIsSubmitting] = useState(false);
-    const [error, setError] = useState<string | null>(null);
+  const [obra, setObra] = useState<Obra | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  
+  const [formData, setFormData] = useState({
+    nombreCompleto: '',
+    rut: '',
+    empresa: '',
+    motivo: '',
+    archivo: null as File | null,
+  });
 
-    useEffect(() => {
-        if (obraId) {
-            const fetchObra = async () => {
-                setLoadingObra(true);
-                const obraRef = doc(firebaseDb, "obras", obraId);
-                const obraSnap = await getDoc(obraRef);
-                if (obraSnap.exists()) {
-                    setObra({ id: obraSnap.id, ...obraSnap.data() } as Obra);
-                } else {
-                    setError("La obra especificada no existe.");
-                }
-                setLoadingObra(false);
-            };
-            fetchObra();
-        }
-    }, [obraId]);
-
-    const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
-        e.preventDefault();
-        setError(null);
-        setIsSubmitting(true);
-
-        const formData = new FormData(e.currentTarget);
-        formData.append('obraId', obraId);
-
+  useEffect(() => {
+    if (obraId) {
+      const fetchObra = async () => {
         try {
-            const response = await fetch('/api/control-acceso/submit', {
-                method: 'POST',
-                body: formData,
-            });
-
-            const result = await response.json();
-
-            if (!response.ok) {
-                throw new Error(result.error || 'Ocurrió un error al enviar el formulario.');
-            }
-
-            // Redirect to a success page
-            router.push('/public/control-acceso/success');
-
-        } catch (err: any) {
-            setError(err.message);
-            toast({
-                variant: 'destructive',
-                title: 'Error al enviar registro',
-                description: err.message,
-            });
+          const obraRef = doc(firebaseDb, "obras", obraId);
+          const obraSnap = await getDoc(obraRef);
+          if (obraSnap.exists()) {
+            setObra({ id: obraSnap.id, ...obraSnap.data() } as Obra);
+          } else {
+            setError("La obra especificada no fue encontrada.");
+          }
+        } catch (err) {
+          setError("No se pudo cargar la información de la obra.");
         } finally {
-            setIsSubmitting(false);
+          setLoading(false);
         }
-    };
+      };
+      fetchObra();
+    } else {
+      setError("No se ha especificado una obra.");
+      setLoading(false);
+    }
+  }, [obraId]);
 
-    if (loadingObra) {
-        return (
-            <div className="flex flex-col items-center justify-center min-h-screen text-muted-foreground">
-                <Loader2 className="h-8 w-8 animate-spin mb-4" />
-                <p>Cargando información de la obra...</p>
-            </div>
-        );
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
+    const { name, value } = e.target;
+    setFormData(prev => ({ ...prev, [name]: value }));
+  };
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0] || null;
+    if (file) {
+      if (file.size > 10 * 1024 * 1024) { // 10MB limit
+        toast({ variant: 'destructive', title: 'Archivo demasiado grande', description: 'Por favor, sube un archivo de menos de 10MB.' });
+        setFormData(prev => ({ ...prev, archivo: null }));
+        e.target.value = '';
+      } else {
+        setFormData(prev => ({ ...prev, archivo: file }));
+      }
+    }
+  };
+
+  const handleSubmit = async (e: FormEvent) => {
+    e.preventDefault();
+    if (!formData.archivo) {
+      toast({ variant: 'destructive', title: 'Falta archivo', description: 'Por favor, adjunta el archivo requerido.' });
+      return;
     }
     
-    if (error) {
-        return (
-             <div className="flex items-center justify-center min-h-screen bg-muted/40">
-                <Card className="w-full max-w-md mx-4 text-center">
-                     <CardHeader>
-                        <CardTitle className="text-destructive">Error</CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                        <p>{error}</p>
-                    </CardContent>
-                </Card>
-            </div>
-        );
+    setIsSubmitting(true);
+    const data = new FormData();
+    data.append('obraId', obraId);
+    data.append('nombreCompleto', formData.nombreCompleto);
+    data.append('rut', formData.rut);
+    data.append('empresa', formData.empresa);
+    data.append('motivo', formData.motivo);
+    data.append('archivo', formData.archivo);
+
+    try {
+      const response = await fetch('/api/control-acceso/submit', {
+        method: 'POST',
+        body: data,
+      });
+
+      const result = await response.json();
+      if (!response.ok) {
+        throw new Error(result.error || 'Ocurrió un error en el servidor.');
+      }
+      
+      router.push('/public/control-acceso/success');
+
+    } catch (err: any) {
+      console.error(err);
+      toast({ variant: 'destructive', title: 'Error al registrar', description: err.message });
+    } finally {
+      setIsSubmitting(false);
     }
+  };
 
-    return (
-        <div className="min-h-screen bg-slate-50 flex items-center justify-center p-4">
-            <Card className="w-full max-w-lg">
-                <CardHeader className="text-center space-y-2">
-                    <div className="mx-auto w-fit">
-                        <PcgLogo />
-                    </div>
-                    <CardTitle className="text-2xl">Registro de Acceso a Obra</CardTitle>
-                    <CardDescription>
-                        Estás ingresando a: <span className="font-bold text-primary">{obra?.nombreFaena}</span>
-                    </CardDescription>
-                </CardHeader>
-                <CardContent>
-                    <form onSubmit={handleSubmit} className="space-y-4">
-                        <div className="space-y-2">
-                            <Label htmlFor="nombreCompleto">Nombre Completo*</Label>
-                            <Input id="nombreCompleto" name="nombreCompleto" required />
-                        </div>
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                            <div className="space-y-2">
-                                <Label htmlFor="rut">RUT*</Label>
-                                <Input id="rut" name="rut" required />
-                            </div>
-                            <div className="space-y-2">
-                                <Label htmlFor="empresa">Empresa*</Label>
-                                <Input id="empresa" name="empresa" required />
-                            </div>
-                        </div>
-                        <div className="space-y-2">
-                            <Label htmlFor="motivo">Motivo de la Visita*</Label>
-                            <Textarea id="motivo" name="motivo" required />
-                        </div>
-                        <div className="space-y-2">
-                            <Label htmlFor="archivo">Adjuntar Archivo (Carnet, respaldo, etc.)*</Label>
-                            <Input id="archivo" name="archivo" type="file" required accept="image/*,application/pdf" />
-                             <p className="text-xs text-muted-foreground">Tamaño máximo: 10MB.</p>
-                        </div>
-                        
-                         {error && <p className="text-sm font-medium text-destructive text-center pt-2">{error}</p>}
+  if (loading) {
+    return <div className="flex justify-center items-center h-screen"><Loader2 className="animate-spin" /></div>;
+  }
+  
+  if (error) {
+     return (
+      <div className="flex items-center justify-center min-h-screen bg-muted/40 p-4">
+        <Alert variant="destructive" className="max-w-md">
+          <AlertTitle>Error</AlertTitle>
+          <AlertDescription>{error}</AlertDescription>
+           <Button variant="link" asChild className="mt-4"><Link href="/">Volver al Inicio</Link></Button>
+        </Alert>
+      </div>
+     );
+  }
 
-                        <Button type="submit" className="w-full" disabled={isSubmitting}>
-                            {isSubmitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <ShieldCheck className="mr-2 h-4 w-4" />}
-                            {isSubmitting ? 'Enviando Registro...' : 'Registrar Ingreso'}
-                        </Button>
-                    </form>
-                </CardContent>
-            </Card>
-        </div>
-    );
+  return (
+    <div className="min-h-screen bg-muted/40 flex items-center justify-center p-4">
+      <Card className="w-full max-w-lg">
+        <CardHeader className="text-center">
+            <div className="mx-auto mb-4"><PcgLogo /></div>
+          <CardTitle>Registro de Acceso a Obra</CardTitle>
+          <CardDescription>
+            Completando el ingreso para: <span className="font-semibold">{obra?.nombreFaena}</span>
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <form onSubmit={handleSubmit} className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="nombreCompleto">Nombre Completo*</Label>
+              <Input id="nombreCompleto" name="nombreCompleto" onChange={handleInputChange} required />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="rut">RUT/Cédula de Identidad*</Label>
+              <Input id="rut" name="rut" onChange={handleInputChange} required />
+            </div>
+             <div className="space-y-2">
+              <Label htmlFor="empresa">Empresa*</Label>
+              <Input id="empresa" name="empresa" onChange={handleInputChange} required />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="motivo">Motivo de la visita*</Label>
+              <Select name="motivo" onValueChange={(v) => setFormData(p => ({...p, motivo: v}))} required>
+                <SelectTrigger id="motivo"><SelectValue placeholder="Seleccione un motivo..."/></SelectTrigger>
+                <SelectContent>
+                    <SelectItem value="visita_tecnica">Visita Técnica</SelectItem>
+                    <SelectItem value="proveedor">Proveedor / Despacho</SelectItem>
+                    <SelectItem value="reunion">Reunión</SelectItem>
+                    <SelectItem value="inspeccion">Inspección</SelectItem>
+                    <SelectItem value="otro">Otro</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+             <div className="space-y-2">
+              <Label htmlFor="archivo">Adjuntar Archivo* (CI, Guía Despacho, etc.)</Label>
+              <Input id="archivo" name="archivo" type="file" onChange={handleFileChange} required />
+              {formData.archivo && <p className="text-xs text-muted-foreground">{formData.archivo.name}</p>}
+            </div>
+            <Button type="submit" disabled={isSubmitting} className="w-full">
+              {isSubmitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : null}
+              Registrar Ingreso
+            </Button>
+          </form>
+        </CardContent>
+      </Card>
+    </div>
+  );
 }
