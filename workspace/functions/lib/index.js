@@ -3,7 +3,7 @@
  * Punto de entrada UNIFICADO de Cloud Functions.
  */
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.processInduccionJob = exports.mclpDailyScheduler = exports.notifyDocumentDistribution = exports.registrarAvanceRapido = exports.deactivateCompanyUser = exports.checkUserExistsByEmail = exports.setSuperAdminClaim = exports.setCompanyClaims = exports.processComparacionJob = exports.processPresupuestoPdf = exports.analizarPlano = exports.createCompanyUser = void 0;
+exports.mclpDailyScheduler = exports.notifyDocumentDistribution = exports.registrarAvanceRapido = exports.deactivateCompanyUser = exports.checkUserExistsByEmail = exports.setSuperAdminClaim = exports.setCompanyClaims = exports.processComparacionJob = exports.processPresupuestoPdf = exports.analizarPlano = exports.createCompanyUser = void 0;
 // --- HTTP ---
 var createCompanyUser_1 = require("./createCompanyUser");
 Object.defineProperty(exports, "createCompanyUser", { enumerable: true, get: function () { return createCompanyUser_1.createCompanyUser; } });
@@ -30,7 +30,4 @@ Object.defineProperty(exports, "notifyDocumentDistribution", { enumerable: true,
 // --- Scheduler (cron) ---
 var scheduler_1 = require("./mclp/scheduler");
 Object.defineProperty(exports, "mclpDailyScheduler", { enumerable: true, get: function () { return scheduler_1.mclpDailyScheduler; } });
-// --- Firestore Triggers ---
-var processInduccionJob_1 = require("./processInduccionJob");
-Object.defineProperty(exports, "processInduccionJob", { enumerable: true, get: function () { return processInduccionJob_1.processInduccionJob; } });
 //# sourceMappingURL=index.js.map
