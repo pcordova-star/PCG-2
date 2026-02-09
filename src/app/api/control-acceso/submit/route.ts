@@ -16,6 +16,12 @@ export const runtime = "nodejs";
 
 export async function POST(req: NextRequest) {
   try {
+    // AÑADIDO: Verificar que Firebase Admin SDK está inicializado.
+    if (!admin.apps.length) {
+        console.error("Firebase Admin SDK no inicializado. Revisa las variables de entorno del servidor (FIREBASE_ADMIN_SERVICE_ACCOUNT).");
+        throw new Error("El servicio de backend no está configurado correctamente.");
+    }
+
     const formData = await req.formData();
     const body = Object.fromEntries(formData.entries());
 
@@ -78,6 +84,6 @@ export async function POST(req: NextRequest) {
 
   } catch (error: any) {
     console.error("[API /control-acceso/submit] Error:", error);
-    return NextResponse.json({ error: "Error interno del servidor.", details: error.message }, { status: 500 });
+    return NextResponse.json({ error: error.message || "Error interno del servidor.", details: error.message }, { status: 500 });
   }
 }
