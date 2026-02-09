@@ -95,7 +95,7 @@ const quickAccessModules = [
     { id: 'control-acceso', title: 'Control de Acceso (QR)', description: 'Genera QR y revisa registros de ingreso para visitas y proveedores.', href: '/control-acceso', icon: UserCheck, color: 'blue' as const, roles: ['superadmin', 'admin_empresa', 'prevencionista'], featureFlag: 'feature_access_control_enabled' },
     { id: 'rdi', title: 'Requerimientos (RDI)', description: 'Crea y gestiona consultas de información (RDI) con mandantes, proyectistas o subcontratos.', href: '/rdi', icon: MessageSquare, color: 'green' as const, roles: ['superadmin', 'admin_empresa', 'jefe_obra'] },
     { id: 'cumplimiento-legal', title: 'Cumplimiento Legal', description: 'Gestiona la documentación mensual de subcontratistas para la aprobación de estados de pago.', href: '/cumplimiento', icon: ShieldCheck, color: 'yellow' as const, roles: ['superadmin', 'admin_empresa', 'contratista'], featureFlag: 'feature_compliance_module_enabled' },
-    { id: 'acceso-director', title: 'Acceso Director', description: 'Dashboard gerencial para directores con vista consolidada de las obras designadas.', href: '/directorio', icon: BarChart, color: 'purple' as const, roles: ['superadmin', 'admin_empresa'], featureFlag: 'feature_director_dashboard_enabled' }
+    { id: 'acceso-director', title: 'Visión Ejecutiva', description: 'Dashboard gerencial para directores con vista consolidada de las obras designadas.', href: '/directorio', icon: BarChart, color: 'purple' as const, roles: ['superadmin', 'admin_empresa'], featureFlag: 'feature_director_dashboard_enabled' }
 ];
 
 const adminCards = [
@@ -368,18 +368,50 @@ export default function DashboardPage() {
   }, [summary, role]);
 
   const mainModules = allMainModules.filter(module => role !== 'none' && module.roles.includes(role));
-  const filteredQuickAccessModules = quickAccessModules.filter(module => role !== 'superadmin' && role !== 'none' && module.roles.includes(role));
+  const quickAccessModulesFiltered = quickAccessModules.filter(module => role !== 'superadmin' && role !== 'none' && module.roles.includes(role));
 
   const handleQuickAccessClick = (target: string) => {
-    const specialRoutes = ['/rdi', '/cubicacion/analisis-planos', '/cumplimiento', '/comparacion-planos/historial', '/directorio', '/control-acceso'];
+    const specialRoutes = ['/rdi', '/cubicacion/analisis-planos', '/cumplimiento', '/comparacion-planos/historial', '/directorio', '/control-acceso', '/operaciones/registro-fotografico'];
     if (specialRoutes.includes(target)) { router.push(target); return; }
     if (obras.length === 1) { router.push(`${target}?obraId=${obras[0].id}`); } else { setQuickAccessTarget(target); setIsObraModalOpen(true); }
   }
   const handleObraSelected = (obraId: string) => { if (obraId && quickAccessTarget) { router.push(`${quickAccessTarget}?obraId=${obraId}`); } setIsObraModalOpen(false); }
 
+  const DashboardSection = ({ title, description, children }: { title: string, description: string, children: React.ReactNode }) => (
+    <div className="space-y-6">
+        <div className="md:px-2">
+            <h2 className="text-2xl font-semibold tracking-tight">{title}</h2>
+            <p className="text-muted-foreground">{description}</p>
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4 md:gap-6">
+            {children}
+        </div>
+    </div>
+  );
+
+  const renderModule = (mod: any) => {
+    if(quickAccessModules.some(m => m.id === mod.id)) {
+        const isEnabled = !mod.featureFlag || !!company?.[mod.featureFlag];
+        return isEnabled ? <QuickAccessCard key={mod.id} title={mod.title} description={mod.description} icon={mod.icon} color={mod.color as any} onClick={() => handleQuickAccessClick(mod.href)} isPremium={!!mod.featureFlag} />
+                        : <DisabledModuleCard key={mod.id} moduleId={mod.featureFlag!} title={mod.title} description={mod.description} icon={mod.icon} />;
+    }
+    return <ModuleCard key={mod.id} mod={mod} company={company} hasObras={hasObras} />;
+  }
+  
+  const allAvailableModules = useMemo(() => {
+    const rdiMain = mainModules.find(m => m.id === 'rdi');
+    const rdiQuick = quickAccessModulesFiltered.find(m => m.id === 'rdi');
+    const modules = [...mainModules, ...quickAccessModulesFiltered];
+    if (rdiMain && rdiQuick) {
+        return modules.filter(m => m.id !== 'rdi' || m.href !== '/rdi');
+    }
+    return modules;
+  }, [mainModules, quickAccessModulesFiltered]);
+
+
   return (
     <div className="min-h-screen bg-slate-50">
-      <div className="flex flex-col gap-6 p-4 md:p-6">
+      <div className="flex flex-col gap-8 p-4 md:p-6">
         <header className='rounded-xl border bg-card text-card-foreground shadow-sm p-6'>
             {authLoading || loading ? (
                 <div className="space-y-2"><Skeleton className="h-8 w-1/2" /><Skeleton className="h-4 w-1/3" /><Skeleton className="h-4 w-2/3" /></div>
@@ -392,32 +424,40 @@ export default function DashboardPage() {
             )}
         </header>
 
-        {role !== 'superadmin' && (
-          <>
-            <EstadoGeneral loading={loading} summary={summary} />
-            <AccionesRecomendadas recommendedActions={recommendedActions} />
-          </>
-        )}
+        {role !== 'superadmin' ? (
+            <>
+                <EstadoGeneral loading={loading} summary={summary} />
+                <AccionesRecomendadas recommendedActions={recommendedActions} />
+                
+                 <DashboardSection title="Operaciones" description="Planifica, presupuesta y controla el ciclo de vida de tus obras.">
+                   {mainModules.filter(mod => ['obras', 'presupuestos', 'programacion', 'estados_de_pago'].includes(mod.id)).map(mod => <ModuleCard key={mod.id} mod={mod} company={company} hasObras={hasObras} />)}
+                </DashboardSection>
 
-        {role === 'superadmin' ? (
-              <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-5">
+                <DashboardSection title="Control y Calidad Operativa" description="Herramientas para el seguimiento diario, comunicación y calidad en terreno.">
+                    {mainModules.filter(mod => ['checklists-operacionales', 'rdi'].includes(mod.id)).map(mod => <ModuleCard key={mod.id} mod={mod} company={company} hasObras={hasObras} />)}
+                    {quickAccessModulesFiltered.filter(mod => mod.id === 'tour-step-avance-foto').map(renderModule)}
+                </DashboardSection>
+
+                <DashboardSection title="Prevención, Seguridad y Cumplimiento" description="Gestiona la seguridad, el acceso y el cumplimiento normativo en tus proyectos.">
+                     {mainModules.filter(mod => ['prevencion', 'documentos'].includes(mod.id)).map(mod => <ModuleCard key={mod.id} mod={mod} company={company} hasObras={hasObras} />)}
+                     {quickAccessModulesFiltered.filter(mod => ['control-acceso', 'cumplimiento-legal'].includes(mod.id)).map(renderModule)}
+                </DashboardSection>
+
+                <DashboardSection title="Inteligencia y Análisis (IA)" description="Módulos potenciados por IA para optimizar cubicaciones y detectar cambios en planos.">
+                    {quickAccessModulesFiltered.filter(mod => ['analisis-planos', 'comparacion-planos'].includes(mod.id)).map(renderModule)}
+                </DashboardSection>
+                
+                <DashboardSection title="Visión Ejecutiva" description="Paneles consolidados para la alta dirección y clientes.">
+                    {quickAccessModulesFiltered.filter(mod => mod.id === 'acceso-director').map(renderModule)}
+                </DashboardSection>
+
+            </>
+        ) : (
+            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-5">
                 {adminCards.map(card => (
                   <Card key={card.title} className="flex flex-col"><CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2"><CardTitle className="text-sm font-medium">{card.title}</CardTitle><card.icon className="h-4 w-4 text-muted-foreground" /></CardHeader><CardContent className="flex-grow"><p className='text-xs text-muted-foreground'>{card.description}</p></CardContent><CardFooter><Button asChild className="w-full mt-2" variant="outline"><Link href={card.href}>Gestionar</Link></Button></CardFooter></Card>
                 ))}
-              </div>
-        ) : filteredQuickAccessModules.length > 0 ? (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 md:gap-6">
-                {filteredQuickAccessModules.map((mod) => {
-                    const isEnabled = !mod.featureFlag || !!company?.[mod.featureFlag];
-                    const isPremium = !!mod.featureFlag;
-                    return isEnabled ? <QuickAccessCard key={mod.id} title={mod.title} description={mod.description} icon={mod.icon} color={mod.id === 'cumplimiento-legal' ? 'yellow' : mod.color as any} onClick={() => handleQuickAccessClick(mod.href)} isPremium={isPremium} />
-                                     : <DisabledModuleCard key={mod.id} moduleId={mod.featureFlag!} title={mod.title} description={mod.description} icon={mod.icon} />;
-                })}
             </div>
-        ) : null}
-
-        {role !== 'superadmin' && (
-              <div><h2 className="text-2xl font-semibold mb-4">Módulos Principales</h2><div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4 md:gap-6">{mainModules.map((mod) => <ModuleCard key={mod.id} mod={mod} company={company} hasObras={hasObras} />)}</div></div>
         )}
 
         <Card><CardHeader><div className="flex items-center gap-3"><Newspaper className="h-6 w-6 text-primary"/><CardTitle>Diario Mural de Actividad</CardTitle></div><CardDescription>Última actividad registrada en tus obras.</CardDescription></CardHeader>
@@ -437,3 +477,5 @@ export default function DashboardPage() {
     </div>
   );
 }
+
+    
