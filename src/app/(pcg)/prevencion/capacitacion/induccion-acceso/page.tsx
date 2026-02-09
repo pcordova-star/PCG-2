@@ -22,8 +22,9 @@ import Link from 'next/link';
 import { Badge } from '@/components/ui/badge';
 import SignaturePad from '@/components/ui/SignaturePad';
 
+type FormDataState = Omit<InduccionAccesoFaena, 'id' | 'createdAt' | 'obraId' | 'obraNombre' | 'generadorId' | 'origenRegistro'>;
 
-const initialFormState: Omit<InduccionAccesoFaena, 'id' | 'createdAt' | 'obraId' | 'obraNombre' | 'generadorId' | 'origenRegistro'> = {
+const initialFormState: FormDataState = {
   tipoVisita: 'VISITA',
   nombreCompleto: '',
   rut: '',
@@ -52,7 +53,7 @@ export default function InduccionAccesoPage() {
     const [recentInductions, setRecentInductions] = useState<InduccionAccesoFaena[]>([]);
     const [loading, setLoading] = useState(true);
     
-    const [formData, setFormData] = useState<Omit<InduccionAccesoFaena, 'id' | 'createdAt' | 'obraId' | 'obraNombre' | 'generadorId' | 'origenRegistro'>>(initialFormState);
+    const [formData, setFormData] = useState<FormDataState>(initialFormState);
     const [isSaving, setIsSaving] = useState(false);
     
     const [qrValue, setQrValue] = useState('');
@@ -76,6 +77,7 @@ export default function InduccionAccesoPage() {
     
     useEffect(() => {
         if (selectedObraId) {
+            // Usa una URL pública para que el QR funcione fuera de la red de desarrollo.
             const origin = "https://pcg-2.vercel.app";
             setQrValue(`${origin}/public/induccion/${selectedObraId}`);
 

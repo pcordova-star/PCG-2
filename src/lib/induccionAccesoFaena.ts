@@ -39,8 +39,8 @@ export interface InduccionAccesoFaena {
 }
 
 async function uploadSignature(firmaDataUrl: string, obraId: string, rut: string): Promise<string> {
-    if (!firmaDataUrl.startsWith('data:image/png;base64,')) {
-        // Asume que ya es una URL de storage si no es un data URI
+    if (!firmaDataUrl || !firmaDataUrl.startsWith('data:image/png;base64,')) {
+        // Asume que ya es una URL de storage si no es un data URI o es nulo
         return firmaDataUrl;
     }
     const storagePath = `firmas-induccion/${obraId}/${rut}_${Date.now()}.png`;
@@ -55,13 +55,17 @@ export async function guardarInduccionAccesoFaena(
 ): Promise<string> {
   const colRef = collection(firebaseDb, "induccionesAccesoFaena");
   
-  let finalFirmaUrl = data.firmaDataUrl || null;
-  if (data.firmaDataUrl && data.firmaDataUrl.startsWith('data:')) {
-      finalFirmaUrl = await uploadSignature(data.firmaDataUrl, data.obraId, data.rut);
+  const { firmaDataUrl, ...restOfData } = data;
+  let finalFirmaUrl: string | null = null;
+
+  if (firmaDataUrl && typeof firmaDataUrl === 'string' && firmaDataUrl.startsWith('data:')) {
+    finalFirmaUrl = await uploadSignature(firmaDataUrl, data.obraId, data.rut);
+  } else {
+    finalFirmaUrl = firmaDataUrl || null;
   }
 
   const docRef = await addDoc(colRef, {
-    ...data,
+    ...restOfData,
     firmaDataUrl: finalFirmaUrl,
     origenRegistro: "panel",
     createdAt: serverTimestamp(),
@@ -74,13 +78,17 @@ export async function guardarInduccionQR(
 ): Promise<string> {
   const colRef = collection(firebaseDb, "induccionesAccesoFaena");
 
-  let finalFirmaUrl = data.firmaDataUrl || null;
-  if (data.firmaDataUrl && data.firmaDataUrl.startsWith('data:')) {
-      finalFirmaUrl = await uploadSignature(data.firmaDataUrl, data.obraId, data.rut);
+  const { firmaDataUrl, ...restOfData } = data;
+  let finalFirmaUrl: string | null = null;
+  
+  if (firmaDataUrl && typeof firmaDataUrl === 'string' && firmaDataUrl.startsWith('data:')) {
+    finalFirmaUrl = await uploadSignature(firmaDataUrl, data.obraId, data.rut);
+  } else {
+    finalFirmaUrl = firmaDataUrl || null;
   }
 
   const docRef = await addDoc(colRef, {
-    ...data,
+    ...restOfData,
     firmaDataUrl: finalFirmaUrl,
     origenRegistro: "qr",
     createdAt: serverTimestamp(),

@@ -1,25 +1,27 @@
 // src/app/public/induccion/[obraId]/page.tsx
 "use client";
 
-import { useEffect, useState, FormEvent } from 'react';
+import { useState, useEffect, FormEvent } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { doc, getDoc, collection, addDoc, serverTimestamp } from 'firebase/firestore';
-import { firebaseDb } from '@/lib/firebaseClient';
 import { Obra, InduccionAccesoFaena } from '@/types/pcg';
+import { getDoc, doc } from 'firebase/firestore';
+import { firebaseDb } from '@/lib/firebaseClient';
 import { guardarInduccionQR } from '@/lib/induccionAccesoFaena';
 
-import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Checkbox } from '@/components/ui/checkbox';
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, ShieldCheck } from 'lucide-react';
+import { Loader2, ArrowRight } from 'lucide-react';
 import { PcgLogo } from '@/components/branding/PcgLogo';
-import SignaturePad from '@/components/ui/SignaturePad'; // Corrected Import
+import SignaturePad from '@/components/ui/SignaturePad';
 
+type FormDataState = Omit<InduccionAccesoFaena, 'id' | 'createdAt' | 'obraId' | 'obraNombre' | 'generadorId' | 'origenRegistro'>;
 
-const initialFormState: Omit<InduccionAccesoFaena, 'id' | 'createdAt' | 'obraId' | 'obraNombre' | 'generadorId' | 'origenRegistro'> = {
+const initialFormState: FormDataState = {
   tipoVisita: 'VISITA',
   nombreCompleto: '',
   rut: '',
@@ -39,132 +41,145 @@ const initialFormState: Omit<InduccionAccesoFaena, 'id' | 'createdAt' | 'obraId'
 };
 
 export default function PublicInduccionPage() {
-    const { obraId } = useParams();
+    const params = useParams();
     const router = useRouter();
     const { toast } = useToast();
+    const obraId = params.obraId as string;
 
     const [obra, setObra] = useState<Obra | null>(null);
     const [loading, setLoading] = useState(true);
-    const [isSubmitting, setIsSubmitting] = useState(false);
+    const [isSaving, setIsSaving] = useState(false);
+    const [isCompleted, setIsCompleted] = useState(false);
     const [error, setError] = useState<string | null>(null);
-    const [formState, setFormState] = useState(initialFormState);
-    const [step, setStep] = useState(1);
+    
+    const [formData, setFormData] = useState<FormDataState>(initialFormState);
 
     useEffect(() => {
-        if (!obraId) {
-            setError("ID de obra no encontrado.");
-            setLoading(false);
-            return;
-        }
-
+        if (!obraId) return;
         const fetchObra = async () => {
-            const obraRef = doc(firebaseDb, 'obras', obraId as string);
+            setLoading(true);
+            const obraRef = doc(firebaseDb, "obras", obraId);
             const obraSnap = await getDoc(obraRef);
             if (obraSnap.exists()) {
                 setObra({ id: obraSnap.id, ...obraSnap.data() } as Obra);
             } else {
-                setError("La obra especificada no existe.");
+                setError("La obra especificada no fue encontrada.");
             }
             setLoading(false);
         };
         fetchObra();
     }, [obraId]);
 
-    const handleInputChange = (field: keyof typeof formState, value: string | boolean) => {
-        setFormState(prev => ({ ...prev, [field]: value }));
+    const handleInputChange = (field: keyof FormDataState, value: any) => {
+        setFormData(prev => ({ ...prev, [field]: value }));
     };
 
     const handleSubmit = async (e: FormEvent) => {
         e.preventDefault();
-        
-        if (!formState.aceptaReglamento || !formState.aceptaEpp || !formState.aceptaTratamientoDatos) {
-            toast({ variant: 'destructive', title: 'Aceptación requerida', description: 'Debe aceptar todos los compromisos.' });
-            return;
-        }
-        if (!formState.firmaDataUrl) {
-            toast({ variant: 'destructive', title: 'Firma requerida', description: 'Por favor, firme en el recuadro.' });
+        if (!obra) return;
+
+        if (!formData.aceptaReglamento || !formData.aceptaEpp || !formData.aceptaTratamientoDatos) {
+            toast({ variant: 'destructive', title: 'Confirmación requerida', description: 'Debes aceptar todos los compromisos de seguridad.' });
             return;
         }
 
-        setIsSubmitting(true);
+        if (!formData.firmaDataUrl) {
+            toast({ variant: 'destructive', title: 'Firma requerida', description: 'Por favor, firma en el recuadro para continuar.' });
+            return;
+        }
+
+        setIsSaving(true);
         try {
-            await guardarInduccionQR({ ...formState, obraId: obraId as string });
-            setStep(3); // Go to success step
-        } catch (err: any) {
-            console.error("Error guardando inducción:", err);
-            toast({ variant: 'destructive', title: 'Error', description: 'No se pudo guardar su registro. Intente de nuevo.' });
+            await guardarInduccionQR({
+                ...formData,
+                obraId: obraId,
+                obraNombre: obra.nombreFaena,
+                generadorId: null, // From QR
+            });
+            setIsCompleted(true);
+        } catch (error: any) {
+            toast({ variant: 'destructive', title: 'Error', description: `No se pudo guardar el registro: ${error.message}` });
         } finally {
-            setIsSubmitting(false);
+            setIsSaving(false);
         }
     };
 
-    if (loading) return <div className="flex items-center justify-center min-h-screen"><Loader2 className="animate-spin" /> Cargando...</div>;
-    if (error) return <div className="flex items-center justify-center min-h-screen text-destructive">{error}</div>;
+    if (loading) return <div className="flex justify-center items-center h-screen"><Loader2 className="animate-spin" /></div>;
+    if (error) return <div className="flex justify-center items-center h-screen text-destructive">{error}</div>;
 
-    if (step === 3) {
+    if (isCompleted) {
         return (
-             <div className="flex flex-col items-center justify-center min-h-screen bg-muted/40 p-4 text-center">
-                <Card className="w-full max-w-md">
+            <div className="flex items-center justify-center min-h-screen bg-green-50">
+                 <Card className="w-full max-w-md mx-4 text-center">
                     <CardHeader>
-                        <ShieldCheck className="mx-auto h-12 w-12 text-green-500" />
-                        <CardTitle className="mt-4">¡Registro Exitoso!</CardTitle>
-                        <CardDescription>Su ingreso ha sido registrado. Por favor, preséntese en portería.</CardDescription>
+                        <CardTitle className="text-green-700">¡Registro Exitoso!</CardTitle>
+                        <CardDescription>Tu ingreso a la obra {obra?.nombreFaena} ha sido registrado. Por favor, preséntate en la portería.</CardDescription>
                     </CardHeader>
                 </Card>
             </div>
         );
     }
-
+    
     return (
-        <div className="min-h-screen bg-muted/40 flex items-center justify-center p-4">
-            <Card className="w-full max-w-lg">
+        <div className="min-h-screen bg-slate-50 py-8 px-4">
+            <Card className="max-w-2xl mx-auto">
                 <CardHeader className="text-center">
-                    <div className="mx-auto mb-4 w-fit"><PcgLogo /></div>
+                    <div className="w-20 mx-auto mb-4"><PcgLogo /></div>
                     <CardTitle>Inducción de Acceso a Faena</CardTitle>
-                    <CardDescription>{obra?.nombreFaena}</CardDescription>
+                    <CardDescription>Obra: {obra?.nombreFaena}</CardDescription>
                 </CardHeader>
-
-                {step === 1 && (
-                     <CardContent className="space-y-4">
-                        <h3 className="font-semibold text-center">Reglamento Básico de Seguridad</h3>
-                        <ul className="text-sm text-muted-foreground space-y-2 list-disc pl-5">
-                            <li>Es obligatorio el uso de todos los Elementos de Protección Personal (EPP) definidos para el área a visitar.</li>
-                            <li>Respete toda la señalización de seguridad y las instrucciones del personal de la obra.</li>
-                            <li>No ingrese a áreas restringidas o para las cuales no cuenta con autorización.</li>
-                            <li>Informe inmediatamente sobre cualquier condición o acto inseguro que observe.</li>
-                        </ul>
-                         <Button className="w-full" onClick={() => setStep(2)}>Entendido, continuar al registro</Button>
-                    </CardContent>
-                )}
-                
-                {step === 2 && (
-                    <CardContent>
-                         <form onSubmit={handleSubmit} className="space-y-4">
-                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                                <div className="space-y-1"><Label htmlFor="nombreCompleto">Nombre Completo*</Label><Input id="nombreCompleto" value={formState.nombreCompleto} onChange={(e) => handleInputChange('nombreCompleto', e.target.value)} required /></div>
-                                <div className="space-y-1"><Label htmlFor="rut">RUT/ID*</Label><Input id="rut" value={formState.rut} onChange={(e) => handleInputChange('rut', e.target.value)} required /></div>
-                                <div className="space-y-1"><Label htmlFor="empresa">Empresa*</Label><Input id="empresa" value={formState.empresa} onChange={(e) => handleInputChange('empresa', e.target.value)} required/></div>
-                                <div className="space-y-1"><Label htmlFor="cargo">Cargo/Ocupación</Label><Input id="cargo" value={formState.cargo} onChange={(e) => handleInputChange('cargo', e.target.value)} /></div>
+                <CardContent>
+                    <form onSubmit={handleSubmit} className="space-y-6">
+                        <section className="space-y-4">
+                            <h3 className="font-semibold text-lg border-b pb-2">1. Tus Datos</h3>
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <div className="space-y-1">
+                                    <Label htmlFor="nombreCompleto">Nombre Completo*</Label>
+                                    <Input id="nombreCompleto" value={formData.nombreCompleto} onChange={(e) => handleInputChange('nombreCompleto', e.target.value)} required />
+                                </div>
+                                <div className="space-y-1">
+                                    <Label htmlFor="rut">RUT/ID*</Label>
+                                    <Input id="rut" value={formData.rut} onChange={(e) => handleInputChange('rut', e.target.value)} required />
+                                </div>
+                                <div className="space-y-1">
+                                    <Label htmlFor="empresa">Empresa*</Label>
+                                    <Input id="empresa" value={formData.empresa} onChange={(e) => handleInputChange('empresa', e.target.value)} required />
+                                </div>
+                                 <div className="space-y-1">
+                                    <Label htmlFor="cargo">Cargo/Ocupación</Label>
+                                    <Input id="cargo" value={formData.cargo} onChange={(e) => handleInputChange('cargo', e.target.value)} />
+                                </div>
                             </div>
-                            
-                            <div className="space-y-2 border-t pt-4">
-                                <div className="flex items-start gap-3"><Checkbox id="aceptaReglamento" checked={formState.aceptaReglamento} onCheckedChange={(c) => handleInputChange('aceptaReglamento', !!c)} required/><Label htmlFor="aceptaReglamento" className="text-xs font-normal">Declaro haber leído y comprendido el reglamento básico de seguridad.</Label></div>
-                                <div className="flex items-start gap-3"><Checkbox id="aceptaEpp" checked={formState.aceptaEpp} onCheckedChange={(c) => handleInputChange('aceptaEpp', !!c)} required/><Label htmlFor="aceptaEpp" className="text-xs font-normal">Declaro que cuento con y utilizaré mis Elementos de Protección Personal (EPP).</Label></div>
-                                <div className="flex items-start gap-3"><Checkbox id="aceptaTratamientoDatos" checked={formState.aceptaTratamientoDatos} onCheckedChange={(c) => handleInputChange('aceptaTratamientoDatos', !!c)} required/><Label htmlFor="aceptaTratamientoDatos" className="text-xs font-normal">Acepto el tratamiento de mis datos personales para fines de seguridad y control de acceso.</Label></div>
+                        </section>
+                        
+                        <section className="space-y-4">
+                             <h3 className="font-semibold text-lg border-b pb-2">2. Compromisos de Seguridad</h3>
+                             <div className="items-top flex space-x-2">
+                                <Checkbox id="aceptaReglamento" checked={formData.aceptaReglamento} onCheckedChange={(c) => handleInputChange('aceptaReglamento', !!c)} />
+                                <Label htmlFor="aceptaReglamento" className="text-sm font-normal">Declaro haber recibido y comprendido el Reglamento Especial para Empresas Contratistas y Subcontratistas.</Label>
                             </div>
-
-                             <div className="space-y-2">
-                                <Label>Firma de conformidad*</Label>
-                                <SignaturePad onChange={(dataUrl) => handleInputChange('firmaDataUrl', dataUrl || '')} />
+                            <div className="items-top flex space-x-2">
+                                <Checkbox id="aceptaEpp" checked={formData.aceptaEpp} onCheckedChange={(c) => handleInputChange('aceptaEpp', !!c)} />
+                                <Label htmlFor="aceptaEpp" className="text-sm font-normal">Me comprometo a usar en todo momento los Elementos de Protección Personal (EPP) requeridos para ingresar y permanecer en la obra.</Label>
                             </div>
+                            <div className="items-top flex space-x-2">
+                                <Checkbox id="aceptaTratamientoDatos" checked={formData.aceptaTratamientoDatos} onCheckedChange={(c) => handleInputChange('aceptaTratamientoDatos', !!c)} />
+                                <Label htmlFor="aceptaTratamientoDatos" className="text-sm font-normal">Acepto el tratamiento de mis datos personales para fines de seguridad y control de acceso.</Label>
+                            </div>
+                        </section>
 
-                            <Button type="submit" disabled={isSubmitting} className="w-full">
-                                {isSubmitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : null}
-                                {isSubmitting ? 'Registrando...' : 'Confirmar y Registrar Ingreso'}
-                            </Button>
-                        </form>
-                    </CardContent>
-                )}
+                        <section className="space-y-4">
+                            <h3 className="font-semibold text-lg border-b pb-2">3. Firma</h3>
+                            <p className="text-xs text-muted-foreground">Firma en el siguiente recuadro para confirmar tu identidad y la aceptación de los compromisos.</p>
+                            <SignaturePad onChange={(dataUrl) => handleInputChange('firmaDataUrl', dataUrl || '')} />
+                        </section>
+
+                        <Button type="submit" className="w-full" disabled={isSaving}>
+                            {isSaving ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <ArrowRight className="mr-2 h-4 w-4"/>}
+                            {isSaving ? 'Registrando...' : 'Finalizar y Registrar Ingreso'}
+                        </Button>
+                    </form>
+                </CardContent>
             </Card>
         </div>
     );
