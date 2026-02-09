@@ -1,4 +1,3 @@
-
 // src/app/(pcg)/dashboard/page.tsx
 "use client";
 
@@ -54,7 +53,7 @@ import { useRouter } from 'next/navigation';
 import { Badge } from '@/components/ui/badge';
 import { motion } from 'framer-motion';
 
-// --- TIPOS ---
+// --- TYPES ---
 type ActivityItem = {
   type: 'rdi' | 'avance' | 'edp' | 'hallazgo';
   id: string;
@@ -76,7 +75,7 @@ type RecommendedAction = {
   icon: React.ElementType;
 };
 
-// --- CONFIGURACIÓN DE MÓDULOS ---
+// --- CONFIGURATION ---
 const allMainModules = [
   { id: 'obras', title: 'Obras', description: 'Crea y gestiona tus proyectos. Asigna datos básicos, clientes y responsables para cada faena.', href: '/obras', icon: HardHat, linkText: 'Gestionar Obras', tooltip: 'Punto de partida. Crea y gestiona tus proyectos aquí.', roles: ['superadmin', 'admin_empresa', 'jefe_obra', 'prevencionista'] },
   { id: 'presupuestos', title: 'Itemizados', description: 'Administra tu catálogo de ítems y precios. Crea y duplica itemizados detallados por obra.', href: '/operaciones/presupuestos', icon: BookCopy, linkText: 'Ir a Itemizados', tooltip: 'Necesitas crear una obra primero para usar este módulo.', roles: ['superadmin', 'admin_empresa', 'jefe_obra'] },
@@ -106,13 +105,121 @@ const adminCards = [
     { title: "Configurar Precios", href: "/admin/pricing", icon: Settings, description: "Definir los precios globales de la plataforma." },
 ];
 
-// --- HELPERS ---
+// --- HELPER FUNCTIONS ---
 function getRoleName(role: string) {
     const roles: Record<string, string> = { superadmin: 'Super Administrador', admin_empresa: 'Admin de Empresa', jefe_obra: 'Jefe de Obra', prevencionista: 'Prevencionista de Riesgos', cliente: 'Cliente', none: 'Sin Rol Asignado' };
     return roles[role] || role;
 }
 
-// --- COMPONENTE PRINCIPAL ---
+// --- SUB-COMPONENTS ---
+const EstadoGeneral = ({ loading, summary }: { loading: boolean; summary: any }) => (
+  <Card>
+    <CardHeader>
+      <CardTitle>Estado General de la Operación</CardTitle>
+    </CardHeader>
+    <CardContent>
+      {loading ? (
+        <div className="space-y-3">
+          <Skeleton className="h-4 w-3/4" />
+          <Skeleton className="h-4 w-1/2" />
+          <Skeleton className="h-4 w-2/3" />
+        </div>
+      ) : (
+        <div className="space-y-3 text-muted-foreground">
+          <p className="flex items-center gap-2">
+            <HardHat className="h-5 w-5 text-primary" />
+            Actualmente tienes <strong className="text-foreground">{summary?.obrasActivas ?? 0}</strong> obras activas.
+          </p>
+          <p className="flex items-center gap-2">
+            {summary?.hallazgosAbiertos > 0 ? <AlertTriangle className="h-5 w-5 text-red-500" /> : <CheckCircle className="h-5 w-5 text-green-500" />}
+            {summary?.hallazgosAbiertos > 0 ? (
+              <>
+                Se han reportado <strong className="text-foreground">{summary.hallazgosAbiertos}</strong> hallazgos de seguridad abiertos, de los cuales <strong className="text-red-600">{summary.hallazgosCriticos} son críticos</strong>.
+              </>
+            ) : (
+              <span className="text-green-600 font-semibold">¡Buen trabajo! No hay alertas de seguridad pendientes.</span>
+            )}
+          </p>
+          <p className="flex items-center gap-2">
+            <Users className="h-5 w-5 text-primary" />
+            Hay un total de <strong className="text-foreground">{summary?.personasEnFaena ?? 0}</strong> personas en faena en este momento.
+          </p>
+        </div>
+      )}
+    </CardContent>
+  </Card>
+);
+
+const AccionesRecomendadas = ({ recommendedActions }: { recommendedActions: RecommendedAction[] }) => {
+  if (recommendedActions.length === 0) return null;
+  return (
+    <div>
+      <h2 className="text-xl font-semibold mb-4">Acciones Recomendadas para Hoy</h2>
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        {recommendedActions.map(action => (
+          <Link key={action.id} href={action.href} className="block group">
+            <Card className="h-full hover:border-primary hover:bg-primary/5 transition-all">
+              <CardHeader className="flex-row items-center gap-4">
+                <action.icon className="h-8 w-8 text-primary" />
+                <div>
+                  <CardTitle className="text-base">{action.title}</CardTitle>
+                  <CardDescription>{action.description}</CardDescription>
+                </div>
+              </CardHeader>
+            </Card>
+          </Link>
+        ))}
+      </div>
+    </div>
+  );
+};
+
+const ActivityCard = ({ item }: { item: ActivityItem }) => {
+  const config = {
+    rdi: { icon: MessageSquare, colorName: "blue" as const },
+    avance: { icon: TrendingUp, colorName: "green" as const },
+    edp: { icon: DollarSign, colorName: "purple" as const },
+    hallazgo: { icon: Siren, colorName: "orange" as const }
+  };
+  const colorStyles = {
+    blue: { border: 'border-blue-500', bg: 'bg-blue-100', icon: 'text-blue-600' },
+    green: { border: 'border-green-500', bg: 'bg-green-100', icon: 'text-green-600' },
+    purple: { border: 'border-purple-500', bg: 'bg-purple-100', icon: 'text-purple-600' },
+    orange: { border: 'border-orange-500', bg: 'bg-orange-100', icon: 'text-orange-600' }
+  };
+  const itemConfig = config[item.type];
+  const styles = colorStyles[itemConfig.colorName];
+  const Icon = itemConfig.icon;
+
+  return (
+    <motion.div
+      key={item.id}
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.3 }}
+      className={cn("flex items-start gap-4 p-4 border-l-4 rounded-r-lg bg-card shadow-sm hover:bg-muted/50", styles.border)}
+    >
+      <div className={cn("p-2 rounded-full", styles.bg)}><Icon className={cn("h-6 w-6", styles.icon)} /></div>
+      <div className="flex-1">
+        <div className="flex justify-between items-center">
+          <p className="font-semibold text-sm">{item.titulo}</p>
+          {item.estado && <Badge variant="outline">{item.estado}</Badge>}
+        </div>
+        <p className="text-xs text-muted-foreground">{item.obraNombre} - {item.fecha.toLocaleDateString('es-CL')}</p>
+        <div className="flex justify-between items-end mt-2">
+          <p className="text-sm text-muted-foreground">{item.descripcion}</p>
+          {item.valor && <p className="text-sm font-bold text-primary">{item.valor}</p>}
+        </div>
+        <Button asChild variant="ghost" size="sm">
+          <Link href={item.href}><ArrowRight className="h-4 w-4 mr-2" />Ver Detalle</Link>
+        </Button>
+      </div>
+    </motion.div>
+  );
+};
+
+
+// --- MAIN COMPONENT ---
 export default function DashboardPage() {
   const { user, role, companyId, company, loading: authLoading } = useAuth();
   const router = useRouter();
@@ -241,8 +348,7 @@ export default function DashboardPage() {
                 <div className="p-3 bg-primary/10 rounded-full w-fit"><mod.icon className="h-8 w-8 text-primary" /></div>
                 <CardTitle className="font-headline text-2xl">{mod.title}</CardTitle>
             </div>
-            <CardDescription className="pt-2">{mod.description}</CardDescription>
-        </CardHeader>
+            <CardDescription className="pt-2">{mod.description}</CardHeader>
         <CardFooter className="mt-auto"><Button asChild className="w-full" variant={mod.linkText === 'Próximamente' ? 'secondary' : 'default'} disabled={mod.linkText === 'Próximamente'}><Link href={mod.href}>{mod.linkText}</Link></Button></CardFooter>
       </Card>
     );
@@ -269,42 +375,8 @@ export default function DashboardPage() {
 
         {role !== 'superadmin' && (
           <>
-            <Card>
-                <CardHeader><CardTitle>Estado General de la Operación</CardTitle></CardHeader>
-                <CardContent>
-                    {loading ? <div className="space-y-3"><Skeleton className="h-4 w-3/4" /><Skeleton className="h-4 w-1/2" /><Skeleton className="h-4 w-2/3" /></div> : (
-                        <div className="space-y-3 text-muted-foreground">
-                            <p className="flex items-center gap-2"><HardHat className="h-5 w-5 text-primary" />Actualmente tienes <strong className="text-foreground">{summary?.obrasActivas ?? 0}</strong> obras activas.</p>
-                            <p className="flex items-center gap-2">
-                                {summary?.hallazgosAbiertos > 0 ? <AlertTriangle className="h-5 w-5 text-red-500" /> : <CheckCircle className="h-5 w-5 text-green-500" />}
-                                {summary?.hallazgosAbiertos > 0 ? <>Se han reportado <strong className="text-foreground">{summary.hallazgosAbiertos}</strong> hallazgos de seguridad abiertos, de los cuales <strong className="text-red-600">{summary.hallazgosCriticos} son críticos</strong>.</> : <span className="text-green-600 font-semibold">¡Buen trabajo! No hay alertas de seguridad pendientes.</span>}
-                            </p>
-                            <p className="flex items-center gap-2"><Users className="h-5 w-5 text-primary" />Hay un total de <strong className="text-foreground">{summary?.personasEnFaena ?? 0}</strong> personas en faena en este momento.</p>
-                        </div>
-                    )}
-                </CardContent>
-            </Card>
-
-            {recommendedActions.length > 0 && (
-                 <div>
-                    <h2 className="text-xl font-semibold mb-4">Acciones Recomendadas para Hoy</h2>
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                      {recommendedActions.map(action => (
-                        <Link key={action.id} href={action.href} className="block group">
-                          <Card className="h-full hover:border-primary hover:bg-primary/5 transition-all">
-                            <CardHeader className="flex-row items-center gap-4">
-                              <action.icon className="h-8 w-8 text-primary" />
-                              <div>
-                                <CardTitle className="text-base">{action.title}</CardTitle>
-                                <CardDescription>{action.description}</CardDescription>
-                              </div>
-                            </CardHeader>
-                          </Card>
-                        </Link>
-                      ))}
-                    </div>
-                  </div>
-            )}
+            <EstadoGeneral loading={loading} summary={summary} />
+            <AccionesRecomendadas recommendedActions={recommendedActions} />
           </>
         )}
 
@@ -333,35 +405,7 @@ export default function DashboardPage() {
             <CardContent>
                 {loading ? <div className="space-y-4"><Skeleton className="h-16 w-full" /><Skeleton className="h-16 w-full" /><Skeleton className="h-16 w-full" /></div>
                          : muralItems.length === 0 ? <div className="text-center py-8 bg-muted/50 rounded-lg"><p className="text-muted-foreground">No hay actividad reciente para mostrar en tus obras.</p></div>
-                         : <div className="space-y-3">{muralItems.map(item => {
-                             const config = {
-                              rdi: { icon: MessageSquare, colorName: "blue" as const },
-                              avance: { icon: TrendingUp, colorName: "green" as const },
-                              edp: { icon: DollarSign, colorName: "purple" as const },
-                              hallazgo: { icon: Siren, colorName: "orange" as const }
-                            };
-                            const colorStyles = {
-                                blue: { border: 'border-blue-500', bg: 'bg-blue-100', icon: 'text-blue-600' },
-                                green: { border: 'border-green-500', bg: 'bg-green-100', icon: 'text-green-600' },
-                                purple: { border: 'border-purple-500', bg: 'bg-purple-100', icon: 'text-purple-600' },
-                                orange: { border: 'border-orange-500', bg: 'bg-orange-100', icon: 'text-orange-600' }
-                            };
-                            const itemConfig = config[item.type];
-                            const styles = colorStyles[itemConfig.colorName];
-                            const Icon = itemConfig.icon;
-                          
-                            return (
-                              <motion.div key={item.id} initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.3 }} className={cn("flex items-start gap-4 p-4 border-l-4 rounded-r-lg bg-card shadow-sm hover:bg-muted/50", styles.border)}>
-                                <div className={cn("p-2 rounded-full", styles.bg)}><Icon className={cn("h-6 w-6", styles.icon)} /></div>
-                                <div className="flex-1">
-                                  <div className="flex justify-between items-center"><p className="font-semibold text-sm">{item.titulo}</p>{item.estado && <Badge variant="outline">{item.estado}</Badge>}</div>
-                                  <p className="text-xs text-muted-foreground">{item.obraNombre} - {item.fecha.toLocaleDateString('es-CL')}</p>
-                                  <div className="flex justify-between items-end mt-2"><p className="text-sm text-muted-foreground">{item.descripcion}</p>{item.valor && <p className="text-sm font-bold text-primary">{item.valor}</p>}</div>
-                                 <Button asChild variant="ghost" size="sm"><Link href={item.href}><ArrowRight className="h-4 w-4 mr-2"/>Ver Detalle</Link></Button>
-                              </div>
-                              </motion.div>
-                            );
-                         })}</div>}
+                         : <div className="space-y-3">{muralItems.map(item => <ActivityCard key={item.id} item={item} />)}</div>}
             </CardContent>
         </Card>
 
@@ -374,5 +418,3 @@ export default function DashboardPage() {
     </div>
   );
 }
-
-    
