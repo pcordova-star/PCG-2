@@ -1,3 +1,4 @@
+
 // src/app/(pcg)/dashboard/page.tsx
 "use client";
 
@@ -38,7 +39,7 @@ import {
   CheckCircle,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { useEffect, useState, useMemo, Suspense } from 'react';
+import { useEffect, useState, useMemo, Suspense, useRef } from 'react';
 import { collection, getDocs, query, where, collectionGroup, limit, orderBy } from 'firebase/firestore';
 import { firebaseDb } from '@/lib/firebaseClient';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -111,46 +112,48 @@ function getRoleName(role: string) {
     return roles[role] || role;
 }
 
-// --- SUB-COMPONENTS ---
-const EstadoGeneral = ({ loading, summary }: { loading: boolean; summary: any }) => (
-  <Card>
-    <CardHeader>
-      <CardTitle>Estado General de la Operación</CardTitle>
-    </CardHeader>
-    <CardContent>
-      {loading ? (
-        <div className="space-y-3">
-          <Skeleton className="h-4 w-3/4" />
-          <Skeleton className="h-4 w-1/2" />
-          <Skeleton className="h-4 w-2/3" />
-        </div>
-      ) : (
-        <div className="space-y-3 text-muted-foreground">
-          <p className="flex items-center gap-2">
-            <HardHat className="h-5 w-5 text-primary" />
-            Actualmente tienes <strong className="text-foreground">{summary?.obrasActivas ?? 0}</strong> obras activas.
-          </p>
-          <p className="flex items-center gap-2">
-            {summary?.hallazgosAbiertos > 0 ? <AlertTriangle className="h-5 w-5 text-red-500" /> : <CheckCircle className="h-5 w-5 text-green-500" />}
-            {summary?.hallazgosAbiertos > 0 ? (
-              <>
-                Se han reportado <strong className="text-foreground">{summary.hallazgosAbiertos}</strong> hallazgos de seguridad abiertos, de los cuales <strong className="text-red-600">{summary.hallazgosCriticos} son críticos</strong>.
-              </>
-            ) : (
-              <span className="text-green-600 font-semibold">¡Buen trabajo! No hay alertas de seguridad pendientes.</span>
-            )}
-          </p>
-          <p className="flex items-center gap-2">
-            <Users className="h-5 w-5 text-primary" />
-            Hay un total de <strong className="text-foreground">{summary?.personasEnFaena ?? 0}</strong> personas en faena en este momento.
-          </p>
-        </div>
-      )}
-    </CardContent>
-  </Card>
-);
+// --- STANDALONE SUB-COMPONENTS ---
+function EstadoGeneral({ loading, summary }: { loading: boolean; summary: any }) {
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle>Estado General de la Operación</CardTitle>
+      </CardHeader>
+      <CardContent>
+        {loading ? (
+          <div className="space-y-3">
+            <Skeleton className="h-4 w-3/4" />
+            <Skeleton className="h-4 w-1/2" />
+            <Skeleton className="h-4 w-2/3" />
+          </div>
+        ) : (
+          <div className="space-y-3 text-muted-foreground">
+            <p className="flex items-center gap-2">
+              <HardHat className="h-5 w-5 text-primary" />
+              Actualmente tienes <strong className="text-foreground">{summary?.obrasActivas ?? 0}</strong> obras activas.
+            </p>
+            <p className="flex items-center gap-2">
+              {summary?.hallazgosAbiertos > 0 ? <AlertTriangle className="h-5 w-5 text-red-500" /> : <CheckCircle className="h-5 w-5 text-green-500" />}
+              {summary?.hallazgosAbiertos > 0 ? (
+                <>
+                  Se han reportado <strong className="text-foreground">{summary.hallazgosAbiertos}</strong> hallazgos de seguridad abiertos, de los cuales <strong className="text-red-600">{summary.hallazgosCriticos} son críticos</strong>.
+                </>
+              ) : (
+                <span className="text-green-600 font-semibold">¡Buen trabajo! No hay alertas de seguridad pendientes.</span>
+              )}
+            </p>
+            <p className="flex items-center gap-2">
+              <Users className="h-5 w-5 text-primary" />
+              Hay un total de <strong className="text-foreground">{summary?.personasEnFaena ?? 0}</strong> personas en faena en este momento.
+            </p>
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
 
-const AccionesRecomendadas = ({ recommendedActions }: { recommendedActions: RecommendedAction[] }) => {
+function AccionesRecomendadas({ recommendedActions }: { recommendedActions: RecommendedAction[] }) {
   if (recommendedActions.length === 0) return null;
   return (
     <div>
@@ -172,9 +175,9 @@ const AccionesRecomendadas = ({ recommendedActions }: { recommendedActions: Reco
       </div>
     </div>
   );
-};
+}
 
-const ActivityCard = ({ item }: { item: ActivityItem }) => {
+function ActivityCard({ item }: { item: ActivityItem }) {
   const config = {
     rdi: { icon: MessageSquare, colorName: "blue" as const },
     avance: { icon: TrendingUp, colorName: "green" as const },
@@ -193,7 +196,6 @@ const ActivityCard = ({ item }: { item: ActivityItem }) => {
 
   return (
     <motion.div
-      key={item.id}
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.3 }}
@@ -216,7 +218,46 @@ const ActivityCard = ({ item }: { item: ActivityItem }) => {
       </div>
     </motion.div>
   );
-};
+}
+
+function ModuleCard({ mod, company, hasObras }: { mod: any, company: Company | null, hasObras: boolean }) {
+    const isEnabled = !mod.featureFlag || !!company?.[mod.featureFlag];
+    const isPremium = !!mod.featureFlag;
+    
+    if (!isEnabled) {
+        return <DisabledModuleCard moduleId={mod.featureFlag!} title={mod.title} description={mod.description} icon={mod.icon} />;
+    }
+
+    const isObraCard = mod.title === 'Obras';
+    const showTooltip = !isObraCard && !hasObras;
+    let cardBackgroundColor = 'bg-white';
+    if (isPremium && mod.id === 'prevencion') cardBackgroundColor = 'bg-slate-50';
+
+    const cardElement = (
+      <Card className={cn("rounded-xl border shadow-sm md:hover:shadow-md transition-shadow flex flex-col relative", cardBackgroundColor)}>
+        {isPremium && <div className="absolute top-2 right-2 flex items-center gap-1 bg-primary/10 backdrop-blur-sm text-primary text-xs font-bold px-2 py-1 rounded-full border border-primary/20"><Sparkles className="h-3 w-3" /><span>Premium</span></div>}
+        <CardHeader>
+            <div className="flex items-center gap-4 mb-2">
+                <div className="p-3 bg-primary/10 rounded-full w-fit"><mod.icon className="h-8 w-8 text-primary" /></div>
+                <CardTitle className="font-headline text-2xl">{mod.title}</CardTitle>
+            </div>
+            <CardDescription className="pt-2">{mod.description}</CardDescription></CardHeader>
+        <CardFooter className="mt-auto"><Button asChild className="w-full" variant={mod.linkText === 'Próximamente' ? 'secondary' : 'default'} disabled={mod.linkText === 'Próximamente'}><Link href={mod.href}>{mod.linkText}</Link></Button></CardFooter>
+      </Card>
+    );
+
+    if (showTooltip || isObraCard) {
+      return (
+        <TooltipProvider delayDuration={100}>
+            <Tooltip>
+                <TooltipTrigger asChild>{cardElement}</TooltipTrigger>
+                <TooltipContent><p className="font-semibold">{mod.tooltip}</p></TooltipContent>
+            </Tooltip>
+        </TooltipProvider>
+      );
+    }
+    return cardElement;
+}
 
 
 // --- MAIN COMPONENT ---
@@ -302,7 +343,11 @@ export default function DashboardPage() {
             }
         } catch (error) { console.error("Error fetching dashboard data:", error); setMuralItems([]); setSummary(null); } finally { setLoading(false); }
     }
-    useEffect(() => { if (!authLoading && user) { fetchDashboardData(); } }, [user, role, companyId, authLoading, isPrevencionista]);
+    
+    if (!authLoading && user) {
+        fetchDashboardData();
+    }
+  }, [user, role, companyId, authLoading, isPrevencionista]);
   
   const recommendedActions = useMemo(() => {
     const actions: RecommendedAction[] = [];
@@ -332,32 +377,6 @@ export default function DashboardPage() {
   }
   const handleObraSelected = (obraId: string) => { if (obraId && quickAccessTarget) { router.push(`${quickAccessTarget}?obraId=${obraId}`); } setIsObraModalOpen(false); }
 
-  const renderModuleCard = (mod: typeof allMainModules[0]) => {
-    const isEnabled = !mod.featureFlag || !!company?.[mod.featureFlag];
-    const isPremium = !!mod.featureFlag;
-    if (!isEnabled) { return <DisabledModuleCard key={mod.id} moduleId={mod.featureFlag!} title={mod.title} description={mod.description} icon={mod.icon} />; }
-    const isObraCard = mod.title === 'Obras';
-    const showTooltip = !isObraCard && !hasObras;
-    let cardBackgroundColor = 'bg-white';
-    if (isPremium && mod.id === 'prevencion') cardBackgroundColor = 'bg-slate-50';
-    const card = (
-      <Card className={cn("rounded-xl border shadow-sm md:hover:shadow-md transition-shadow flex flex-col relative", cardBackgroundColor)}>
-        {isPremium && <div className="absolute top-2 right-2 flex items-center gap-1 bg-primary/10 backdrop-blur-sm text-primary text-xs font-bold px-2 py-1 rounded-full border border-primary/20"><Sparkles className="h-3 w-3" /><span>Premium</span></div>}
-        <CardHeader>
-            <div className="flex items-center gap-4 mb-2">
-                <div className="p-3 bg-primary/10 rounded-full w-fit"><mod.icon className="h-8 w-8 text-primary" /></div>
-                <CardTitle className="font-headline text-2xl">{mod.title}</CardTitle>
-            </div>
-            <CardDescription className="pt-2">{mod.description}</CardHeader>
-        <CardFooter className="mt-auto"><Button asChild className="w-full" variant={mod.linkText === 'Próximamente' ? 'secondary' : 'default'} disabled={mod.linkText === 'Próximamente'}><Link href={mod.href}>{mod.linkText}</Link></Button></CardFooter>
-      </Card>
-    );
-    if (showTooltip || isObraCard) {
-      return ( <div key={mod.id}><TooltipProvider delayDuration={100}><Tooltip><TooltipTrigger asChild>{card}</TooltipTrigger><TooltipContent><p className="font-semibold">{mod.tooltip}</p></TooltipContent></Tooltip></TooltipProvider></div> );
-    }
-    return <div key={mod.id}>{card}</div>;
-  };
-  
   return (
     <div className="min-h-screen bg-slate-50">
       <div className="flex flex-col gap-6 p-4 md:p-6">
@@ -398,7 +417,7 @@ export default function DashboardPage() {
         ) : null}
 
         {role !== 'superadmin' && (
-              <div><h2 className="text-2xl font-semibold mb-4">Módulos Principales</h2><TooltipProvider delayDuration={100}><div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4 md:gap-6">{mainModules.map((mod) => renderModuleCard(mod))}</div></TooltipProvider></div>
+              <div><h2 className="text-2xl font-semibold mb-4">Módulos Principales</h2><div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4 md:gap-6">{mainModules.map((mod) => <ModuleCard key={mod.id} mod={mod} company={company} hasObras={hasObras} />)}</div></div>
         )}
 
         <Card><CardHeader><div className="flex items-center gap-3"><Newspaper className="h-6 w-6 text-primary"/><CardTitle>Diario Mural de Actividad</CardTitle></div><CardDescription>Última actividad registrada en tus obras.</CardDescription></CardHeader>
