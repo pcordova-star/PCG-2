@@ -6,9 +6,6 @@ import textToSpeech from "@google-cloud/text-to-speech";
 import { getStorage } from "firebase-admin/storage";
 import { v4 as uuidv4 } from "uuid";
 
-// Cliente TTS
-const ttsClient = new textToSpeech.TextToSpeechClient();
-
 export const generateContextualInductionWithAudio = ai.defineFlow(
   {
     name: "generateContextualInductionWithAudio",
@@ -30,6 +27,9 @@ export const generateContextualInductionWithAudio = ai.defineFlow(
     }),
   },
   async (input) => {
+    // Cliente TTS inicializado aquí dentro para evitar problemas de build
+    const ttsClient = new textToSpeech.TextToSpeechClient();
+
     // 1️⃣ Generar texto con Gemini
     const llmResponse = await ai.generate({
       model: 'googleai/gemini-1.5-pro',
