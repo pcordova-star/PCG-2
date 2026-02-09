@@ -1,4 +1,3 @@
-
 // src/app/(pcg)/dashboard/page.tsx
 "use client";
 
@@ -39,7 +38,7 @@ import {
   CheckCircle,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { useEffect, useState, useMemo, Suspense, useRef } from 'react';
+import { useEffect, useState, useMemo, Suspense } from 'react';
 import { collection, getDocs, query, where, collectionGroup, limit, orderBy } from 'firebase/firestore';
 import { firebaseDb } from '@/lib/firebaseClient';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -230,11 +229,9 @@ function ModuleCard({ mod, company, hasObras }: { mod: any, company: Company | n
 
     const isObraCard = mod.title === 'Obras';
     const showTooltip = !isObraCard && !hasObras;
-    let cardBackgroundColor = 'bg-white';
-    if (isPremium && mod.id === 'prevencion') cardBackgroundColor = 'bg-slate-50';
 
     const cardElement = (
-      <Card className={cn("rounded-xl border shadow-sm md:hover:shadow-md transition-shadow flex flex-col relative", cardBackgroundColor)}>
+      <Card className="rounded-xl border bg-card text-card-foreground shadow-sm hover:shadow-md transition-shadow flex flex-col relative">
         {isPremium && <div className="absolute top-2 right-2 flex items-center gap-1 bg-primary/10 backdrop-blur-sm text-primary text-xs font-bold px-2 py-1 rounded-full border border-primary/20"><Sparkles className="h-3 w-3" /><span>Premium</span></div>}
         <CardHeader>
             <div className="flex items-center gap-4 mb-2">
@@ -259,6 +256,35 @@ function ModuleCard({ mod, company, hasObras }: { mod: any, company: Company | n
     return cardElement;
 }
 
+// --- NEW DASHBOARD SECTION COMPONENT ---
+const sectionVariants = {
+  hidden: { opacity: 0, y: 20 },
+  visible: { 
+    opacity: 1, 
+    y: 0,
+    transition: { duration: 0.5, ease: "easeOut" }
+  },
+};
+
+function DashboardSection({ title, description, children, className }: { title: string, description: string, children: React.ReactNode, className?: string }) {
+  return (
+    <motion.div 
+      variants={sectionVariants}
+      className={cn(
+        "rounded-2xl border p-6 md:p-8 shadow-sm transition-shadow duration-300 hover:shadow-lg hover:border-border/80",
+        className
+      )}
+    >
+        <div className="mb-6">
+            <h2 className="text-2xl font-semibold tracking-tight">{title}</h2>
+            <p className="text-muted-foreground mt-1">{description}</p>
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4 md:gap-6">
+            {children}
+        </div>
+    </motion.div>
+  );
+}
 
 // --- MAIN COMPONENT ---
 export default function DashboardPage() {
@@ -377,18 +403,6 @@ export default function DashboardPage() {
   }
   const handleObraSelected = (obraId: string) => { if (obraId && quickAccessTarget) { router.push(`${quickAccessTarget}?obraId=${obraId}`); } setIsObraModalOpen(false); }
 
-  const DashboardSection = ({ title, description, children }: { title: string, description: string, children: React.ReactNode }) => (
-    <div className="space-y-6">
-        <div className="md:px-2">
-            <h2 className="text-2xl font-semibold tracking-tight">{title}</h2>
-            <p className="text-muted-foreground">{description}</p>
-        </div>
-        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4 md:gap-6">
-            {children}
-        </div>
-    </div>
-  );
-
   const renderModule = (mod: any) => {
     if(quickAccessModules.some(m => m.id === mod.id)) {
         const isEnabled = !mod.featureFlag || !!company?.[mod.featureFlag];
@@ -408,6 +422,16 @@ export default function DashboardPage() {
     return modules;
   }, [mainModules, quickAccessModulesFiltered]);
 
+  const containerVariants = {
+    hidden: { opacity: 0 },
+    visible: {
+      opacity: 1,
+      transition: {
+        staggerChildren: 0.15,
+      },
+    },
+  };
+
 
   return (
     <div className="min-h-screen bg-slate-50">
@@ -425,33 +449,38 @@ export default function DashboardPage() {
         </header>
 
         {role !== 'superadmin' ? (
-            <>
+            <motion.div 
+              className="space-y-8"
+              variants={containerVariants}
+              initial="hidden"
+              animate="visible"
+            >
                 <EstadoGeneral loading={loading} summary={summary} />
                 <AccionesRecomendadas recommendedActions={recommendedActions} />
                 
-                 <DashboardSection title="Operaciones" description="Planifica, presupuesta y controla el ciclo de vida de tus obras.">
+                <DashboardSection title="Operaciones" description="Planifica, presupuesta y controla el ciclo de vida de tus obras." className="bg-slate-100/60">
                    {mainModules.filter(mod => ['obras', 'presupuestos', 'programacion', 'estados_de_pago'].includes(mod.id)).map(mod => <ModuleCard key={mod.id} mod={mod} company={company} hasObras={hasObras} />)}
                 </DashboardSection>
 
-                <DashboardSection title="Control y Calidad Operativa" description="Herramientas para el seguimiento diario, comunicación y calidad en terreno.">
+                <DashboardSection title="Control y Calidad Operativa" description="Herramientas para el seguimiento diario, comunicación y calidad en terreno." className="bg-gray-100/60">
                     {mainModules.filter(mod => ['checklists-operacionales', 'rdi'].includes(mod.id)).map(mod => <ModuleCard key={mod.id} mod={mod} company={company} hasObras={hasObras} />)}
                     {quickAccessModulesFiltered.filter(mod => mod.id === 'tour-step-avance-foto').map(renderModule)}
                 </DashboardSection>
 
-                <DashboardSection title="Prevención, Seguridad y Cumplimiento" description="Gestiona la seguridad, el acceso y el cumplimiento normativo en tus proyectos.">
+                <DashboardSection title="Prevención, Seguridad y Cumplimiento" description="Gestiona la seguridad, el acceso y el cumplimiento normativo en tus proyectos." className="bg-stone-100/60">
                      {mainModules.filter(mod => ['prevencion', 'documentos'].includes(mod.id)).map(mod => <ModuleCard key={mod.id} mod={mod} company={company} hasObras={hasObras} />)}
                      {quickAccessModulesFiltered.filter(mod => ['control-acceso', 'cumplimiento-legal'].includes(mod.id)).map(renderModule)}
                 </DashboardSection>
 
-                <DashboardSection title="Inteligencia y Análisis (IA)" description="Módulos potenciados por IA para optimizar cubicaciones y detectar cambios en planos.">
+                <DashboardSection title="Inteligencia y Análisis (IA)" description="Módulos potenciados por IA para optimizar cubicaciones y detectar cambios en planos." className="bg-blue-50/40">
                     {quickAccessModulesFiltered.filter(mod => ['analisis-planos', 'comparacion-planos'].includes(mod.id)).map(renderModule)}
                 </DashboardSection>
                 
-                <DashboardSection title="Visión Ejecutiva" description="Paneles consolidados para la alta dirección y clientes.">
+                <DashboardSection title="Visión Ejecutiva" description="Paneles consolidados para la alta dirección y clientes." className="bg-purple-50/40">
                     {quickAccessModulesFiltered.filter(mod => mod.id === 'acceso-director').map(renderModule)}
                 </DashboardSection>
 
-            </>
+            </motion.div>
         ) : (
             <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-5">
                 {adminCards.map(card => (
@@ -477,5 +506,3 @@ export default function DashboardPage() {
     </div>
   );
 }
-
-    
