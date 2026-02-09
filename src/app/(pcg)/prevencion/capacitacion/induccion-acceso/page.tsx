@@ -20,7 +20,7 @@ import { useToast } from '@/hooks/use-toast';
 import { ArrowLeft, Loader2, UserPlus, Download } from 'lucide-react';
 import Link from 'next/link';
 import { Badge } from '@/components/ui/badge';
-import SignaturePad from '@/components/prevencion/hallazgos/components/SignaturePad';
+import SignaturePad from '@/components/ui/SignaturePad';
 
 
 const initialFormState: Omit<InduccionAccesoFaena, 'id' | 'createdAt' | 'obraId' | 'obraNombre' | 'generadorId' | 'origenRegistro'> = {
@@ -76,7 +76,7 @@ export default function InduccionAccesoPage() {
     
     useEffect(() => {
         if (selectedObraId) {
-            const origin = process.env.NEXT_PUBLIC_BASE_URL || 'https://pcg-2.vercel.app';
+            const origin = "https://pcg-2.vercel.app";
             setQrValue(`${origin}/public/induccion/${selectedObraId}`);
 
             // Fetch recent inductions for this obra
@@ -222,7 +222,7 @@ export default function InduccionAccesoPage() {
                             </div>
                             <div className="space-y-2">
                                 <Label>Firma del Visitante</Label>
-                                <SignaturePad onChange={(dataUrl) => handleInputChange('firmaDataUrl', dataUrl)} />
+                                <SignaturePad onChange={(dataUrl) => handleInputChange('firmaDataUrl', dataUrl || '')} />
                             </div>
                             <Button type="submit" disabled={isSaving || !selectedObraId}>
                                 {isSaving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <UserPlus className="mr-2 h-4 w-4" />}
