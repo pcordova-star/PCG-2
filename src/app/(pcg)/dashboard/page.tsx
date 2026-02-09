@@ -112,8 +112,25 @@ function getRoleName(role: string) {
     return roles[role] || role;
 }
 
-// --- SUBCOMPONENTES ---
-const ActivityCard = ({ item }: { item: ActivityItem }) => {
+
+// --- COMPONENTE PRINCIPAL ---
+export default function DashboardPage() {
+  const { user, role, companyId, company, loading: authLoading } = useAuth();
+  const router = useRouter();
+
+  const [hasObras, setHasObras] = useState(false);
+  const [obras, setObras] = useState<Obra[]>([]);
+  const [muralItems, setMuralItems] = useState<ActivityItem[]>([]);
+  const [isObraModalOpen, setIsObraModalOpen] = useState(false);
+  const [quickAccessTarget, setQuickAccessTarget] = useState('');
+  
+  const [summary, setSummary] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
+
+  const isPrevencionista = role === 'prevencionista';
+  
+  // --- SUBCOMPONENTES (DEFINIDOS DENTRO DEL COMPONENTE PRINCIPAL) ---
+  function ActivityCard({ item }: { item: ActivityItem }) {
     const config = {
       rdi: { icon: MessageSquare, colorName: "blue" as const },
       avance: { icon: TrendingUp, colorName: "green" as const },
@@ -141,9 +158,9 @@ const ActivityCard = ({ item }: { item: ActivityItem }) => {
       </div>
       </motion.div>
     );
-};
+  }
 
-const EstadoGeneral = ({ summary, isLoading }: { summary: any, isLoading: boolean }) => {
+  function EstadoGeneral({ summary, isLoading }: { summary: any, isLoading: boolean }) {
     if (isLoading) {
         return (
             <Card>
@@ -175,49 +192,32 @@ const EstadoGeneral = ({ summary, isLoading }: { summary: any, isLoading: boolea
             </CardContent>
         </Card>
     );
-};
+  }
 
-const AccionesRecomendadas = ({ actions }: { actions: RecommendedAction[] }) => {
-  if (actions.length === 0) return null;
-  return (
-    <div>
-      <h2 className="text-xl font-semibold mb-4">Acciones Recomendadas para Hoy</h2>
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        {actions.map(action => (
-          <Link key={action.id} href={action.href} className="block group">
-            <Card className="h-full hover:border-primary hover:bg-primary/5 transition-all">
-              <CardHeader className="flex-row items-center gap-4">
-                <action.icon className="h-8 w-8 text-primary" />
-                <div>
-                  <CardTitle className="text-base">{action.title}</CardTitle>
-                  <CardDescription>{action.description}</CardDescription>
-                </div>
-              </CardHeader>
-            </Card>
-          </Link>
-        ))}
+  function AccionesRecomendadas({ actions }: { actions: RecommendedAction[] }) {
+    if (actions.length === 0) return null;
+    return (
+      <div>
+        <h2 className="text-xl font-semibold mb-4">Acciones Recomendadas para Hoy</h2>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          {actions.map(action => (
+            <Link key={action.id} href={action.href} className="block group">
+              <Card className="h-full hover:border-primary hover:bg-primary/5 transition-all">
+                <CardHeader className="flex-row items-center gap-4">
+                  <action.icon className="h-8 w-8 text-primary" />
+                  <div>
+                    <CardTitle className="text-base">{action.title}</CardTitle>
+                    <CardDescription>{action.description}</CardDescription>
+                  </div>
+                </CardHeader>
+              </Card>
+            </Link>
+          ))}
+        </div>
       </div>
-    </div>
-  );
-};
+    );
+  }
 
-
-// --- COMPONENTE PRINCIPAL ---
-export default function DashboardPage() {
-  const { user, role, companyId, company, loading: authLoading } = useAuth();
-  const router = useRouter();
-
-  const [hasObras, setHasObras] = useState(false);
-  const [obras, setObras] = useState<Obra[]>([]);
-  const [muralItems, setMuralItems] = useState<ActivityItem[]>([]);
-  const [isObraModalOpen, setIsObraModalOpen] = useState(false);
-  const [quickAccessTarget, setQuickAccessTarget] = useState('');
-  
-  const [summary, setSummary] = useState<any>(null);
-  const [loading, setLoading] = useState(true);
-
-  const isPrevencionista = role === 'prevencionista';
-  
   useEffect(() => {
     if (!authLoading && !user) { router.replace('/login/usuario'); }
   }, [user, authLoading, router]);
@@ -337,10 +337,11 @@ export default function DashboardPage() {
       </Card>
     );
     if (showTooltip || isObraCard) {
-      return ( <Tooltip key={mod.id}><TooltipTrigger asChild>{card}</TooltipTrigger><TooltipContent><p className="font-semibold">{mod.tooltip}</p></TooltipContent></Tooltip> );
+      return ( <div key={mod.id}><TooltipProvider delayDuration={100}><Tooltip><TooltipTrigger asChild>{card}</TooltipTrigger><TooltipContent><p className="font-semibold">{mod.tooltip}</p></TooltipContent></Tooltip></TooltipProvider></div> );
     }
     return <div key={mod.id}>{card}</div>;
   };
+
   
   return (
     <div className="min-h-screen bg-slate-50">
