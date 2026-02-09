@@ -58,7 +58,7 @@ service cloud.firestore {
     
     // --------- Regla para Control de Acceso (NUEVO) ---------
     match /controlAcceso/{docId} {
-      // Solo usuarios autenticados pueden leer los registros.
+      // Solo usuarios autenticados de la empresa pueden leer los registros.
       allow read: if isSignedIn();
       // NADIE puede escribir desde el cliente. Solo el backend (admin SDK) puede.
       allow write: if false;

@@ -688,3 +688,13 @@ export interface InduccionAccesoFaena {
   origenRegistro?: "panel" | "qr";
   createdAt?: Timestamp;
 }
+
+export interface AccesoRegistro {
+  id: string;
+  nombre: string;
+  rut: string;
+  empresa: string;
+  motivo: string;
+  archivoUrl: string;
+  createdAt: { toDate: () => Date };
+}

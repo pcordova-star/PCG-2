@@ -6,10 +6,10 @@ import * as crypto from 'crypto';
 
 const AccessRequestSchema = z.object({
   obraId: z.string().min(1),
-  nombre: z.string().min(3),
+  nombreCompleto: z.string().min(3),
   rut: z.string().min(8),
   empresa: z.string().min(2),
-  motivo: z.string().min(5),
+  motivo: z.string().min(1),
 });
 
 export const runtime = "nodejs";
@@ -24,7 +24,7 @@ export async function POST(req: NextRequest) {
     if (!parsed.success) {
       return NextResponse.json({ error: "Datos de formulario inválidos.", details: parsed.error.flatten() }, { status: 400 });
     }
-    const { obraId, nombre, rut, empresa, motivo } = parsed.data;
+    const { obraId, nombreCompleto, rut, empresa, motivo } = parsed.data;
 
     // 2. Validar el archivo
     const file = formData.get('archivo') as File | null;
@@ -56,7 +56,7 @@ export async function POST(req: NextRequest) {
     // 4. Guardar registro en Firestore
     const newRecord = {
       obraId,
-      nombre,
+      nombre: nombreCompleto,
       rut,
       empresa,
       motivo,

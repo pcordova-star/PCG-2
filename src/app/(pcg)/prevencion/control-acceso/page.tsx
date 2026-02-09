@@ -14,21 +14,7 @@ import { ArrowLeft, Download, Loader2, QrCode } from 'lucide-react';
 import Link from 'next/link';
 import QRCode from 'react-qr-code';
 import { saveAs } from 'file-saver';
-
-type Obra = {
-  id: string;
-  nombreFaena: string;
-};
-
-type AccesoRegistro = {
-  id: string;
-  nombre: string;
-  rut: string;
-  empresa: string;
-  motivo: string;
-  archivoUrl: string;
-  createdAt: { toDate: () => Date };
-};
+import { Obra, AccesoRegistro } from '@/types/pcg';
 
 export default function ControlAccesoAdminPage() {
   const { companyId, role } = useAuth();

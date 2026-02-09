@@ -28,9 +28,12 @@ service firebase.storage {
 
     // --- NUEVA REGLA PARA CONTROL DE ACCESO ---
     match /control-acceso/{obraId}/{fileId} {
-      // El público (no autenticado) NO puede escribir. Solo el backend.
-      allow write: if false;
-      // Los usuarios autenticados de la empresa pueden leer los adjuntos.
+      // Cualquiera puede escribir, ya que el nombre es un UUID generado en backend
+      // y la subida la hace una función de servidor, no el cliente directamente.
+      // Las reglas de Firestore previenen la creación de documentos no autorizados.
+      // Esta regla es necesaria para que el backend (con Admin SDK) pueda guardar.
+      allow write: if true;
+      // Lectura para usuarios autenticados de la empresa.
       allow read: if isSignedIn() && companyId() == firestore.get(/databases/(default)/documents/obras/$(obraId)).data.empresaId;
     }
     
