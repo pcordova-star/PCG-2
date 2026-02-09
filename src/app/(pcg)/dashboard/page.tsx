@@ -112,7 +112,6 @@ function getRoleName(role: string) {
     return roles[role] || role;
 }
 
-
 // --- COMPONENTE PRINCIPAL ---
 export default function DashboardPage() {
   const { user, role, companyId, company, loading: authLoading } = useAuth();
@@ -129,95 +128,6 @@ export default function DashboardPage() {
 
   const isPrevencionista = role === 'prevencionista';
   
-  // --- SUBCOMPONENTES (DEFINIDOS DENTRO DEL COMPONENTE PRINCIPAL) ---
-  function ActivityCard({ item }: { item: ActivityItem }) {
-    const config = {
-      rdi: { icon: MessageSquare, colorName: "blue" as const },
-      avance: { icon: TrendingUp, colorName: "green" as const },
-      edp: { icon: DollarSign, colorName: "purple" as const },
-      hallazgo: { icon: Siren, colorName: "orange" as const }
-    };
-    const colorStyles = {
-        blue: { border: 'border-blue-500', bg: 'bg-blue-100', icon: 'text-blue-600' },
-        green: { border: 'border-green-500', bg: 'bg-green-100', icon: 'text-green-600' },
-        purple: { border: 'border-purple-500', bg: 'bg-purple-100', icon: 'text-purple-600' },
-        orange: { border: 'border-orange-500', bg: 'bg-orange-100', icon: 'text-orange-600' }
-    };
-    const itemConfig = config[item.type];
-    const styles = colorStyles[itemConfig.colorName];
-    const Icon = itemConfig.icon;
-  
-    return (
-      <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.3 }} className={cn("flex items-start gap-4 p-4 border-l-4 rounded-r-lg bg-card shadow-sm hover:bg-muted/50", styles.border)}>
-        <div className={cn("p-2 rounded-full", styles.bg)}><Icon className={cn("h-6 w-6", styles.icon)} /></div>
-        <div className="flex-1">
-          <div className="flex justify-between items-center"><p className="font-semibold text-sm">{item.titulo}</p>{item.estado && <Badge variant="outline">{item.estado}</Badge>}</div>
-          <p className="text-xs text-muted-foreground">{item.obraNombre} - {item.fecha.toLocaleDateString('es-CL')}</p>
-          <div className="flex justify-between items-end mt-2"><p className="text-sm text-muted-foreground">{item.descripcion}</p>{item.valor && <p className="text-sm font-bold text-primary">{item.valor}</p>}</div>
-         <Button asChild variant="ghost" size="sm"><Link href={item.href}><ArrowRight className="h-4 w-4 mr-2"/>Ver Detalle</Link></Button>
-      </div>
-      </motion.div>
-    );
-  }
-
-  function EstadoGeneral({ summary, isLoading }: { summary: any, isLoading: boolean }) {
-    if (isLoading) {
-        return (
-            <Card>
-                <CardHeader><CardTitle>Estado General de la Operación</CardTitle></CardHeader>
-                <CardContent className="space-y-3"><Skeleton className="h-4 w-3/4" /><Skeleton className="h-4 w-1/2" /><Skeleton className="h-4 w-2/3" /></CardContent>
-            </Card>
-        );
-    }
-
-    let hallazgosText;
-    if (summary?.hallazgosAbiertos > 0) {
-      hallazgosText = <>Se han reportado <strong className="text-foreground">{summary.hallazgosAbiertos}</strong> hallazgos de seguridad abiertos, de los cuales <strong className="text-red-600">{summary.hallazgosCriticos} son críticos</strong>.</>;
-    } else {
-      hallazgosText = <span className="text-green-600 font-semibold">¡Buen trabajo! No hay alertas de seguridad pendientes.</span>;
-    }
-
-    return (
-        <Card>
-            <CardHeader><CardTitle>Estado General de la Operación</CardTitle></CardHeader>
-            <CardContent>
-                <div className="space-y-3 text-muted-foreground">
-                    <p className="flex items-center gap-2"><HardHat className="h-5 w-5 text-primary" />Actualmente tienes <strong className="text-foreground">{summary?.obrasActivas ?? 0}</strong> obras activas.</p>
-                    <p className="flex items-center gap-2">
-                        {summary?.hallazgosAbiertos > 0 ? <AlertTriangle className="h-5 w-5 text-red-500" /> : <CheckCircle className="h-5 w-5 text-green-500" />}
-                        {hallazgosText}
-                    </p>
-                    <p className="flex items-center gap-2"><Users className="h-5 w-5 text-primary" />Hay un total de <strong className="text-foreground">{summary?.personasEnFaena ?? 0}</strong> personas en faena en este momento.</p>
-                </div>
-            </CardContent>
-        </Card>
-    );
-  }
-
-  function AccionesRecomendadas({ actions }: { actions: RecommendedAction[] }) {
-    if (actions.length === 0) return null;
-    return (
-      <div>
-        <h2 className="text-xl font-semibold mb-4">Acciones Recomendadas para Hoy</h2>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          {actions.map(action => (
-            <Link key={action.id} href={action.href} className="block group">
-              <Card className="h-full hover:border-primary hover:bg-primary/5 transition-all">
-                <CardHeader className="flex-row items-center gap-4">
-                  <action.icon className="h-8 w-8 text-primary" />
-                  <div>
-                    <CardTitle className="text-base">{action.title}</CardTitle>
-                    <CardDescription>{action.description}</CardDescription>
-                  </div>
-                </CardHeader>
-              </Card>
-            </Link>
-          ))}
-        </div>
-      </div>
-    );
-  }
-
   useEffect(() => {
     if (!authLoading && !user) { router.replace('/login/usuario'); }
   }, [user, authLoading, router]);
@@ -341,7 +251,6 @@ export default function DashboardPage() {
     }
     return <div key={mod.id}>{card}</div>;
   };
-
   
   return (
     <div className="min-h-screen bg-slate-50">
@@ -360,8 +269,42 @@ export default function DashboardPage() {
 
         {role !== 'superadmin' && (
           <>
-            <EstadoGeneral summary={summary} isLoading={loading} />
-            <AccionesRecomendadas actions={recommendedActions} />
+            <Card>
+                <CardHeader><CardTitle>Estado General de la Operación</CardTitle></CardHeader>
+                <CardContent>
+                    {loading ? <div className="space-y-3"><Skeleton className="h-4 w-3/4" /><Skeleton className="h-4 w-1/2" /><Skeleton className="h-4 w-2/3" /></div> : (
+                        <div className="space-y-3 text-muted-foreground">
+                            <p className="flex items-center gap-2"><HardHat className="h-5 w-5 text-primary" />Actualmente tienes <strong className="text-foreground">{summary?.obrasActivas ?? 0}</strong> obras activas.</p>
+                            <p className="flex items-center gap-2">
+                                {summary?.hallazgosAbiertos > 0 ? <AlertTriangle className="h-5 w-5 text-red-500" /> : <CheckCircle className="h-5 w-5 text-green-500" />}
+                                {summary?.hallazgosAbiertos > 0 ? <>Se han reportado <strong className="text-foreground">{summary.hallazgosAbiertos}</strong> hallazgos de seguridad abiertos, de los cuales <strong className="text-red-600">{summary.hallazgosCriticos} son críticos</strong>.</> : <span className="text-green-600 font-semibold">¡Buen trabajo! No hay alertas de seguridad pendientes.</span>}
+                            </p>
+                            <p className="flex items-center gap-2"><Users className="h-5 w-5 text-primary" />Hay un total de <strong className="text-foreground">{summary?.personasEnFaena ?? 0}</strong> personas en faena en este momento.</p>
+                        </div>
+                    )}
+                </CardContent>
+            </Card>
+
+            {recommendedActions.length > 0 && (
+                 <div>
+                    <h2 className="text-xl font-semibold mb-4">Acciones Recomendadas para Hoy</h2>
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                      {recommendedActions.map(action => (
+                        <Link key={action.id} href={action.href} className="block group">
+                          <Card className="h-full hover:border-primary hover:bg-primary/5 transition-all">
+                            <CardHeader className="flex-row items-center gap-4">
+                              <action.icon className="h-8 w-8 text-primary" />
+                              <div>
+                                <CardTitle className="text-base">{action.title}</CardTitle>
+                                <CardDescription>{action.description}</CardDescription>
+                              </div>
+                            </CardHeader>
+                          </Card>
+                        </Link>
+                      ))}
+                    </div>
+                  </div>
+            )}
           </>
         )}
 
@@ -390,7 +333,35 @@ export default function DashboardPage() {
             <CardContent>
                 {loading ? <div className="space-y-4"><Skeleton className="h-16 w-full" /><Skeleton className="h-16 w-full" /><Skeleton className="h-16 w-full" /></div>
                          : muralItems.length === 0 ? <div className="text-center py-8 bg-muted/50 rounded-lg"><p className="text-muted-foreground">No hay actividad reciente para mostrar en tus obras.</p></div>
-                                                  : <div className="space-y-3">{muralItems.map(item => <ActivityCard key={item.id} item={item} />)}</div>}
+                         : <div className="space-y-3">{muralItems.map(item => {
+                             const config = {
+                              rdi: { icon: MessageSquare, colorName: "blue" as const },
+                              avance: { icon: TrendingUp, colorName: "green" as const },
+                              edp: { icon: DollarSign, colorName: "purple" as const },
+                              hallazgo: { icon: Siren, colorName: "orange" as const }
+                            };
+                            const colorStyles = {
+                                blue: { border: 'border-blue-500', bg: 'bg-blue-100', icon: 'text-blue-600' },
+                                green: { border: 'border-green-500', bg: 'bg-green-100', icon: 'text-green-600' },
+                                purple: { border: 'border-purple-500', bg: 'bg-purple-100', icon: 'text-purple-600' },
+                                orange: { border: 'border-orange-500', bg: 'bg-orange-100', icon: 'text-orange-600' }
+                            };
+                            const itemConfig = config[item.type];
+                            const styles = colorStyles[itemConfig.colorName];
+                            const Icon = itemConfig.icon;
+                          
+                            return (
+                              <motion.div key={item.id} initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.3 }} className={cn("flex items-start gap-4 p-4 border-l-4 rounded-r-lg bg-card shadow-sm hover:bg-muted/50", styles.border)}>
+                                <div className={cn("p-2 rounded-full", styles.bg)}><Icon className={cn("h-6 w-6", styles.icon)} /></div>
+                                <div className="flex-1">
+                                  <div className="flex justify-between items-center"><p className="font-semibold text-sm">{item.titulo}</p>{item.estado && <Badge variant="outline">{item.estado}</Badge>}</div>
+                                  <p className="text-xs text-muted-foreground">{item.obraNombre} - {item.fecha.toLocaleDateString('es-CL')}</p>
+                                  <div className="flex justify-between items-end mt-2"><p className="text-sm text-muted-foreground">{item.descripcion}</p>{item.valor && <p className="text-sm font-bold text-primary">{item.valor}</p>}</div>
+                                 <Button asChild variant="ghost" size="sm"><Link href={item.href}><ArrowRight className="h-4 w-4 mr-2"/>Ver Detalle</Link></Button>
+                              </div>
+                              </motion.div>
+                            );
+                         })}</div>}
             </CardContent>
         </Card>
 
@@ -403,3 +374,5 @@ export default function DashboardPage() {
     </div>
   );
 }
+
+    
