@@ -129,7 +129,7 @@ function EstadoGeneral({ loading, summary }: { loading: boolean; summary: any })
           <div className="space-y-3 text-muted-foreground">
             <p className="flex items-center gap-2">
               <HardHat className="h-5 w-5 text-primary" />
-              Actualmente tienes <strong className="text-foreground">{summary?.obrasActivas ?? 0}</strong> obras activas.
+              Actualmente tienes <strong className="text-foreground">{summary?.obrasActivas ?? 0}</strong> obras registradas.
             </p>
             <p className="flex items-center gap-2">
               {summary?.hallazgosAbiertos > 0 ? <AlertTriangle className="h-5 w-5 text-red-500" /> : <CheckCircle className="h-5 w-5 text-green-500" />}
@@ -326,7 +326,7 @@ export default function DashboardPage() {
             const obrasIds = obrasList.map(doc => doc.id);
             const obrasMap = new Map(obrasList.map(o => [o.id, o.nombreFaena]));
 
-            const obrasActivas = obrasList.filter(o => o.estado !== 'Terminada' && o.estado !== 'Pausada' && o.estado !== 'Inactiva').length;
+            const obrasActivas = obrasList.length;
             let personasEnFaena = 0;
             let hallazgosAbiertos = 0;
             let hallazgosCriticos = 0;
