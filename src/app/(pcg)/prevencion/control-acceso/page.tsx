@@ -46,7 +46,10 @@ export default function ControlAccesoAdminPage() {
 
   useEffect(() => {
     if (selectedObraId) {
-      setQrUrl(`${window.location.origin}/public/control-acceso/${selectedObraId}`);
+      // FIX: Use the public URL for the QR code, not the development origin.
+      const publicAppUrl = 'https://pcg-2.vercel.app';
+      setQrUrl(`${publicAppUrl}/public/control-acceso/${selectedObraId}`);
+      
       setLoading(true);
       const q = query(
         collection(firebaseDb, "controlAcceso"),
