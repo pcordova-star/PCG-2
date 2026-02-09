@@ -663,3 +663,28 @@ export interface EmpresaContratista {
   evaluador: string;
   fechaCreacion: Timestamp;
 }
+
+export interface InduccionAccesoFaena {
+  id?: string;
+  obraId: string;
+  obraNombre?: string;
+  generadorId?: string | null;
+  tipoVisita: "VISITA" | "PROVEEDOR" | "INSPECTOR" | "OTRO";
+  nombreCompleto: string;
+  rut: string;
+  empresa: string;
+  cargo: string;
+  telefono: string;
+  correo: string;
+  fechaIngreso: string;
+  horaIngreso: string;
+  respuestaPregunta1?: "SI" | "NO";
+  respuestaPregunta2?: "SI" | "NO";
+  respuestaPregunta3?: "SI" | "NO";
+  aceptaReglamento: boolean;
+  aceptaEpp: boolean;
+  aceptaTratamientoDatos: boolean;
+  firmaDataUrl?: string;
+  origenRegistro?: "panel" | "qr";
+  createdAt?: Timestamp;
+}
