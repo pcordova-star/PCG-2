@@ -45,7 +45,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { useAuth } from '@/context/AuthContext';
 import { Company, Obra, Hallazgo, Rdi, AvanceDiario } from '@/types/pcg';
 import { PcgLogo } from '@/components/branding/PcgLogo';
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import { Tooltip, TooltipProvider, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { QuickAccessCard } from '@/components/dashboard/QuickAccessCard';
 import { DisabledModuleCard } from '@/components/dashboard/DisabledModuleCard';
 import { ObraSelectionModal } from '@/components/dashboard/ObraSelectionModal';
@@ -326,7 +326,7 @@ export default function DashboardPage() {
             const obrasIds = obrasList.map(doc => doc.id);
             const obrasMap = new Map(obrasList.map(o => [o.id, o.nombreFaena]));
 
-            const obrasActivas = obrasList.filter(o => o.estado === 'Activa').length;
+            const obrasActivas = obrasList.filter(o => o.estado !== 'Terminada' && o.estado !== 'Pausada' && o.estado !== 'Inactiva').length;
             let personasEnFaena = 0;
             let hallazgosAbiertos = 0;
             let hallazgosCriticos = 0;
