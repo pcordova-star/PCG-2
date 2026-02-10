@@ -6,6 +6,9 @@ import { z } from "zod";
 import * as crypto from 'crypto';
 import { generateContextualInductionWithAudio } from "@/ai/flows/generateContextualInductionWithAudio";
 
+export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
+
 const AccessRequestSchema = z.object({
   obraId: z.string().min(1),
   nombreCompleto: z.string().min(3),
@@ -15,9 +18,6 @@ const AccessRequestSchema = z.object({
   tipoPersona: z.enum(['trabajador', 'subcontratista', 'visita']),
   duracionIngreso: z.enum(['visita breve', 'jornada parcial', 'jornada completa']),
 });
-
-export const runtime = "nodejs";
-export const dynamic = "force-dynamic";
 
 export async function POST(req: NextRequest) {
   try {

@@ -1,4 +1,5 @@
 'use server';
+import "server-only";
 
 import { z } from "zod";
 import { ai } from "@/genkit";
@@ -6,25 +7,31 @@ import textToSpeech from "@google-cloud/text-to-speech";
 import { getStorage } from "firebase-admin/storage";
 import { v4 as uuidv4 } from "uuid";
 
-export const generateContextualInductionWithAudio = ai.defineFlow(
+const InputSchema = z.object({
+  obraId: z.string(),
+  obraNombre: z.string(),
+  tipoObra: z.string(),
+  tipoPersona: z.enum(["trabajador", "subcontratista", "visita"]),
+  descripcionTarea: z.string(),
+  duracionIngreso: z.enum([
+    "visita breve",
+    "jornada parcial",
+    "jornada completa",
+  ]),
+});
+type Input = z.infer<typeof InputSchema>;
+
+const OutputSchema = z.object({
+  inductionText: z.string(),
+  audioPath: z.string(),
+});
+type Output = z.infer<typeof OutputSchema>;
+
+const contextualInductionFlow = ai.defineFlow(
   {
-    name: "generateContextualInductionWithAudio",
-    inputSchema: z.object({
-      obraId: z.string(),
-      obraNombre: z.string(),
-      tipoObra: z.string(),
-      tipoPersona: z.enum(["trabajador", "subcontratista", "visita"]),
-      descripcionTarea: z.string(),
-      duracionIngreso: z.enum([
-        "visita breve",
-        "jornada parcial",
-        "jornada completa",
-      ]),
-    }),
-    outputSchema: z.object({
-      inductionText: z.string(),
-      audioPath: z.string(),
-    }),
+    name: "contextualInductionFlow",
+    inputSchema: InputSchema,
+    outputSchema: OutputSchema,
   },
   async (input) => {
     // Cliente TTS inicializado aquí dentro para evitar problemas de build
@@ -107,15 +114,6 @@ ESTRUCTURA OBLIGATORIA DE LA MICRO-INDUCCIÓN
    - Indicar que ante dudas debe consultar con supervisión.
 
 ==============================
-CRITERIOS DE REDACCIÓN
-==============================
-- Español chileno neutro.
-- Frases cortas.
-- Tono profesional y preventivo.
-- Pensado para lectura o audio en celular.
-- Duración total estimada: 1 a 2 minutos.
-
-==============================
 DISCLAIMER OBLIGATORIO (SIEMPRE AL FINAL)
 ==============================
 "Esta inducción es informativa y no reemplaza la supervisión directa ni el criterio del prevencionista de riesgos."
@@ -175,3 +173,8 @@ Contexto del ingreso:
     };
   }
 );
+
+
+export async function generateContextualInductionWithAudio(input: Input): Promise<Output> {
+    return contextualInductionFlow(input);
+}
