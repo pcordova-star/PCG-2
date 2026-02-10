@@ -1,61 +1,108 @@
 // src/app/public/control-acceso/[obraId]/page.tsx
-'use client';
+"use client";
 
-import { useState, useEffect, FormEvent, Suspense } from 'react';
+import { useState, useEffect, FormEvent, useRef, useCallback } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Textarea } from '@/components/ui/textarea';
-import { Loader2, QrCode, Upload, CheckCircle, ShieldX } from 'lucide-react';
+import { Loader2, QrCode, Upload, ArrowLeft } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { PcgLogo } from '@/components/branding/PcgLogo';
-import { Scanner } from 'react-zxing';
-import { doc, getDoc } from 'firebase/firestore';
+import { getDoc, doc } from 'firebase/firestore';
 import { firebaseDb } from '@/lib/firebaseClient';
 import { Obra } from '@/types/pcg';
+import { useZxing } from "react-zxing";
+import jsQR from 'jsqr';
 
-function ControlAccesoForm() {
+type FormStatus = 'pending' | 'submitting' | 'submitted' | 'error';
+
+function parseChileanId(qrData: string): { rut: string; nombre: string } | null {
+  try {
+    const parts = qrData.split('|');
+    if (parts.length < 4) return null;
+
+    const rut = parts[0];
+    const apellidoPaterno = parts[1];
+    const apellidoMaterno = parts[2];
+    const nombres = parts[3];
+
+    if (!rut || !nombres || !apellidoPaterno) return null;
+    
+    // Formatear RUT: XXXXXXXX-X
+    const rutBody = rut.slice(0, -1);
+    const rutDv = rut.slice(-1);
+    const formattedRut = `${rutBody}-${rutDv}`;
+
+    const nombreCompleto = `${nombres} ${apellidoPaterno} ${apellidoMaterno}`.trim();
+    
+    return { rut: formattedRut, nombre: nombreCompleto };
+  } catch (error) {
+    console.error("Error parsing QR data:", error);
+    return null;
+  }
+}
+
+export default function PublicAccessPage() {
   const params = useParams();
   const router = useRouter();
   const { toast } = useToast();
-
   const obraId = params.obraId as string;
+
   const [obra, setObra] = useState<Obra | null>(null);
   const [loadingObra, setLoadingObra] = useState(true);
-
-  // Form State
+  
   const [formData, setFormData] = useState({
     nombreCompleto: '',
     rut: '',
     empresa: '',
     motivo: '',
-    tipoPersona: 'visita' as 'visita' | 'subcontratista' | 'trabajador',
+    tipoPersona: 'visita' as 'trabajador' | 'subcontratista' | 'visita',
     duracionIngreso: 'visita breve' as 'visita breve' | 'jornada parcial' | 'jornada completa',
+    archivo: null as File | null,
   });
-  const [archivo, setArchivo] = useState<File | null>(null);
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [error, setError] = useState<string | null>(null);
   
-  // Scanner State
-  const [isScannerOpen, setIsScannerOpen] = useState(false);
+  const [status, setStatus] = useState<FormStatus>('pending');
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
-  // Induction State
-  const [inductionData, setInductionData] = useState<{ text: string, audioUrl: string, evidenciaId: string } | null>(null);
+  // Estados para el flujo post-submit (inducción)
+  const [inductionText, setInductionText] = useState('');
+  const [audioUrl, setAudioUrl] = useState('');
+  const [evidenciaId, setEvidenciaId] = useState('');
   const [isConfirming, setIsConfirming] = useState(false);
+
+  // Estados para el scanner
+  const [isScanning, setIsScanning] = useState(false);
+  const { ref } = useZxing({
+    onResult: (result) => {
+      const parsedData = parseChileanId(result.getText());
+      if (parsedData) {
+        setFormData(prev => ({
+          ...prev,
+          nombreCompleto: parsedData.nombre,
+          rut: parsedData.rut
+        }));
+        toast({ title: "Datos escaneados", description: "Nombre y RUT autocompletados." });
+        setIsScanning(false);
+      } else {
+        toast({ variant: 'destructive', title: "QR no válido", description: "El código QR escaneado no parece ser de una cédula de identidad chilena válida." });
+      }
+    },
+    paused: !isScanning,
+  });
 
   useEffect(() => {
     if (obraId) {
       const fetchObra = async () => {
         setLoadingObra(true);
         const obraRef = doc(firebaseDb, "obras", obraId);
-        const obraSnap = await getDoc(obraRef);
-        if (obraSnap.exists()) {
-          setObra({ id: obraSnap.id, ...obraSnap.data() } as Obra);
+        const snap = await getDoc(obraRef);
+        if (snap.exists()) {
+          setObra({ id: snap.id, ...snap.data() } as Obra);
         } else {
-          setError("La obra especificada no existe.");
+          setErrorMessage("La obra especificada no existe.");
         }
         setLoadingObra(false);
       };
@@ -63,160 +110,148 @@ function ControlAccesoForm() {
     }
   }, [obraId]);
 
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
-    setFormData(prev => ({...prev, [name]: value }));
-  };
-
-  const handleSelectChange = (name: keyof typeof formData, value: string) => {
     setFormData(prev => ({ ...prev, [name]: value }));
   };
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setArchivo(e.target.files ? e.target.files[0] : null);
+    setFormData(prev => ({ ...prev, archivo: e.target.files?.[0] || null }));
   };
-  
-  const handleScan = (result: string | null | undefined) => {
-    if (result) {
-      try {
-        const parts = result.split('|');
-        let rut = '';
-        let nombreCompleto = '';
 
-        // Formato cédulas nuevas: RUN|APELLIDO PATERNO|APELLIDO MATERNO|NOMBRES...
-        if (parts.length > 3 && parts[0].includes('-')) {
-            rut = parts[0];
-            const nombres = parts[3];
-            const apellidoPaterno = parts[1];
-            const apellidoMaterno = parts[2];
-            nombreCompleto = `${nombres} ${apellidoPaterno} ${apellidoMaterno}`.trim();
-        }
-        
-        if (rut && nombreCompleto) {
-          setFormData(prev => ({...prev, nombreCompleto, rut }));
-          toast({ title: "Éxito", description: "Datos escaneados correctamente." });
-        } else {
-          toast({ variant: "destructive", title: "QR no reconocido", description: "El formato del código QR no parece ser de una cédula chilena válida." });
-        }
-      } catch (e) {
-        toast({ variant: "destructive", title: "Error de Escaneo", description: "No se pudo interpretar el código QR." });
-      } finally {
-        setIsScannerOpen(false);
-      }
-    }
-  };
-  
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
-    setError(null);
-    if (!archivo) {
-      setError("El archivo de la cédula de identidad es obligatorio.");
+    if (!obraId) {
+      setErrorMessage("Falta el ID de la obra.");
       return;
     }
     
-    setIsSubmitting(true);
-    
-    const submissionForm = new FormData();
+    setStatus('submitting');
+    setErrorMessage(null);
+
+    const formPayload = new FormData();
     Object.entries(formData).forEach(([key, value]) => {
-      submissionForm.append(key, value);
+      if (value) {
+        formPayload.append(key, value);
+      }
     });
-    submissionForm.append('obraId', obraId);
-    submissionForm.append('archivo', archivo);
-    
+    formPayload.append('obraId', obraId);
+
     try {
-        const response = await fetch('/api/control-acceso/submit', {
-            method: 'POST',
-            body: submissionForm,
-        });
+      const response = await fetch('/api/control-acceso/submit', {
+        method: 'POST',
+        body: formPayload,
+      });
 
-        const result = await response.json();
-        if (!response.ok) {
-            throw new Error(result.error || "Error en el servidor.");
-        }
+      const result = await response.json();
 
-        setInductionData({ text: result.inductionText, audioUrl: result.audioUrl, evidenciaId: result.evidenciaId });
+      if (!response.ok) {
+        throw new Error(result.error || 'Ocurrió un error en el servidor.');
+      }
+      
+      setInductionText(result.inductionText);
+      setAudioUrl(result.audioUrl);
+      setEvidenciaId(result.evidenciaId);
+      setStatus('submitted');
 
     } catch (err: any) {
-        setError(err.message);
-        toast({ variant: 'destructive', title: 'Error al registrar', description: err.message });
-    } finally {
-        setIsSubmitting(false);
+      setStatus('error');
+      setErrorMessage(err.message || 'No se pudo enviar el formulario.');
+      toast({ variant: 'destructive', title: 'Error de envío', description: err.message });
     }
   };
-  
+
   const handleConfirmInduction = async () => {
-    if (!inductionData) return;
     setIsConfirming(true);
     try {
-        const res = await fetch('/api/control-acceso/confirm', {
+        await fetch('/api/control-acceso/confirm', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ evidenciaId: inductionData.evidenciaId }),
+            body: JSON.stringify({ evidenciaId }),
         });
-        if (!res.ok) throw new Error("No se pudo confirmar la inducción.");
-        // Redirigir a página de éxito final
-        router.push('/public/control-acceso/success');
-    } catch (err) {
-        toast({ variant: 'destructive', title: 'Error', description: 'No se pudo guardar la confirmación.' });
+        router.push(`/public/success?message=${encodeURIComponent('Registro y confirmación de inducción completados con éxito.')}`);
+    } catch (error: any) {
+        toast({ variant: 'destructive', title: 'Error', description: 'No se pudo confirmar la inducción.' });
         setIsConfirming(false);
     }
   };
-
+  
   if (loadingObra) {
-    return <div className="text-center p-8"><Loader2 className="animate-spin mx-auto"/> Cargando datos de la obra...</div>;
+    return <div className="min-h-screen flex items-center justify-center"><Loader2 className="animate-spin h-8 w-8"/></div>;
   }
   
-  if (error && !obra) {
-      return <div className="text-center text-destructive p-8">{error}</div>;
+  if (errorMessage && status !== 'submitting') {
+     return (
+        <div className="min-h-screen flex items-center justify-center p-4">
+            <Card className="w-full max-w-md text-center">
+                <CardHeader>
+                    <CardTitle className="text-destructive">Error</CardTitle>
+                </CardHeader>
+                <CardContent>
+                    <p>{errorMessage}</p>
+                    <Button asChild className="mt-4"><Link href="/">Volver al Inicio</Link></Button>
+                </CardContent>
+            </Card>
+        </div>
+     );
   }
 
-  if (inductionData) {
+  if (isScanning) {
     return (
-        <Card className="w-full max-w-lg">
-            <CardHeader>
-                <CardTitle>Inducción de Seguridad Obligatoria</CardTitle>
-                <CardDescription>Lee y escucha atentamente la siguiente información antes de ingresar.</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-                <div className="p-4 bg-muted rounded-md border text-sm max-h-60 overflow-y-auto">
-                    {inductionData.text}
-                </div>
-                {inductionData.audioUrl && (
-                    <audio controls src={inductionData.audioUrl} className="w-full">
-                        Tu navegador no soporta el elemento de audio.
-                    </audio>
-                )}
-                 <Button onClick={handleConfirmInduction} className="w-full" disabled={isConfirming}>
-                    {isConfirming && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                    Declaro haber leído y entendido la inducción
-                </Button>
-            </CardContent>
-        </Card>
+        <div className="fixed inset-0 bg-black z-50 flex flex-col items-center justify-center p-4">
+            <video ref={ref} className="w-full max-w-md rounded-lg border-4 border-primary" />
+            <p className="text-white mt-4 text-center">Apunte la cámara al código QR de su cédula de identidad.</p>
+            <Button onClick={() => setIsScanning(false)} variant="secondary" className="mt-6">Cancelar Escaneo</Button>
+        </div>
+    )
+  }
+
+  if (status === 'submitted') {
+    return (
+        <div className="min-h-screen bg-muted/40 p-4 md:p-8 flex items-center justify-center">
+            <Card className="w-full max-w-2xl">
+                <CardHeader>
+                    <CardTitle>Inducción de Seguridad Requerida</CardTitle>
+                    <CardDescription>Por favor, lea o escuche atentamente la siguiente información de seguridad antes de ingresar.</CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                    {audioUrl && (
+                        <div>
+                            <Label>Escuchar Inducción</Label>
+                            <audio controls src={audioUrl} className="w-full mt-1">Tu navegador no soporta audio.</audio>
+                        </div>
+                    )}
+                    <div className="p-4 bg-slate-100 rounded-md border text-sm max-h-60 overflow-y-auto">
+                        <pre className="whitespace-pre-wrap font-sans">{inductionText}</pre>
+                    </div>
+                </CardContent>
+                <CardFooter>
+                    <Button onClick={handleConfirmInduction} className="w-full" disabled={isConfirming}>
+                        {isConfirming && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                        Declaro haber leído/escuchado y entiendo la información
+                    </Button>
+                </CardFooter>
+            </Card>
+        </div>
     );
   }
 
   return (
-    <Card className="w-full max-w-lg">
-      <CardHeader className="text-center">
-        <PcgLogo />
-        <CardTitle className="pt-2">{obra?.nombreFaena}</CardTitle>
-        <CardDescription>Formulario de auto-registro para acceso a obra.</CardDescription>
-      </CardHeader>
-      <CardContent>
-        {isScannerOpen ? (
-          <div className="space-y-4">
-            <div className="aspect-square w-full max-w-sm mx-auto bg-black rounded-lg overflow-hidden">
-              <Scanner onResult={handleScan} onError={(e) => console.error(e)} />
-            </div>
-            <Button variant="outline" className="w-full" onClick={() => setIsScannerOpen(false)}>Cancelar Escaneo</Button>
-          </div>
-        ) : (
+    <div className="min-h-screen bg-muted/40 p-4 md:p-8 flex items-center justify-center">
+      <Card className="w-full max-w-lg">
+        <CardHeader className="text-center">
+            <div className="w-20 mx-auto"><PcgLogo /></div>
+          <CardTitle>Control de Acceso</CardTitle>
+          <CardDescription>Registro de ingreso para: <strong>{obra?.nombreFaena}</strong></CardDescription>
+        </CardHeader>
+        <CardContent>
           <form onSubmit={handleSubmit} className="space-y-4">
-            <Button type="button" onClick={() => setIsScannerOpen(true)} className="w-full" variant="secondary">
-              <QrCode className="mr-2" />
-              Escanear Cédula de Identidad (Recomendado)
-            </Button>
             
+            <Button type="button" onClick={() => setIsScanning(true)} variant="outline" className="w-full">
+                <QrCode className="mr-2 h-5 w-5"/>
+                Escanear Cédula de Identidad (Recomendado)
+            </Button>
+
             <div className="space-y-2">
               <Label htmlFor="nombreCompleto">Nombre Completo*</Label>
               <Input id="nombreCompleto" name="nombreCompleto" value={formData.nombreCompleto} onChange={handleInputChange} required />
@@ -229,57 +264,49 @@ function ControlAccesoForm() {
               <Label htmlFor="empresa">Empresa*</Label>
               <Input id="empresa" name="empresa" value={formData.empresa} onChange={handleInputChange} required />
             </div>
-             <div className="space-y-2">
-              <Label htmlFor="tipoPersona">Tipo de Ingreso*</Label>
-               <Select name="tipoPersona" value={formData.tipoPersona} onValueChange={(v) => handleSelectChange('tipoPersona', v)}>
-                <SelectTrigger><SelectValue/></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="visita">Visita</SelectItem>
-                  <SelectItem value="subcontratista">Subcontratista</SelectItem>
-                  <SelectItem value="trabajador">Trabajador</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
             <div className="space-y-2">
-              <Label htmlFor="motivo">Tarea a realizar / Motivo de ingreso*</Label>
-              <Textarea id="motivo" name="motivo" value={formData.motivo} onChange={handleInputChange} required />
+              <Label htmlFor="motivo">Tarea a realizar hoy*</Label>
+              <Input id="motivo" name="motivo" value={formData.motivo} onChange={handleInputChange} required />
             </div>
-             <div className="space-y-2">
-              <Label htmlFor="duracionIngreso">Duración Estimada del Ingreso*</Label>
-               <Select name="duracionIngreso" value={formData.duracionIngreso} onValueChange={(v) => handleSelectChange('duracionIngreso', v)}>
-                <SelectTrigger><SelectValue/></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="visita breve">Visita Breve (menos de 2 horas)</SelectItem>
-                  <SelectItem value="jornada parcial">Jornada Parcial (2-4 horas)</SelectItem>
-                  <SelectItem value="jornada completa">Jornada Completa</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-2 border-t pt-4">
-              <Label htmlFor="archivo">Adjuntar Cédula de Identidad (foto o PDF)*</Label>
-              <Input id="archivo" name="archivo" type="file" onChange={handleFileChange} required accept="image/*,application/pdf"/>
-              <p className="text-xs text-muted-foreground">Si no usaste el escáner, sube una foto de tu cédula aquí.</p>
+            
+            <div className="grid grid-cols-2 gap-4">
+                 <div className="space-y-2">
+                    <Label htmlFor="tipoPersona">Tipo de Ingreso</Label>
+                    <Select name="tipoPersona" value={formData.tipoPersona} onValueChange={(v) => setFormData(p => ({...p, tipoPersona: v as any}))}>
+                        <SelectTrigger><SelectValue/></SelectTrigger>
+                        <SelectContent>
+                            <SelectItem value="visita">Visita</SelectItem>
+                            <SelectItem value="subcontratista">Subcontratista</SelectItem>
+                            <SelectItem value="trabajador">Trabajador</SelectItem>
+                        </SelectContent>
+                    </Select>
+                 </div>
+                 <div className="space-y-2">
+                    <Label htmlFor="duracionIngreso">Duración Estimada</Label>
+                    <Select name="duracionIngreso" value={formData.duracionIngreso} onValueChange={(v) => setFormData(p => ({...p, duracionIngreso: v as any}))}>
+                        <SelectTrigger><SelectValue/></SelectTrigger>
+                        <SelectContent>
+                            <SelectItem value="visita breve">Visita Breve (menos de 2h)</SelectItem>
+                            <SelectItem value="jornada parcial">Jornada Parcial (2-4h)</SelectItem>
+                            <SelectItem value="jornada completa">Jornada Completa</SelectItem>
+                        </SelectContent>
+                    </Select>
+                 </div>
             </div>
 
-            {error && <p className="text-sm text-destructive">{error}</p>}
-
-            <Button type="submit" className="w-full" disabled={isSubmitting}>
-              {isSubmitting ? <Loader2 className="mr-2 animate-spin" /> : null}
-              {isSubmitting ? 'Registrando...' : 'Registrar y Continuar a Inducción'}
+            <div className="space-y-2">
+                <Label htmlFor="archivo">Adjuntar Cédula de Identidad (opcional si escaneó)</Label>
+                <Input id="archivo" name="archivo" type="file" onChange={handleFileChange} />
+                <p className="text-xs text-muted-foreground">Alternativa si no puede usar el escáner.</p>
+            </div>
+            
+            <Button type="submit" className="w-full" disabled={status === 'submitting'}>
+              {status === 'submitting' && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              Enviar y Continuar a Inducción
             </Button>
           </form>
-        )}
-      </CardContent>
-    </Card>
+        </CardContent>
+      </Card>
+    </div>
   );
-}
-
-export default function SuspendedControlAccesoPage() {
-    return (
-        <div className="flex items-center justify-center min-h-screen bg-slate-100 p-4">
-            <Suspense fallback={<Loader2 className="h-8 w-8 animate-spin" />}>
-                <ControlAccesoForm />
-            </Suspense>
-        </div>
-    );
 }
