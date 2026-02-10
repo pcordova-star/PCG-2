@@ -27,7 +27,7 @@ const OutputSchema = z.object({
 });
 type Output = z.infer<typeof OutputSchema>;
 
-const contextualInductionFlow = ai.defineFlow(
+export const generateContextualInductionWithAudio = ai.defineFlow(
   {
     name: "contextualInductionFlow",
     inputSchema: InputSchema,
@@ -173,8 +173,3 @@ Contexto del ingreso:
     };
   }
 );
-
-
-export async function generateContextualInductionWithAudio(input: Input): Promise<Output> {
-    return contextualInductionFlow(input);
-}
