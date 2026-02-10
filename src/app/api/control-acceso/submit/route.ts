@@ -51,70 +51,74 @@ export async function POST(req: NextRequest) {
     }
     const obraData = obraDoc.data()!;
     const companyId = obraData.empresaId;
-
-    // 🔥 CARGA DINÁMICA — evita evaluación en build
-    const { generateContextualInductionWithAudio } = await import(
-      "@/ai/flows/generateContextualInductionWithAudio"
-    );
-
-    // --- Ejecutar Flujo de IA + TTS ---
-    const { inductionText, audioPath } = await generateContextualInductionWithAudio.run({
-      obraId,
-      obraNombre: obraData.nombreFaena,
-      tipoObra: obraData.tipoObra || 'Edificación en altura',
-      tipoPersona,
-      descripcionTarea: motivo,
-      duracionIngreso,
-    });
     
-    // --- Generar URL firmada para el audio ---
-    const [audioUrl] = await bucket.file(audioPath).getSignedUrl({
-      action: 'read',
-      expires: Date.now() + 15 * 60 * 1000, // 15 minutos de validez
-    });
-
-    // 1. Guardar el archivo de CI del usuario
-    const fileExtension = file.name.split('.').pop() || 'bin';
-    const ciStoragePath = `control-acceso/${obraId}/${crypto.randomUUID()}.${fileExtension}`;
+    // --- Guardado Crítico (Paso 1) ---
+    const ciStoragePath = `control-acceso/${obraId}/${crypto.randomUUID()}.${file.name.split('.').pop() || 'bin'}`;
     const ciFile = bucket.file(ciStoragePath);
     await ciFile.save(Buffer.from(await file.arrayBuffer()), { metadata: { contentType: file.type } });
     const ciFileUrl = ciFile.publicUrl();
 
-    // 2. Crear el registro de evidencia
-    const evidenciaRef = db.collection("registrosInduccionContextual").doc();
-    await evidenciaRef.set({
-      obraId,
-      obraNombre: obraData.nombreFaena,
-      persona: { nombre: nombreCompleto, rut, empresa, tipo: tipoPersona },
-      contexto: { descripcionTarea: motivo, duracionIngreso },
-      inductionText,
-      audioPath: audioPath, // Guardamos el path, no la URL firmada
-      audioFormat: "mp3",
-      jobId: "N/A", // Job ID de Genkit si es necesario auditar
-      iaModel: "gemini-1.5-pro",
-      createdAt: now,
-      fechaPresentacion: now,
-      fechaConfirmacion: null,
-    });
-    
-    // 3. Guardar el registro de acceso original
-    await db.collection("controlAcceso").add({
+    const accesoRef = await db.collection("controlAcceso").add({
       obraId, companyId,
       nombre: nombreCompleto, rut, empresa, motivo,
       archivoUrl: ciFileUrl, storagePath: ciStoragePath,
       createdAt: now,
-      induccionContextualId: evidenciaRef.id,
+      induccionContextualId: null, // Se llenará si la IA tiene éxito
     });
 
-    return NextResponse.json({ 
-        success: true, 
-        inductionText, 
-        audioUrl, // URL firmada para el cliente
-        evidenciaId: evidenciaRef.id
-    });
+    // --- Flujo de IA Opcional (Paso 2) ---
+    try {
+        const { generateContextualInductionWithAudio } = await import(
+            "@/ai/flows/generateContextualInductionWithAudio"
+        );
+
+        const { inductionText, audioPath } = await generateContextualInductionWithAudio.run({
+            obraId,
+            obraNombre: obraData.nombreFaena,
+            tipoObra: obraData.tipoObra || 'Edificación en altura',
+            tipoPersona,
+            descripcionTarea: motivo,
+            duracionIngreso,
+        });
+
+        const [audioUrl] = await bucket.file(audioPath).getSignedUrl({
+            action: 'read',
+            expires: Date.now() + 15 * 60 * 1000,
+        });
+
+        const evidenciaRef = db.collection("registrosInduccionContextual").doc();
+        await evidenciaRef.set({
+            obraId,
+            obraNombre: obraData.nombreFaena,
+            persona: { nombre: nombreCompleto, rut, empresa, tipo: tipoPersona },
+            contexto: { descripcionTarea: motivo, duracionIngreso },
+            inductionText,
+            audioPath,
+            audioFormat: "mp3",
+            iaModel: "gemini-1.5-pro",
+            createdAt: now,
+            fechaPresentacion: now,
+            fechaConfirmacion: null,
+        });
+        
+        // Vincular la evidencia al registro de acceso principal
+        await accesoRef.update({ induccionContextualId: evidenciaRef.id });
+
+        return NextResponse.json({ 
+            success: true, 
+            inductionText, 
+            audioUrl,
+            evidenciaId: evidenciaRef.id
+        });
+
+    } catch (iaError: any) {
+        console.warn(`[API /control-acceso/submit] Fallo en la generación de IA para el job ${accesoRef.id}, pero el registro fue exitoso.`, iaError.message);
+        // El registro base ya se guardó. Devolvemos éxito al cliente, pero sin datos de inducción.
+        return NextResponse.json({ success: true, inductionText: null });
+    }
 
   } catch (error: any) {
-    console.error("[API /control-acceso/submit] Error:", error);
-    return NextResponse.json({ error: error.message || "Error interno del servidor.", details: error.message }, { status: 500 });
+    console.error("[API /control-acceso/submit] Error Crítico:", error);
+    return NextResponse.json({ error: "No se pudo completar el registro. " + error.message, details: error.message }, { status: 500 });
   }
 }
