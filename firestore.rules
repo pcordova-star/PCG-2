@@ -59,9 +59,15 @@ service cloud.firestore {
     // --------- Regla para Control de Acceso (NUEVO) ---------
     match /controlAcceso/{docId} {
       // Solo usuarios autenticados de la empresa pueden leer los registros.
-      allow read: if isSignedIn();
+      allow read: if isSignedIn() && companyId() == resource.data.companyId;
       // NADIE puede escribir desde el cliente. Solo el backend (admin SDK) puede.
       allow write: if false;
+    }
+    
+    match /registrosInduccionContextual/{docId} {
+      allow read: if true; // Permite lectura pública para que el cliente pueda obtener el texto/audio
+      allow update: if true; // Permite que el cliente confirme la lectura
+      allow create: if false; // Solo el backend puede crear
     }
 
     // Documentos corporativos (empresa)
