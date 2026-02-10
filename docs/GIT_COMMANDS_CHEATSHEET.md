@@ -113,3 +113,15 @@ This document provides a quick reference for common Git commands used in this pr
   git pull origin main
   ```
   * `git pull` es una combinación de `git fetch` y `git merge`.
+
+### 6. **Configuración de Infraestructura Externa**
+
+- **Política de Ciclo de Vida en Storage (Limpieza automática):**
+  - **Fecha de Configuración:** 16/11/2025
+  - **Servicio:** Google Cloud Storage
+  - **Bucket:** `pcg-2-8bf1b.appspot.com`
+  - **Regla:**
+    - **Acción:** Borrar
+    - **Condición:** Edad del objeto es mayor a **30 días**.
+    - **Filtro:** El nombre del objeto empieza con el prefijo `comparacion-planos/`.
+  - **Propósito:** Eliminar automáticamente los archivos de análisis de comparación de planos después de 30 días para controlar costos de almacenamiento.
