@@ -3,263 +3,274 @@
 
 import { useEffect, useState, FormEvent, Suspense } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { doc, getDoc } from 'firebase/firestore';
-import { firebaseDb } from '@/lib/firebaseClient';
-import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Obra } from '@/types/pcg';
-import { useToast } from '@/hooks/use-toast';
-import { Loader2, Mic, Play, Pause, AlertTriangle, ShieldCheck } from 'lucide-react';
+import { Checkbox } from '@/components/ui/checkbox';
+import { Loader2, ArrowRight, ShieldCheck, FileText, CheckCircle, Volume2 } from 'lucide-react';
+import { getDoc, doc } from 'firebase/firestore';
+import { firebaseDb } from '@/lib/firebaseClient';
 import { PcgLogo } from '@/components/branding/PcgLogo';
+import { Obra, InduccionContextualRegistro } from '@/types/pcg';
+import Link from 'next/link';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Textarea } from '@/components/ui/textarea';
 
-function AccessForm() {
+function ControlAccesoForm() {
     const params = useParams();
     const router = useRouter();
     const obraId = params.obraId as string;
-    const { toast } = useToast();
 
     const [obra, setObra] = useState<Obra | null>(null);
-    const [loadingObra, setLoadingObra] = useState(true);
+    const [loading, setLoading] = useState(true);
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [error, setError] = useState<string | null>(null);
-    
-    // Estados del resultado de la IA
-    const [inductionStep, setInductionStep] = useState(false);
-    const [inductionText, setInductionText] = useState('');
-    const [audioUrl, setAudioUrl] = useState<string | null>(null);
-    const [isPlaying, setIsPlaying] = useState(false);
-    const [evidenciaId, setEvidenciaId] = useState<string | null>(null);
-    const [isConfirming, setIsConfirming] = useState(false);
+    const [step, setStep] = useState<'form' | 'induction' | 'success'>('form');
 
-    const [formData, setFormData] = useState({
-        nombreCompleto: '',
-        rut: '',
-        empresa: '',
-        motivo: '',
-        archivo: null as File | null,
-        tipoPersona: 'visita' as 'trabajador' | 'subcontratista' | 'visita',
-        duracionIngreso: 'visita breve' as 'visita breve' | 'jornada parcial' | 'jornada completa',
-    });
+    // Form fields
+    const [nombre, setNombre] = useState('');
+    const [rut, setRut] = useState('');
+    const [empresa, setEmpresa] = useState('');
+    const [motivo, setMotivo] = useState('');
+    const [tipoPersona, setTipoPersona] = useState<'trabajador' | 'subcontratista' | 'visita'>('visita');
+    const [duracionIngreso, setDuracionIngreso] = useState<'visita breve' | 'jornada parcial' | 'jornada completa'>('visita breve');
+    const [archivo, setArchivo] = useState<File | null>(null);
+    const [aceptaTerminos, setAceptaTerminos] = useState(false);
+    
+    // Induction state
+    const [inductionData, setInductionData] = useState<Partial<InduccionContextualRegistro> & { audioUrl?: string; evidenciaId?: string } | null>(null);
+    const [isConfirming, setIsConfirming] = useState(false);
 
     useEffect(() => {
         if (obraId) {
             const fetchObra = async () => {
-                setLoadingObra(true);
+                setLoading(true);
                 const obraRef = doc(firebaseDb, "obras", obraId);
                 const obraSnap = await getDoc(obraRef);
                 if (obraSnap.exists()) {
                     setObra({ id: obraSnap.id, ...obraSnap.data() } as Obra);
                 } else {
-                    setError("La obra no fue encontrada o el enlace es incorrecto.");
+                    setError("La obra no existe o el enlace es incorrecto.");
                 }
-                setLoadingObra(false);
+                setLoading(false);
             };
             fetchObra();
         }
     }, [obraId]);
 
-    const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
-        const { name, value } = e.target;
-        setFormData(prev => ({...prev, [name]: value}));
-    };
-    
-    const handleSelectChange = (name: 'tipoPersona' | 'duracionIngreso', value: string) => {
-        setFormData(prev => ({...prev, [name]: value as any}));
-    };
-
     const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         if (e.target.files && e.target.files[0]) {
-            setFormData(prev => ({...prev, archivo: e.target.files![0]}));
+            if (e.target.files[0].size > 5 * 1024 * 1024) { // 5MB limit
+                 setError('El archivo es demasiado grande. Máximo 5MB.');
+                 setArchivo(null);
+                 e.target.value = '';
+                 return;
+            }
+            setArchivo(e.target.files[0]);
         }
     };
 
     const handleSubmit = async (e: FormEvent) => {
         e.preventDefault();
-        if (!formData.archivo) {
-            toast({ variant: 'destructive', title: 'Error', description: 'Debes adjuntar el archivo de tu carnet de identidad.' });
+        setError(null);
+        if (!aceptaTerminos) {
+            setError("Debe aceptar los términos para continuar.");
+            return;
+        }
+        if (!nombre || !rut || !empresa || !motivo || !archivo) {
+            setError("Todos los campos y el archivo son obligatorios.");
             return;
         }
 
         setIsSubmitting(true);
-        setError(null);
-        
         try {
-            const formPayload = new FormData();
-            Object.entries(formData).forEach(([key, value]) => {
-                if (value) formPayload.append(key, value);
-            });
-            formPayload.append('obraId', obraId);
+            const formData = new FormData();
+            formData.append('obraId', obraId);
+            formData.append('nombreCompleto', nombre);
+            formData.append('rut', rut);
+            formData.append('empresa', empresa);
+            formData.append('motivo', motivo);
+            formData.append('tipoPersona', tipoPersona);
+            formData.append('duracionIngreso', duracionIngreso);
+            formData.append('archivo', archivo);
 
             const response = await fetch('/api/control-acceso/submit', {
                 method: 'POST',
-                body: formPayload,
+                body: formData,
             });
-
             const result = await response.json();
-
+            
             if (!response.ok) {
-                throw new Error(result.error || "Ocurrió un error en el servidor.");
+                throw new Error(result.error || 'Ocurrió un error al enviar el formulario.');
             }
             
-            setInductionText(result.inductionText);
-            setAudioUrl(result.audioUrl);
-            setEvidenciaId(result.evidenciaId);
-            setInductionStep(true);
+            setInductionData({ ...result, evidenciaId: result.evidenciaId });
+            setStep('induction');
 
         } catch (err: any) {
-            console.error("Error en el registro:", err);
-            setError(err.message || 'No se pudo completar el registro. Intenta nuevamente.');
+            setError(err.message);
         } finally {
             setIsSubmitting(false);
         }
     };
     
-    const handleConfirmation = async () => {
-        if (!evidenciaId) return;
+     const handleConfirmInduction = async () => {
+        if (!inductionData?.evidenciaId) {
+             setError("No se puede confirmar la inducción, falta el ID de evidencia.");
+             return;
+        }
         setIsConfirming(true);
         try {
-            await fetch('/api/control-acceso/confirm', {
+             await fetch('/api/control-acceso/confirm', {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ evidenciaId }),
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({ evidenciaId: inductionData.evidenciaId }),
             });
-            // La redirección ocurrirá después de mostrar el mensaje final.
-            router.push(`/public/control-acceso/exito?obraNombre=${encodeURIComponent(obra?.nombreFaena || '')}`);
+            setStep('success');
         } catch (err: any) {
-            toast({ variant: 'destructive', title: 'Error', description: 'No se pudo confirmar la inducción.' });
+             setError("Error al confirmar. Intenta nuevamente.");
         } finally {
-            setIsConfirming(false);
+             setIsConfirming(false);
         }
+    };
+
+
+    if (loading) {
+        return <div className="text-center p-8"><Loader2 className="animate-spin" /> Cargando...</div>;
     }
 
-    if (loadingObra) {
-        return <div className="text-center p-8"><Loader2 className="animate-spin" /> Cargando información de la obra...</div>;
-    }
-
-    if (error) {
-        return <div className="text-center p-8 text-destructive bg-destructive/10 rounded-md">{error}</div>;
+    if (error && step === 'form') {
+        return <Alert variant="destructive"><AlertTitle>Error</AlertTitle><AlertDescription>{error}</AlertDescription></Alert>;
     }
     
-    if (inductionStep) {
+    if (!obra) {
+        return <Alert variant="destructive"><AlertTitle>Error de Configuración</AlertTitle><AlertDescription>El enlace de acceso es inválido o la obra no fue encontrada.</AlertDescription></Alert>;
+    }
+    
+     if (step === 'induction') {
         return (
-             <Card className="w-full max-w-lg mx-auto">
-                <CardHeader className="text-center">
-                    <Mic className="mx-auto h-10 w-10 text-primary mb-2"/>
-                    <CardTitle>Inducción de Seguridad Contextual</CardTitle>
-                    <CardDescription>Escucha atentamente las siguientes indicaciones para un ingreso seguro.</CardDescription>
+            <Card className="w-full max-w-2xl mx-auto animate-in fade-in-50">
+                <CardHeader>
+                    <div className="flex items-center gap-2">
+                        <ShieldCheck className="h-6 w-6 text-primary"/>
+                        <CardTitle>Inducción de Seguridad Obligatoria</CardTitle>
+                    </div>
+                    <CardDescription>
+                        Por favor, lee y/o escucha atentamente la siguiente información de seguridad antes de ingresar a la obra <strong>{obra.nombreFaena}</strong>.
+                    </CardDescription>
                 </CardHeader>
-                <CardContent className="space-y-4">
-                    {audioUrl && (
-                        <div className="flex justify-center">
-                            <audio src={audioUrl} controls autoPlay onPlay={() => setIsPlaying(true)} onPause={() => setIsPlaying(false)} className="w-full">
+                <CardContent className="space-y-6">
+                    <div className="p-4 bg-muted border rounded-md whitespace-pre-wrap text-sm">
+                        {inductionData?.inductionText || 'Cargando texto de inducción...'}
+                    </div>
+                    {inductionData?.audioUrl && (
+                        <div>
+                            <Label className="flex items-center gap-2"><Volume2 className="h-4 w-4"/> Audio de la Inducción</Label>
+                            <audio controls src={inductionData.audioUrl} className="w-full mt-2">
                                 Tu navegador no soporta el elemento de audio.
                             </audio>
                         </div>
                     )}
-                    <div className="p-4 bg-muted rounded-md border text-sm text-muted-foreground whitespace-pre-wrap max-h-60 overflow-y-auto">
-                        {inductionText || "Cargando texto de la inducción..."}
-                    </div>
                 </CardContent>
-                 <CardFooter className="flex-col gap-4">
-                    <Button onClick={handleConfirmation} disabled={isConfirming} className="w-full bg-green-600 hover:bg-green-700">
-                        {isConfirming ? <Loader2 className="animate-spin mr-2"/> : <ShieldCheck className="mr-2"/>}
-                        {isConfirming ? 'Confirmando...' : 'Declaro haber leído y entendido'}
+                <CardFooter>
+                    <Button onClick={handleConfirmInduction} className="w-full" disabled={isConfirming}>
+                        {isConfirming ? <Loader2 className="animate-spin mr-2"/> : <CheckCircle className="mr-2"/>}
+                        Declaro haber leído/escuchado y acepto los riesgos y medidas
                     </Button>
-                     <p className="text-xs text-muted-foreground text-center">Al confirmar, se registrará tu ingreso y la aceptación de esta inducción.</p>
                 </CardFooter>
             </Card>
-        )
+        );
+    }
+    
+    if (step === 'success') {
+        return (
+             <Card className="w-full max-w-lg mx-auto text-center animate-in fade-in-50">
+                <CardHeader>
+                    <CheckCircle className="h-16 w-16 text-green-500 mx-auto mb-4"/>
+                    <CardTitle className="text-2xl">¡Registro Completado con Éxito!</CardTitle>
+                    <CardDescription>
+                        Tu acceso a la obra <strong>{obra.nombreFaena}</strong> ha sido registrado. Ya puedes presentarte en la portería.
+                    </CardDescription>
+                </CardHeader>
+                <CardContent>
+                     <p className="text-sm text-muted-foreground">Gracias por tu cooperación.</p>
+                </CardContent>
+             </Card>
+        );
     }
 
     return (
-        <div className="w-full max-w-2xl mx-auto space-y-6">
-            <div className="text-center space-y-2">
-                <div className="mx-auto w-fit"><PcgLogo /></div>
-                <h1 className="text-2xl font-bold">Auto-Registro de Ingreso a Obra</h1>
-                <p className="text-muted-foreground">Estás ingresando a la obra: <strong className="text-foreground">{obra?.nombreFaena}</strong></p>
-            </div>
-             <Card>
-                <CardHeader>
-                     <div className="flex items-start gap-4">
-                        <AlertTriangle className="h-8 w-8 text-amber-500 mt-1 flex-shrink-0"/>
-                        <div>
-                            <CardTitle>Declaración de Ingreso Seguro</CardTitle>
-                            <CardDescription>
-                                Completa este formulario para declarar tu tarea. Se generará una micro-inducción de seguridad con IA basada en tu declaración.
-                            </CardDescription>
+        <Card className="w-full max-w-2xl mx-auto">
+            <CardHeader className="text-center">
+                <div className="mx-auto w-fit mb-4"><PcgLogo /></div>
+                <CardTitle className="text-2xl">Registro de Acceso a Obra</CardTitle>
+                <CardDescription>Completa tus datos para ingresar a <strong>{obra.nombreFaena}</strong>.</CardDescription>
+            </CardHeader>
+            <CardContent>
+                <form onSubmit={handleSubmit} className="space-y-4">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <div className="space-y-2"><Label htmlFor="nombre">Nombre Completo*</Label><Input id="nombre" value={nombre} onChange={e => setNombre(e.target.value)} required /></div>
+                        <div className="space-y-2"><Label htmlFor="rut">RUT*</Label><Input id="rut" value={rut} onChange={e => setRut(e.target.value)} required /></div>
+                        <div className="space-y-2"><Label htmlFor="empresa">Empresa que representa*</Label><Input id="empresa" value={empresa} onChange={e => setEmpresa(e.target.value)} required /></div>
+                        <div className="space-y-2"><Label htmlFor="tipoPersona">Tipo de Ingreso*</Label>
+                            <Select value={tipoPersona} onValueChange={(v) => setTipoPersona(v as any)} required>
+                                <SelectTrigger><SelectValue /></SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="visita">Visita</SelectItem>
+                                    <SelectItem value="subcontratista">Subcontratista</SelectItem>
+                                    <SelectItem value="trabajador">Trabajador</SelectItem>
+                                </SelectContent>
+                            </Select>
                         </div>
-                     </div>
-                </CardHeader>
-                <CardContent>
-                    <form onSubmit={handleSubmit} className="space-y-4">
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                            <div className="space-y-2">
-                                <Label htmlFor="nombreCompleto">Nombre Completo*</Label>
-                                <Input id="nombreCompleto" name="nombreCompleto" value={formData.nombreCompleto} onChange={handleInputChange} required />
-                            </div>
-                             <div className="space-y-2">
-                                <Label htmlFor="rut">RUT*</Label>
-                                <Input id="rut" name="rut" value={formData.rut} onChange={handleInputChange} required />
-                            </div>
-                        </div>
-                        <div className="space-y-2">
-                            <Label htmlFor="empresa">Empresa a la que pertenece*</Label>
-                            <Input id="empresa" name="empresa" value={formData.empresa} onChange={handleInputChange} required />
-                        </div>
-                        <div className="space-y-2">
-                            <Label htmlFor="motivo">Tarea específica a realizar hoy*</Label>
-                            <Textarea id="motivo" name="motivo" value={formData.motivo} onChange={handleInputChange} required placeholder="Ej: 'Instalación de faena eléctrica', 'Revisión de planos de arquitectura', 'Despacho de hormigón para losa'."/>
-                            <p className="text-xs text-muted-foreground">Sé lo más específico posible. Tu inducción se basará en esto.</p>
-                        </div>
-                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                            <div className="space-y-2">
-                                <Label htmlFor="tipoPersona">Tipo de Persona</Label>
-                                <Select name="tipoPersona" value={formData.tipoPersona} onValueChange={(v) => handleSelectChange('tipoPersona', v)}>
-                                    <SelectTrigger><SelectValue/></SelectTrigger>
-                                    <SelectContent>
-                                        <SelectItem value="visita">Visita</SelectItem>
-                                        <SelectItem value="subcontratista">Subcontratista</SelectItem>
-                                        <SelectItem value="trabajador">Trabajador Interno</SelectItem>
-                                    </SelectContent>
-                                </Select>
-                            </div>
-                             <div className="space-y-2">
-                                <Label htmlFor="duracionIngreso">Duración Estimada</Label>
-                                <Select name="duracionIngreso" value={formData.duracionIngreso} onValueChange={(v) => handleSelectChange('duracionIngreso', v)}>
-                                    <SelectTrigger><SelectValue/></SelectTrigger>
-                                    <SelectContent>
-                                        <SelectItem value="visita breve">Visita Breve (menos de 2 hrs)</SelectItem>
-                                        <SelectItem value="jornada parcial">Jornada Parcial (2-4 hrs)</SelectItem>
-                                        <SelectItem value="jornada completa">Jornada Completa</SelectItem>
-                                    </SelectContent>
-                                </Select>
-                            </div>
-                        </div>
+                    </div>
+                    <div className="space-y-2">
+                        <Label htmlFor="motivo">Motivo o Tarea a Realizar*</Label>
+                        <Textarea id="motivo" value={motivo} onChange={e => setMotivo(e.target.value)} required placeholder="Ej: Visita técnica a terreno, Reunión con Jefe de Obra, Instalación de faenas eléctricas, etc." />
+                    </div>
+                    <div className="space-y-2">
+                        <Label htmlFor="duracionIngreso">Duración Estimada del Ingreso*</Label>
+                        <Select value={duracionIngreso} onValueChange={(v) => setDuracionIngreso(v as any)} required>
+                            <SelectTrigger><SelectValue /></SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="visita breve">Visita Breve (menos de 2 horas)</SelectItem>
+                                <SelectItem value="jornada parcial">Jornada Parcial (hasta 4 horas)</SelectItem>
+                                <SelectItem value="jornada completa">Jornada Completa</SelectItem>
+                            </SelectContent>
+                        </Select>
+                    </div>
+                    <div className="space-y-2">
+                        <Label htmlFor="archivo">Adjuntar Cédula de Identidad (foto o PDF)*</Label>
+                        <Input id="archivo" type="file" onChange={handleFileChange} required accept="image/*,application/pdf" />
+                         {archivo && <p className="text-xs text-muted-foreground">Archivo: {archivo.name}</p>}
+                    </div>
 
-                        <div className="space-y-2">
-                            <Label htmlFor="archivo">Adjuntar Cédula de Identidad (foto o PDF)*</Label>
-                            <Input id="archivo" name="archivo" type="file" onChange={handleFileChange} required accept="image/*,application/pdf"/>
-                        </div>
+                    <div className="pt-4 flex items-start gap-3">
+                        <Checkbox id="aceptaTerminos" checked={aceptaTerminos} onCheckedChange={(c) => setAceptaTerminos(!!c)} />
+                        <Label htmlFor="aceptaTerminos" className="text-xs text-muted-foreground font-normal">
+                             Declaro que la información es verídica y acepto que mis datos sean tratados según los <Link href="/terminos" target="_blank" className="text-primary underline">Términos y Condiciones</Link> de la plataforma.
+                        </Label>
+                    </div>
 
-                        <Button type="submit" className="w-full" disabled={isSubmitting}>
-                            {isSubmitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : null}
-                            {isSubmitting ? 'Procesando...' : 'Registrar y Generar Inducción'}
-                        </Button>
-                    </form>
-                </CardContent>
-            </Card>
-        </div>
+                     {error && <p className="text-sm font-medium text-destructive text-center pt-2">{error}</p>}
+                    
+                    <Button type="submit" disabled={isSubmitting || !aceptaTerminos} className="w-full">
+                        {isSubmitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <ArrowRight className="mr-2 h-4 w-4"/>}
+                        {isSubmitting ? 'Procesando...' : 'Siguiente: Inducción de Seguridad'}
+                    </Button>
+                </form>
+            </CardContent>
+        </Card>
     );
 }
 
-export default function Page() {
+export default function ControlAccesoPage() {
     return (
-        <Suspense fallback={<div className="text-center p-8"><Loader2 className="animate-spin" /></div>}>
-            <AccessForm />
-        </Suspense>
+        <div className="min-h-screen bg-muted/40 p-4 flex items-center justify-center">
+            <Suspense fallback={<div className="text-center"><Loader2 className="animate-spin" /></div>}>
+                <ControlAccesoForm />
+            </Suspense>
+        </div>
     )
 }

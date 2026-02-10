@@ -1,7 +1,7 @@
 // src/app/admin/documentos/proyecto/page.tsx
 "use client";
 
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { collection, query, where, orderBy, onSnapshot, writeBatch, doc, serverTimestamp, getDocs, updateDoc } from 'firebase/firestore';
 import { firebaseDb, firebaseStorage } from '@/lib/firebaseClient';
 import { ref, getDownloadURL } from 'firebase/storage';
@@ -13,7 +13,7 @@ import { Badge } from "@/components/ui/badge";
 import { PlusCircle, Upload, MoreVertical, ArrowLeft } from "lucide-react";
 import { ProjectDocument, Obra, CompanyDocument } from '@/types/pcg';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Label } from '@/components/ui/label';
+import { Label } from "@/components/ui/label";
 import ImportarCorporativosModal from '@/components/documentos/ImportarCorporativosModal';
 import SubirDocumentoProyectoModal from '@/components/documentos/SubirDocumentoProyectoModal';
 import { useToast } from '@/hooks/use-toast';
@@ -143,7 +143,7 @@ export default function DocumentosProyectoPage() {
         });
 
         return () => unsub();
-    }, [companyId, role, obras]);
+    }, [companyId, role, obras, toast]);
 
     const handleImportar = async (ids: string[]) => {
         if (!selectedObraId || !companyId || !user) {
