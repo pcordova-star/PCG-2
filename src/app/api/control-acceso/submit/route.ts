@@ -1,10 +1,10 @@
 // src/app/api/control-acceso/submit/route.ts
+import "server-only";
 import { NextRequest, NextResponse } from "next/server";
 import admin from "@/server/firebaseAdmin";
 import { getStorage } from "firebase-admin/storage";
 import { z } from "zod";
 import * as crypto from 'crypto';
-import { generateContextualInductionWithAudio } from "@/ai/flows/generateContextualInductionWithAudio";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -51,6 +51,11 @@ export async function POST(req: NextRequest) {
     }
     const obraData = obraDoc.data()!;
     const companyId = obraData.empresaId;
+
+    // 🔥 CARGA DINÁMICA — evita evaluación en build
+    const { generateContextualInductionWithAudio } = await import(
+      "@/ai/flows/generateContextualInductionWithAudio"
+    );
 
     // --- Ejecutar Flujo de IA + TTS ---
     const { inductionText, audioPath } = await generateContextualInductionWithAudio.run({
