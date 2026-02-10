@@ -279,7 +279,7 @@ export default function TemplateEditorPage() {
                                 <AlertDialog>
                                     <AlertDialogTrigger asChild><Button size="icon" variant="ghost" className="text-destructive"><Trash2 className="h-4 w-4"/></Button></AlertDialogTrigger>
                                     <AlertDialogContent>
-                                        <AlertDialogHeader><AlertDialogTitle>¿Eliminar esta sección?</AlertDialogTitle><AlertDialogDescription>Se eliminará la sección "{section.title}" y todos sus ítems. Esta acción no se puede deshacer.</AlertDialogDescription></AlertDialogHeader>
+                                        <AlertDialogHeader><AlertDialogTitle>¿Eliminar esta sección?</AlertDialogTitle><AlertDialogDescription>Se eliminará la sección &quot;{section.title}&quot; y todos sus ítems. Esta acción no se puede deshacer.</AlertDialogDescription></AlertDialogHeader>
                                         <AlertDialogFooter>
                                             <AlertDialogCancel>Cancelar</AlertDialogCancel>
                                             <AlertDialogAction onClick={() => deleteSection(section.id)}>Eliminar</AlertDialogAction>

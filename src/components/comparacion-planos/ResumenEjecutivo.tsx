@@ -10,18 +10,14 @@ interface Props {
 }
 
 export default function ResumenEjecutivo({ data }: Props) {
-    if (!data) return null;
-
-    const { diffTecnico, cubicacionDiferencial, arbolImpactos } = data;
-
     const { severidadGlobal, riesgoPrincipal } = useMemo(() => {
-        if (!arbolImpactos?.impactos?.length) return { severidadGlobal: 'baja', riesgoPrincipal: 'N/A' };
+        if (!data?.arbolImpactos?.impactos?.length) return { severidadGlobal: 'baja', riesgoPrincipal: 'N/A' };
         
         let maxSeveridad = 'baja';
         let riesgo = 'N/A';
         const severidadMap = { baja: 1, media: 2, alta: 3 };
 
-        arbolImpactos.impactos.forEach(impacto => {
+        data.arbolImpactos.impactos.forEach(impacto => {
             if (severidadMap[impacto.severidad as keyof typeof severidadMap] > severidadMap[maxSeveridad as keyof typeof severidadMap]) {
                 maxSeveridad = impacto.severidad;
                 riesgo = impacto.riesgo || 'N/A';
@@ -29,7 +25,11 @@ export default function ResumenEjecutivo({ data }: Props) {
         });
         
         return { severidadGlobal: maxSeveridad, riesgoPrincipal: riesgo };
-    }, [arbolImpactos]);
+    }, [data?.arbolImpactos]);
+
+    if (!data) return null;
+
+    const { diffTecnico, cubicacionDiferencial } = data;
     
     const severidadConfig = {
         baja: { label: 'Baja', color: 'bg-green-100 text-green-800' },

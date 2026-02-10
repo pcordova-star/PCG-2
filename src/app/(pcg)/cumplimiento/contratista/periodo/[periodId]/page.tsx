@@ -6,7 +6,7 @@ import { useRouter, useParams } from 'next/navigation';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { useEffect, useState } from "react";
-import { Loader2, AlertTriangle, Upload, Check, X, File, Paperclip } from "lucide-react";
+import { Loader2, AlertTriangle, Upload, Check, X, File, Paperclip, Clock } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { RequisitoDocumento, EntregaDocumento } from "@/types/pcg";
 import { useToast } from "@/hooks/use-toast";
