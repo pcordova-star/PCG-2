@@ -123,5 +123,7 @@ This document provides a quick reference for common Git commands used in this pr
   - **Regla:**
     - **Acción:** Borrar
     - **Condición:** Edad del objeto es mayor a **30 días**.
-    - **Filtro:** El nombre del objeto empieza con el prefijo `comparacion-planos/`.
-  - **Propósito:** Eliminar automáticamente los archivos de análisis de comparación de planos después de 30 días para controlar costos de almacenamiento.
+    - **Filtros (Prefijos):**
+        - `comparacion-planos/`
+        - `inducciones/`
+  - **Propósito:** Eliminar automáticamente los archivos de análisis de comparación de planos y los audios de inducciones contextuales después de 30 días para controlar costos de almacenamiento.
