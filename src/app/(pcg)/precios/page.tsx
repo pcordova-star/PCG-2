@@ -3,122 +3,51 @@
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { ArrowLeft, Check, GanttChartSquare, HardHat, ShieldCheck, Sparkles, DollarSign, ListChecks, BookCopy, Users, BrainCircuit, GitCompareArrows, UserCheck } from "lucide-react";
+import { ArrowLeft, Check, GanttChartSquare, Layers, PackagePlus, Crown, BarChart } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { ShieldCheck, ListChecks } from "lucide-react";
 
-const PriceCard = ({ title, price, description, features, icon: Icon, isFeatured = false }: { title: string, price: string, description: string, features: { title: string, desc: string }[], icon: React.ElementType, isFeatured?: boolean }) => (
-    <Card className={`flex flex-col ${isFeatured ? 'border-primary shadow-lg' : ''}`}>
-        <CardHeader className="items-center text-center">
-            <div className={`p-4 rounded-full bg-primary/10 mb-4`}>
-                <Icon className="h-8 w-8 text-primary" />
-            </div>
-            <CardTitle className="text-2xl">{title}</CardTitle>
-            <CardDescription>{description}</CardDescription>
-        </CardHeader>
-        <CardContent className="flex-grow">
-            <div className="text-center mb-6">
-                <span className="text-4xl font-bold">{price}</span>
-                <span className="text-muted-foreground"> UF/mes + IVA</span>
-            </div>
-            <ul className="space-y-4 text-sm">
-                {features.map((feature, index) => (
-                    <li key={index} className="flex items-start gap-3">
-                        <Check className="h-4 w-4 mt-1 text-green-500 flex-shrink-0" />
-                        <div>
-                           <p className="font-semibold">{feature.title}</p>
-                           <p className="text-muted-foreground text-xs">{feature.desc}</p>
-                        </div>
-                    </li>
-                ))}
-            </ul>
-        </CardContent>
-        <CardFooter>
-            <Button className="w-full" variant={isFeatured ? 'default' : 'outline'}>Contratar Plan</Button>
-        </CardFooter>
-    </Card>
-);
 
-const PremiumModuleCard = ({ title, price, description, icon: Icon }: { title: string, price: string, description: string, icon: React.ElementType }) => (
-    <Card>
-        <CardHeader className="flex-row items-start gap-4">
-            <div className="p-3 bg-primary/10 rounded-full mt-1">
-                <Icon className="h-6 w-6 text-primary" />
-            </div>
-            <div>
+// A new component for add-on modules
+const AddonCard = ({ title, price, description, icon: Icon }: { title: string, price: string, description: string, icon: React.ElementType }) => (
+    <Card className="bg-slate-50 border-dashed">
+        <CardHeader>
+            <div className="flex items-center gap-4">
+                 <div className="p-3 bg-primary/10 rounded-full">
+                    <Icon className="h-6 w-6 text-primary" />
+                </div>
                 <CardTitle className="text-lg">{title}</CardTitle>
-                <CardDescription className="text-sm mt-1">{description}</CardDescription>
             </div>
+             <CardDescription className="pt-2">{description}</CardDescription>
         </CardHeader>
-        <CardFooter className="flex justify-end items-center gap-4">
-            <div className="text-right">
-                <span className="text-2xl font-bold">{price}</span>
-                <span className="text-sm text-muted-foreground"> UF/mes</span>
-            </div>
-            <Button size="sm">Añadir</Button>
-        </CardFooter>
+        <CardContent>
+            <p className="text-2xl font-bold text-primary">{price}</p>
+        </CardContent>
     </Card>
 );
-
 
 export default function PreciosPage() {
     const router = useRouter();
 
-    const planesBase = [
-        {
-            title: "Plan Prevención de Riesgos",
-            price: "5,5",
-            description: "Digitaliza y automatiza todo el sistema de gestión de seguridad.",
-            icon: ShieldCheck,
-            isFeatured: false,
-            features: [
-                 { title: "Dashboard de Prevención", desc: "Panel visual con indicadores clave (KPIs) de accidentabilidad, frecuencia y gravedad para una visión gerencial." },
-                 { title: "Programa de Prevención de Riesgos (PPR)", desc: "Genera automáticamente el documento PPR de cada obra, integrando IPER, plan de capacitación y charlas." },
-                 { title: "Gestión de Contratistas (DS44)", desc: "Controla el cumplimiento documental de empresas externas y monitorea quiénes están al día para autorizar su ingreso." },
-                 { title: "Ingreso de Personal (DS44)", desc: "Administra el ciclo de vida de cada trabajador, desde su registro hasta la verificación de su documentación de seguridad." },
-                 { title: "IPER y Gestión de Incidentes", desc: "Registra, investiga y gestiona la matriz IPER con enfoque de género, y documenta incidentes con metodologías como Árbol de Causas o 5 Porqués." },
-                 { title: "Checklists de Seguridad", desc: "Digitaliza tus inspecciones de seguridad, crea plantillas personalizadas y registra con fotos y firma digital." },
-            ]
-        },
-        {
-            title: "Plan Operaciones",
-            price: "7,5",
-            description: "La base para gestionar tus obras de principio a fin.",
-            icon: GanttChartSquare,
-            features: [
-                { title: "Gestión de Obras", desc: "Centraliza la información maestra de cada proyecto. Asigna responsables, define mandantes, y adjunta contratos." },
-                { title: "Itemizados y Presupuestos", desc: "Crea y administra tu catálogo de APU. Genera itemizados detallados para cada obra para un control de costos estandarizado." },
-                { title: "Programación de Obras", desc: "Planifica tu proyecto con un Gantt interactivo, define la ruta crítica y visualiza el avance real vs. el programado con la Curva S." },
-                { title: "Generación de Estados de Pago", desc: "Automatiza la creación de informes de avance financiero basados en el progreso físico real registrado en la programación." },
-                { title: "Requerimientos de Información (RDI)", desc: "Digitaliza y formaliza la comunicación con mandantes, proyectistas y subcontratos, manteniendo una trazabilidad completa." },
-            ]
-        },
-        {
-            title: "Plan Pro",
-            price: "10",
-            description: "Acceso total. Todos los módulos operativos, de prevención y de IA incluidos.",
-            icon: Sparkles,
-            isFeatured: true,
-            features: [
-                { title: "Todo en Plan Operaciones", desc: "Gestión de obras, presupuestos, programación, estados de pago y RDI." },
-                { title: "Todo en Plan Prevención", desc: "PPR, DS44 (empresas y personal), IPER, incidentes y checklists de seguridad." },
-                { title: "Todos los Módulos Premium", desc: "Incluye Cumplimiento Legal, Checklists Operacionales, Control Documental, Acceso con QR, Análisis y Comparación de Planos con IA." },
-                { title: "Soporte Prioritario", desc: "Asistencia preferencial para optimizar el uso de la plataforma." },
-            ]
-        }
+    const planOperacionesFeatures = [
+        "Gestión de Obras",
+        "Itemizados y Presupuestos",
+        "Programación (Gantt y Curva S)",
+        "Generación de Estados de Pago",
+        "Requerimientos de Información (RDI)"
     ];
-    
-    const modulosPremium = [
-        { title: "Cumplimiento Legal (MCLP)", description: "Automatiza la gestión documental laboral de tus subcontratistas. Permite que cada uno suba su información a un portal dedicado para tu revisión y aprobación, clave para liberar sus estados de pago.", icon: ShieldCheck },
-        { title: "Checklists Operacionales", description: "Expande el control de calidad más allá de la seguridad. Crea formularios digitales para protocolos de entrega, control de hormigonado, inspección de terminaciones y cualquier otro proceso operativo.", icon: ListChecks },
-        { title: "Control Documental (ISO)", description: "Implementa un sistema de gestión documental alineado con ISO 9001. Administra versiones de procedimientos y políticas, y controla su distribución a las obras con registro de recepción.", icon: BookCopy },
-        { title: "Control de Acceso (QR)", description: "Ofrece un portal de auto-atención para visitas y proveedores. Al escanear un QR en la entrada, completan una inducción básica de seguridad desde su teléfono, agilizando el acceso.", icon: UserCheck },
-        { title: "Análisis de Planos con IA", description: "Sube un plano y recibe una cubicación de referencia generada por Inteligencia Artificial para partidas clave como superficies, m² de muros y losas. Ideal para validaciones rápidas.", icon: BrainCircuit },
-        { title: "Comparación de Planos con IA", description: "Detecta automáticamente las diferencias entre dos versiones de un plano, cuantifica el impacto en la cubicación y genera un árbol de consecuencias por especialidad.", icon: GitCompareArrows },
+
+    const preciosBajaComplejidad = [
+        { tier: "1 – 5", price: "2,0 UF" },
+        { tier: "6 – 20", price: "1,6 UF" },
+        { tier: "21 – 50", price: "1,3 UF" },
+        { tier: "51 – 80", price: "1,0 UF" },
     ];
 
     return (
-        <div className="space-y-12">
+        <div className="space-y-16">
             <header className="flex items-center gap-4">
                 <Button variant="outline" size="icon" onClick={() => router.back()}>
                     <ArrowLeft className="h-4 w-4" />
@@ -126,25 +55,151 @@ export default function PreciosPage() {
                 <div>
                     <h1 className="text-4xl font-bold font-headline tracking-tight">Planes y Precios</h1>
                     <p className="mt-2 text-lg text-muted-foreground">
-                        Elige el plan que se adapte a tus necesidades. Todos nuestros planes incluyen usuarios y obras ilimitadas.
+                        Precios flexibles que se adaptan a la complejidad real de tu operación, no al tamaño de tu empresa.
                     </p>
                 </div>
             </header>
 
+            {/* Main Plans */}
             <section>
-                <h2 className="text-3xl font-bold text-center mb-8">Planes Base</h2>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-8 max-w-7xl mx-auto">
-                    {planesBase.map((plan) => <PriceCard key={plan.title} {...plan} />)}
+                <h2 className="text-3xl font-bold text-center mb-8">Planes por Complejidad Operativa</h2>
+                 <div className="max-w-xs mx-auto text-center mb-12">
+                     <p className="text-sm p-2 bg-yellow-100 border border-yellow-200 rounded-md text-yellow-800">
+                        Una obra se considera de <strong>Baja Complejidad</strong> con hasta 50 partidas en su itemizado principal, y de <strong>Alta Complejidad</strong> si supera las 50 partidas.
+                    </p>
                 </div>
-            </section>
-            
-            <section>
-                <h2 className="text-3xl font-bold text-center mb-8">Módulos Premium Adicionales</h2>
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 max-w-6xl mx-auto">
-                    {modulosPremium.map(mod => <PremiumModuleCard key={mod.title} {...mod} price="1,5" />)}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-8 max-w-5xl mx-auto">
+                    {/* Plan Obras de Baja Complejidad */}
+                    <Card className="flex flex-col">
+                        <CardHeader>
+                            <div className="flex items-center gap-4 mb-2">
+                                <div className="p-3 bg-primary/10 rounded-full"><Layers className="h-8 w-8 text-primary"/></div>
+                                <CardTitle className="text-2xl">Obras de Baja Complejidad</CardTitle>
+                            </div>
+                            <CardDescription>Ideal para constructoras con múltiples proyectos simultáneos de menor escala, como mantenciones o remodelaciones.</CardDescription>
+                        </CardHeader>
+                        <CardContent className="flex-grow">
+                             <p className="font-semibold mb-2">Plan Operaciones (Base):</p>
+                             <ul className="space-y-2 text-sm mb-6">
+                                {planOperacionesFeatures.map((feature) => (
+                                    <li key={feature} className="flex items-center gap-2 text-muted-foreground"><Check className="h-4 w-4 text-green-500" />{feature}</li>
+                                ))}
+                            </ul>
+                            <p className="font-semibold mb-2">Precios por volumen (por obra / mes):</p>
+                            <Table>
+                                <TableHeader><TableRow><TableHead>Rango de Obras</TableHead><TableHead className="text-right">Precio Unitario</TableHead></TableRow></TableHeader>
+                                <TableBody>
+                                    {preciosBajaComplejidad.map((tier) => (
+                                        <TableRow key={tier.tier}>
+                                            <TableCell>{tier.tier}</TableCell>
+                                            <TableCell className="text-right font-bold">{tier.price}</TableCell>
+                                        </TableRow>
+                                    ))}
+                                </TableBody>
+                            </Table>
+                        </CardContent>
+                        <CardFooter>
+                            <Button asChild className="w-full"><a href="mailto:paulo@ipsconstruccion.cl?subject=Consulta%20sobre%20Plan%20de%20Baja%20Complejidad">Contactar para Contratar</a></Button>
+                        </CardFooter>
+                    </Card>
+
+                    {/* Plan Obras de Alta Complejidad */}
+                     <Card className="flex flex-col border-primary shadow-lg ring-2 ring-primary/50">
+                        <CardHeader>
+                           <div className="flex items-center gap-4 mb-2">
+                                <div className="p-3 bg-primary/10 rounded-full"><GanttChartSquare className="h-8 w-8 text-primary"/></div>
+                                <CardTitle className="text-2xl">Obras de Alta Complejidad</CardTitle>
+                            </div>
+                            <CardDescription>Para proyectos de mayor envergadura con más de 50 partidas, que requieren un control detallado.</CardDescription>
+                        </CardHeader>
+                        <CardContent className="flex-grow">
+                             <p className="font-semibold mb-2">Plan Operaciones (Base):</p>
+                             <ul className="space-y-2 text-sm mb-6">
+                                {planOperacionesFeatures.map((feature) => (
+                                    <li key={feature} className="flex items-center gap-2 text-muted-foreground"><Check className="h-4 w-4 text-green-500" />{feature}</li>
+                                ))}
+                            </ul>
+                            <div className="text-center my-8">
+                                <span className="text-5xl font-bold tracking-tight">4,0</span>
+                                <span className="text-muted-foreground"> UF / mes por obra</span>
+                            </div>
+                            <p className="text-xs text-center text-muted-foreground">Este precio es fijo y no aplica descuento por volumen. Cada obra de alta complejidad se factura individualmente.</p>
+                        </CardContent>
+                         <CardFooter>
+                            <Button asChild className="w-full"><a href="mailto:paulo@ipsconstruccion.cl?subject=Consulta%20sobre%20Plan%20de%20Alta%20Complejidad">Contactar para Contratar</a></Button>
+                        </CardFooter>
+                    </Card>
                 </div>
             </section>
 
+             {/* Módulos Adicionales */}
+            <section>
+                <h2 className="text-3xl font-bold text-center mb-8">Potencia tu Plan Base con Módulos Adicionales</h2>
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 max-w-6xl mx-auto">
+                    <AddonCard 
+                        title="Prevención, Seguridad y Cumplimiento"
+                        price="+35%"
+                        description="Añade el módulo de Prevención (PPR, IPER, DS44) y el de Cumplimiento Legal de Subcontratistas (MCLP)."
+                        icon={ShieldCheck}
+                    />
+                     <AddonCard 
+                        title="Control y Calidad Operativa"
+                        price="+25%"
+                        description="Incorpora Checklists Operacionales para protocolos de calidad y Control Documental (ISO)."
+                        icon={ListChecks}
+                    />
+                    <div className="md:col-span-2 lg:col-span-1">
+                        <AddonCard 
+                            title="Contratación Conjunta"
+                            price="+45% (Ahorra 15%)"
+                            description="Lleva ambos paquetes de módulos (Prevención y Calidad) con un descuento especial."
+                            icon={PackagePlus}
+                        />
+                    </div>
+                </div>
+            </section>
+            
+            {/* Planes Especiales */}
+            <section>
+                 <h2 className="text-3xl font-bold text-center mb-8">Planes Especiales</h2>
+                 <div className="grid grid-cols-1 md:grid-cols-2 gap-8 max-w-5xl mx-auto">
+                    <Card>
+                        <CardHeader>
+                            <div className="flex items-center gap-4">
+                                <div className="p-3 bg-primary/10 rounded-full"><Crown className="h-6 w-6 text-primary"/></div>
+                                <CardTitle>Plan Enterprise</CardTitle>
+                            </div>
+                            <CardDescription>Para constructoras que gestionan más de 80 obras de baja complejidad.</CardDescription>
+                        </CardHeader>
+                        <CardContent>
+                             <ul className="space-y-2 text-sm text-muted-foreground">
+                                <li className="flex items-center gap-2"><Check className="h-4 w-4 text-green-500" />Obras de baja complejidad ilimitadas.</li>
+                                <li className="flex items-center gap-2"><Check className="h-4 w-4 text-green-500" />Todos los módulos adicionales incluidos.</li>
+                                <li className="flex items-center gap-2"><Check className="h-4 w-4 text-green-500" />Módulos de IA con política de uso justo.</li>
+                                <li className="flex items-center gap-2"><Check className="h-4 w-4 text-green-500" />SLA y soporte prioritario.</li>
+                            </ul>
+                            <p className="text-xs mt-4">Las obras de alta complejidad se facturan por separado según su tarifa.</p>
+                        </CardContent>
+                        <CardFooter><Button className="w-full" variant="outline">Consultar Precio Enterprise</Button></CardFooter>
+                    </Card>
+                    <Card>
+                        <CardHeader>
+                             <div className="flex items-center gap-4">
+                                <div className="p-3 bg-primary/10 rounded-full"><BarChart className="h-6 w-6 text-primary"/></div>
+                                <CardTitle>Dashboard Ejecutivo</CardTitle>
+                            </div>
+                            <CardDescription>Un panel de control para la alta dirección con una vista consolidada de los KPIs de las obras asignadas.</CardDescription>
+                        </CardHeader>
+                        <CardContent>
+                             <div className="text-center my-4">
+                                <span className="text-4xl font-bold tracking-tight">0,75</span>
+                                <span className="text-muted-foreground"> UF / mes por usuario</span>
+                            </div>
+                        </CardContent>
+                         <CardFooter><Button className="w-full" variant="outline">Habilitar Dashboard</Button></CardFooter>
+                    </Card>
+                </div>
+            </section>
         </div>
     );
 }
