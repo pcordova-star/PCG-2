@@ -254,7 +254,7 @@ export default function AnalisisPlanosPage() {
               {resultado && (
                  <div className="prose prose-sm max-w-none text-card-foreground">
                     <p className='font-semibold'>Resumen de la IA:</p>
-                    <p className='text-muted-foreground text-sm italic'>"{resultado.summary}"</p>
+                    <p className='text-muted-foreground text-sm italic'>&quot;{resultado.summary}&quot;</p>
                     {resultado.elements.length > 0 && (
                         <Table>
                             <TableHeader><TableRow><TableHead>Elemento</TableHead><TableHead>Cantidad</TableHead><TableHead>Confianza</TableHead></TableRow></TableHeader>

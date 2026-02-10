@@ -55,9 +55,9 @@ export default function TestModeloPage() {
        <div className="mt-6 p-4 border rounded-lg bg-slate-100">
         <h2 className="font-semibold">Instrucciones</h2>
         <ol className="list-decimal list-inside text-sm text-muted-foreground mt-2">
-            <li>Haz clic en el botón "Probar Conexión con IA".</li>
-            <li>Observa el resultado que aparece en la sección "Resultado de la API".</li>
-            <li>Si `ok` es `true` y el texto incluye 'funcionando', la conexión es exitosa.</li>
+            <li>Haz clic en el botón &quot;Probar Conexión con IA&quot;.</li>
+            <li>Observa el resultado que aparece en la sección &quot;Resultado de la API&quot;.</li>
+            <li>Si `ok` es `true` y el texto incluye &apos;funcionando&apos;, la conexión es exitosa.</li>
             <li>Si ves un error, significa que la API Route no pudo ejecutar Genkit correctamente. Revisa los logs del servidor de Next.js.</li>
         </ol>
       </div>

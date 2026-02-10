@@ -320,7 +320,7 @@ export default function RevisionPage() {
                                                         <TableRow key={sub.id}>
                                                             <TableCell className="font-medium">
                                                                 {sub.nombreDocumentoSnapshot}
-                                                                {sub.comentario && <p className="text-xs text-muted-foreground mt-1 italic">"{sub.comentario}"</p>}
+                                                                {sub.comentario && <p className="text-xs text-muted-foreground mt-1 italic">&quot;{sub.comentario}&quot;</p>}
                                                             </TableCell>
                                                             <TableCell>{sub.fechaCarga.toLocaleString('es-CL')}</TableCell>
                                                             <TableCell className="text-right space-x-2">

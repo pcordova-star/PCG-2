@@ -6,7 +6,7 @@ import { AlertTriangle, TrendingUp, GitCompareArrows } from "lucide-react";
 import { useMemo } from "react";
 
 interface Props {
-  data: ComparacionPlanosOutput;
+  data: ComparacionPlanosOutput | null;
 }
 
 export default function ResumenEjecutivo({ data }: Props) {

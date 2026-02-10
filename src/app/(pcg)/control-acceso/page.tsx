@@ -190,7 +190,7 @@ export default function ControlAccesoAdminPage() {
                                         <TableCell>{reg.fechaConfirmacion?.toDate().toLocaleDateString('es-CL') || 'Pendiente'}</TableCell>
                                         <TableCell className="font-medium">{reg.persona?.nombre || 'N/A'}</TableCell>
                                         <TableCell>{reg.persona?.rut || 'N/A'}</TableCell>
-                                        <TableCell className="text-xs italic">"{reg.contexto?.descripcionTarea || 'N/A'}"</TableCell>
+                                        <TableCell className="text-xs italic">&quot;{reg.contexto?.descripcionTarea || 'N/A'}&quot;</TableCell>
                                         <TableCell className="text-right">
                                             <Button variant="outline" size="sm" onClick={() => handleOpenModal(reg)}>
                                                 <Eye className="mr-2 h-4 w-4"/> Ver Inducción
@@ -260,7 +260,7 @@ export default function ControlAccesoAdminPage() {
           <div className="py-4 space-y-4 text-sm">
             <p><strong>Usuario:</strong> {selectedInduccion?.persona?.nombre}</p>
             <p><strong>Fecha:</strong> {selectedInduccion?.fechaConfirmacion?.toDate().toLocaleString('es-CL')}</p>
-            <p><strong>Tarea declarada:</strong> "{selectedInduccion?.contexto?.descripcionTarea}"</p>
+            <p><strong>Tarea declarada:</strong> &quot;{selectedInduccion?.contexto?.descripcionTarea}&quot;</p>
             <div className="mt-4 p-4 bg-muted rounded-md border text-muted-foreground whitespace-pre-wrap">
               {selectedInduccion?.inductionText}
             </div>
