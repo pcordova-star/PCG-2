@@ -4,8 +4,7 @@ import * as admin from 'firebase-admin';
 import * as logger from 'firebase-functions/logger';
 import { getAdminApp } from './firebaseAdmin';
 import { z } from 'zod';
-import { configureGenkit, generate } from '@genkit-ai/core'; // CORREGIDO
-import { googleAI } from '@genkit-ai/googleai';
+import fetch from 'node-fetch';
 
 // Esquema de Salida de la IA
 const NoticiaAnalisisSchema = z.object({
@@ -17,14 +16,64 @@ const NoticiaAnalisisSchema = z.object({
   esCritica: z.boolean().describe("True si la noticia representa un riesgo o una oportunidad inmediata."),
 });
 
-// Configuración de Genkit
-configureGenkit({
-    plugins: [
-        googleAI({ apiKey: process.env.GOOGLE_GENAI_API_KEY }),
-    ],
-    logLevel: 'debug',
-    enableTracingAndMetrics: true,
-});
+type NoticiaAnalisis = z.infer<typeof NoticiaAnalisisSchema>;
+
+function cleanJsonString(rawString: string): string {
+    let cleaned = rawString.replace(/```json/g, "").replace(/```/g, "");
+    const startIndex = cleaned.indexOf("{");
+    const endIndex = cleaned.lastIndexOf("}");
+    if (startIndex === -1 || endIndex === -1 || endIndex < startIndex) {
+        throw new Error("No se encontró un objeto JSON válido en la respuesta de la IA.");
+    }
+    return cleaned.substring(startIndex, endIndex + 1);
+}
+
+async function callGeminiForNoticia(apiKey: string, contenidoCrudo: string): Promise<NoticiaAnalisis> {
+    const prompt = `
+      Eres un analista experto en inteligencia operacional para la industria de la construcción en Chile.
+      Tu tarea es leer una noticia y transformarla en una alerta de inteligencia accionable para una plataforma de gestión de obras llamada PCG.
+      
+      La noticia cruda es:
+      ---
+      ${contenidoCrudo}
+      ---
+      
+      Analiza el contenido y genera un objeto JSON que siga estrictamente el schema de salida, sin texto adicional. Tu respuesta DEBE ser solo el JSON.
+      - **resumen**: Crea un resumen conciso y directo.
+      - **especialidad**: Clasifica la noticia. Puede tener múltiples especialidades.
+      - **relevanciaGeografica**: Identifica las zonas geográficas afectadas. Si es para todo Chile, usa "Nacional".
+      - **entidadesPcgImpactadas**: Determina qué roles son los más afectados por esta noticia.
+      - **accionRecomendada**: La parte más importante. Sugiere una acción CLARA, CORTA y CONCRETA que un usuario pueda realizar DENTRO de la plataforma PCG. No sugieras "informarse" o "estar atento".
+      - **esCritica**: Define si la noticia es de alta urgencia.
+    `;
+    
+    const geminiEndpoint = `https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=${apiKey}`;
+
+    const response = await fetch(geminiEndpoint, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+            contents: [{ parts: [{ text: prompt }] }],
+            generationConfig: {
+                response_mime_type: "application/json",
+                temperature: 0.2,
+            },
+        }),
+    });
+
+    if (!response.ok) {
+        const errText = await response.text();
+        throw new Error(`Error en API Gemini: ${response.statusText}. Detalle: ${errText}`);
+    }
+
+    const result = await response.json() as any;
+    const rawJson = result.candidates?.[0]?.content?.parts?.[0]?.text;
+    if (!rawJson) throw new Error("La respuesta de Gemini no contiene texto JSON válido.");
+    
+    const cleanedJson = cleanJsonString(rawJson);
+    const parsed = NoticiaAnalisisSchema.parse(JSON.parse(cleanedJson));
+    return parsed;
+}
 
 const adminApp = getAdminApp();
 const db = adminApp.firestore();
@@ -43,42 +92,15 @@ export const processNoticiaExterna = functions
     }
     
     logger.info(`[${noticiaId}] Iniciando análisis de IA para la noticia.`);
-
-    const prompt = `
-      Eres un analista experto en inteligencia operacional para la industria de la construcción en Chile.
-      Tu tarea es leer una noticia y transformarla en una alerta de inteligencia accionable para una plataforma de gestión de obras llamada PCG.
-      
-      La noticia cruda es:
-      ---
-      ${noticiaData.contenidoCrudo}
-      ---
-      
-      Analiza el contenido y genera un objeto JSON que siga estrictamente el schema de salida, sin texto adicional. Tu respuesta DEBE ser solo el JSON.
-      - **resumen**: Crea un resumen conciso y directo.
-      - **especialidad**: Clasifica la noticia. Puede tener múltiples especialidades.
-      - **relevanciaGeografica**: Identifica las zonas geográficas afectadas. Si es para todo Chile, usa "Nacional".
-      - **entidadesPcgImpactadas**: Determina qué roles son los más afectados por esta noticia.
-      - **accionRecomendada**: La parte más importante. Sugiere una acción CLARA, CORTA y CONCRETA que un usuario pueda realizar DENTRO de la plataforma PCG. No sugieras "informarse" o "estar atento".
-      - **esCritica**: Define si la noticia es de alta urgencia.
-    `;
+    const apiKey = process.env.GOOGLE_GENAI_API_KEY;
+    if (!apiKey) {
+      logger.error(`[${noticiaId}] GOOGLE_GENAI_API_KEY no está configurada.`);
+      await snap.ref.update({ estado: 'error_config', errorMessage: 'API Key no configurada en el servidor.' });
+      return;
+    }
 
     try {
-      const llmResponse = await generate({ // CORREGIDO: Se llama a la función `generate` importada desde @genkit-ai/core
-        model: 'gemini-pro',
-        prompt: prompt,
-        output: {
-            format: 'json',
-            schema: NoticiaAnalisisSchema,
-        },
-        config: {
-            temperature: 0.2,
-        }
-      });
-      
-      const analisisResult = llmResponse.output();
-      if (!analisisResult) {
-        throw new Error("La respuesta de la IA fue vacía o inválida.");
-      }
+      const analisisResult = await callGeminiForNoticia(apiKey, noticiaData.contenidoCrudo);
       
       // Guardar el resultado exitoso
       await snap.ref.collection("analisisIA").doc("ultimo").set({

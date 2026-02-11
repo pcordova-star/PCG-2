@@ -40,7 +40,7 @@ const admin = __importStar(require("firebase-admin"));
 const logger = __importStar(require("firebase-functions/logger"));
 const firebaseAdmin_1 = require("./firebaseAdmin");
 const zod_1 = require("zod");
-const core_1 = require("@genkit-ai/core");
+const core_1 = require("@genkit-ai/core"); // CORREGIDO
 const googleai_1 = require("@genkit-ai/googleai");
 // Esquema de Salida de la IA
 const NoticiaAnalisisSchema = zod_1.z.object({
@@ -91,7 +91,7 @@ exports.processNoticiaExterna = functions
       - **esCritica**: Define si la noticia es de alta urgencia.
     `;
     try {
-        const llmResponse = await (0, googleai_1.generate)({
+        const llmResponse = await (0, core_1.generate)({
             model: 'gemini-pro',
             prompt: prompt,
             output: {
