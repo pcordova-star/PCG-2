@@ -1,11 +1,11 @@
 // workspace/functions/src/processNoticiaExterna.ts
-
 import * as functions from 'firebase-functions';
 import * as admin from 'firebase-admin';
 import * as logger from 'firebase-functions/logger';
 import { getAdminApp } from './firebaseAdmin';
 import { z } from 'zod';
-import { ai } from './genkit-config'; // Importar la instancia 'ai' centralizada
+import { configureGenkit, generate } from '@genkit-ai/core';
+import { googleAI } from '@genkit-ai/googleai';
 
 // --- Esquema de Salida de la IA ---
 const NoticiaAnalisisSchema = z.object({
@@ -21,18 +21,22 @@ const NoticiaAnalisisSchema = z.object({
 const adminApp = getAdminApp();
 const db = adminApp.firestore();
 
-const analizarNoticiaPrompt = ai.definePrompt(
-  {
-    name: "analizarNoticiaPrompt",
-    input: { schema: z.string() },
-    output: { schema: NoticiaAnalisisSchema },
-    prompt: `
+// Configurar Genkit para este entorno de Cloud Function (estilo v0.5.1)
+configureGenkit({
+    plugins: [
+        googleAI({ apiKey: process.env.GOOGLE_GENAI_API_KEY }),
+    ],
+    logLevel: 'debug',
+    enableTracingAndMetrics: true,
+});
+
+const promptText = `
       Eres un analista experto en inteligencia operacional para la industria de la construcción en Chile.
       Tu tarea es leer una noticia y transformarla en una alerta de inteligencia accionable para una plataforma de gestión de obras llamada PCG.
       
       La noticia cruda es:
       ---
-      {{{input}}}
+      {{input}}
       ---
       
       Analiza el contenido y genera un objeto JSON que siga estrictamente el schema de salida, sin texto adicional. Tu respuesta DEBE ser solo el JSON.
@@ -42,9 +46,8 @@ const analizarNoticiaPrompt = ai.definePrompt(
       - **entidadesPcgImpactadas**: Determina qué roles son los más afectados por esta noticia.
       - **accionRecomendada**: La parte más importante. Sugiere una acción CLARA, CORTA y CONCRETA que un usuario pueda realizar DENTRO de la plataforma PCG. No sugieras "informarse" o "estar atento".
       - **esCritica**: Define si la noticia es de alta urgencia.
-    `,
-  },
-);
+    `;
+
 
 // --- Cloud Function ---
 export const processNoticiaExterna = functions
@@ -63,10 +66,22 @@ export const processNoticiaExterna = functions
     logger.info(`[${noticiaId}] Iniciando análisis de IA para la noticia.`);
 
     try {
-      const { output } = await analizarNoticiaPrompt(noticiaData.contenidoCrudo);
+      const llmResponse = await generate({
+          prompt: promptText.replace('{{input}}', noticiaData.contenidoCrudo),
+          model: 'googleai/gemini-pro',
+          output: {
+              format: 'json',
+              schema: NoticiaAnalisisSchema,
+          },
+          config: {
+              temperature: 0.2,
+          }
+      });
+
+      const output = llmResponse.output();
       
       if (!output) {
-        throw new Error("La IA no generó una respuesta válida.");
+        throw new Error("La IA no generó una respuesta válida (output está vacío).");
       }
 
       await snap.ref.collection("analisisIA").doc("ultimo").set({

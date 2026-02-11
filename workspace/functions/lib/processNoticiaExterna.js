@@ -40,8 +40,7 @@ const admin = __importStar(require("firebase-admin"));
 const logger = __importStar(require("firebase-functions/logger"));
 const firebaseAdmin_1 = require("./firebaseAdmin");
 const zod_1 = require("zod");
-const core = __importStar(require("@genkit-ai/core")); // CAMBIO: Importar todo el módulo
-require("./genkit-config"); // Importar para ejecutar la configuración
+const genkit_config_1 = require("./genkit-config"); // Importar la instancia 'ai' centralizada
 // --- Esquema de Salida de la IA ---
 const NoticiaAnalisisSchema = zod_1.z.object({
     resumen: zod_1.z.string().describe("Un resumen ejecutivo de la noticia en 2-3 frases."),
@@ -54,8 +53,7 @@ const NoticiaAnalisisSchema = zod_1.z.object({
 // --- Inicialización de Servicios ---
 const adminApp = (0, firebaseAdmin_1.getAdminApp)();
 const db = adminApp.firestore();
-// CAMBIO: Usar core.definePrompt
-const analizarNoticiaPrompt = core.definePrompt({
+const analizarNoticiaPrompt = genkit_config_1.ai.definePrompt({
     name: "analizarNoticiaPrompt",
     input: { schema: zod_1.z.string() },
     output: { schema: NoticiaAnalisisSchema },
