@@ -70,6 +70,23 @@ service cloud.firestore {
       allow create: if false; // Solo el backend puede crear
     }
 
+    // --------- Reglas para Módulo de Noticias Contextuales (NUEVO) ---------
+    match /noticiasExternas/{noticiaId} {
+      // Solo el backend (admin SDK) puede leer y escribir noticias crudas y su análisis.
+      allow read, write: if false;
+      
+      match /analisisIA/{analisisId} {
+        allow read, write: if false;
+      }
+    }
+
+    match /alertasNoticias/{alertaId} {
+      // Solo el backend puede crear o eliminar alertas.
+      allow create, delete: if false;
+      // El usuario puede leer y actualizar (ej: marcar como leída) una alerta si pertenece a su empresa.
+      allow read, update: if isSignedIn() && resource.data.companyId == companyId();
+    }
+
     // Documentos corporativos (empresa)
     match /companyDocuments/{docId} {
       allow read: if isSignedIn() && companyId() == resource.data.companyId;
