@@ -1,5 +1,4 @@
 "use strict";
-// workspace/functions/src/processNoticiaExterna.ts
 var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
     if (k2 === undefined) k2 = k;
     var desc = Object.getOwnPropertyDescriptor(m, k);
@@ -35,12 +34,14 @@ var __importStar = (this && this.__importStar) || (function () {
 })();
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.processNoticiaExterna = void 0;
+// workspace/functions/src/processNoticiaExterna.ts
 const functions = __importStar(require("firebase-functions"));
 const admin = __importStar(require("firebase-admin"));
 const logger = __importStar(require("firebase-functions/logger"));
 const firebaseAdmin_1 = require("./firebaseAdmin");
 const zod_1 = require("zod");
-const genkit_config_1 = require("./genkit-config"); // Importar la instancia 'ai' centralizada
+const core_1 = require("@genkit-ai/core");
+const googleai_1 = require("@genkit-ai/googleai");
 // --- Esquema de Salida de la IA ---
 const NoticiaAnalisisSchema = zod_1.z.object({
     resumen: zod_1.z.string().describe("Un resumen ejecutivo de la noticia en 2-3 frases."),
@@ -53,17 +54,21 @@ const NoticiaAnalisisSchema = zod_1.z.object({
 // --- Inicialización de Servicios ---
 const adminApp = (0, firebaseAdmin_1.getAdminApp)();
 const db = adminApp.firestore();
-const analizarNoticiaPrompt = genkit_config_1.ai.definePrompt({
-    name: "analizarNoticiaPrompt",
-    input: { schema: zod_1.z.string() },
-    output: { schema: NoticiaAnalisisSchema },
-    prompt: `
+// Configurar Genkit para este entorno de Cloud Function (estilo v0.5.1)
+(0, core_1.configureGenkit)({
+    plugins: [
+        (0, googleai_1.googleAI)({ apiKey: process.env.GOOGLE_GENAI_API_KEY }),
+    ],
+    logLevel: 'debug',
+    enableTracingAndMetrics: true,
+});
+const promptText = `
       Eres un analista experto en inteligencia operacional para la industria de la construcción en Chile.
       Tu tarea es leer una noticia y transformarla en una alerta de inteligencia accionable para una plataforma de gestión de obras llamada PCG.
       
       La noticia cruda es:
       ---
-      {{{input}}}
+      {{input}}
       ---
       
       Analiza el contenido y genera un objeto JSON que siga estrictamente el schema de salida, sin texto adicional. Tu respuesta DEBE ser solo el JSON.
@@ -73,8 +78,7 @@ const analizarNoticiaPrompt = genkit_config_1.ai.definePrompt({
       - **entidadesPcgImpactadas**: Determina qué roles son los más afectados por esta noticia.
       - **accionRecomendada**: La parte más importante. Sugiere una acción CLARA, CORTA y CONCRETA que un usuario pueda realizar DENTRO de la plataforma PCG. No sugieras "informarse" o "estar atento".
       - **esCritica**: Define si la noticia es de alta urgencia.
-    `,
-});
+    `;
 // --- Cloud Function ---
 exports.processNoticiaExterna = functions
     .region("us-central1")
@@ -89,9 +93,20 @@ exports.processNoticiaExterna = functions
     }
     logger.info(`[${noticiaId}] Iniciando análisis de IA para la noticia.`);
     try {
-        const { output } = await analizarNoticiaPrompt(noticiaData.contenidoCrudo);
+        const llmResponse = await (0, core_1.generate)({
+            prompt: promptText.replace('{{input}}', noticiaData.contenidoCrudo),
+            model: 'googleai/gemini-pro',
+            output: {
+                format: 'json',
+                schema: NoticiaAnalisisSchema,
+            },
+            config: {
+                temperature: 0.2,
+            }
+        });
+        const output = llmResponse.output();
         if (!output) {
-            throw new Error("La IA no generó una respuesta válida.");
+            throw new Error("La IA no generó una respuesta válida (output está vacío).");
         }
         await snap.ref.collection("analisisIA").doc("ultimo").set({
             ...output,
