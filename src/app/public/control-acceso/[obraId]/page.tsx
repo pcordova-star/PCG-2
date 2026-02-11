@@ -1,154 +1,231 @@
-// /src/app/public/control-acceso/[obraId]/page.tsx
+
 "use client";
+import { useState, useEffect, FormEvent, Suspense } from "react";
+import { useParams, useRouter } from "next/navigation";
+import { Button } from "@/components/ui/button";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+  CardFooter,
+} from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Textarea } from "@/components/ui/textarea";
+import { useToast } from "@/hooks/use-toast";
+import { PcgLogo } from "@/components/branding/PcgLogo";
+import { Loader2, Camera, ShieldCheck, XCircle } from "lucide-react";
+import { Obra, InduccionContextualRegistro } from "@/types/pcg";
+import { doc, getDoc } from "firebase/firestore";
+import { firebaseDb } from "@/lib/firebaseClient";
+import jsQR from "jsqr";
+import { useZxing } from "react-zxing";
 
-import { useState, useEffect, FormEvent, useRef, useCallback } from 'react';
-import { useParams, useRouter } from 'next/navigation';
-import { useZxing } from 'react-zxing';
-import jsQR from 'jsqr';
-import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Textarea } from '@/components/ui/textarea';
-import { Loader2, Camera, ShieldX, X, Upload } from 'lucide-react';
-import { PcgLogo } from '@/components/branding/PcgLogo';
-import { useToast } from '@/hooks/use-toast';
-import { AlertDialog, AlertDialogContent, AlertDialogHeader, AlertDialogTitle, AlertDialogDescription, AlertDialogFooter, AlertDialogAction } from '@/components/ui/alert-dialog';
-
-interface FormData {
-  nombreCompleto: string;
-  rut: string;
-  empresa: string;
-  motivo: string;
-  tipoPersona: 'trabajador' | 'subcontratista' | 'visita';
-  duracionIngreso: 'visita breve' | 'jornada parcial' | 'jornada completa';
+function SuccessInductionScreen({
+  induction,
+  audioUrl,
+}: {
+  induction: InduccionContextualRegistro;
+  audioUrl?: string | null;
+}) {
+  return (
+    <div className="text-center p-4">
+      <ShieldCheck className="mx-auto h-16 w-16 text-green-500 mb-4" />
+      <h2 className="text-2xl font-bold">¡Registro Exitoso!</h2>
+      <p className="text-muted-foreground mt-2 mb-6">
+        A continuación, te presentamos tu inducción de seguridad personalizada.
+      </p>
+      <Card className="text-left">
+        <CardHeader>
+          <CardTitle>Inducción de Seguridad</CardTitle>
+          <CardDescription>
+            Basada en la tarea: &quot;{induction.contexto.descripcionTarea}&quot;
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          {audioUrl && (
+            <div>
+              <Label>Escuchar Inducción</Label>
+              <audio controls src={audioUrl} className="w-full mt-1">
+                Tu navegador no soporta la reproducción de audio.
+              </audio>
+            </div>
+          )}
+          <div className="whitespace-pre-wrap text-sm p-4 bg-muted rounded-md border">
+            {induction.inductionText}
+          </div>
+        </CardContent>
+        <CardFooter>
+            <p className="text-xs text-muted-foreground">Ya puedes cerrar esta ventana y acceder a la obra.</p>
+        </CardFooter>
+      </Card>
+    </div>
+  );
 }
 
-const parseQrData = (data: string): { rut: string; nombre: string } | null => {
-  try {
-    const parts = data.split('&');
-    const runPart = parts.find(p => p.startsWith('RUN='));
-    const namePart = parts.find(p => p.startsWith('Nombres='));
-    const lastNamePart = parts.find(p => p.startsWith('Apellidos='));
-
-    if (!runPart || !namePart || !lastNamePart) return null;
-
-    const rut = runPart.split('=')[1];
-    const nombres = namePart.split('=')[1].replace(/\+/g, ' ');
-    const apellidos = lastNamePart.split('=')[1].replace(/\+/g, ' ');
-
-    return { rut, nombre: `${nombres} ${apellidos}` };
-  } catch {
-    return null;
-  }
-};
-
-export default function AccesoObraPage() {
+function ControlAccesoForm() {
   const params = useParams();
   const router = useRouter();
   const { toast } = useToast();
   const obraId = params.obraId as string;
 
-  const [formData, setFormData] = useState<FormData>({
-    nombreCompleto: '',
-    rut: '',
-    empresa: '',
-    motivo: '',
-    tipoPersona: 'visita',
-    duracionIngreso: 'visita breve',
-  });
+  const [obra, setObra] = useState<Obra | null>(null);
+  const [loadingObra, setLoadingObra] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  
+  const [submitError, setSubmitError] = useState<string | null>(null);
+  const [submissionResult, setSubmissionResult] = useState<{
+    induction: InduccionContextualRegistro;
+    audioUrl?: string;
+  } | null>(null);
+
+  // Estados para el escáner
   const [isScanning, setIsScanning] = useState(false);
-  const [showSuccessModal, setShowSuccessModal] = useState(false);
-  const [successData, setSuccessData] = useState({ inductionText: '', audioUrl: '' });
+  const [scanError, setScanError] = useState<string | null>(null);
 
   const { ref } = useZxing({
-    onResult(result) {
-      const parsedData = parseQrData(result.getText());
-      if (parsedData) {
-        setFormData(prev => ({
-          ...prev,
-          rut: parsedData.rut,
-          nombreCompleto: parsedData.nombre,
-        }));
-        toast({ title: "Éxito", description: "Datos de la cédula cargados correctamente." });
-        setIsScanning(false);
-      } else {
-        toast({ variant: 'destructive', title: "Error de Escaneo", description: "El código QR no parece ser de una cédula de identidad chilena válida." });
+    onDecodeResult: (result) => {
+      try {
+        const rawData = result.getText();
+        const params = new URLSearchParams(rawData.substring(rawData.indexOf('?')));
+        const run = params.get('RUN');
+        const nombres = params.get('names');
+        const apellidos = params.get('last_name');
+
+        if (run && nombres && apellidos) {
+          setFormData(prev => ({
+            ...prev,
+            nombreCompleto: `${nombres} ${apellidos}`,
+            rut: run,
+          }));
+          toast({ title: "Datos autocompletados", description: "Cédula escaneada correctamente." });
+          setIsScanning(false);
+        } else {
+          throw new Error("El código QR no contiene los datos esperados.");
+        }
+      } catch (err: any) {
+        setScanError("No se pudo leer el código QR de la cédula. Intenta de nuevo o ingresa los datos manualmente.");
+        console.error(err);
       }
     },
-    onError(err) {
-        console.error("Error del lector QR:", err);
-        toast({ variant: "destructive", title: "Error de Cámara", description: "No se pudo acceder a la cámara. Revisa los permisos."});
-        setIsScanning(false);
-    }
+    paused: !isScanning,
   });
+
+  const [formData, setFormData] = useState({
+    nombreCompleto: "",
+    rut: "",
+    empresa: "",
+    motivo: "",
+    tipoPersona: "visita" as "trabajador" | "subcontratista" | "visita",
+    duracionIngreso: "visita breve" as "visita breve" | "jornada parcial" | "jornada completa",
+  });
+
+  useEffect(() => {
+    if (obraId) {
+      const fetchObra = async () => {
+        setLoadingObra(true);
+        const obraRef = doc(firebaseDb, "obras", obraId);
+        const obraSnap = await getDoc(obraRef);
+        if (obraSnap.exists()) {
+          setObra({ id: obraSnap.id, ...obraSnap.data() } as Obra);
+        }
+        setLoadingObra(false);
+      };
+      fetchObra();
+    }
+  }, [obraId]);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
-    // Special handling for select is done via onValueChange
-    setFormData(prev => ({ ...prev, [name]: value }));
+    setFormData((prev) => ({ ...prev, [name]: value }));
   };
 
-  const handleSelectChange = (name: keyof FormData, value: string) => {
-    setFormData(prev => ({ ...prev, [name]: value as any }));
+  const handleSelectChange = (name: keyof typeof formData, value: string) => {
+    setFormData((prev) => ({ ...prev, [name]: value }));
   };
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
     setIsSubmitting(true);
-    setError(null);
-
-    const submissionData = new FormData();
-    Object.entries(formData).forEach(([key, value]) => {
-      submissionData.append(key, value);
-    });
-    submissionData.append('obraId', obraId);
-
+    setSubmitError(null);
     try {
-      const res = await fetch('/api/control-acceso/submit', {
-        method: 'POST',
-        body: submissionData,
+      const data = new FormData();
+      for (const key in formData) {
+        data.append(key, formData[key as keyof typeof formData]);
+      }
+      data.append("obraId", obraId);
+
+      const response = await fetch("/api/control-acceso/submit", {
+        method: "POST",
+        body: data,
       });
 
-      const result = await res.json();
-      if (!res.ok) {
-        throw new Error(result.error || 'Ocurrió un error en el servidor.');
+      const result = await response.json();
+      if (!response.ok) {
+        throw new Error(result.error || "Ocurrió un error en el servidor.");
       }
       
-      if(result.inductionText && result.audioUrl) {
-          setSuccessData({ inductionText: result.inductionText, audioUrl: result.audioUrl });
-          setShowSuccessModal(true);
+      if (result.success && result.inductionText) {
+          setSubmissionResult({
+              induction: {
+                  contexto: {
+                      descripcionTarea: formData.motivo,
+                      duracionIngreso: formData.duracionIngreso,
+                  },
+                  inductionText: result.inductionText,
+                  // ... el resto de los campos de inducción no son cruciales para mostrar aquí
+              } as InduccionContextualRegistro,
+              audioUrl: result.audioUrl,
+          });
       } else {
-          router.push('/public/control-acceso/exito');
+          // Si no hay inducción, igual mostramos un mensaje de éxito simple.
+          setSubmissionResult({ induction: { contexto: {}, inductionText: 'Tu registro ha sido completado con éxito. Ya puedes acceder a la obra.' } as any, audioUrl: null });
       }
 
     } catch (err: any) {
-      setError(err.message);
-      toast({ variant: 'destructive', title: 'Error al registrar', description: err.message });
+      setSubmitError(err.message || "No se pudo completar el registro.");
     } finally {
       setIsSubmitting(false);
     }
   };
-
-  if (isScanning) {
+  
+  if (loadingObra) {
     return (
-      <div className="fixed inset-0 bg-black/80 z-50 flex flex-col items-center justify-center p-4">
-        <div className="w-full max-w-lg bg-white rounded-lg p-4 relative">
-          <p className="text-center font-semibold mb-2">Apunta la cámara al código QR de tu cédula</p>
-          <div className="w-full aspect-square bg-gray-200 rounded overflow-hidden relative">
-            <video ref={ref} className="w-full h-full object-cover" />
-            <div className="absolute inset-0 border-4 border-dashed border-white/50 rounded-lg"></div>
-          </div>
-          <Button variant="secondary" onClick={() => setIsScanning(false)} className="mt-4 w-full">
-            Cancelar Escaneo
-          </Button>
-        </div>
+      <div className="flex justify-center items-center h-screen">
+        <Loader2 className="animate-spin" />
       </div>
     );
+  }
+
+  if (!obra) {
+    return (
+      <div className="flex justify-center items-center h-screen">
+        <p>Obra no encontrada.</p>
+      </div>
+    );
+  }
+
+  if (submissionResult) {
+      return (
+           <div className="min-h-screen bg-muted/40 flex items-center justify-center p-4">
+               <Card className="w-full max-w-2xl">
+                <CardHeader className="text-center">
+                     <PcgLogo />
+                </CardHeader>
+                <CardContent>
+                    <SuccessInductionScreen induction={submissionResult.induction} audioUrl={submissionResult.audioUrl} />
+                </CardContent>
+               </Card>
+           </div>
+      )
   }
 
   return (
@@ -156,20 +233,32 @@ export default function AccesoObraPage() {
       <div className="min-h-screen bg-muted/40 flex items-center justify-center p-4">
         <Card className="w-full max-w-2xl">
           <CardHeader className="text-center">
-            <div className="mx-auto mb-4"><PcgLogo /></div>
+            <div className="mx-auto mb-4">
+              <PcgLogo />
+            </div>
             <CardTitle className="text-2xl">Registro de Acceso a Obra</CardTitle>
-            <CardDescription>Completa tus datos para registrar tu ingreso.</CardDescription>
+            <CardDescription>
+              Completar para: <strong>{obra.nombreFaena}</strong>
+            </CardDescription>
           </CardHeader>
           <CardContent>
             <form onSubmit={handleSubmit} className="space-y-6">
-              <div className="border-2 border-dashed border-primary/20 bg-primary/5 p-4 rounded-lg text-center">
-                <Button type="button" onClick={() => setIsScanning(true)} className="w-full sm:w-auto">
-                  <Camera className="mr-2 h-4 w-4" /> Escanear Cédula (QR)
+              <div className="p-4 border-2 border-dashed rounded-lg text-center space-y-2">
+                <Button
+                  type="button"
+                  onClick={() => setIsScanning(true)}
+                  variant="default"
+                  size="lg"
+                >
+                  <Camera className="mr-2 h-5 w-5" />
+                  Escanear Cédula (QR)
                 </Button>
-                <p className="text-xs text-muted-foreground mt-2">Apunta la cámara al código QR de tu cédula para autocompletar tu nombre y RUT.</p>
+                <p className="text-xs text-muted-foreground">
+                  Apunta la cámara al código QR de tu cédula para autocompletar nombre y RUT.
+                </p>
               </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label htmlFor="nombreCompleto">Nombre Completo*</Label>
                   <Input id="nombreCompleto" name="nombreCompleto" value={formData.nombreCompleto} onChange={handleInputChange} required />
@@ -190,65 +279,70 @@ export default function AccesoObraPage() {
                 <Textarea id="motivo" name="motivo" value={formData.motivo} onChange={handleInputChange} required />
               </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label htmlFor="tipoPersona">Tipo de Persona</Label>
-                  <Select name="tipoPersona" value={formData.tipoPersona} onValueChange={(v) => handleSelectChange('tipoPersona', v)}>
-                    <SelectTrigger id="tipoPersona"><SelectValue /></SelectTrigger>
+                  <Label>Tipo de Persona*</Label>
+                  <Select name="tipoPersona" value={formData.tipoPersona} onValueChange={(v) => handleSelectChange("tipoPersona", v)}>
+                    <SelectTrigger><SelectValue /></SelectTrigger>
                     <SelectContent>
                       <SelectItem value="visita">Visita</SelectItem>
                       <SelectItem value="subcontratista">Subcontratista</SelectItem>
-                      <SelectItem value="trabajador">Trabajador</SelectItem>
+                      <SelectItem value="trabajador">Trabajador Propio</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="duracionIngreso">Duración Estimada</Label>
-                  <Select name="duracionIngreso" value={formData.duracionIngreso} onValueChange={(v) => handleSelectChange('duracionIngreso', v)}>
-                    <SelectTrigger id="duracionIngreso"><SelectValue /></SelectTrigger>
+                  <Label>Duración del Ingreso*</Label>
+                  <Select name="duracionIngreso" value={formData.duracionIngreso} onValueChange={(v) => handleSelectChange("duracionIngreso", v)}>
+                    <SelectTrigger><SelectValue /></SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="visita breve">Visita Breve (hasta 2 horas)</SelectItem>
-                      <SelectItem value="jornada parcial">Jornada Parcial (2-4 horas)</SelectItem>
+                      <SelectItem value="visita breve">Visita Breve (menos de 2 horas)</SelectItem>
+                      <SelectItem value="jornada parcial">Jornada Parcial (hasta 4 horas)</SelectItem>
                       <SelectItem value="jornada completa">Jornada Completa</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
               </div>
 
-              {error && (
-                <div className="text-sm font-medium text-destructive bg-destructive/10 p-3 rounded-md">{error}</div>
+              {submitError && (
+                <p className="text-sm font-medium text-destructive">{submitError}</p>
               )}
 
               <Button type="submit" className="w-full" disabled={isSubmitting}>
-                {isSubmitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Upload className="mr-2 h-4 w-4"/>}
-                Registrar Ingreso y Continuar
+                {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                Enviar Registro
               </Button>
             </form>
           </CardContent>
         </Card>
       </div>
 
-      <AlertDialog open={showSuccessModal} onOpenChange={setShowSuccessModal}>
-        <AlertDialogContent className="max-w-2xl">
-          <AlertDialogHeader>
-            <AlertDialogTitle>Inducción de Seguridad Requerida</AlertDialogTitle>
-            <AlertDialogDescription>
-              Lee y escucha atentamente la siguiente inducción de seguridad generada para la tarea que vas a realizar.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <div className="py-4 space-y-4 max-h-[50vh] overflow-y-auto">
-            <p className="text-sm whitespace-pre-wrap p-4 bg-muted rounded-md">{successData.inductionText}</p>
-            {successData.audioUrl && (
-              <audio controls src={successData.audioUrl} className="w-full">Tu navegador no soporta el elemento de audio.</audio>
-            )}
+      {isScanning && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4">
+          <div className="bg-card rounded-lg w-full max-w-lg p-4 space-y-4 relative">
+             <CardTitle className="text-center">Escanear Cédula</CardTitle>
+             <CardDescription className="text-center">Apunta el recuadro al código QR de tu cédula.</CardDescription>
+            <div className="relative w-full aspect-video bg-black rounded-md overflow-hidden">
+                <video ref={ref} className="w-full h-full object-cover" />
+                 <div className="absolute inset-0 flex items-center justify-center">
+                    <div className="w-2/3 h-2/3 border-4 border-white/50 rounded-lg animate-pulse"></div>
+                </div>
+            </div>
+            {scanError && <p className="text-sm text-center text-destructive">{scanError}</p>}
+            <Button variant="secondary" className="w-full" onClick={() => setIsScanning(false)}>
+              Cancelar
+            </Button>
           </div>
-          <AlertDialogFooter>
-            <AlertDialogAction onClick={() => router.push('/public/control-acceso/exito')}>
-              He leído y entendido la inducción
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+        </div>
+      )}
     </>
+  );
+}
+
+export default function Page() {
+  return (
+    <Suspense fallback={<div>Cargando...</div>}>
+      <ControlAccesoForm />
+    </Suspense>
   );
 }
