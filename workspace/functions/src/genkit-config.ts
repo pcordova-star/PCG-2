@@ -1,9 +1,10 @@
 // workspace/functions/src/genkit-config.ts
-import { configureGenkit } from '@genkit-ai/core';
+import { genkit } from '@genkit-ai/core';
 import { googleAI } from '@genkit-ai/googleai';
 
 // Centralizamos la inicialización de Genkit para las Cloud Functions.
-configureGenkit({
+// Creamos y exportamos la instancia 'ai' que contiene los métodos como 'definePrompt'.
+export const ai = genkit({
     plugins: [
         // La clave se carga desde el entorno de ejecución de la función,
         // que es habilitado por la opción 'runWith({ secrets: ... })'

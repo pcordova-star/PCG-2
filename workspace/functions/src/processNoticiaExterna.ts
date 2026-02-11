@@ -5,8 +5,7 @@ import * as admin from 'firebase-admin';
 import * as logger from 'firebase-functions/logger';
 import { getAdminApp } from './firebaseAdmin';
 import { z } from 'zod';
-import * as core from '@genkit-ai/core'; // CAMBIO: Importar todo el módulo
-import './genkit-config'; // Importar para ejecutar la configuración
+import { ai } from './genkit-config'; // Importar la instancia 'ai' centralizada
 
 // --- Esquema de Salida de la IA ---
 const NoticiaAnalisisSchema = z.object({
@@ -22,8 +21,7 @@ const NoticiaAnalisisSchema = z.object({
 const adminApp = getAdminApp();
 const db = adminApp.firestore();
 
-// CAMBIO: Usar core.definePrompt
-const analizarNoticiaPrompt = core.definePrompt(
+const analizarNoticiaPrompt = ai.definePrompt(
   {
     name: "analizarNoticiaPrompt",
     input: { schema: z.string() },
