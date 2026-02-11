@@ -127,3 +127,23 @@ This document provides a quick reference for common Git commands used in this pr
         - `comparacion-planos/`
         - `inducciones/`
   - **Propósito:** Eliminar automáticamente los archivos de análisis de comparación de planos y los audios de inducciones contextuales después de 30 días para controlar costos de almacenamiento.
+
+### 7. **Comandos de Firebase Functions**
+
+- **Desplegar TODAS las funciones:**
+  ```bash
+  firebase deploy --only functions
+  ```
+
+- **Desplegar UNA función específica (ej. para el módulo de noticias):**
+  ```bash
+  firebase deploy --only functions:processNoticiaExterna
+  ```
+  * Reemplaza `processNoticiaExterna` con el nombre de la función que quieres desplegar.
+
+- **Ver los logs de una función específica en tiempo real:**
+  ```bash
+  firebase functions:log --only processNoticiaExterna
+  ```
+  * Esto es extremadamente útil para depurar errores en el backend.
+```
