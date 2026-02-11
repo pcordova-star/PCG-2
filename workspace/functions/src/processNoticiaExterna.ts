@@ -5,8 +5,7 @@ import * as admin from 'firebase-admin';
 import * as logger from 'firebase-functions/logger';
 import { getAdminApp } from './firebaseAdmin';
 import { z } from 'zod';
-import { genkit } from '@genkit-ai/core';
-import { googleAI } from '@genkit-ai/googleai';
+import { ai } from './genkit-config'; // Importar la instancia centralizada
 
 // --- Esquema de Salida de la IA ---
 const NoticiaAnalisisSchema = z.object({
@@ -21,12 +20,6 @@ const NoticiaAnalisisSchema = z.object({
 // --- Inicialización de Servicios ---
 const adminApp = getAdminApp();
 const db = adminApp.firestore();
-
-const ai = genkit({
-    plugins: [
-        googleAI({ apiKey: process.env.GOOGLE_GENAI_API_KEY! }),
-    ],
-});
 
 const analizarNoticiaPrompt = ai.definePrompt(
   {
