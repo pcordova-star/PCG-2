@@ -52,6 +52,7 @@ import { ObraSelectionModal } from '@/components/dashboard/ObraSelectionModal';
 import { useRouter } from 'next/navigation';
 import { Badge } from '@/components/ui/badge';
 import { motion } from 'framer-motion';
+import { WidgetAlertasNoticias } from '@/components/noticias/WidgetAlertasNoticias';
 
 // --- TYPES ---
 type ActivityItem = {
@@ -470,6 +471,8 @@ export default function DashboardPage() {
             >
                 <EstadoGeneral loading={loading} summary={summary} />
                 <AccionesRecomendadas recommendedActions={recommendedActions} />
+                
+                <WidgetAlertasNoticias />
                 
                 <DashboardSection title="Operaciones" description="Planifica, presupuesta y controla el ciclo de vida de tus obras." className="bg-slate-100/60">
                    {mainModules.filter(mod => ['obras', 'presupuestos', 'programacion', 'estados_de_pago'].includes(mod.id)).map(mod => <ModuleCard key={mod.id} mod={mod} company={company} hasObras={hasObras} />)}
