@@ -1,16 +1,13 @@
 // workspace/functions/src/genkit-config.ts
 import { genkit } from '@genkit-ai/core';
 import { googleAI } from '@genkit-ai/googleai';
-import { defineSecret } from 'firebase-functions/params';
-
-// Define que la función depende de este secreto.
-// La plataforma se encarga de proveer el valor.
-const geminiApiKey = defineSecret('GOOGLE_GENAI_API_KEY');
 
 // Centralizamos la inicialización de Genkit para las Cloud Functions.
 export const ai = genkit({
     plugins: [
-        googleAI({ apiKey: geminiApiKey as any }),
+        // La clave se carga desde el entorno de ejecución de la función,
+        // que es habilitado por la opción 'runWith({ secrets: ... })'
+        googleAI({ apiKey: process.env.GOOGLE_GENAI_API_KEY }),
     ],
     logLevel: 'debug',
     enableTracingAndMetrics: true,

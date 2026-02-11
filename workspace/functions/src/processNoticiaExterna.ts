@@ -49,6 +49,7 @@ const analizarNoticiaPrompt = ai.definePrompt(
 // --- Cloud Function ---
 export const processNoticiaExterna = functions
   .region("us-central1")
+  .runWith({ secrets: ["GOOGLE_GENAI_API_KEY"] }) // Habilita la clave de API en el entorno.
   .firestore.document("noticiasExternas/{noticiaId}")
   .onCreate(async (snap, context) => {
     const { noticiaId } = context.params;
