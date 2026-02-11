@@ -8,3 +8,5 @@ This is a NextJS starter in Firebase Studio.
 <!-- CORS issue resolved by pointing Storage SDK to the correct bucket URL. Ready to commit and push. -->
 <!-- Final interaction to address git push 403 error. -->
 <!-- Added a git commands cheatsheet -->
+<!-- Finally fixed the Cloud Function deployment issue for news processing. -->
+

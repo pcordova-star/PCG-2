@@ -32,6 +32,9 @@ var __importStar = (this && this.__importStar) || (function () {
         return result;
     };
 })();
+var __importDefault = (this && this.__importDefault) || function (mod) {
+    return (mod && mod.__esModule) ? mod : { "default": mod };
+};
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.processNoticiaExterna = void 0;
 // workspace/functions/src/processNoticiaExterna.ts
@@ -40,8 +43,7 @@ const admin = __importStar(require("firebase-admin"));
 const logger = __importStar(require("firebase-functions/logger"));
 const firebaseAdmin_1 = require("./firebaseAdmin");
 const zod_1 = require("zod");
-const core_1 = require("@genkit-ai/core"); // CORREGIDO
-const googleai_1 = require("@genkit-ai/googleai");
+const node_fetch_1 = __importDefault(require("node-fetch"));
 // Esquema de Salida de la IA
 const NoticiaAnalisisSchema = zod_1.z.object({
     resumen: zod_1.z.string().describe("Un resumen ejecutivo de la noticia en 2-3 frases."),
@@ -51,14 +53,57 @@ const NoticiaAnalisisSchema = zod_1.z.object({
     accionRecomendada: zod_1.z.string().describe("Una acción concreta y verificable que un usuario de PCG podría tomar."),
     esCritica: zod_1.z.boolean().describe("True si la noticia representa un riesgo o una oportunidad inmediata."),
 });
-// Configuración de Genkit
-(0, core_1.configureGenkit)({
-    plugins: [
-        (0, googleai_1.googleAI)({ apiKey: process.env.GOOGLE_GENAI_API_KEY }),
-    ],
-    logLevel: 'debug',
-    enableTracingAndMetrics: true,
-});
+function cleanJsonString(rawString) {
+    let cleaned = rawString.replace(/```json/g, "").replace(/```/g, "");
+    const startIndex = cleaned.indexOf("{");
+    const endIndex = cleaned.lastIndexOf("}");
+    if (startIndex === -1 || endIndex === -1 || endIndex < startIndex) {
+        throw new Error("No se encontró un objeto JSON válido en la respuesta de la IA.");
+    }
+    return cleaned.substring(startIndex, endIndex + 1);
+}
+async function callGeminiForNoticia(apiKey, contenidoCrudo) {
+    const prompt = `
+      Eres un analista experto en inteligencia operacional para la industria de la construcción en Chile.
+      Tu tarea es leer una noticia y transformarla en una alerta de inteligencia accionable para una plataforma de gestión de obras llamada PCG.
+      
+      La noticia cruda es:
+      ---
+      ${contenidoCrudo}
+      ---
+      
+      Analiza el contenido y genera un objeto JSON que siga estrictamente el schema de salida, sin texto adicional. Tu respuesta DEBE ser solo el JSON.
+      - **resumen**: Crea un resumen conciso y directo.
+      - **especialidad**: Clasifica la noticia. Puede tener múltiples especialidades.
+      - **relevanciaGeografica**: Identifica las zonas geográficas afectadas. Si es para todo Chile, usa "Nacional".
+      - **entidadesPcgImpactadas**: Determina qué roles son los más afectados por esta noticia.
+      - **accionRecomendada**: La parte más importante. Sugiere una acción CLARA, CORTA y CONCRETA que un usuario pueda realizar DENTRO de la plataforma PCG. No sugieras "informarse" o "estar atento".
+      - **esCritica**: Define si la noticia es de alta urgencia.
+    `;
+    const geminiEndpoint = `https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=${apiKey}`;
+    const response = await (0, node_fetch_1.default)(geminiEndpoint, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+            contents: [{ parts: [{ text: prompt }] }],
+            generationConfig: {
+                response_mime_type: "application/json",
+                temperature: 0.2,
+            },
+        }),
+    });
+    if (!response.ok) {
+        const errText = await response.text();
+        throw new Error(`Error en API Gemini: ${response.statusText}. Detalle: ${errText}`);
+    }
+    const result = await response.json();
+    const rawJson = result.candidates?.[0]?.content?.parts?.[0]?.text;
+    if (!rawJson)
+        throw new Error("La respuesta de Gemini no contiene texto JSON válido.");
+    const cleanedJson = cleanJsonString(rawJson);
+    const parsed = NoticiaAnalisisSchema.parse(JSON.parse(cleanedJson));
+    return parsed;
+}
 const adminApp = (0, firebaseAdmin_1.getAdminApp)();
 const db = adminApp.firestore();
 exports.processNoticiaExterna = functions
@@ -73,39 +118,14 @@ exports.processNoticiaExterna = functions
         return;
     }
     logger.info(`[${noticiaId}] Iniciando análisis de IA para la noticia.`);
-    const prompt = `
-      Eres un analista experto en inteligencia operacional para la industria de la construcción en Chile.
-      Tu tarea es leer una noticia y transformarla en una alerta de inteligencia accionable para una plataforma de gestión de obras llamada PCG.
-      
-      La noticia cruda es:
-      ---
-      ${noticiaData.contenidoCrudo}
-      ---
-      
-      Analiza el contenido y genera un objeto JSON que siga estrictamente el schema de salida, sin texto adicional. Tu respuesta DEBE ser solo el JSON.
-      - **resumen**: Crea un resumen conciso y directo.
-      - **especialidad**: Clasifica la noticia. Puede tener múltiples especialidades.
-      - **relevanciaGeografica**: Identifica las zonas geográficas afectadas. Si es para todo Chile, usa "Nacional".
-      - **entidadesPcgImpactadas**: Determina qué roles son los más afectados por esta noticia.
-      - **accionRecomendada**: La parte más importante. Sugiere una acción CLARA, CORTA y CONCRETA que un usuario pueda realizar DENTRO de la plataforma PCG. No sugieras "informarse" o "estar atento".
-      - **esCritica**: Define si la noticia es de alta urgencia.
-    `;
+    const apiKey = process.env.GOOGLE_GENAI_API_KEY;
+    if (!apiKey) {
+        logger.error(`[${noticiaId}] GOOGLE_GENAI_API_KEY no está configurada.`);
+        await snap.ref.update({ estado: 'error_config', errorMessage: 'API Key no configurada en el servidor.' });
+        return;
+    }
     try {
-        const llmResponse = await (0, core_1.generate)({
-            model: 'gemini-pro',
-            prompt: prompt,
-            output: {
-                format: 'json',
-                schema: NoticiaAnalisisSchema,
-            },
-            config: {
-                temperature: 0.2,
-            }
-        });
-        const analisisResult = llmResponse.output();
-        if (!analisisResult) {
-            throw new Error("La respuesta de la IA fue vacía o inválida.");
-        }
+        const analisisResult = await callGeminiForNoticia(apiKey, noticiaData.contenidoCrudo);
         // Guardar el resultado exitoso
         await snap.ref.collection("analisisIA").doc("ultimo").set({
             ...analisisResult,
