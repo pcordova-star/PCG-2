@@ -40,9 +40,10 @@ const admin = __importStar(require("firebase-admin"));
 const logger = __importStar(require("firebase-functions/logger"));
 const firebaseAdmin_1 = require("./firebaseAdmin");
 const zod_1 = require("zod");
+// Genkit imports
 const core_1 = require("@genkit-ai/core");
 const googleai_1 = require("@genkit-ai/googleai");
-// --- Esquema de Salida de la IA ---
+// --- Esquema de Salida de la IA (sin cambios) ---
 const NoticiaAnalisisSchema = zod_1.z.object({
     resumen: zod_1.z.string().describe("Un resumen ejecutivo de la noticia en 2-3 frases."),
     especialidad: zod_1.z.array(zod_1.z.enum(['Seguridad', 'Legal', 'Mercado', 'Logística', 'General'])).describe("Clasificación de la noticia en una o más especialidades relevantes para la construcción."),
@@ -51,10 +52,7 @@ const NoticiaAnalisisSchema = zod_1.z.object({
     accionRecomendada: zod_1.z.string().describe("Una acción concreta y verificable que un usuario de PCG podría tomar. Ej: 'Verificar stock de acero', 'Programar charla sobre nueva normativa de andamios'."),
     esCritica: zod_1.z.boolean().describe("True si la noticia representa un riesgo o una oportunidad inmediata que requiere atención urgente."),
 });
-// --- Inicialización de Servicios ---
-const adminApp = (0, firebaseAdmin_1.getAdminApp)();
-const db = adminApp.firestore();
-// Configurar Genkit para este entorno de Cloud Function (estilo v0.5.1)
+// --- Genkit Configuration (para el entorno de la Cloud Function) ---
 (0, core_1.configureGenkit)({
     plugins: [
         (0, googleai_1.googleAI)({ apiKey: process.env.GOOGLE_GENAI_API_KEY }),
@@ -62,13 +60,19 @@ const db = adminApp.firestore();
     logLevel: 'debug',
     enableTracingAndMetrics: true,
 });
-const promptText = `
+// --- El Genkit Flow ---
+const analizarNoticiaFlow = (0, core_1.defineFlow)({
+    name: 'analizarNoticiaFlow',
+    inputSchema: zod_1.z.string(),
+    outputSchema: NoticiaAnalisisSchema,
+}, async (contenidoCrudo) => {
+    const prompt = `
       Eres un analista experto en inteligencia operacional para la industria de la construcción en Chile.
       Tu tarea es leer una noticia y transformarla en una alerta de inteligencia accionable para una plataforma de gestión de obras llamada PCG.
       
       La noticia cruda es:
       ---
-      {{input}}
+      ${contenidoCrudo}
       ---
       
       Analiza el contenido y genera un objeto JSON que siga estrictamente el schema de salida, sin texto adicional. Tu respuesta DEBE ser solo el JSON.
@@ -79,10 +83,29 @@ const promptText = `
       - **accionRecomendada**: La parte más importante. Sugiere una acción CLARA, CORTA y CONCRETA que un usuario pueda realizar DENTRO de la plataforma PCG. No sugieras "informarse" o "estar atento".
       - **esCritica**: Define si la noticia es de alta urgencia.
     `;
-// --- Cloud Function ---
+    // La llamada a la IA se hace a través del modelo, dentro del flow
+    const llmResponse = await googleai_1.geminiPro.generate({
+        prompt: prompt,
+        output: {
+            format: 'json',
+            schema: NoticiaAnalisisSchema,
+        },
+        config: {
+            temperature: 0.2,
+        }
+    });
+    const output = llmResponse.output();
+    if (!output) {
+        throw new Error("La IA no generó una respuesta válida (output está vacío).");
+    }
+    return output;
+});
+// --- Cloud Function Trigger ---
+const adminApp = (0, firebaseAdmin_1.getAdminApp)();
+const db = adminApp.firestore();
 exports.processNoticiaExterna = functions
     .region("us-central1")
-    .runWith({ secrets: ["GOOGLE_GENAI_API_KEY"] }) // Habilita la clave de API en el entorno.
+    .runWith({ secrets: ["GOOGLE_GENAI_API_KEY"] })
     .firestore.document("noticiasExternas/{noticiaId}")
     .onCreate(async (snap, context) => {
     const { noticiaId } = context.params;
@@ -91,35 +114,24 @@ exports.processNoticiaExterna = functions
         logger.log(`[${noticiaId}] No hay contenido para analizar.`);
         return;
     }
-    logger.info(`[${noticiaId}] Iniciando análisis de IA para la noticia.`);
+    logger.info(`[${noticiaId}] Iniciando análisis de IA para la noticia a través de un Flow.`);
     try {
-        const llmResponse = await (0, core_1.generate)({
-            prompt: promptText.replace('{{input}}', noticiaData.contenidoCrudo),
-            model: 'googleai/gemini-pro',
-            output: {
-                format: 'json',
-                schema: NoticiaAnalisisSchema,
-            },
-            config: {
-                temperature: 0.2,
-            }
-        });
-        const output = llmResponse.output();
-        if (!output) {
-            throw new Error("La IA no generó una respuesta válida (output está vacío).");
-        }
+        // Ejecutar el flow de Genkit de forma segura
+        const analisisResult = await (0, core_1.run)(analizarNoticiaFlow, noticiaData.contenidoCrudo);
+        // Guardar el resultado exitoso
         await snap.ref.collection("analisisIA").doc("ultimo").set({
-            ...output,
+            ...analisisResult,
             createdAt: admin.firestore.FieldValue.serverTimestamp(),
             jobId: context.eventId,
         });
         logger.info(`[${noticiaId}] Análisis de IA completado y guardado.`);
     }
     catch (error) {
-        logger.error(`[${noticiaId}] Error al procesar con IA:`, error);
+        logger.error(`[${noticiaId}] Error al procesar con IA Flow:`, error);
+        // Guardar el estado de error sin romper la función
         await snap.ref.update({
             estado: 'error_ia',
-            errorMessage: error.message,
+            errorMessage: error.message || "Error desconocido durante el análisis de IA.",
         });
     }
 });
