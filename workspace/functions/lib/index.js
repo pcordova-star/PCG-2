@@ -1,9 +1,10 @@
+"use strict";
 // workspace/functions/src/index.ts
 /**
  * Punto de entrada UNIFICADO de Cloud Functions.
  */
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.mclpDailyScheduler = exports.notifyDocumentDistribution = exports.registrarAvanceRapido = exports.deactivateCompanyUser = exports.checkUserExistsByEmail = exports.setSuperAdminClaim = exports.setCompanyClaims = exports.processComparacionJob = exports.processPresupuestoPdf = exports.analizarPlano = exports.createCompanyUser = void 0;
+exports.mclpDailyScheduler = exports.distributeNoticiaAlert = exports.processNoticiaExterna = exports.notifyDocumentDistribution = exports.registrarAvanceRapido = exports.deactivateCompanyUser = exports.checkUserExistsByEmail = exports.setSuperAdminClaim = exports.setCompanyClaims = exports.processComparacionJob = exports.processPresupuestoPdf = exports.analizarPlano = exports.createCompanyUser = void 0;
 // --- HTTP ---
 var createCompanyUser_1 = require("./createCompanyUser");
 Object.defineProperty(exports, "createCompanyUser", { enumerable: true, get: function () { return createCompanyUser_1.createCompanyUser; } });
@@ -27,6 +28,10 @@ var registrarAvanceRapido_1 = require("./registrarAvanceRapido");
 Object.defineProperty(exports, "registrarAvanceRapido", { enumerable: true, get: function () { return registrarAvanceRapido_1.registrarAvanceRapido; } });
 var notifyDocumentDistribution_1 = require("./notifyDocumentDistribution");
 Object.defineProperty(exports, "notifyDocumentDistribution", { enumerable: true, get: function () { return notifyDocumentDistribution_1.notifyDocumentDistribution; } });
+var processNoticiaExterna_1 = require("./processNoticiaExterna");
+Object.defineProperty(exports, "processNoticiaExterna", { enumerable: true, get: function () { return processNoticiaExterna_1.processNoticiaExterna; } });
+var distributeNoticiaAlert_1 = require("./distributeNoticiaAlert");
+Object.defineProperty(exports, "distributeNoticiaAlert", { enumerable: true, get: function () { return distributeNoticiaAlert_1.distributeNoticiaAlert; } });
 // --- Scheduler (cron) ---
 var scheduler_1 = require("./mclp/scheduler");
 Object.defineProperty(exports, "mclpDailyScheduler", { enumerable: true, get: function () { return scheduler_1.mclpDailyScheduler; } });
