@@ -4,8 +4,8 @@ import * as admin from 'firebase-admin';
 import * as logger from 'firebase-functions/logger';
 import { getAdminApp } from './firebaseAdmin';
 import { z } from 'zod';
-import { configureGenkit } from '@genkit-ai/core';
-import { googleAI, generate } from '@genkit-ai/googleai';
+import { configureGenkit, generate } from '@genkit-ai/core'; // CORREGIDO
+import { googleAI } from '@genkit-ai/googleai';
 
 // Esquema de Salida de la IA
 const NoticiaAnalisisSchema = z.object({
@@ -63,7 +63,7 @@ export const processNoticiaExterna = functions
     `;
 
     try {
-      const llmResponse = await generate({
+      const llmResponse = await generate({ // CORREGIDO: Se llama a la función `generate` importada desde @genkit-ai/core
         model: 'gemini-pro',
         prompt: prompt,
         output: {
