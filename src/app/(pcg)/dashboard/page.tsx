@@ -39,7 +39,7 @@ import {
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useEffect, useState, useMemo, Suspense } from 'react';
-import { collection, getDocs, query, where, collectionGroup, limit, orderBy } from 'firebase/firestore';
+import { collection, getDocs, query, where, collectionGroup, limit, orderBy, Timestamp } from 'firebase/firestore';
 import { firebaseDb } from '@/lib/firebaseClient';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useAuth } from '@/context/AuthContext';
@@ -308,7 +308,7 @@ export default function DashboardPage() {
 
   useEffect(() => {
     async function fetchDashboardData() {
-        if (!user || !companyId && role !== 'superadmin') {
+        if (!user || (!companyId && role !== 'superadmin')) {
             setLoading(false);
             return;
         };
@@ -334,12 +334,12 @@ export default function DashboardPage() {
             // 2. Fetch Summary Data
             let summaryData: any = { obrasActivas: obrasList.length, hallazgosAbiertos: 0, hallazgosCriticos: 0, personasEnFaena: 0 };
             const obrasIds = obrasList.map(o => o.id);
-            const safeObrasIds = obrasIds.slice(0, 30); // Firestore 'in' query limit
+            const safeObrasIds = obrasIds.length > 30 ? obrasIds.slice(0, 30) : obrasIds;
 
             if (safeObrasIds.length > 0) {
                  const [personalSnap, hallazgosSnap] = await Promise.all([
                     getDocs(query(collectionGroup(firebaseDb, 'personal'), where('obraId', 'in', safeObrasIds), where('autorizado', '==', true))),
-                    getDocs(query(collection(firebaseDb, 'hallazgos'), where('obraId', 'in', safeObrasIds), where('estado', '==', 'abierto')))
+                    getDocs(query(collectionGroup(firebaseDb, 'hallazgos'), where('obraId', 'in', safeObrasIds), where('estado', '==', 'abierto')))
                 ]);
                 summaryData.personasEnFaena = personalSnap.size;
                 summaryData.hallazgosAbiertos = hallazgosSnap.size;
@@ -353,26 +353,44 @@ export default function DashboardPage() {
 
             if (isPrevencionista) {
                 if (safeObrasIds.length > 0) {
-                    const hallazgosQuery = query(collection(firebaseDb, 'hallazgos'), where('obraId', 'in', safeObrasIds), orderBy('createdAt', 'desc'), limit(10));
+                    const hallazgosQuery = query(collectionGroup(firebaseDb, 'hallazgos'), where('obraId', 'in', safeObrasIds), orderBy('createdAt', 'desc'), limit(10));
                     const hallazgosSnap = await getDocs(hallazgosQuery);
                     hallazgosSnap.docs.forEach(d => {
                         const h = { id: d.id, ...d.data() } as Hallazgo;
-                        allItems.push({ type: 'hallazgo', id: h.id!, obraId: h.obraId, obraNombre: obrasMap.get(h.obraId) || 'Obra desconocida', fecha: h.createdAt.toDate(), titulo: `Hallazgo: ${h.tipoRiesgo}`, descripcion: h.descripcion, estado: h.estado, href: `/prevencion/hallazgos/detalle/${h.id}` });
+                        const fecha = h.createdAt instanceof Timestamp ? h.createdAt.toDate() : new Date(h.createdAt as any);
+                        allItems.push({ type: 'hallazgo', id: h.id!, obraId: h.obraId, obraNombre: obrasMap.get(h.obraId) || 'Obra desconocida', fecha, titulo: `Hallazgo: ${h.tipoRiesgo}`, descripcion: h.descripcion, estado: h.estado, href: `/prevencion/hallazgos/detalle/${h.id}` });
                     });
                 }
-            } else if (obrasList.length > 0) {
-                const rdiPromises = obrasList.map(obra => getDocs(query(collection(firebaseDb, 'obras', obra.id, 'rdi'), orderBy('createdAt', 'desc'), limit(3))));
-                const avancesPromises = obrasList.map(obra => getDocs(query(collection(firebaseDb, 'obras', obra.id, 'avancesDiarios'), orderBy('fecha', 'desc'), limit(3))));
-                const [rdiSnaps, avancesSnaps] = await Promise.all([Promise.all(rdiPromises), Promise.all(avancesPromises)]);
+            } else if (safeObrasIds.length > 0) {
+                const rdiQuery = query(
+                    collectionGroup(firebaseDb, 'rdi'), 
+                    where('obraId', 'in', safeObrasIds), 
+                    orderBy('createdAt', 'desc'), 
+                    limit(5)
+                );
+                const avancesQuery = query(
+                    collectionGroup(firebaseDb, 'avancesDiarios'), 
+                    where('obraId', 'in', safeObrasIds), 
+                    orderBy('fecha', 'desc'), 
+                    limit(5)
+                );
 
-                rdiSnaps.flat().forEach(snap => snap.docs.forEach(d => {
+                const [rdiSnap, avancesSnap] = await Promise.all([
+                    getDocs(rdiQuery),
+                    getDocs(avancesQuery)
+                ]);
+
+                rdiSnap.docs.forEach(d => {
                     const rdi = { id: d.id, ...d.data() } as Rdi;
-                    allItems.push({ type: 'rdi', id: rdi.id, obraId: rdi.obraId, obraNombre: obrasMap.get(rdi.obraId) || 'Obra desconocida', fecha: rdi.createdAt.toDate(), titulo: `RDI: ${rdi.correlativo}`, descripcion: rdi.titulo, estado: rdi.estado, href: `/rdi/${rdi.obraId}/${rdi.id}` });
-                }));
-                avancesSnaps.flat().forEach(snap => snap.docs.forEach(d => {
+                    const fecha = rdi.createdAt instanceof Timestamp ? rdi.createdAt.toDate() : new Date(rdi.createdAt as any);
+                    allItems.push({ type: 'rdi', id: rdi.id, obraId: rdi.obraId, obraNombre: obrasMap.get(rdi.obraId) || 'Obra desconocida', fecha, titulo: `RDI: ${rdi.correlativo}`, descripcion: rdi.titulo, estado: rdi.estado, href: `/rdi/${rdi.obraId}/${rdi.id}` });
+                });
+                
+                avancesSnap.docs.forEach(d => {
                     const avance = { id: d.id, ...d.data() } as AvanceDiario;
-                    allItems.push({ type: 'avance', id: avance.id, obraId: avance.obraId, obraNombre: obrasMap.get(avance.obraId) || 'Obra desconocida', fecha: avance.fecha.toDate(), titulo: `Avance Diario`, descripcion: avance.comentario || 'Registro de avance.', valor: `${(avance.porcentajeAvance || 0).toFixed(1)}%`, href: `/operaciones/programacion?obraId=${avance.obraId}` });
-                }));
+                    const fecha = avance.fecha instanceof Timestamp ? avance.fecha.toDate() : new Date(avance.fecha as any);
+                    allItems.push({ type: 'avance', id: avance.id, obraId: avance.obraId, obraNombre: obrasMap.get(avance.obraId) || 'Obra desconocida', fecha, titulo: `Avance Diario`, descripcion: avance.comentario || 'Registro de avance.', valor: `${(avance.porcentajeAvance || 0).toFixed(1)}%`, href: `/operaciones/programacion?obraId=${avance.obraId}` });
+                });
             }
             
             allItems.sort((a, b) => b.fecha.getTime() - a.fecha.getTime());
