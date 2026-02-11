@@ -21,7 +21,7 @@ const app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
 
 const firebaseAuth = getAuth(app);
 const firebaseDb = getFirestore(app);
-const firebaseStorage = getStorage(app, "gs://pcg-2-8bf1b.firebasestorage.app");
+const firebaseStorage = getStorage(app); // Corregido: Se elimina el segundo argumento para usar el bucket por defecto.
 const firebaseFunctions = getFunctions(app, "us-central1"); // O la región que corresponda
 
 export { app as firebaseApp, firebaseAuth, firebaseDb, firebaseStorage, firebaseFunctions };
