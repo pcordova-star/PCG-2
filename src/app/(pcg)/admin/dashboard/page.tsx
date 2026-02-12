@@ -45,7 +45,7 @@ export default function AdminDashboardPage() {
   const [recentObras, setRecentObras] = useState<Obra[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [pendingRequestsCount, setPendingRequestsCount] = useState(0);
+  const [totalPendingRequests, setTotalPendingRequests] = useState(0);
 
   useEffect(() => {
     if (authLoading) return;
@@ -61,11 +61,12 @@ export default function AdminDashboardPage() {
       setLoading(true);
       setError(null);
       try {
-        const [companiesSnap, obrasSnap, usersSnap, requestsSnap] = await Promise.all([
+        const [companiesSnap, obrasSnap, usersSnap, moduleRequestsSnap, userAccessRequestsSnap] = await Promise.all([
           getDocs(collection(firebaseDb, 'companies')),
           getDocs(query(collectionGroup(firebaseDb, 'obras'), orderBy('creadoEn', 'desc'), limit(10))),
           getDocs(collection(firebaseDb, 'users')),
-          getDocs(query(collection(firebaseDb, 'moduleActivationRequests'), where('status', '==', 'pending')))
+          getDocs(query(collection(firebaseDb, 'moduleActivationRequests'), where('status', '==', 'pending'))),
+          getDocs(query(collection(firebaseDb, 'userAccessRequests'), where('status', '==', 'pending')))
         ]);
         
         const totalEmpresas = companiesSnap.size;
@@ -73,7 +74,7 @@ export default function AdminDashboardPage() {
         const totalUsuarios = usersSnap.size;
 
         setSummary({ totalEmpresas, totalObras, totalUsuarios });
-        setPendingRequestsCount(requestsSnap.size);
+        setTotalPendingRequests(moduleRequestsSnap.size + userAccessRequestsSnap.size);
 
         const companyMap = new Map(companiesSnap.docs.map(doc => [doc.id, doc.data().nombreFantasia || doc.data().nombre]));
         
@@ -123,9 +124,9 @@ export default function AdminDashboardPage() {
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
         {adminCards.map(card => (
           <Card key={card.title} className="flex flex-col relative">
-            {card.title === "Solicitudes" && pendingRequestsCount > 0 && (
+            {card.title === "Solicitudes" && totalPendingRequests > 0 && (
                 <div className="absolute -top-2 -right-2 flex h-5 w-5 items-center justify-center rounded-full bg-red-600 text-white text-xs font-bold animate-pulse z-10">
-                    {pendingRequestsCount}
+                    {totalPendingRequests}
                 </div>
             )}
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">

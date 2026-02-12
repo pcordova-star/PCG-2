@@ -13,7 +13,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Edit, Trash2, PlusCircle, Link as LinkIcon, DollarSign, ArrowLeft, MessageSquare, MoreVertical, Send } from "lucide-react";
+import { Edit, Trash2, PlusCircle, Link as LinkIcon, DollarSign, ArrowLeft, MessageSquare, MoreVertical, Send, UserPlus, Loader2 } from "lucide-react";
 import Link from "next/link";
 import { useToast } from "@/hooks/use-toast";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
@@ -66,8 +66,9 @@ export default function ObrasPage() {
   const [currentObra, setCurrentObra] = useState<Partial<Obra> | null>(null);
   const [isSaving, setIsSaving] = useState(false);
   
-  const canManageObras = role === 'superadmin' || role === 'admin_empresa' || role === 'prevencionista';
+  const canManageObras = role === 'superadmin' || role === 'admin_empresa' || role === 'jefe_obra';
 
+  const [isNotifying, setIsNotifying] = useState<Record<string, boolean>>({});
 
   useEffect(() => {
     if (!loading && !user) {
@@ -85,8 +86,6 @@ export default function ObrasPage() {
     if (loading || !user) return; // Esperar a que la autenticación esté lista
     if (role !== 'superadmin' && !companyId) {
         setCargandoObras(false);
-        // No mostrar error si simplemente no hay companyId, podría ser un estado válido.
-        // El usuario simplemente no verá obras.
         return;
     }
 
@@ -100,10 +99,8 @@ export default function ObrasPage() {
         let q;
 
         if (role === 'superadmin') {
-            // Superadmin ve todas las obras
             q = query(colRef, orderBy("creadoEn", "desc"));
         } else {
-            // Usuarios de empresa solo ven obras de su empresa
             q = query(colRef, where("empresaId", "==", companyId), orderBy("creadoEn", "desc"));
         }
         
@@ -182,13 +179,11 @@ export default function ObrasPage() {
 
     try {
       if (currentObra.id) {
-        // Actualizar obra existente
         const docRef = doc(firebaseDb, "obras", currentObra.id);
         await updateDoc(docRef, { ...obraData, updatedAt: serverTimestamp() });
         setObras(obras.map(o => o.id === currentObra!.id ? { ...o, ...currentObra, ...obraData } as Obra : o));
         toast({ title: "Obra actualizada", description: `La obra "${obraData.nombreFaena}" ha sido actualizada.` });
       } else {
-        // Crear nueva obra
         const colRef = collection(firebaseDb, "obras");
         const docRef = await addDoc(colRef, {
           ...obraData,
@@ -215,23 +210,14 @@ export default function ObrasPage() {
 
   const handleDelete = async (obraId: string) => {
     try {
-      // Borrar subcolecciones en paralelo
       const subcollections = [
-        "actividades",
-        "avancesDiarios",
-        "estadosDePago",
-        "empresasSubcontratistasDs44",
-        "ds44MandanteObra",
+        "actividades", "avancesDiarios", "estadosDePago", "empresasSubcontratistasDs44", "ds44MandanteObra",
       ];
-
       await Promise.all(
         subcollections.map(sub => deleteSubcollection(firebaseDb, `obras/${obraId}/${sub}`))
       );
-
-      // Borrar el documento principal de la obra
       const docRef = doc(firebaseDb, "obras", obraId);
       await deleteDoc(docRef);
-
       setObras(obras.filter(o => o.id !== obraId));
       toast({ title: "Obra eliminada", description: "La obra y todos sus datos asociados han sido eliminados." });
     } catch (err: any) {
@@ -241,35 +227,35 @@ export default function ObrasPage() {
     }
   };
 
-  const handleNotificarDirector = async (obra: Obra) => {
+  const handleSolicitarAccesoDirector = async (obra: Obra) => {
     if (!user || !obra.clienteEmail) {
       toast({ variant: 'destructive', title: 'Error', description: 'El director no tiene un email asignado en esta obra.' });
       return;
     }
 
+    setIsNotifying(prev => ({...prev, [obra.id]: true}));
     try {
       const token = await user.getIdToken();
-      const response = await fetch('/api/obras/notify-director', {
+      const response = await fetch('/api/obras/request-director-access', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`,
-        },
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
         body: JSON.stringify({
           obraId: obra.id,
           obraNombre: obra.nombreFaena,
-          clienteEmail: obra.clienteEmail,
+          directorEmail: obra.clienteEmail,
         }),
       });
 
       const result = await response.json();
       if (!response.ok) {
-        throw new Error(result.error || 'No se pudo enviar la notificación.');
+        throw new Error(result.error || 'No se pudo registrar la solicitud.');
       }
 
-      toast({ title: 'Notificación Enviada', description: `Se ha enviado un correo a ${obra.clienteEmail}.` });
+      toast({ title: 'Solicitud Enviada', description: `Se ha notificado al superadministrador para que cree la cuenta para ${obra.clienteEmail}.` });
     } catch (error: any) {
       toast({ variant: 'destructive', title: 'Error', description: error.message });
+    } finally {
+      setIsNotifying(prev => ({...prev, [obra.id]: false}));
     }
   };
 
@@ -349,9 +335,9 @@ export default function ObrasPage() {
                                 </Button>
                             </DropdownMenuTrigger>
                             <DropdownMenuContent align="end">
-                                <DropdownMenuItem onClick={() => handleNotificarDirector(obra)} disabled={!obra.clienteEmail}>
-                                    <Send className="mr-2 h-4 w-4" />
-                                    <span>Notificar Director</span>
+                                <DropdownMenuItem onClick={() => handleSolicitarAccesoDirector(obra)} disabled={!obra.clienteEmail || isNotifying[obra.id]}>
+                                    {isNotifying[obra.id] ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <UserPlus className="mr-2 h-4 w-4" />}
+                                    <span>{isNotifying[obra.id] ? "Solicitando..." : "Solicitar Acceso Director"}</span>
                                 </DropdownMenuItem>
                                 <DropdownMenuItem asChild>
                                     <Link href={`/cliente/obras/${obra.id}?preview=true`} target="_blank">
