@@ -4,16 +4,18 @@
 import { useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { useAuth } from '@/context/AuthContext';
-import { doc, getDoc } from 'firebase/firestore';
+import { doc, getDoc, updateDoc } from 'firebase/firestore';
 import { firebaseDb } from '@/lib/firebaseClient';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
 import { Badge } from '@/components/ui/badge';
-import { Loader2, ArrowLeft, Paperclip, AlertTriangle } from 'lucide-react';
-import { Hallazgo, Criticidad, Obra } from '@/types/pcg';
+import { Loader2, ArrowLeft, Paperclip, AlertTriangle, Save } from 'lucide-react';
+import { Hallazgo, Criticidad, Obra, MedidaCorrectivaDetallada } from '@/types/pcg';
 import { cn } from '@/lib/utils';
 import ImageFromStorage from '@/components/client/ImageFromStorage';
+import { PlanAccionEditor } from '@/app/(pcg)/prevencion/formularios-generales/components/PlanAccionEditor';
+import { useToast } from '@/hooks/use-toast';
 
 const criticidadColors: Record<Criticidad, string> = {
   baja: "bg-blue-100 text-blue-800",
@@ -25,10 +27,12 @@ export default function DetalleHallazgoPage() {
     const { hallazgoId } = useParams();
     const router = useRouter();
     const { user } = useAuth();
+    const { toast } = useToast();
     
     const [hallazgo, setHallazgo] = useState<Hallazgo | null>(null);
     const [obra, setObra] = useState<Obra | null>(null);
     const [loading, setLoading] = useState(true);
+    const [isSaving, setIsSaving] = useState(false);
 
     useEffect(() => {
         if (!user || !hallazgoId) return;
@@ -54,6 +58,27 @@ export default function DetalleHallazgoPage() {
         fetchHallazgo();
     }, [user, hallazgoId]);
 
+    const handlePlanAccionChange = (medidas: MedidaCorrectivaDetallada[]) => {
+        setHallazgo(prev => prev ? ({ ...prev, planDeAccion: medidas }) : null);
+    };
+
+    const handleSavePlan = async () => {
+        if (!hallazgo || !hallazgo.planDeAccion) return;
+        setIsSaving(true);
+        try {
+            const hallazgoRef = doc(firebaseDb, 'hallazgos', hallazgoId as string);
+            await updateDoc(hallazgoRef, {
+                planDeAccion: hallazgo.planDeAccion
+            });
+            toast({ title: 'Plan de Acción Guardado', description: 'Las medidas correctivas han sido guardadas con éxito.' });
+        } catch (error) {
+            console.error("Error guardando plan de acción:", error);
+            toast({ variant: 'destructive', title: 'Error', description: 'No se pudo guardar el plan de acción.' });
+        } finally {
+            setIsSaving(false);
+        }
+    };
+
     if (loading) {
         return <div className="text-center p-8"><Loader2 className="animate-spin" /> Cargando hallazgo...</div>;
     }
@@ -68,7 +93,7 @@ export default function DetalleHallazgoPage() {
                  <Button asChild variant="outline" size="sm">
                     <Link href="/prevencion/hallazgos"><ArrowLeft className="mr-2 h-4 w-4" />Volver al Listado</Link>
                 </Button>
-                <div>
+                <div className="flex items-center gap-2">
                     <Badge className={cn(criticidadColors[hallazgo.criticidad])}>{hallazgo.criticidad}</Badge>
                      <Badge variant="outline" className="ml-2">{hallazgo.estado}</Badge>
                 </div>
@@ -91,6 +116,21 @@ export default function DetalleHallazgoPage() {
                              <p className="text-muted-foreground whitespace-pre-wrap">{hallazgo.accionesInmediatas?.[0] || "No se registraron."}</p>
                         </CardContent>
                     </Card>
+                    <Card>
+                         <CardHeader><CardTitle>Plan de Acción</CardTitle></CardHeader>
+                         <CardContent>
+                             <PlanAccionEditor 
+                                medidas={hallazgo.planDeAccion}
+                                onChange={handlePlanAccionChange}
+                             />
+                         </CardContent>
+                         <CardFooter className="justify-end">
+                            <Button onClick={handleSavePlan} disabled={isSaving}>
+                                {isSaving ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <Save className="mr-2 h-4 w-4"/>}
+                                {isSaving ? 'Guardando...' : 'Guardar Plan de Acción'}
+                            </Button>
+                         </CardFooter>
+                    </Card>
                 </div>
                 <div className="space-y-6">
                     <Card>
@@ -104,13 +144,6 @@ export default function DetalleHallazgoPage() {
                                 <p className="text-muted-foreground text-sm">No hay evidencia adjunta.</p>
                             )}
                         </CardContent>
-                    </Card>
-                    <Card>
-                         <CardHeader><CardTitle>Plan de Acción</CardTitle></CardHeader>
-                         <CardContent>
-                             <p className="text-sm text-muted-foreground">El plan de acción para este hallazgo aún no ha sido definido.</p>
-                             <Button className="w-full mt-4" disabled>Definir Plan de Acción</Button>
-                         </CardContent>
                     </Card>
                 </div>
             </div>

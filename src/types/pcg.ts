@@ -28,8 +28,6 @@ export interface Company {
   feature_document_control_enabled?: boolean;
   feature_access_control_enabled?: boolean;
   feature_director_dashboard_enabled?: boolean;
-  createdAt: Date | Timestamp;
-  updatedAt?: Date | Timestamp;
   [key: string]: any; // Para permitir acceso dinámico a feature flags
 }
 
@@ -129,7 +127,7 @@ export interface AvanceDiario {
   id: string;
   obraId: string;
   actividadId: string;
-  fecha: Timestamp;
+  fecha: { toDate: () => Date }; // Aseguramos que es un Timestamp de Firestore
   cantidadEjecutada?: number;
   porcentajeAvance?: number;
   comentario: string;
@@ -269,8 +267,8 @@ export interface Hallazgo {
   estado: 'abierto' | 'en_progreso' | 'cerrado';
   iperActividadId?: string;
   iperRiesgoId?: string;
-  planAccionId?: string;
-  investigacionId?: string; // Nuevo campo
+  planDeAccion?: MedidaCorrectivaDetallada[];
+  investigacionId?: string; 
   fichaFirmadaUrl?: string;
   fechaFichaFirmada?: Timestamp;
 }
