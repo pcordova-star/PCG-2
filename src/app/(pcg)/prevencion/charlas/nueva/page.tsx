@@ -3,7 +3,7 @@
 
 import { useState, useEffect, Suspense } from 'react';
 import { useAuth } from '@/context/AuthContext';
-import { collection, query, where, getDocs, orderBy, addDoc, serverTimestamp } from 'firebase/firestore';
+import { collection, query, where, getDocs, orderBy, addDoc, serverTimestamp, doc, getDoc } from 'firebase/firestore';
 import { firebaseDb } from '@/lib/firebaseClient';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -67,13 +67,13 @@ function NuevaCharlaPageContent() {
         if (iper) {
             setCharla(prev => ({
                 ...prev,
-                titulo: `Charla de Seguridad: ${iper.tarea}`,
+                titulo: `Charla de Seguridad: ${'iper.tarea'}`,
                 iperIdRelacionado: iper.id,
                 tarea: iper.tarea,
                 peligro: iper.peligro,
                 riesgo: iper.riesgo,
                 controlGenero: iper.control_especifico_genero,
-                contenido: `Temas a tratar:\n- Peligro: ${iper.peligro}\n- Riesgo: ${iper.riesgo}\n- Medidas de control: ${iper.medidasControlPropuestas || 'Definidas en IPER.'}\n- Control específico de género: ${iper.control_especifico_genero || 'No aplica.'}`,
+                contenido: `Temas a tratar:\n- Peligro: ${'iper.peligro'}\n- Riesgo: ${'iper.riesgo'}\n- Medidas de control: ${iper.medidasControlPropuestas || 'Definidas en IPER.'}\n- Control específico de género: ${iper.control_especifico_genero || 'No aplica.'}`,
                 generadaAutomaticamente: true,
             }));
         }
