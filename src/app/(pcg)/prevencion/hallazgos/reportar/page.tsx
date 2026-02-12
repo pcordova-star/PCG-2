@@ -26,6 +26,23 @@ const initialHallazgoState: Partial<Hallazgo> = {
     estado: 'abierto',
 };
 
+const tiposDeRiesgo = [
+    'Caída de distinto nivel',
+    'Caída del mismo nivel',
+    'Contacto con energía eléctrica',
+    'Golpes por/contra objetos',
+    'Atrapamiento por/entre objetos',
+    'Exposición a ruido',
+    'Exposición a polvo (sílice)',
+    'Sobreesfuerzo / Trastorno musculoesquelético',
+    'Contacto con sustancias peligrosas',
+    'Atropello por vehículo o maquinaria',
+    'Falta de orden y aseo',
+    'Incendio',
+    'Otro',
+];
+
+
 export default function ReportarHallazgoPage() {
     const { user, companyId, role } = useAuth();
     const router = useRouter();
@@ -68,8 +85,8 @@ export default function ReportarHallazgoPage() {
 
     const handleSave = async (e: FormEvent) => {
         e.preventDefault();
-        if (!user || !companyId || !hallazgo.obraId || !hallazgo.descripcion || !evidencia) {
-            toast({ variant: 'destructive', title: 'Faltan datos', description: 'Obra, descripción y evidencia son obligatorios.' });
+        if (!user || !companyId || !hallazgo.obraId || !hallazgo.descripcion || !evidencia || !hallazgo.tipoRiesgo) {
+            toast({ variant: 'destructive', title: 'Faltan datos', description: 'Obra, tipo de riesgo, descripción y evidencia son obligatorios.' });
             return;
         }
 
@@ -132,7 +149,17 @@ export default function ReportarHallazgoPage() {
                         <div className="space-y-2"><Label htmlFor="sector">Sector/Lugar</Label><Input id="sector" value={hallazgo.sector || ''} onChange={e => handleInputChange('sector', e.target.value)} /></div>
                         <div className="space-y-2 col-span-full"><Label htmlFor="descripcion">Descripción del Hallazgo*</Label><Textarea id="descripcion" value={hallazgo.descripcion || ''} onChange={e => handleInputChange('descripcion', e.target.value)} required /></div>
                         <div className="space-y-2 col-span-full"><Label htmlFor="accionesInmediatas">Acciones Inmediatas Tomadas</Label><Textarea id="accionesInmediatas" value={hallazgo.accionesInmediatas?.[0] || ''} onChange={e => handleInputChange('accionesInmediatas', [e.target.value])} placeholder="Ej: Se detuvo el trabajo, se aisló el área..."/></div>
-                        <div className="space-y-2"><Label htmlFor="tipoRiesgo">Tipo de Riesgo</Label><Input id="tipoRiesgo" value={hallazgo.tipoRiesgo || ''} onChange={e => handleInputChange('tipoRiesgo', e.target.value)} /></div>
+                        <div className="space-y-2">
+                            <Label htmlFor="tipoRiesgo">Tipo de Riesgo*</Label>
+                            <Select value={hallazgo.tipoRiesgo} onValueChange={(val) => handleInputChange('tipoRiesgo', val)} required>
+                                <SelectTrigger id="tipoRiesgo"><SelectValue placeholder="Seleccione un tipo de riesgo..." /></SelectTrigger>
+                                <SelectContent>
+                                    {tiposDeRiesgo.map(riesgo => (
+                                        <SelectItem key={riesgo} value={riesgo}>{riesgo}</SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
+                        </div>
                         <div className="space-y-2"><Label htmlFor="criticidad">Criticidad</Label>
                             <Select value={hallazgo.criticidad} onValueChange={(val) => handleInputChange('criticidad', val as Criticidad)}><SelectTrigger id="criticidad"><SelectValue /></SelectTrigger>
                                 <SelectContent>
