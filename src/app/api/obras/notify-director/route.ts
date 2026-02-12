@@ -36,18 +36,26 @@ export async function POST(req: NextRequest) {
     
     const clientDashboardUrl = `${process.env.APP_BASE_URL || 'https://pcgoperacion.com'}/cliente/obras/${obraId}`;
     const loginUrl = `${process.env.APP_BASE_URL || 'https://pcgoperacion.com'}/login/cliente`;
+    const logoUrl = `${process.env.APP_BASE_URL || 'https://pcgoperacion.com'}/logo.png`;
 
     await db.collection("mail").add({
       to: [clienteEmail],
       message: {
         subject: `Acceso al Portal de Seguimiento de Obra: ${obraNombre}`,
         html: `
-          <p>Hola,</p>
-          <p>Se ha habilitado su acceso al portal de seguimiento para la obra <strong>${obraNombre}</strong> en la plataforma PCG.</p>
-          <p>Puede visualizar el estado y los avances del proyecto haciendo clic en el siguiente enlace:</p>
-          <p><a href="${clientDashboardUrl}" style="display: inline-block; padding: 12px 20px; background-color: #3F51B5; color: white; text-decoration: none; border-radius: 5px;">Acceder al Portal de la Obra</a></p>
-          <p>Si es su primera vez ingresando, puede que necesite usar la función de "recuperar contraseña" en la página de <a href="${loginUrl}">inicio de sesión para clientes</a> si aún no ha establecido una.</p>
-          <p>Saludos,<br>El equipo de PCG.</p>
+            <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; max-width: 600px; margin: auto; padding: 20px; border: 1px solid #e2e8f0; border-radius: 8px; color: #334155;">
+              <img src="${logoUrl}" alt="Logo PCG" style="max-width: 80px; margin-bottom: 24px;">
+              <h2 style="font-size: 24px; color: #1e293b; margin-top: 0;">Portal de Seguimiento de Obra Habilitado</h2>
+              <p style="font-size: 16px; line-height: 1.5;">Hola,</p>
+              <p style="font-size: 16px; line-height: 1.5;">Te informamos que se ha habilitado tu acceso al portal de seguimiento para la obra <strong>${obraNombre}</strong> en la plataforma PCG.</p>
+              <p style="font-size: 16px; line-height: 1.5;">Desde este portal podrás visualizar en tiempo real el estado y los avances del proyecto.</p>
+              
+              <a href="${clientDashboardUrl}" style="display: inline-block; background-color: #4338ca; color: white; padding: 14px 24px; text-decoration: none; border-radius: 8px; margin: 16px 0; font-weight: 600;">Acceder al Portal de la Obra</a>
+
+              <p style="font-size: 14px; line-height: 1.5;">Si es tu primer ingreso o no recuerdas tu contraseña, puedes establecer una nueva desde la página de <a href="${loginUrl}" style="color: #4338ca;">inicio de sesión para clientes</a> usando la opción de recuperar contraseña.</p>
+
+              <p style="font-size: 14px; color: #64748b; margin-top: 24px;">Saludos cordiales,<br>El Equipo de PCG.</p>
+            </div>
         `,
       },
     });
