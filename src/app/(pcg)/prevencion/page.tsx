@@ -1,7 +1,7 @@
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
-import { Users, Building, ClipboardPlus, BookUser, LayoutDashboard, ShieldAlert, ArrowLeft, Search, Siren, Settings, FileSignature, UserCheck } from 'lucide-react';
+import { Users, Building, ClipboardPlus, BookUser, LayoutDashboard, ShieldAlert, ArrowLeft, Search, Siren, Settings, FileSignature, UserCheck, Presentation } from 'lucide-react';
 
 export default function PrevencionPage() {
   const modules = [
@@ -20,6 +20,13 @@ export default function PrevencionPage() {
       linkText: "Gestionar PPR"
     },
     {
+      title: "Charlas y Capacitación",
+      description: "Registra charlas de seguridad, capacitaciones e inducciones, vinculándolas a la matriz IPER para una trazabilidad completa.",
+      href: "/prevencion/charlas",
+      icon: Presentation,
+      linkText: "Gestionar Charlas"
+    },
+    {
       title: "Control de Subcontratistas y DS44",
       description: "Automatiza la gestión documental y el cumplimiento de requisitos del DS44 para empresas contratistas y subcontratistas.",
       href: "/control-subcontratistas-ds44",
@@ -33,16 +40,16 @@ export default function PrevencionPage() {
       icon: Building,
       linkText: "Ir a DS44 – Mandante / Obra"
     },
-    /* {
+    {
       title: "Hallazgos en Terreno",
       description: "Dashboard para visualizar y gestionar los hallazgos de seguridad reportados desde terreno.",
       href: "/prevencion/hallazgos",
       icon: Siren,
       linkText: "Ir a Hallazgos"
-    }, */
+    },
     {
       title: "Formularios y Matrices",
-      description: "Accede al IPER con enfoque de género y otros formularios clave del sistema de gestión.",
+      description: "Crea y gestiona IPER, investigaciones de incidentes y otros formularios clave del sistema de gestión.",
       href: "/prevencion/formularios-generales",
       icon: ClipboardPlus,
       linkText: "Ir a Formularios"
@@ -69,7 +76,7 @@ export default function PrevencionPage() {
         </p>
       </div>
 
-       {/*<Card className="bg-green-50 border-green-200">
+       <Card className="bg-green-50 border-green-200">
         <CardHeader>
           <div className="flex items-center gap-4">
             <div className="p-3 bg-green-100 rounded-full">
@@ -91,7 +98,7 @@ export default function PrevencionPage() {
             </Link>
           </Button>
         </CardFooter>
-      </Card>*/}
+      </Card>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
         {modules.map((mod) => (
