@@ -429,6 +429,7 @@ export interface OperationalChecklistTemplate {
     companyId: string;
     titulo: string;
     descripcion: string;
+    categoria: "general" | "operaciones" | "prevencion";
     status: 'draft' | 'active' | 'inactive';
     secciones: ChecklistSection[];
     createdAt?: Timestamp;

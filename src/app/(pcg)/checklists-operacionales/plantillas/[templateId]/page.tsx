@@ -2,7 +2,7 @@
 "use client";
 
 import { useEffect, useState } from 'react';
-import { useParams, useRouter } from 'next/navigation';
+import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import { doc, getDoc, updateDoc, addDoc, serverTimestamp, collection } from 'firebase/firestore';
 import { firebaseDb } from '@/lib/firebaseClient';
 import { useAuth } from '@/context/AuthContext';
@@ -23,6 +23,7 @@ import Link from 'next/link';
 const initialTemplate: Omit<OperationalChecklistTemplate, 'id' | 'createdAt' | 'createdBy' | 'companyId'> = {
     titulo: 'Nueva Plantilla',
     descripcion: '',
+    categoria: 'general',
     status: 'draft',
     secciones: [],
 };
@@ -40,6 +41,7 @@ const initialItem: Omit<ChecklistItem, 'id' | 'order'> = {
 export default function TemplateEditorPage() {
     const { templateId } = useParams();
     const router = useRouter();
+    const searchParams = useSearchParams();
     const { user, companyId } = useAuth();
     const { toast } = useToast();
 
@@ -53,9 +55,10 @@ export default function TemplateEditorPage() {
 
     useEffect(() => {
         if (!user || !companyId) return;
+        const category = (searchParams.get('category') as OperationalChecklistTemplate['categoria']) || 'general';
 
         if (templateId === 'nuevo') {
-            setTemplate({ ...initialTemplate, companyId });
+            setTemplate({ ...initialTemplate, companyId, categoria: category });
             setLoading(false);
         } else {
             const fetchTemplate = async () => {
@@ -71,7 +74,7 @@ export default function TemplateEditorPage() {
             };
             fetchTemplate();
         }
-    }, [templateId, user, companyId, router, toast]);
+    }, [templateId, user, companyId, router, toast, searchParams]);
 
     const updateField = (field: keyof OperationalChecklistTemplate, value: any) => {
         setTemplate(prev => ({ ...prev, [field]: value }));

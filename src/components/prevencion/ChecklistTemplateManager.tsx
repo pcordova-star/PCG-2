@@ -61,6 +61,8 @@ export default function ChecklistTemplateManager({ categoryFilter, title, descri
         }
     }
     
+    const categoryParam = Array.isArray(categoryFilter) ? categoryFilter[0] : categoryFilter;
+
     return (
         <Card>
             <CardHeader className="flex-row justify-between items-center">
@@ -69,7 +71,7 @@ export default function ChecklistTemplateManager({ categoryFilter, title, descri
                     <CardDescription>{description}</CardDescription>
                 </div>
                  <Button asChild>
-                    <Link href="/checklists-operacionales/plantillas/nuevo">
+                    <Link href={`/checklists-operacionales/plantillas/nuevo?category=${categoryParam}`}>
                         <PlusCircle className="mr-2" />
                         Nueva Plantilla
                     </Link>
