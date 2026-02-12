@@ -8,8 +8,10 @@ import { collection, getDocs, query, where, doc, getDoc } from 'firebase/firesto
 import { firebaseDb } from '@/lib/firebaseClient';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Loader2 } from 'lucide-react';
+import { Loader2, ArrowLeft } from 'lucide-react';
 import { Company } from '@/types/pcg';
+import { Button } from '@/components/ui/button';
+import Link from 'next/link';
 
 const IVA_RATE = 0.19;
 
@@ -147,6 +149,9 @@ export default function AdminFacturacionPage() {
 
   return (
     <div className="space-y-6">
+       <Button asChild variant="outline" size="sm">
+          <Link href="/admin/dashboard"><ArrowLeft className="mr-2 h-4 w-4" />Volver al Dashboard</Link>
+      </Button>
       <header>
         <h1 className="text-3xl font-bold">Facturación Estimada</h1>
         <p className="text-muted-foreground">Cálculo de facturación mensual por empresa basado en los precios globales de la plataforma.</p>
