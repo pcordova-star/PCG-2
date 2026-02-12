@@ -9,4 +9,5 @@ This is a NextJS starter in Firebase Studio.
 <!-- Final interaction to address git push 403 error. -->
 <!-- Added a git commands cheatsheet -->
 <!-- Finally fixed the Cloud Function deployment issue for news processing. -->
+<!-- Clarified deployment process for backend functions vs. frontend app logic. -->
 
