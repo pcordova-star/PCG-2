@@ -17,7 +17,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Loader2, ArrowLeft, Save, Upload, X } from 'lucide-react';
 import { OperationalChecklistTemplate, Obra } from '@/types/pcg';
 import { defaultSectores, defaultElementos } from '@/lib/checklists/catalogos';
-import SignaturePad from '@/app/(pcg)/prevencion/hallazgos/components/SignaturePad';
+import SignaturePad from '@/components/ui/SignaturePad';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 
 interface HeaderData {
@@ -38,7 +38,7 @@ export default function EjecutarChecklistPage() {
     const { toast } = useToast();
 
     const [template, setTemplate] = useState<OperationalChecklistTemplate | null>(null);
-    const [obras, setObras] =useState<Obra[]>([]);
+    const [obras, setObras] = useState<Obra[]>([]);
     
     // Estados para el formulario
     const [header, setHeader] = useState<HeaderData>({
