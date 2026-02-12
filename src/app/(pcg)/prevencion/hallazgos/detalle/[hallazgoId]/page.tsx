@@ -1,3 +1,4 @@
+
 // src/app/(pcg)/prevencion/hallazgos/detalle/[hallazgoId]/page.tsx
 "use client";
 
@@ -6,7 +7,7 @@ import { useParams, useRouter } from 'next/navigation';
 import { useAuth } from '@/context/AuthContext';
 import { doc, getDoc, updateDoc } from 'firebase/firestore';
 import { firebaseDb } from '@/lib/firebaseClient';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
 import { Badge } from '@/components/ui/badge';
