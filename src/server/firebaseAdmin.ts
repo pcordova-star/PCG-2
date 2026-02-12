@@ -8,8 +8,8 @@ if (!admin.apps.length) {
       const serviceAccount = JSON.parse(process.env.FIREBASE_ADMIN_SERVICE_ACCOUNT);
       admin.initializeApp({
         credential: admin.credential.cert(serviceAccount),
-        // FIX: Hardcoding the correct bucket name to avoid environment variable issues.
-        storageBucket: "pcg-2-8bf1b.appspot.com",
+        // FIX: Reverting to the correct bucket name provided by the user.
+        storageBucket: "pcg-2-8bf1b.firebasestorage.app",
       });
     } catch (e: any) {
       console.error('Error al inicializar Firebase Admin SDK:', e.message);
