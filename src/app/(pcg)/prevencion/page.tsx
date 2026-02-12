@@ -1,9 +1,61 @@
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { ArrowLeft, HardHat } from 'lucide-react';
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
+import { Users, Building, ClipboardPlus, BookUser, LayoutDashboard, ShieldAlert, ArrowLeft, Search, Siren, Settings, FileSignature, UserCheck } from 'lucide-react';
 
 export default function PrevencionPage() {
+  const modules = [
+    {
+      title: "Panel del Prevencionista",
+      description: "Dashboard con alertas, KPIs y tareas diarias para la gestión de riesgos y cumplimiento operativo.",
+      href: "/prevencion/panel",
+      icon: LayoutDashboard,
+      linkText: "Ir al Panel"
+    },
+    {
+      title: "Programa de Prevención de Riesgos",
+      description: "Define, gestiona y genera el PPR de cada obra, integrando IPER, charlas y planes de acción en un solo lugar.",
+      href: "/prevencion/ppr",
+      icon: ShieldAlert,
+      linkText: "Gestionar PPR"
+    },
+    {
+      title: "Control de Subcontratistas y DS44",
+      description: "Automatiza la gestión documental y el cumplimiento de requisitos del DS44 para empresas contratistas y subcontratistas.",
+      href: "/control-subcontratistas-ds44",
+      icon: Building,
+      linkText: "Conocer Más"
+    },
+    {
+      title: "DS44 – Mandante / Obra",
+      description: "Ficha global de coordinación y cumplimiento DS44 para cada obra.",
+      href: "/prevencion/ds44-mandante",
+      icon: Building,
+      linkText: "Ir a DS44 – Mandante / Obra"
+    },
+    /* {
+      title: "Hallazgos en Terreno",
+      description: "Dashboard para visualizar y gestionar los hallazgos de seguridad reportados desde terreno.",
+      href: "/prevencion/hallazgos",
+      icon: Siren,
+      linkText: "Ir a Hallazgos"
+    }, */
+    {
+      title: "Formularios y Matrices",
+      description: "Accede al IPER con enfoque de género y otros formularios clave del sistema de gestión.",
+      href: "/prevencion/formularios-generales",
+      icon: ClipboardPlus,
+      linkText: "Ir a Formularios"
+    },
+    {
+      title: "Listas de Chequeo de Seguridad",
+      description: "Crea y gestiona las plantillas de checklists exclusivas para inspecciones y auditorías de seguridad.",
+      href: "/prevencion/safety-checklists",
+      icon: FileSignature,
+      linkText: "Gestionar Plantillas de Seguridad"
+    }
+  ];
+
   return (
     <div className="space-y-8">
        <Button asChild variant="outline" size="sm">
@@ -13,28 +65,56 @@ export default function PrevencionPage() {
       <div className="space-y-4 max-w-3xl">
         <h1 className="text-4xl font-bold font-headline tracking-tight">Módulo de Prevención de Riesgos</h1>
         <p className="text-lg text-muted-foreground">
-          Este módulo está siendo reconstruido desde cero para mejorar su funcionalidad y alinearlo con las nuevas capacidades de la plataforma.
+          Herramientas para gestionar y dar cumplimiento a las normativas de seguridad y salud ocupacional en obra, con especial foco en el DS44.
         </p>
       </div>
 
-      <Card className="bg-blue-50 border-blue-200">
+       {/*<Card className="bg-green-50 border-green-200">
         <CardHeader>
           <div className="flex items-center gap-4">
-            <div className="p-3 bg-blue-100 rounded-full">
-              <HardHat className="h-6 w-6 text-blue-700" />
+            <div className="p-3 bg-green-100 rounded-full">
+              <Settings className="h-6 w-6 text-green-700" />
             </div>
             <div>
-              <CardTitle className="text-blue-900">Módulo en Reconstrucción</CardTitle>
-              <CardDescription className="text-blue-800">
-                Todas las funcionalidades anteriores han sido desactivadas para dar paso a una nueva versión integrada.
+              <CardTitle className="text-green-900">Paso Inicial: Configurar Equipo Responsable</CardTitle>
+              <CardDescription className="text-green-800">
+                Define quiénes son los responsables (Jefe de Obra, Supervisores, etc.) para cada obra. Este equipo se usará para asignar hallazgos y acciones.
               </CardDescription>
             </div>
           </div>
         </CardHeader>
-        <CardContent>
-            <p className="text-sm text-blue-800">Próximamente encontrarás aquí las herramientas renovadas para la gestión de seguridad y salud ocupacional.</p>
-        </CardContent>
-      </Card>
+        <CardFooter>
+          <Button asChild className="bg-green-600 hover:bg-green-700 text-white">
+            <Link href="/prevencion/hallazgos/equipo-responsable">
+              <Users className="mr-2 h-4 w-4" />
+              Configurar Equipo Responsable
+            </Link>
+          </Button>
+        </CardFooter>
+      </Card>*/}
+
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+        {modules.map((mod) => (
+          <Card key={mod.title} className="flex flex-col transition-all duration-300 hover:shadow-xl hover:-translate-y-1">
+            <CardHeader className="flex-row items-center gap-4">
+              <div className="p-3 bg-primary/10 rounded-full">
+                <mod.icon className="h-6 w-6 text-primary" />
+              </div>
+              <CardTitle className="font-headline text-xl">{mod.title}</CardTitle>
+            </CardHeader>
+            <CardContent className="flex-grow">
+              <CardDescription>
+                {mod.description}
+              </CardDescription>
+            </CardContent>
+            <CardFooter>
+              <Button asChild className="w-full bg-accent text-accent-foreground hover:bg-accent/90">
+                <Link href={mod.href}>{mod.linkText}</Link>
+              </Button>
+            </CardFooter>
+          </Card>
+        ))}
+      </div>
     </div>
   );
 }

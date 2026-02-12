@@ -8,22 +8,25 @@ import { Button } from '@/components/ui/button';
 
 const formularios = [
     {
-        title: "IPER",
-        description: "Identificación de Peligros y Evaluación de Riesgos. La base de la gestión preventiva.",
+        title: "IPER con Enfoque de Género",
+        description: "Identificación de Peligros y Evaluación de Riesgos según los requerimientos del DS-44.",
         href: "/prevencion/formularios-generales/iper",
         icon: BookCheck,
+        status: "active"
     },
     {
         title: "Investigación de Incidentes",
-        description: "Registra y analiza accidentes, cuasi-accidentes y otros sucesos para determinar sus causas.",
+        description: "Registra y analiza accidentes para determinar sus causas. (En construcción)",
         href: "/prevencion/formularios-generales/incidentes",
         icon: Siren,
+        status: "inactive"
     },
     {
-        title: "Plan de Acción",
-        description: "Define y haz seguimiento a las medidas correctivas derivadas de hallazgos e investigaciones.",
+        title: "Planes de Acción",
+        description: "Define y haz seguimiento a las medidas correctivas. (En construcción)",
         href: "/prevencion/formularios-generales/planes-accion",
         icon: ClipboardList,
+        status: "inactive"
     }
 ];
 
@@ -42,14 +45,14 @@ export default function FormulariosGeneralesPage() {
 
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                 {formularios.map((form) => (
-                    <Link href={form.href} key={form.title} className="block hover:-translate-y-1 transition-transform">
-                        <Card className="h-full">
+                    <Link href={form.href} key={form.title} className={`block ${form.status === 'inactive' ? 'pointer-events-none' : 'hover:-translate-y-1 transition-transform'}`}>
+                        <Card className={`h-full ${form.status === 'inactive' ? 'bg-muted/50' : ''}`}>
                             <CardHeader>
                                 <div className="flex items-center gap-4">
-                                    <div className="p-3 bg-primary/10 rounded-full">
-                                        <form.icon className="h-6 w-6 text-primary" />
+                                    <div className={`p-3 rounded-full ${form.status === 'inactive' ? 'bg-gray-200' : 'bg-primary/10'}`}>
+                                        <form.icon className={`h-6 w-6 ${form.status === 'inactive' ? 'text-gray-500' : 'text-primary'}`} />
                                     </div>
-                                    <CardTitle>{form.title}</CardTitle>
+                                    <CardTitle className={form.status === 'inactive' ? 'text-muted-foreground' : ''}>{form.title}</CardTitle>
                                 </div>
                             </CardHeader>
                             <CardContent>
