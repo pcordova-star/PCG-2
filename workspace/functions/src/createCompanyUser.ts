@@ -131,7 +131,7 @@ export const createCompanyUser = functions
       to: [data.email],
       message: {
         from: "PCG Operación <control@pcgoperacion.com>",
-        subject: `Invitación a Plataforma de Control de Gestión – ${companyData.nombreFantasia}`,
+        subject: `[INVITACIÓN] Bienvenido a ${companyData.nombreFantasia} en PCG`,
         html: `
           <p>Hola ${data.nombre},</p>
           <p>Has sido invitado a unirte a <strong>${companyData.nombreFantasia}</strong>.</p>
