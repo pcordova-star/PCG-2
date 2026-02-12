@@ -7,6 +7,7 @@ import {
   signOut,
   User,
   updatePassword,
+  sendPasswordResetEmail,
 } from "firebase/auth";
 import {
   createContext,
@@ -111,6 +112,7 @@ type AuthContextValue = {
   loading: boolean;
   login: (email: string, password: string) => Promise<void>;
   logout: () => Promise<void>;
+  resetPassword: (email: string) => Promise<void>;
 };
 
 const AuthContext = createContext<AuthContextValue | undefined>(undefined);
@@ -134,7 +136,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             setSubcontractorId(null);
             setCompany(null);
             setLoading(false);
-            const publicPages = ['/', '/login/usuario', '/login/cliente', '/accept-invite', '/terminos', '/sin-acceso'];
+            const publicPages = ['/', '/login/usuario', '/login/cliente', '/accept-invite', '/terminos', '/sin-acceso', '/recuperar-password'];
             if (!publicPages.includes(pathname) && !pathname.startsWith('/public')) {
                 router.replace('/');
             }
@@ -172,7 +174,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             setSubcontractorId(userSubcontractorId);
             setLoading(false); // Only set loading to false AFTER all user data is resolved
 
-            const isPublicPage = ['/', '/login/usuario', '/login/cliente', '/accept-invite', '/terminos', '/sin-acceso'].includes(pathname) || pathname.startsWith('/public');
+            const isPublicPage = ['/', '/login/usuario', '/login/cliente', '/accept-invite', '/terminos', '/sin-acceso', '/recuperar-password'].includes(pathname) || pathname.startsWith('/public');
             const isChangingPassword = pathname === '/cambiar-password';
 
             if (mustChangePassword) {
@@ -248,6 +250,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }
 
+  async function resetPassword(email: string) {
+    try {
+      await sendPasswordResetEmail(firebaseAuth, email);
+    } catch (err: any) {
+      // For security, we don't want to reveal if a user exists or not.
+      // So we log the error but don't throw it to the UI.
+      // The UI will show a generic success message regardless.
+      console.warn("Password reset attempt resulted in an error (this is expected for non-existent users):", err.code);
+    }
+  }
+
   const value: AuthContextValue = {
     user,
     role,
@@ -257,6 +270,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     loading,
     login,
     logout,
+    resetPassword,
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

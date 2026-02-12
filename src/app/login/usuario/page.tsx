@@ -102,7 +102,14 @@ export default function UsuarioLoginPage() {
                     </div>
 
                     <div className="space-y-2">
-                        <Label htmlFor="password">Contraseña</Label>
+                        <div className="flex justify-between items-center">
+                            <Label htmlFor="password">Contraseña</Label>
+                            <Link href="/recuperar-password"
+                                className="text-xs underline text-muted-foreground hover:text-primary"
+                                tabIndex={-1}>
+                                ¿Olvidaste tu contraseña?
+                            </Link>
+                        </div>
                         <Input id="password" type="password" value={password} onChange={(e) => setPassword(e.target.value)} required />
                     </div>
 

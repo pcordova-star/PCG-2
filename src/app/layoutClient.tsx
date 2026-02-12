@@ -20,7 +20,7 @@ export default function ClientLayoutShell({ children }: { children: React.ReactN
   }, []);
 
   const isPublicPage =
-    ["/", "/login/usuario", "/login/cliente", "/accept-invite", "/terminos", "/sin-acceso"].includes(pathname) ||
+    ["/", "/login/usuario", "/login/cliente", "/accept-invite", "/terminos", "/sin-acceso", "/recuperar-password"].includes(pathname) ||
     pathname.startsWith("/public/");
 
   if (!isClient || isPublicPage || loading) {
