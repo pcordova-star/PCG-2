@@ -4,7 +4,7 @@
 
 import { useState, useEffect, useMemo } from 'react';
 import { useAuth } from '@/context/AuthContext';
-import { collection, query, where, getDocs, orderBy, addDoc, serverTimestamp } from 'firebase/firestore';
+import { collection, query, where, getDocs, orderBy, addDoc, serverTimestamp, limit } from 'firebase/firestore';
 import { firebaseDb } from '@/lib/firebaseClient';
 import { Obra, IPERRegistro } from '@/types/pcg';
 import { useToast } from '@/hooks/use-toast';
@@ -16,10 +16,10 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
-import { ArrowLeft, Loader2, Save } from 'lucide-react';
-import { Separator } from '@/components/ui/separator';
+import { ArrowLeft, Loader2, Save, FileText, PlusCircle } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import Link from 'next/link';
+import { generarIperPdf } from '@/lib/pdf/generarIperPdf';
 
 // Componente para la matriz de riesgo visual
 const RiskMatrix = ({ probability, consequence }: { probability: number, consequence: number }) => {
@@ -68,6 +68,18 @@ const RiskLevelIndicator = ({ level }: { level: number }) => {
 };
 
 
+const initialIperState: Partial<IPERRegistro> = {
+    probabilidad_hombre: 1,
+    consecuencia_hombre: 1,
+    probabilidad_mujer: 1,
+    consecuencia_mujer: 1,
+    probabilidad_residual: 1,
+    consecuencia_residual: 1,
+    jerarquiaControl: 'EPP',
+    estadoControl: 'PENDIENTE'
+};
+
+
 export default function IperFormPage() {
     const { user, companyId, role } = useAuth();
     const { toast } = useToast();
@@ -76,18 +88,10 @@ export default function IperFormPage() {
     const [obras, setObras] = useState<Obra[]>([]);
     const [loadingObras, setLoadingObras] = useState(true);
     const [isSaving, setIsSaving] = useState(false);
+    
+    const [savedIperData, setSavedIperData] = useState<IPERRegistro | null>(null);
 
-    const [iperData, setIperData] = useState<Partial<IPERRegistro>>({
-        // Valores iniciales
-        probabilidad_hombre: 1,
-        consecuencia_hombre: 1,
-        probabilidad_mujer: 1,
-        consecuencia_mujer: 1,
-        probabilidad_residual: 1,
-        consecuencia_residual: 1,
-        jerarquiaControl: 'EPP',
-        estadoControl: 'PENDIENTE'
-    });
+    const [iperData, setIperData] = useState<Partial<IPERRegistro>>(initialIperState);
 
     useEffect(() => {
         if (!companyId && role !== 'superadmin') return;
@@ -122,18 +126,32 @@ export default function IperFormPage() {
         }
         setIsSaving(true);
         try {
+            // Obtener el último correlativo
+            const iperQuery = query(collection(firebaseDb, 'iperRegistros'), where('obraId', '==', iperData.obraId), orderBy('correlativo', 'desc'), limit(1));
+            const iperSnap = await getDocs(iperQuery);
+            const lastCorrelativo = iperSnap.empty ? 0 : iperSnap.docs[0].data().correlativo;
+
+            const newCorrelativo = lastCorrelativo + 1;
+
             const iperCollection = collection(firebaseDb, 'iperRegistros');
-            await addDoc(iperCollection, {
+            const dataToSave = {
                 ...iperData,
+                correlativo: newCorrelativo,
                 nivel_riesgo_hombre: nivelRiesgoHombre,
                 nivel_riesgo_mujer: nivelRiesgoMujer,
                 nivel_riesgo_residual: nivelRiesgoResidual,
                 createdAt: serverTimestamp(),
                 createdBy: user.uid,
                 companyId: companyId,
-            });
-            toast({ title: 'Éxito', description: 'Matriz IPER guardada correctamente.' });
-            router.push('/prevencion/panel'); // Redirigir a un panel o listado
+            };
+
+            const docRef = await addDoc(iperCollection, dataToSave);
+            
+            const savedData = { ...dataToSave, id: docRef.id, createdAt: new Date() } as IPERRegistro; // Simulación del timestamp
+            setSavedIperData(savedData);
+            
+            toast({ title: 'Éxito', description: `Matriz IPER N°${newCorrelativo} guardada correctamente.` });
+
         } catch (error) {
             console.error("Error saving IPER:", error);
             toast({ variant: 'destructive', title: 'Error', description: 'No se pudo guardar la matriz IPER.' });
@@ -141,6 +159,40 @@ export default function IperFormPage() {
             setIsSaving(false);
         }
     };
+    
+    const handleCreateNew = () => {
+        setSavedIperData(null);
+        setIperData({ ...initialIperState, obraId: iperData.obraId });
+    }
+
+    if (savedIperData) {
+        return (
+            <div className="space-y-6">
+                 <header className="flex items-center gap-4">
+                    <Button asChild variant="outline" size="sm">
+                        <Link href="/prevencion/formularios-generales"><ArrowLeft className="mr-2 h-4 w-4" />Volver</Link>
+                    </Button>
+                    <h1 className="text-2xl font-bold">Registro Guardado con Éxito</h1>
+                </header>
+                <Card>
+                    <CardHeader>
+                        <CardTitle>IPER Guardado: IPER-{String(savedIperData.correlativo).padStart(3, '0')}</CardTitle>
+                        <CardDescription>El registro se ha guardado correctamente. Ahora puedes generar el PDF o crear un nuevo registro.</CardDescription>
+                    </CardHeader>
+                     <CardContent className="flex items-center justify-center gap-4">
+                        <Button onClick={handleCreateNew}>
+                            <PlusCircle className="mr-2 h-4 w-4"/>
+                            Crear Nuevo IPER
+                        </Button>
+                        <Button onClick={() => generarIperPdf(savedIperData, obras.find(o => o.id === savedIperData.obraId)!)}>
+                            <FileText className="mr-2 h-4 w-4" />
+                            Generar PDF
+                        </Button>
+                    </CardContent>
+                </Card>
+            </div>
+        );
+    }
 
     return (
         <div className="space-y-6">

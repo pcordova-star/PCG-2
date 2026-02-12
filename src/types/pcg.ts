@@ -151,7 +151,7 @@ export interface Presupuesto {
 
 export interface IPERRegistro {
   id: string;
-  correlativo?: number;
+  correlativo: number;
   obraId: string;
   obraNombre?: string;
   // Identificación
