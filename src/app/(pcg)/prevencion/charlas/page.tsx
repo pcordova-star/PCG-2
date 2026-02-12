@@ -3,7 +3,7 @@
 
 import { useState, useEffect } from 'react';
 import { useAuth } from '@/context/AuthContext';
-import { collection, query, where, getDocs, orderBy, onSnapshot } from 'firebase/firestore';
+import { collection, query, where, getDocs, orderBy, onSnapshot, deleteDoc, doc } from 'firebase/firestore';
 import { firebaseDb } from '@/lib/firebaseClient';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -12,11 +12,24 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Label } from '@/components/ui/label';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
-import { Loader2, ArrowLeft, PlusCircle } from 'lucide-react';
+import { Loader2, ArrowLeft, PlusCircle, Edit, Trash2 } from 'lucide-react';
 import { Obra, Charla } from '@/types/pcg';
+import { useToast } from '@/hooks/use-toast';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 
 export default function CharlasPage() {
     const { companyId, role } = useAuth();
+    const { toast } = useToast();
     const [obras, setObras] = useState<Obra[]>([]);
     const [selectedObraId, setSelectedObraId] = useState('');
     const [charlas, setCharlas] = useState<Charla[]>([]);
@@ -62,6 +75,23 @@ export default function CharlasPage() {
 
         return () => unsubscribe();
     }, [selectedObraId]);
+
+    const handleDelete = async (id: string) => {
+        try {
+            await deleteDoc(doc(firebaseDb, "charlas", id));
+            toast({
+                title: "Charla eliminada",
+                description: "El registro de la charla ha sido eliminado permanentemente.",
+            });
+        } catch (error) {
+            console.error("Error deleting charla:", error);
+            toast({
+                variant: "destructive",
+                title: "Error",
+                description: "No se pudo eliminar la charla.",
+            });
+        }
+    };
 
     return (
         <div className="space-y-6">
@@ -132,7 +162,32 @@ export default function CharlasPage() {
                                         <TableCell>{charla.asistentes?.length || 0}</TableCell>
                                         <TableCell><Badge variant="outline">{charla.estado}</Badge></TableCell>
                                         <TableCell className="text-right">
-                                            <Button variant="outline" size="sm" disabled>Ver Detalle</Button>
+                                            <div className="flex gap-1 justify-end">
+                                                <Button variant="ghost" size="icon" disabled>
+                                                    <Edit className="h-4 w-4"/>
+                                                </Button>
+                                                 <AlertDialog>
+                                                    <AlertDialogTrigger asChild>
+                                                        <Button variant="ghost" size="icon" className="text-destructive hover:text-destructive">
+                                                            <Trash2 className="h-4 w-4" />
+                                                        </Button>
+                                                    </AlertDialogTrigger>
+                                                    <AlertDialogContent>
+                                                        <AlertDialogHeader>
+                                                            <AlertDialogTitle>¿Eliminar esta charla?</AlertDialogTitle>
+                                                            <AlertDialogDescription>
+                                                                Esta acción no se puede deshacer. Se eliminará el registro de la charla "{charla.titulo}".
+                                                            </AlertDialogDescription>
+                                                        </AlertDialogHeader>
+                                                        <AlertDialogFooter>
+                                                            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                                                            <AlertDialogAction onClick={() => handleDelete(charla.id)} className="bg-destructive hover:bg-destructive/90">
+                                                                Eliminar
+                                                            </AlertDialogAction>
+                                                        </AlertDialogFooter>
+                                                    </AlertDialogContent>
+                                                </AlertDialog>
+                                            </div>
                                         </TableCell>
                                     </TableRow>
                                 ))}
