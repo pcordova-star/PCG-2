@@ -23,7 +23,7 @@ import Link from 'next/link';
 const initialTemplate: Omit<OperationalChecklistTemplate, 'id' | 'createdAt' | 'createdBy' | 'companyId'> = {
     titulo: 'Nueva Plantilla',
     descripcion: '',
-    status: 'inactive',
+    status: 'draft',
     secciones: [],
 };
 
@@ -190,7 +190,7 @@ export default function TemplateEditorPage() {
         if (publish && !validateTemplate()) return;
 
         setIsSaving(true);
-        const dataToSave: Partial<OperationalChecklistTemplate> = { ...template, status: publish ? 'active' : 'inactive' };
+        const dataToSave: Partial<OperationalChecklistTemplate> = { ...template, status: publish ? 'active' : 'draft' };
         
         try {
             if (isNew) {
@@ -349,7 +349,7 @@ export default function TemplateEditorPage() {
                                 <Select value={editingItem.item.type ?? 'boolean'} onValueChange={(v) => setEditingItem(prev => prev ? {...prev, item: {...prev.item!, type: v as ChecklistItem['type']}} : null)}>
                                     <SelectTrigger><SelectValue /></SelectTrigger>
                                     <SelectContent>
-                                        <SelectItem value="boolean">Checkbox (Sí/No/N.A.)</SelectItem>
+                                        <SelectItem value="boolean">Checkbox (Sí/No)</SelectItem>
                                         <SelectItem value="text">Texto</SelectItem>
                                         <SelectItem value="number">Número</SelectItem>
                                         <SelectItem value="select">Selección</SelectItem>

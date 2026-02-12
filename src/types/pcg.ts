@@ -404,7 +404,7 @@ export interface ChecklistSection {
     items: ChecklistItem[];
 }
 
-// Plantillas de Checklists
+// Plantillas de Checklists (obsoleta, usar OperationalChecklistTemplate)
 export interface ChecklistTemplate {
     id: string;
     titulo: string;
@@ -423,17 +423,17 @@ export interface ChecklistTemplate {
     createdBy: string;
 }
 
-// Plantillas de Checklists OPERACIONALES
+// Plantillas de Checklists OPERACIONALES y DE SEGURIDAD (nueva estructura)
 export interface OperationalChecklistTemplate {
-    id: string;
+    id?: string;
     companyId: string;
     titulo: string;
     descripcion: string;
     status: 'draft' | 'active' | 'inactive';
     secciones: ChecklistSection[];
-    createdAt: Timestamp;
+    createdAt?: Timestamp;
     updatedAt?: Timestamp;
-    createdBy: string;
+    createdBy?: string;
 }
 
 // Respuestas de Checklists OPERACIONALES
