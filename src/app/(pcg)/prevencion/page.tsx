@@ -33,13 +33,13 @@ export default function PrevencionPage() {
       icon: Building,
       linkText: "Ir a DS44 – Mandante / Obra"
     },
-    /* {
+    {
       title: "Hallazgos en Terreno",
       description: "Dashboard para visualizar y gestionar los hallazgos de seguridad reportados desde terreno.",
       href: "/prevencion/hallazgos",
       icon: Siren,
       linkText: "Ir a Hallazgos"
-    }, */
+    },
     {
       title: "Formularios generales DS44",
       description: "IPER, investigación de incidentes, hallazgos, planes de acción y otros formularios del sistema.",
@@ -69,7 +69,6 @@ export default function PrevencionPage() {
         </p>
       </div>
 
-      {/* 
        <Card className="bg-green-50 border-green-200">
         <CardHeader>
           <div className="flex items-center gap-4">
@@ -93,7 +92,6 @@ export default function PrevencionPage() {
           </Button>
         </CardFooter>
       </Card>
-      */}
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
         {modules.map((mod) => (
