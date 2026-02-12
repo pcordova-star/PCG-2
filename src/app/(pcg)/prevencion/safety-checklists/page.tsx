@@ -1,3 +1,4 @@
+
 "use client";
 
 import ChecklistTemplateManager from '@/components/prevencion/ChecklistTemplateManager';
