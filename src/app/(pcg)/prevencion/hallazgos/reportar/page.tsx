@@ -1,3 +1,4 @@
+
 // src/app/(pcg)/prevencion/hallazgos/reportar/page.tsx
 "use client";
 
@@ -6,7 +7,7 @@ import { useAuth } from '@/context/AuthContext';
 import { collection, query, where, getDocs, orderBy, addDoc, serverTimestamp } from 'firebase/firestore';
 import { firebaseDb, firebaseStorage } from '@/lib/firebaseClient';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -133,7 +134,7 @@ export default function ReportarHallazgoPage() {
                         <div className="space-y-2 col-span-full"><Label htmlFor="accionesInmediatas">Acciones Inmediatas Tomadas</Label><Textarea id="accionesInmediatas" value={hallazgo.accionesInmediatas?.[0] || ''} onChange={e => handleInputChange('accionesInmediatas', [e.target.value])} placeholder="Ej: Se detuvo el trabajo, se aisló el área..."/></div>
                         <div className="space-y-2"><Label htmlFor="tipoRiesgo">Tipo de Riesgo</Label><Input id="tipoRiesgo" value={hallazgo.tipoRiesgo || ''} onChange={e => handleInputChange('tipoRiesgo', e.target.value)} /></div>
                         <div className="space-y-2"><Label htmlFor="criticidad">Criticidad</Label>
-                            <Select value={hallazgo.criticidad} onValueChange={(val) => handleInputChange('criticidad', val)}><SelectTrigger id="criticidad"><SelectValue /></SelectTrigger>
+                            <Select value={hallazgo.criticidad} onValueChange={(val) => handleInputChange('criticidad', val as Criticidad)}><SelectTrigger id="criticidad"><SelectValue /></SelectTrigger>
                                 <SelectContent>
                                     <SelectItem value="baja">Baja</SelectItem>
                                     <SelectItem value="media">Media</SelectItem>
