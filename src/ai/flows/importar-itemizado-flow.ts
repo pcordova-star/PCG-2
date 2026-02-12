@@ -47,7 +47,8 @@ Debes seguir estas reglas estrictamente:
 6.  Asigna el 'chapterIndex' correcto a cada fila, correspondiendo a su capítulo en el array 'chapters'.
 7.  Extrae códigos, descripciones, unidades, cantidades, precios unitarios y totales para cada partida.
 8.  NO inventes cantidades, precios ni unidades si no están explícitamente en el documento. Si un valor no existe para un ítem, déjalo como 'null'.
-9.  Tu respuesta DEBE SER EXCLUSIVAMENTE un objeto JSON válido.
+9.  IMPORTANTE: Ignora explícitamente las líneas de resumen al final del documento que no son partidas, como 'Subtotal', 'Gastos Generales', 'Utilidades', 'IVA' y 'Total General'. Estas no deben formar parte del array 'rows'.
+10. Tu respuesta DEBE SER EXCLUSIVAMENTE un objeto JSON válido.
 
 Aquí está la información proporcionada por el usuario:
 - Itemizado PDF: {{media url=pdfDataUri}}
