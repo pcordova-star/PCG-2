@@ -12,6 +12,7 @@ import { Loader2, ArrowLeft } from 'lucide-react';
 import { Company, PriceTier } from '@/types/pcg';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
 const IVA_RATE = 0.19;
 const BUNDLE_PREVENCION_PERCENT = 0.35;
@@ -40,7 +41,6 @@ const defaultPricing: PricingConfig = {
 
 type FacturacionData = {
   company: Company;
-  userCount: number;
   obrasBajaComplejidad: number;
   obrasAltaComplejidad: number;
   costoBaseObrasCLP: number;
@@ -48,6 +48,10 @@ type FacturacionData = {
   montoDescuento: number;
   totalSinIvaCLP: number;
   totalConIvaCLP: number;
+  // para tooltip
+  precioUnitarioBajaUF: number;
+  costoPorObraAltaComplejidad: number;
+  costoBaseObrasUF: number;
 };
 
 function formatCurrency(value: number) {
@@ -94,13 +98,9 @@ export default function AdminFacturacionPage() {
             if (company.planTipo === 'trial' || company.planTipo === 'freemium' || company.planTipo === 'bloqueado') {
                 return null;
             }
-
-            const usersQuery = query(collection(firebaseDb, 'users'), where('empresaId', '==', company.id), where('activo', '==', true));
+            
             const obrasQuery = query(collection(firebaseDb, 'obras'), where('empresaId', '==', company.id));
-
-            const [usersSnap, obrasSnap] = await Promise.all([ getDocs(usersQuery), getDocs(obrasQuery) ]);
-
-            const userCount = usersSnap.size;
+            const obrasSnap = await getDocs(obrasQuery);
             const companyObras = obrasSnap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
 
             let obrasBajaComplejidad = 0;
@@ -122,17 +122,18 @@ export default function AdminFacturacionPage() {
               }
             }
 
-            // --- Lógica de Cálculo en UF ---
             const { ufValue, tiersBajaComplejidad, costoPorObraAltaComplejidad } = configData;
             
             let costoBaseObrasUF = 0;
+            let precioUnitarioBajaUF = 0;
+            
             costoBaseObrasUF += obrasAltaComplejidad * costoPorObraAltaComplejidad;
             
             if (obrasBajaComplejidad > 0) {
                 const sortedTiers = [...(tiersBajaComplejidad || [])].sort((a,b) => a.maxObras - b.maxObras);
                 const tier = sortedTiers.find(t => obrasBajaComplejidad <= t.maxObras);
-                const precioUnitarioUF = tier ? tier.precioUF : (sortedTiers.length > 0 ? sortedTiers[sortedTiers.length - 1].precioUF : 0);
-                costoBaseObrasUF += obrasBajaComplejidad * precioUnitarioUF;
+                precioUnitarioBajaUF = tier ? tier.precioUF : (sortedTiers.length > 0 ? sortedTiers[sortedTiers.length - 1].precioUF : 0);
+                costoBaseObrasUF += obrasBajaComplejidad * precioUnitarioBajaUF;
             }
             
             const tieneBundlePrevencion = company.feature_risk_prevention_enabled || company.feature_compliance_module_enabled;
@@ -154,13 +155,11 @@ export default function AdminFacturacionPage() {
             if (company.descuentoTipo === 'porcentaje' && company.descuentoValor && company.descuentoValor > 0) {
                 montoDescuentoUF = subtotalBrutoUF * (company.descuentoValor / 100);
             } else if (company.descuentoTipo === 'monto_fijo' && company.descuentoValor && company.descuentoValor > 0) {
-                // Asume que el descuento fijo también está en UF
                 montoDescuentoUF = company.descuentoValor;
             }
 
             const totalNetoUF = subtotalBrutoUF - montoDescuentoUF;
             
-            // Conversión a CLP
             const costoBaseObrasCLP = costoBaseObrasUF * ufValue;
             const costoModulosCLP = costoModulosUF * ufValue;
             const montoDescuentoCLP = montoDescuentoUF * ufValue;
@@ -169,14 +168,16 @@ export default function AdminFacturacionPage() {
 
             return { 
                 company, 
-                userCount, 
                 obrasBajaComplejidad,
                 obrasAltaComplejidad,
                 costoBaseObrasCLP,
                 costoModulosCLP,
                 montoDescuento: montoDescuentoCLP,
                 totalSinIvaCLP, 
-                totalConIvaCLP 
+                totalConIvaCLP,
+                precioUnitarioBajaUF,
+                costoPorObraAltaComplejidad,
+                costoBaseObrasUF,
             };
         });
 
@@ -228,7 +229,6 @@ export default function AdminFacturacionPage() {
               <TableRow>
                 <TableHead>Empresa</TableHead>
                 <TableHead className="text-center">Obras (Baja/Alta Comp.)</TableHead>
-                <TableHead className="text-center">Usuarios Activos</TableHead>
                 <TableHead className="text-right">Costo Base Obras</TableHead>
                 <TableHead className="text-right">Costo Módulos</TableHead>
                 <TableHead className="text-right">Descuento</TableHead>
@@ -238,16 +238,34 @@ export default function AdminFacturacionPage() {
             </TableHeader>
             <TableBody>
               {loading ? (
-                <TableRow><TableCell colSpan={8} className="text-center h-24"><Loader2 className="animate-spin mx-auto"/></TableCell></TableRow>
+                <TableRow><TableCell colSpan={7} className="text-center h-24"><Loader2 className="animate-spin mx-auto"/></TableCell></TableRow>
               ) : data.length === 0 ? (
-                <TableRow><TableCell colSpan={8} className="text-center h-24">No hay empresas con planes de pago activos para facturar.</TableCell></TableRow>
+                <TableRow><TableCell colSpan={7} className="text-center h-24">No hay empresas con planes de pago activos para facturar.</TableCell></TableRow>
               ) : (
-                data.map(({ company, obrasBajaComplejidad, obrasAltaComplejidad, userCount, costoBaseObrasCLP, costoModulosCLP, montoDescuento, totalSinIvaCLP, totalConIvaCLP }) => (
+                data.map(({ company, obrasBajaComplejidad, obrasAltaComplejidad, costoBaseObrasCLP, costoModulosCLP, montoDescuento, totalSinIvaCLP, totalConIvaCLP, precioUnitarioBajaUF, costoPorObraAltaComplejidad, costoBaseObrasUF }) => (
                   <TableRow key={company.id}>
                     <TableCell className="font-medium">{company.nombreFantasia || company.razonSocial}</TableCell>
                     <TableCell className="text-center">{obrasBajaComplejidad} / {obrasAltaComplejidad}</TableCell>
-                    <TableCell className="text-center">{userCount}</TableCell>
-                    <TableCell className="text-right">{formatCurrency(costoBaseObrasCLP)}</TableCell>
+                    <TableCell className="text-right">
+                        <TooltipProvider>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <span className="cursor-help border-b border-dashed border-muted-foreground">
+                                {formatCurrency(costoBaseObrasCLP)}
+                              </span>
+                            </TooltipTrigger>
+                            <TooltipContent>
+                              <div className="p-2 text-xs space-y-1">
+                                <h4 className="font-bold mb-2">Desglose Costo Base (UF)</h4>
+                                <p>Baja Comp.: {obrasBajaComplejidad} x {precioUnitarioBajaUF.toFixed(2)} UF = {(obrasBajaComplejidad * precioUnitarioBajaUF).toFixed(2)} UF</p>
+                                <p>Alta Comp.: {obrasAltaComplejidad} x {costoPorObraAltaComplejidad.toFixed(2)} UF = {(obrasAltaComplejidad * costoPorObraAltaComplejidad).toFixed(2)} UF</p>
+                                <hr className="my-1"/>
+                                <p className="font-bold">Total Base: {costoBaseObrasUF.toFixed(2)} UF</p>
+                              </div>
+                            </TooltipContent>
+                          </Tooltip>
+                        </TooltipProvider>
+                    </TableCell>
                     <TableCell className="text-right">{formatCurrency(costoModulosCLP)}</TableCell>
                     <TableCell className="text-right text-green-600">
                         {montoDescuento > 0 ? `-${formatCurrency(montoDescuento)}` : formatCurrency(0)}
