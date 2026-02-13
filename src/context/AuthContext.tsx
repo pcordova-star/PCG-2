@@ -18,7 +18,7 @@ import {
 } from "react";
 import { firebaseAuth, firebaseDb } from "@/lib/firebaseClient";
 import { useRouter, usePathname } from "next/navigation";
-import { doc, getDoc, setDoc, serverTimestamp, collection, query, where, limit, writeBatch, getDocs, onSnapshot } from "firebase/firestore";
+import { doc, getDoc, setDoc, serverTimestamp, collection, query, where, limit, writeBatch, getDocs, onSnapshot, Timestamp } from "firebase/firestore";
 import { UserRole } from "@/lib/roles";
 import { AppUser, UserInvitation, Company } from "@/types/pcg";
 
@@ -136,7 +136,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             setSubcontractorId(null);
             setCompany(null);
             setLoading(false);
-            const publicPages = ['/', '/login/usuario', '/login/cliente', '/accept-invite', '/terminos', '/sin-acceso', '/recuperar-password'];
+            const publicPages = ['/', '/login/usuario', '/login/cliente', '/accept-invite', '/terminos', '/sin-acceso', '/recuperar-password', '/cuenta-bloqueada'];
             if (!publicPages.includes(pathname) && !pathname.startsWith('/public')) {
                 router.replace('/');
             }
@@ -174,7 +174,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             setSubcontractorId(userSubcontractorId);
             setLoading(false); // Only set loading to false AFTER all user data is resolved
 
-            const isPublicPage = ['/', '/login/usuario', '/login/cliente', '/accept-invite', '/terminos', '/sin-acceso', '/recuperar-password'].includes(pathname) || pathname.startsWith('/public');
+            const isPublicPage = ['/', '/login/usuario', '/login/cliente', '/accept-invite', '/terminos', '/sin-acceso', '/recuperar-password', '/cuenta-bloqueada'].includes(pathname) || pathname.startsWith('/public');
             const isChangingPassword = pathname === '/cambiar-password';
 
             if (mustChangePassword) {
@@ -219,7 +219,30 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     } else {
         setCompany(null);
     }
-}, [companyId]);
+  }, [companyId]);
+
+  useEffect(() => {
+    // No ejecutar lógica de bloqueo mientras carga, si no hay usuario/empresa, o si es superadmin
+    if (loading || !user || !company || role === 'superadmin') {
+      return;
+    }
+
+    const trialEndDate = company.trialEndDate ? (company.trialEndDate as Timestamp).toDate() : null;
+    const isTrialExpired = company.planTipo === 'trial' && trialEndDate && new Date() > trialEndDate;
+    const isBlocked = company.planTipo === 'bloqueado';
+    const isCurrentlyOnBlockedPage = pathname === '/cuenta-bloqueada';
+
+    if (isTrialExpired || isBlocked) {
+      if (!isCurrentlyOnBlockedPage) {
+        router.replace('/cuenta-bloqueada');
+      }
+    } else {
+      // Si la cuenta del usuario está bien, pero está atascado en la página de bloqueo, redirigirlo.
+      if (isCurrentlyOnBlockedPage) {
+        router.replace('/dashboard');
+      }
+    }
+  }, [loading, user, company, role, pathname, router]);
 
   async function login(email: string, password: string) {
     try {
@@ -254,10 +277,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     try {
       await sendPasswordResetEmail(firebaseAuth, email);
     } catch (err: any) {
-      // For security, we don't want to reveal if a user exists or not.
-      // So we log the error but don't throw it to the UI.
-      // The UI will show a generic success message regardless.
-      console.warn("Password reset attempt resulted in an error (this is expected for non-existent users):", err.code);
+      // Por seguridad, no queremos revelar si un usuario existe o no.
+      // Así que registramos el error pero no lo lanzamos a la interfaz de usuario.
+      // La interfaz de usuario mostrará un mensaje de éxito genérico independientemente.
+      console.warn("El intento de restablecimiento de contraseña resultó en un error (esto es esperado para usuarios inexistentes):", err.code);
     }
   }
 

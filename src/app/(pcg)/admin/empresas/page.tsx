@@ -140,7 +140,7 @@ export default function AdminEmpresasPage() {
 
     const handleFormChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
         if (currentCompany) {
-            const { name, value, type, checked } = e.target;
+            const { name, value, type, checked } = e.target as any;
             const finalValue = type === 'checkbox' ? checked : (type === 'number' ? Number(value) : value);
             setCurrentCompany({ ...currentCompany, [name]: finalValue });
         }
