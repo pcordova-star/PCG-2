@@ -1109,6 +1109,43 @@ function ProgramacionPageInner() {
             </div>
         </CardContent>
       </Card>
+
+      <Card>
+        <CardHeader>
+            <CardTitle>Importar / Exportar Programa</CardTitle>
+            <CardDescription>Usa estas herramientas para editar la programación de forma masiva usando plantillas de Excel o para cargar actividades desde un presupuesto existente.</CardDescription>
+        </CardHeader>
+        <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="p-4 border rounded-lg space-y-4">
+                <h4 className="font-semibold">Opción 1: Editar con Excel</h4>
+                <p className="text-sm text-muted-foreground">Ideal para ajustar fechas de múltiples actividades rápidamente.</p>
+                
+                <div className="space-y-2">
+                    <p className="text-sm font-medium">1. Descarga la plantilla</p>
+                    <Button onClick={handleExport} variant="secondary" disabled={actividades.length === 0} className="w-full">
+                        <FileDown className="mr-2 h-4 w-4"/> Exportar Plantilla Excel
+                    </Button>
+                </div>
+
+                <div className="space-y-2">
+                    <p className="text-sm font-medium">2. Edita el archivo y súbelo</p>
+                    <input type="file" ref={fileInputRef} onChange={handleFileSelect} className="hidden" accept=".xlsx, .xls, .csv"/>
+                    <Button onClick={() => fileInputRef.current?.click()} disabled={!obraSeleccionadaId || isProcessingImport} className="w-full">
+                        {isProcessingImport ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <FileUp className="mr-2 h-4 w-4"/>}
+                        Importar desde Excel
+                    </Button>
+                </div>
+            </div>
+            <div className="p-4 border rounded-lg space-y-4">
+                <h4 className="font-semibold">Opción 2: Importar desde Presupuesto</h4>
+                <p className="text-sm text-muted-foreground">Crea automáticamente las actividades a partir de las partidas de un itemizado ya creado para esta obra.</p>
+                <Button onClick={handleOpenImportDialog} variant="secondary" disabled={!obraSeleccionadaId} className="w-full">
+                    <FileDown className="mr-2 h-4 w-4" />
+                    Importar desde Presupuesto
+                </Button>
+            </div>
+        </CardContent>
+      </Card>
       
        <Card>
         <CardHeader>
@@ -1162,18 +1199,6 @@ function ProgramacionPageInner() {
             <CardDescription>{cargandoActividades ? "Cargando..." : `Mostrando ${actividadesFiltradas.length} de ${actividades.length} actividades.`}</CardDescription>
           </div>
           <div className="flex flex-wrap gap-2">
-            <input type="file" ref={fileInputRef} onChange={handleFileSelect} className="hidden" accept=".xlsx, .xls, .csv"/>
-            <Button onClick={() => fileInputRef.current?.click()} variant="outline" disabled={!obraSeleccionadaId || isProcessingImport}>
-              {isProcessingImport ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <FileUp className="mr-2 h-4 w-4"/>}
-              Importar desde Excel
-            </Button>
-            <Button onClick={handleExport} variant="outline" disabled={actividades.length === 0}>
-              <FileDown className="mr-2 h-4 w-4"/> Exportar para Programar
-            </Button>
-            <Button onClick={handleOpenImportDialog} variant="outline" disabled={!obraSeleccionadaId}>
-              <FileDown className="mr-2 h-4 w-4" />
-              Importar desde Presupuesto
-            </Button>
             <Button onClick={() => handleOpenDialog()}>
               <PlusCircle className="mr-2 h-4 w-4" />
               Nueva Actividad
