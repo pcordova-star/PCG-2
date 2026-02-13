@@ -1,4 +1,5 @@
 
+// src/app/(pcg)/prevencion/formularios-generales/page.tsx
 "use client";
 
 import Link from 'next/link';
@@ -15,11 +16,11 @@ const formularios = [
         status: "active"
     },
     {
-        title: "Investigación de Incidentes",
-        description: "Registra y analiza accidentes para determinar sus causas. (En construcción)",
+        title: "Registro de Incidentes",
+        description: "Reporta un accidente o incidente para iniciar el proceso de investigación y determinar sus causas raíz.",
         href: "/prevencion/formularios-generales/incidentes",
         icon: Siren,
-        status: "inactive"
+        status: "active"
     },
     {
         title: "Planes de Acción",
