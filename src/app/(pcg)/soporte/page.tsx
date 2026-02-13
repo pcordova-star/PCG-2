@@ -2,7 +2,7 @@
 
 import { useState, FormEvent } from "react";
 import { useAuth } from "@/context/AuthContext";
-import { addDoc, collection, serverTimestamp } from "firebase/firestore";
+import { addDoc, collection, serverTimestamp, doc, updateDoc } from "firebase/firestore";
 import { firebaseDb } from "@/lib/firebaseClient";
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
@@ -10,9 +10,10 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter }
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Loader2, ArrowLeft, Send } from "lucide-react";
+import { Loader2, ArrowLeft, Send, Paperclip } from "lucide-react";
 import Link from "next/link";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { uploadFileToStorage } from "@/lib/storage/uploadFile";
 
 type TicketCategory = "duda_funcional" | "reporte_error" | "sugerencia" | "problema_cuenta" | "otro";
 
@@ -23,8 +24,17 @@ export default function SoportePage() {
     const [category, setCategory] = useState<TicketCategory>("duda_funcional");
     const [subject, setSubject] = useState("");
     const [description, setDescription] = useState("");
+    const [attachment, setAttachment] = useState<File | null>(null);
     const [isSending, setIsSending] = useState(false);
     
+    const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        if (e.target.files && e.target.files.length > 0) {
+            setAttachment(e.target.files[0]);
+        } else {
+            setAttachment(null);
+        }
+    };
+
     const handleSubmit = async (e: FormEvent) => {
         e.preventDefault();
         if (!user) {
@@ -41,8 +51,22 @@ export default function SoportePage() {
             const SUPERADMIN_EMAIL = "pauloandrescordova@gmail.com";
             const CONTROL_EMAIL = "control@pcgoperacion.com";
 
-            // 1. Guardar ticket en Firestore
-            const ticketRef = await addDoc(collection(firebaseDb, "supportTickets"), {
+            // 1. Crear el documento de ticket inicial para obtener un ID
+            const ticketCollection = collection(firebaseDb, "supportTickets");
+            const ticketRef = doc(ticketCollection); // Crea una referencia con un ID nuevo
+
+            let adjuntoUrl: string | null = null;
+            let storagePath: string | null = null;
+
+            // 2. Si hay adjunto, subirlo
+            if (attachment) {
+                const path = `support-tickets/${ticketRef.id}/${attachment.name}`;
+                storagePath = path;
+                adjuntoUrl = await uploadFileToStorage(attachment, path);
+            }
+
+            // 3. Guardar el ticket en Firestore con toda la información
+            const ticketData = {
                 userId: user.uid,
                 userEmail: user.email,
                 userName: user.displayName,
@@ -51,28 +75,44 @@ export default function SoportePage() {
                 category,
                 subject,
                 description,
-                status: 'abierto',
+                status: 'abierto' as const,
                 createdAt: serverTimestamp(),
                 updatedAt: serverTimestamp(),
-            });
+                adjuntoUrl,
+                storagePath,
+                history: [
+                    {
+                        author: 'user',
+                        message: description,
+                        timestamp: serverTimestamp(),
+                        userId: user.uid,
+                        userName: user.displayName || user.email,
+                    }
+                ]
+            };
+            await setDoc(ticketRef, ticketData);
 
-            // 2. Enviar email de notificación
+
+            // 4. Enviar email de notificación
+            const emailHtml = `
+                <h1>Nuevo Ticket de Soporte Recibido</h1>
+                <p><strong>Usuario:</strong> ${user.displayName} (${user.email})</p>
+                <p><strong>Empresa:</strong> ${company?.nombreFantasia || 'N/A'}</p>
+                <p><strong>Categoría:</strong> ${category}</p>
+                <p><strong>Asunto:</strong> ${subject}</p>
+                <hr/>
+                <h3>Descripción del Problema:</h3>
+                <p>${description.replace(/\n/g, '<br>')}</p>
+                ${adjuntoUrl ? `<p><strong>Adjunto:</strong> <a href="${adjuntoUrl}">Ver archivo</a></p>` : ''}
+                <hr/>
+                <p>ID del Ticket: ${ticketRef.id}</p>
+            `;
+
             await addDoc(collection(firebaseDb, "mail"), {
                 to: [SUPERADMIN_EMAIL, CONTROL_EMAIL],
                 message: {
                     subject: `Nuevo Ticket de Soporte PCG: [${category.replace('_',' ')}] ${subject}`,
-                    html: `
-                        <h1>Nuevo Ticket de Soporte Recibido</h1>
-                        <p><strong>Usuario:</strong> ${user.displayName} (${user.email})</p>
-                        <p><strong>Empresa:</strong> ${company?.nombreFantasia || 'N/A'}</p>
-                        <p><strong>Categoría:</strong> ${category}</p>
-                        <p><strong>Asunto:</strong> ${subject}</p>
-                        <hr/>
-                        <h3>Descripción del Problema:</h3>
-                        <p>${description.replace(/\n/g, '<br>')}</p>
-                        <hr/>
-                        <p>ID del Ticket: ${ticketRef.id}</p>
-                    `,
+                    html: emailHtml,
                 },
             });
 
@@ -80,6 +120,7 @@ export default function SoportePage() {
             setSubject("");
             setDescription("");
             setCategory("duda_funcional");
+            setAttachment(null);
 
         } catch (error) {
             console.error("Error al enviar ticket de soporte:", error);
@@ -132,6 +173,11 @@ export default function SoportePage() {
                         <div className="space-y-2">
                             <Label htmlFor="description">Descripción</Label>
                             <Textarea id="description" value={description} onChange={e => setDescription(e.target.value)} required rows={8} placeholder="Por favor, describe detalladamente tu solicitud. Incluye pasos para reproducir un error si es posible."/>
+                        </div>
+                        <div className="space-y-2">
+                            <Label htmlFor="attachment">Adjuntar Pantallazo (Opcional)</Label>
+                            <Input id="attachment" type="file" onChange={handleFileChange} accept="image/*" />
+                            {attachment && <p className="text-xs text-muted-foreground flex items-center gap-2"><Paperclip className="h-3 w-3"/>{attachment.name}</p>}
                         </div>
                     </CardContent>
                     <CardFooter className="justify-end">

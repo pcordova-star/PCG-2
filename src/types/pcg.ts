@@ -721,4 +721,13 @@ export interface SupportTicket {
   status: 'abierto' | 'en_progreso' | 'cerrado';
   createdAt: Timestamp;
   updatedAt?: Timestamp;
+  adjuntoUrl?: string | null;
+  storagePath?: string | null;
+  history?: {
+      author: string;
+      message: string;
+      timestamp: Timestamp;
+      userId: string;
+      userName: string;
+  }[];
 }

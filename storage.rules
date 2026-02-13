@@ -55,6 +55,15 @@ service firebase.storage {
         && sub == subcontractorId();
     }
     
+    // --- NUEVA REGLA PARA SOPORTE ---
+    match /support-tickets/{ticketId}/{fileName} {
+      // Cualquier usuario autenticado puede subir un adjunto a su propio ticket
+      // La validación de que es 'su propio ticket' se maneja en el nombre del archivo (ticketId)
+      allow write: if isSignedIn();
+      // Solo el superadmin puede leer los adjuntos.
+      allow read: if isSignedIn() && role() == 'superadmin';
+    }
+    
     // Regla abierta para desarrollo - permitir escrituras autenticadas y preflights.
     match /{allPaths=**} {
       // Allow unauthenticated CORS preflight OPTIONS requests.

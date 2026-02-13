@@ -72,6 +72,7 @@ const adminNavItems: NavItem[] = [
   { href: "/admin/empresas", label: "Empresas", icon: Building, roles: ['superadmin'] },
   { href: "/admin/usuarios", label: "Usuarios", icon: Users, roles: ['superadmin'] },
   { href: "/admin/solicitudes", label: "Solicitudes", icon: BellRing, roles: ['superadmin'] },
+  { href: "/admin/soporte", label: "Soporte", icon: HelpCircle, roles: ['superadmin'] },
   { href: "/admin/facturacion", label: "Facturación", icon: DollarSign, roles: ['superadmin'] },
   { href: "/admin/pricing", label: "Precios", icon: Settings, roles: ['superadmin'] },
 ];
