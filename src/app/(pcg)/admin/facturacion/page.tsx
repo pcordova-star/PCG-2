@@ -14,48 +14,30 @@ import { Button } from '@/components/ui/button';
 import Link from 'next/link';
 
 const IVA_RATE = 0.19;
+const BUNDLE_PREVENCION_PERCENT = 0.35;
+const BUNDLE_CALIDAD_PERCENT = 0.25;
+const BUNDLE_CONJUNTO_PERCENT = 0.45;
 
 interface PricingConfig {
-  baseMensual: number;
-  valorPorUsuario: number;
+  costoPorObraBajaComplejidad: number;
+  costoPorObraAltaComplejidad: number;
   currency: 'CLP' | 'UF';
   ufValue: number;
-  modulos: {
-    cumplimientoLegal: number;
-    analisisPlanosIA: number;
-    prevencionRiesgos: number;
-    checklists: number;
-    controlDocumental: number;
-  };
 }
 
 const defaultPricing: PricingConfig = {
-  baseMensual: 100000,
-  valorPorUsuario: 35000,
+  costoPorObraBajaComplejidad: 100000,
+  costoPorObraAltaComplejidad: 200000,
   currency: 'CLP',
   ufValue: 37000,
-  modulos: {
-    cumplimientoLegal: 50000,
-    analisisPlanosIA: 75000,
-    prevencionRiesgos: 60000,
-    checklists: 40000,
-    controlDocumental: 45000,
-  },
 };
-
-const moduleFlagMap: Record<keyof PricingConfig['modulos'], keyof Company> = {
-  cumplimientoLegal: 'feature_compliance_module_enabled',
-  analisisPlanosIA: 'feature_plan_analysis_enabled',
-  prevencionRiesgos: 'feature_risk_prevention_enabled',
-  checklists: 'feature_operational_checklists_enabled',
-  controlDocumental: 'feature_document_control_enabled',
-};
-
 
 type FacturacionData = {
   company: Company;
   userCount: number;
   obraCount: number;
+  costoBaseObras: number;
+  costoModulos: number;
   subtotalBruto: number;
   montoDescuento: number;
   totalSinIvaCLP: number;
@@ -92,9 +74,13 @@ export default function AdminFacturacionPage() {
       try {
         const configRef = doc(firebaseDb, "config", "pricing");
         const configSnap = await getDoc(configRef);
-        const configData = configSnap.exists() 
-            ? { ...defaultPricing, ...configSnap.data() } as PricingConfig
-            : defaultPricing;
+        const firestoreConfig = configSnap.data();
+        const configData: PricingConfig = {
+          ...defaultPricing,
+          ...firestoreConfig,
+          // For backward compatibility, use baseMensual if costoPorObraBajaComplejidad is not set
+          costoPorObraBajaComplejidad: firestoreConfig?.costoPorObraBajaComplejidad || firestoreConfig?.baseMensual || defaultPricing.costoPorObraBajaComplejidad,
+        };
         setPricingConfig(configData);
         
         const companiesSnap = await getDocs(collection(firebaseDb, 'companies'));
@@ -113,21 +99,28 @@ export default function AdminFacturacionPage() {
             const userCount = usersSnap.size;
             const obraCount = obrasSnap.size;
             
-            // Usar valores específicos de la empresa, con fallback a la config global
-            const costoBase = company.baseMensual ?? configData.baseMensual;
-            const costoUsuario = company.valorPorUsuario ?? configData.valorPorUsuario;
-
-            const costoBaseYUsuarios = costoBase + (userCount * costoUsuario);
+            // Lógica de cálculo de costo base por obras
+            // TODO: Implementar lógica de complejidad de obra. Por ahora, todas son baja complejidad.
+            const costoPorObra = configData.costoPorObraBajaComplejidad;
+            const costoBaseObras = obraCount * costoPorObra;
             
-            const costoModulos = Object.entries(moduleFlagMap).reduce((total, [moduloKey, flagKey]) => {
-                if (company[flagKey]) {
-                    return total + (configData.modulos[moduloKey as keyof PricingConfig['modulos']] || 0);
-                }
-                return total;
-            }, 0);
+            // Lógica de cálculo de módulos por porcentaje
+            const tieneBundlePrevencion = company.feature_risk_prevention_enabled || company.feature_compliance_module_enabled;
+            const tieneBundleCalidad = company.feature_operational_checklists_enabled || company.feature_document_control_enabled;
 
-            const subtotalBruto = costoBaseYUsuarios + costoModulos;
+            let porcentajeModulos = 0;
+            if (tieneBundlePrevencion && tieneBundleCalidad) {
+                porcentajeModulos = BUNDLE_CONJUNTO_PERCENT;
+            } else if (tieneBundlePrevencion) {
+                porcentajeModulos = BUNDLE_PREVENCION_PERCENT;
+            } else if (tieneBundleCalidad) {
+                porcentajeModulos = BUNDLE_CALIDAD_PERCENT;
+            }
+            
+            const costoModulos = costoBaseObras * porcentajeModulos;
+            const subtotalBruto = costoBaseObras + costoModulos;
 
+            // Lógica de descuentos
             let montoDescuento = 0;
             if (company.descuentoTipo === 'porcentaje' && company.descuentoValor && company.descuentoValor > 0) {
                 montoDescuento = subtotalBruto * (company.descuentoValor / 100);
@@ -135,10 +128,24 @@ export default function AdminFacturacionPage() {
                 montoDescuento = company.descuentoValor;
             }
 
-            const totalSinIvaCLP = subtotalBruto - montoDescuento;
+            const totalSinIva = subtotalBruto - montoDescuento;
+
+            // Conversión a CLP si la moneda es UF
+            const multiplicadorUF = configData.currency === 'UF' ? configData.ufValue : 1;
+            const totalSinIvaCLP = totalSinIva * multiplicadorUF;
             const totalConIvaCLP = totalSinIvaCLP * (1 + IVA_RATE);
 
-            return { company, userCount, obraCount, costoBaseYUsuarios, costoModulos, subtotalBruto, montoDescuento, totalSinIvaCLP, totalConIvaCLP };
+            return { 
+                company, 
+                userCount, 
+                obraCount,
+                costoBaseObras: costoBaseObras * multiplicadorUF,
+                costoModulos: costoModulos * multiplicadorUF,
+                subtotalBruto: subtotalBruto * multiplicadorUF,
+                montoDescuento: montoDescuento * multiplicadorUF,
+                totalSinIvaCLP, 
+                totalConIvaCLP 
+            };
         });
 
         const facturacionData = (await Promise.all(facturacionPromises)).filter(Boolean) as FacturacionData[];
@@ -171,7 +178,7 @@ export default function AdminFacturacionPage() {
       </Button>
       <header>
         <h1 className="text-3xl font-bold">Facturación Estimada</h1>
-        <p className="text-muted-foreground">Cálculo de facturación mensual por empresa basado en los precios definidos para cada una.</p>
+        <p className="text-muted-foreground">Cálculo de facturación mensual por empresa basado en obras activas, módulos y descuentos.</p>
       </header>
 
       {error && <p className="text-sm font-medium text-destructive">{error}</p>}
@@ -180,7 +187,7 @@ export default function AdminFacturacionPage() {
         <CardHeader>
           <CardTitle>Detalle de Facturación Estimada por Empresa</CardTitle>
           <CardDescription>
-            Se utilizan los precios y descuentos definidos en la ficha de cada empresa. Las empresas en período de prueba (trial) o bloqueadas no se listan aquí.
+            Cálculos basados en la configuración de cada empresa. Se excluyen empresas en período de prueba, freemium o bloqueadas.
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -188,6 +195,7 @@ export default function AdminFacturacionPage() {
             <TableHeader>
               <TableRow>
                 <TableHead>Empresa</TableHead>
+                <TableHead className="text-center">Obras Activas</TableHead>
                 <TableHead className="text-center">Usuarios Activos</TableHead>
                 <TableHead className="text-right">Subtotal Bruto</TableHead>
                 <TableHead className="text-right">Descuento</TableHead>
@@ -197,13 +205,14 @@ export default function AdminFacturacionPage() {
             </TableHeader>
             <TableBody>
               {loading ? (
-                <TableRow><TableCell colSpan={6} className="text-center h-24"><Loader2 className="animate-spin mx-auto"/></TableCell></TableRow>
+                <TableRow><TableCell colSpan={7} className="text-center h-24"><Loader2 className="animate-spin mx-auto"/></TableCell></TableRow>
               ) : data.length === 0 ? (
-                <TableRow><TableCell colSpan={6} className="text-center h-24">No hay empresas con planes de pago activos para facturar.</TableCell></TableRow>
+                <TableRow><TableCell colSpan={7} className="text-center h-24">No hay empresas con planes de pago activos para facturar.</TableCell></TableRow>
               ) : (
-                data.map(({ company, userCount, subtotalBruto, montoDescuento, totalSinIvaCLP, totalConIvaCLP }) => (
+                data.map(({ company, obraCount, userCount, subtotalBruto, montoDescuento, totalSinIvaCLP, totalConIvaCLP }) => (
                   <TableRow key={company.id}>
                     <TableCell className="font-medium">{company.nombreFantasia || company.razonSocial}</TableCell>
+                    <TableCell className="text-center">{obraCount}</TableCell>
                     <TableCell className="text-center">{userCount}</TableCell>
                     <TableCell className="text-right">{formatCurrency(subtotalBruto)}</TableCell>
                     <TableCell className="text-right text-green-600">
