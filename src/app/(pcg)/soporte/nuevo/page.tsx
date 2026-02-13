@@ -2,7 +2,7 @@
 
 import { useState, FormEvent } from "react";
 import { useAuth } from "@/context/AuthContext";
-import { addDoc, collection, serverTimestamp, setDoc, doc } from "firebase/firestore";
+import { addDoc, collection, serverTimestamp, setDoc, doc, Timestamp } from "firebase/firestore";
 import { firebaseDb } from "@/lib/firebaseClient";
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
@@ -83,7 +83,7 @@ export default function NuevoTicketPage() {
                     {
                         author: 'user',
                         message: description,
-                        timestamp: serverTimestamp(),
+                        timestamp: Timestamp.now(),
                         userId: user.uid,
                         userName: user.displayName || user.email,
                     }
