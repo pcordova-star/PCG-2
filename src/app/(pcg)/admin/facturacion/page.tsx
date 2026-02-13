@@ -9,7 +9,7 @@ import { firebaseDb } from '@/lib/firebaseClient';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Loader2, ArrowLeft } from 'lucide-react';
-import { Company } from '@/types/pcg';
+import { Company, PriceTier } from '@/types/pcg';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
 
@@ -20,16 +20,21 @@ const BUNDLE_CONJUNTO_PERCENT = 0.45;
 const COMPLEXITY_THRESHOLD = 50;
 
 interface PricingConfig {
-  costoPorObraBajaComplejidad: number;
+  tiersBajaComplejidad: PriceTier[];
   costoPorObraAltaComplejidad: number;
   currency: 'CLP' | 'UF';
   ufValue: number;
 }
 
 const defaultPricing: PricingConfig = {
-  costoPorObraBajaComplejidad: 100000,
-  costoPorObraAltaComplejidad: 200000,
-  currency: 'CLP',
+  tiersBajaComplejidad: [
+    { id: '1', maxObras: 5, precioUF: 2.0 },
+    { id: '2', maxObras: 20, precioUF: 1.6 },
+    { id: '3', maxObras: 50, precioUF: 1.3 },
+    { id: '4', maxObras: 80, precioUF: 1.0 },
+  ],
+  costoPorObraAltaComplejidad: 4.0,
+  currency: 'UF',
   ufValue: 37000,
 };
 
@@ -38,8 +43,6 @@ type FacturacionData = {
   userCount: number;
   obrasBajaComplejidad: number;
   obrasAltaComplejidad: number;
-  costoBaseObras: number;
-  costoModulos: number;
   subtotalBruto: number;
   montoDescuento: number;
   totalSinIvaCLP: number;
@@ -80,7 +83,6 @@ export default function AdminFacturacionPage() {
         const configData: PricingConfig = {
           ...defaultPricing,
           ...firestoreConfig,
-          costoPorObraBajaComplejidad: firestoreConfig?.costoPorObraBajaComplejidad || firestoreConfig?.baseMensual || defaultPricing.costoPorObraBajaComplejidad,
         };
         setPricingConfig(configData);
         
@@ -119,7 +121,18 @@ export default function AdminFacturacionPage() {
               }
             }
 
-            const costoBaseObras = (obrasBajaComplejidad * configData.costoPorObraBajaComplejidad) + (obrasAltaComplejidad * configData.costoPorObraAltaComplejidad);
+            // --- Lógica de Cálculo en UF ---
+            const { ufValue, tiersBajaComplejidad, costoPorObraAltaComplejidad } = configData;
+            
+            let costoBaseObrasUF = 0;
+            costoBaseObrasUF += obrasAltaComplejidad * costoPorObraAltaComplejidad;
+            
+            if (obrasBajaComplejidad > 0) {
+                const sortedTiers = [...(tiersBajaComplejidad || [])].sort((a,b) => a.maxObras - b.maxObras);
+                const tier = sortedTiers.find(t => obrasBajaComplejidad <= t.maxObras);
+                const precioUnitarioUF = tier ? tier.precioUF : (sortedTiers.length > 0 ? sortedTiers[sortedTiers.length - 1].precioUF : 0);
+                costoBaseObrasUF += obrasBajaComplejidad * precioUnitarioUF;
+            }
             
             const tieneBundlePrevencion = company.feature_risk_prevention_enabled || company.feature_compliance_module_enabled;
             const tieneBundleCalidad = company.feature_operational_checklists_enabled || company.feature_document_control_enabled;
@@ -133,20 +146,23 @@ export default function AdminFacturacionPage() {
                 porcentajeModulos = BUNDLE_CALIDAD_PERCENT;
             }
             
-            const costoModulos = costoBaseObras * porcentajeModulos;
-            const subtotalBruto = costoBaseObras + costoModulos;
+            const costoModulosUF = costoBaseObrasUF * porcentajeModulos;
+            const subtotalBrutoUF = costoBaseObrasUF + costoModulosUF;
 
-            let montoDescuento = 0;
+            let montoDescuentoUF = 0;
             if (company.descuentoTipo === 'porcentaje' && company.descuentoValor && company.descuentoValor > 0) {
-                montoDescuento = subtotalBruto * (company.descuentoValor / 100);
+                montoDescuentoUF = subtotalBrutoUF * (company.descuentoValor / 100);
             } else if (company.descuentoTipo === 'monto_fijo' && company.descuentoValor && company.descuentoValor > 0) {
-                montoDescuento = company.descuentoValor;
+                // Asume que el descuento fijo también está en UF
+                montoDescuentoUF = company.descuentoValor;
             }
 
-            const totalSinIva = subtotalBruto - montoDescuento;
-
-            const multiplicadorUF = configData.currency === 'UF' ? configData.ufValue : 1;
-            const totalSinIvaCLP = totalSinIva * multiplicadorUF;
+            const totalNetoUF = subtotalBrutoUF - montoDescuentoUF;
+            
+            // Conversión a CLP
+            const subtotalBrutoCLP = subtotalBrutoUF * ufValue;
+            const montoDescuentoCLP = montoDescuentoUF * ufValue;
+            const totalSinIvaCLP = totalNetoUF * ufValue;
             const totalConIvaCLP = totalSinIvaCLP * (1 + IVA_RATE);
 
             return { 
@@ -154,10 +170,8 @@ export default function AdminFacturacionPage() {
                 userCount, 
                 obrasBajaComplejidad,
                 obrasAltaComplejidad,
-                costoBaseObras: costoBaseObras * multiplicadorUF,
-                costoModulos: costoModulos * multiplicadorUF,
-                subtotalBruto: subtotalBruto * multiplicadorUF,
-                montoDescuento: montoDescuento * multiplicadorUF,
+                subtotalBruto: subtotalBrutoCLP,
+                montoDescuento: montoDescuentoCLP,
                 totalSinIvaCLP, 
                 totalConIvaCLP 
             };

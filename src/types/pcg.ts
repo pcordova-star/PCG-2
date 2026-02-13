@@ -2,6 +2,12 @@
 
 import { Timestamp } from "firebase/firestore";
 
+export interface PriceTier {
+  id: string;
+  maxObras: number;
+  precioUF: number;
+}
+
 /**
  * Representa una empresa en la plataforma.
  * Almacenada en la colección `companies`.
