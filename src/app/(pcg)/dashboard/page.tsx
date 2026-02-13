@@ -505,13 +505,15 @@ export default function DashboardPage() {
             </div>
         )}
 
-        <Card><CardHeader><div className="flex items-center gap-3"><Newspaper className="h-6 w-6 text-primary"/><CardTitle>Diario Mural de Actividad</CardTitle></div><CardDescription>Última actividad registrada en tus obras.</CardDescription></CardHeader>
-            <CardContent>
-                {loading ? <div className="space-y-4"><Skeleton className="h-16 w-full" /><Skeleton className="h-16 w-full" /><Skeleton className="h-16 w-full" /></div>
-                         : muralItems.length === 0 ? <div className="text-center py-8 bg-muted/50 rounded-lg"><p className="text-muted-foreground">No hay actividad reciente para mostrar en tus obras.</p></div>
-                         : <div className="space-y-3">{muralItems.map(item => <ActivityCard key={item.id} item={item} />)}</div>}
-            </CardContent>
-        </Card>
+        {role !== 'superadmin' && (
+          <Card><CardHeader><div className="flex items-center gap-3"><Newspaper className="h-6 w-6 text-primary"/><CardTitle>Diario Mural de Actividad</CardTitle></div><CardDescription>Última actividad registrada en tus obras.</CardDescription></CardHeader>
+              <CardContent>
+                  {loading ? <div className="space-y-4"><Skeleton className="h-16 w-full" /><Skeleton className="h-16 w-full" /><Skeleton className="h-16 w-full" /></div>
+                           : muralItems.length === 0 ? <div className="text-center py-8 bg-muted/50 rounded-lg"><p className="text-muted-foreground">No hay actividad reciente para mostrar en tus obras.</p></div>
+                           : <div className="space-y-3">{muralItems.map(item => <ActivityCard key={item.id} item={item} />)}</div>}
+              </CardContent>
+          </Card>
+        )}
 
         <footer className="mt-8 border-t pt-8 text-center text-muted-foreground">
             <div className="flex flex-col items-center gap-2"><PcgLogo size={60} /><p className="text-sm font-semibold italic">Una obra bien gestionada, una cadena completa alineada.</p><p className="text-xs">&copy; {new Date().getFullYear()} PCG. Todos los derechos reservados.</p></div>
