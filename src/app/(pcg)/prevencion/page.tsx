@@ -31,7 +31,7 @@ export default function PrevencionPage() {
       description: "Automatiza la gestión documental y el cumplimiento de requisitos del DS44 para empresas contratistas y subcontratistas.",
       href: "/control-subcontratistas-ds44",
       icon: Building,
-      linkText: "Conocer Más"
+      linkText: "Gestionar Contratistas"
     },
     {
       title: "DS44 – Mandante / Obra",
