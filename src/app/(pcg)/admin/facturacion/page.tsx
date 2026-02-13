@@ -4,7 +4,7 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { useRouter } from 'next/navigation';
-import { collection, getDocs, query, where, doc, getDoc } from 'firebase/firestore';
+import { collection, getDocs, query, where, doc, getDoc, orderBy, limit } from 'firebase/firestore';
 import { firebaseDb } from '@/lib/firebaseClient';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
@@ -17,6 +17,7 @@ const IVA_RATE = 0.19;
 const BUNDLE_PREVENCION_PERCENT = 0.35;
 const BUNDLE_CALIDAD_PERCENT = 0.25;
 const BUNDLE_CONJUNTO_PERCENT = 0.45;
+const COMPLEXITY_THRESHOLD = 50;
 
 interface PricingConfig {
   costoPorObraBajaComplejidad: number;
@@ -35,7 +36,8 @@ const defaultPricing: PricingConfig = {
 type FacturacionData = {
   company: Company;
   userCount: number;
-  obraCount: number;
+  obrasBajaComplejidad: number;
+  obrasAltaComplejidad: number;
   costoBaseObras: number;
   costoModulos: number;
   subtotalBruto: number;
@@ -78,7 +80,6 @@ export default function AdminFacturacionPage() {
         const configData: PricingConfig = {
           ...defaultPricing,
           ...firestoreConfig,
-          // For backward compatibility, use baseMensual if costoPorObraBajaComplejidad is not set
           costoPorObraBajaComplejidad: firestoreConfig?.costoPorObraBajaComplejidad || firestoreConfig?.baseMensual || defaultPricing.costoPorObraBajaComplejidad,
         };
         setPricingConfig(configData);
@@ -97,14 +98,29 @@ export default function AdminFacturacionPage() {
             const [usersSnap, obrasSnap] = await Promise.all([ getDocs(usersQuery), getDocs(obrasQuery) ]);
 
             const userCount = usersSnap.size;
-            const obraCount = obrasSnap.size;
+            const companyObras = obrasSnap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+
+            let obrasBajaComplejidad = 0;
+            let obrasAltaComplejidad = 0;
+
+            for (const obra of companyObras) {
+              const presupuestosQuery = query(collection(firebaseDb, 'presupuestos'), where('obraId', '==', obra.id), orderBy('fechaCreacion', 'desc'), limit(1));
+              const presupuestoSnap = await getDocs(presupuestosQuery);
+
+              if (presupuestoSnap.empty) {
+                  obrasBajaComplejidad++;
+              } else {
+                  const mainPresupuesto = presupuestoSnap.docs[0].data();
+                  if (mainPresupuesto.items && mainPresupuesto.items.length > COMPLEXITY_THRESHOLD) {
+                      obrasAltaComplejidad++;
+                  } else {
+                      obrasBajaComplejidad++;
+                  }
+              }
+            }
+
+            const costoBaseObras = (obrasBajaComplejidad * configData.costoPorObraBajaComplejidad) + (obrasAltaComplejidad * configData.costoPorObraAltaComplejidad);
             
-            // Lógica de cálculo de costo base por obras
-            // TODO: Implementar lógica de complejidad de obra. Por ahora, todas son baja complejidad.
-            const costoPorObra = configData.costoPorObraBajaComplejidad;
-            const costoBaseObras = obraCount * costoPorObra;
-            
-            // Lógica de cálculo de módulos por porcentaje
             const tieneBundlePrevencion = company.feature_risk_prevention_enabled || company.feature_compliance_module_enabled;
             const tieneBundleCalidad = company.feature_operational_checklists_enabled || company.feature_document_control_enabled;
 
@@ -120,7 +136,6 @@ export default function AdminFacturacionPage() {
             const costoModulos = costoBaseObras * porcentajeModulos;
             const subtotalBruto = costoBaseObras + costoModulos;
 
-            // Lógica de descuentos
             let montoDescuento = 0;
             if (company.descuentoTipo === 'porcentaje' && company.descuentoValor && company.descuentoValor > 0) {
                 montoDescuento = subtotalBruto * (company.descuentoValor / 100);
@@ -130,7 +145,6 @@ export default function AdminFacturacionPage() {
 
             const totalSinIva = subtotalBruto - montoDescuento;
 
-            // Conversión a CLP si la moneda es UF
             const multiplicadorUF = configData.currency === 'UF' ? configData.ufValue : 1;
             const totalSinIvaCLP = totalSinIva * multiplicadorUF;
             const totalConIvaCLP = totalSinIvaCLP * (1 + IVA_RATE);
@@ -138,7 +152,8 @@ export default function AdminFacturacionPage() {
             return { 
                 company, 
                 userCount, 
-                obraCount,
+                obrasBajaComplejidad,
+                obrasAltaComplejidad,
                 costoBaseObras: costoBaseObras * multiplicadorUF,
                 costoModulos: costoModulos * multiplicadorUF,
                 subtotalBruto: subtotalBruto * multiplicadorUF,
@@ -195,7 +210,7 @@ export default function AdminFacturacionPage() {
             <TableHeader>
               <TableRow>
                 <TableHead>Empresa</TableHead>
-                <TableHead className="text-center">Obras Activas</TableHead>
+                <TableHead className="text-center">Obras (Baja/Alta Comp.)</TableHead>
                 <TableHead className="text-center">Usuarios Activos</TableHead>
                 <TableHead className="text-right">Subtotal Bruto</TableHead>
                 <TableHead className="text-right">Descuento</TableHead>
@@ -209,10 +224,10 @@ export default function AdminFacturacionPage() {
               ) : data.length === 0 ? (
                 <TableRow><TableCell colSpan={7} className="text-center h-24">No hay empresas con planes de pago activos para facturar.</TableCell></TableRow>
               ) : (
-                data.map(({ company, obraCount, userCount, subtotalBruto, montoDescuento, totalSinIvaCLP, totalConIvaCLP }) => (
+                data.map(({ company, obrasBajaComplejidad, obrasAltaComplejidad, userCount, subtotalBruto, montoDescuento, totalSinIvaCLP, totalConIvaCLP }) => (
                   <TableRow key={company.id}>
                     <TableCell className="font-medium">{company.nombreFantasia || company.razonSocial}</TableCell>
-                    <TableCell className="text-center">{obraCount}</TableCell>
+                    <TableCell className="text-center">{obrasBajaComplejidad} / {obrasAltaComplejidad}</TableCell>
                     <TableCell className="text-center">{userCount}</TableCell>
                     <TableCell className="text-right">{formatCurrency(subtotalBruto)}</TableCell>
                     <TableCell className="text-right text-green-600">

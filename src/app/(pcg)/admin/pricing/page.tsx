@@ -148,6 +148,12 @@ export default function AdminPricingPage() {
             <div className="space-y-2">
               <Label htmlFor="costoPorObraBajaComplejidad">Costo por Obra (Baja Complejidad)</Label>
               <Input id="costoPorObraBajaComplejidad" name="costoPorObraBajaComplejidad" type="number" value={config.costoPorObraBajaComplejidad} onChange={handleInputChange} />
+              <p className="text-xs text-muted-foreground">Obras con hasta 50 partidas en su itemizado.</p>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="costoPorObraAltaComplejidad">Costo por Obra (Alta Complejidad)</Label>
+              <Input id="costoPorObraAltaComplejidad" name="costoPorObraAltaComplejidad" type="number" value={config.costoPorObraAltaComplejidad} onChange={handleInputChange} />
+              <p className="text-xs text-muted-foreground">Obras con más de 50 partidas.</p>
             </div>
             <div className="space-y-2">
               <Label htmlFor="valorPorUsuario">Valor por Usuario Adicional</Label>
