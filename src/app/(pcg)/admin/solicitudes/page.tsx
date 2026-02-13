@@ -27,7 +27,7 @@ type ModuleActivationRequest = {
 
 type UserAccessRequest = {
   id: string;
-  companyId: string;
+  empresaId: string;
   obraId: string;
   obraNombre: string;
   directorEmail: string;
@@ -201,7 +201,7 @@ export default function AdminSolicitudesPage() {
                                         {req.status === 'pending' && (
                                             <div className="flex gap-2 justify-end">
                                                 <Button asChild size="sm">
-                                                    <Link href={`/admin/empresas/${req.companyId}/usuarios`}>
+                                                    <Link href={`/admin/empresas/${req.empresaId}/usuarios`}>
                                                         <UserPlus className="mr-2 h-4 w-4"/>
                                                         Crear Usuario
                                                     </Link>

@@ -7,7 +7,7 @@ const RequestDirectorAccessSchema = z.object({
   obraId: z.string().min(1),
   obraNombre: z.string().min(1),
   directorEmail: z.string().email(),
-  companyId: z.string().min(1), // <-- CORRECCIÓN
+  empresaId: z.string().min(1),
 });
 
 export async function POST(req: NextRequest) {
@@ -34,7 +34,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Invalid payload", details: parsed.error.flatten() }, { status: 400 });
     }
 
-    const { obraId, obraNombre, directorEmail, companyId } = parsed.data; // <-- CORRECCIÓN
+    const { obraId, obraNombre, directorEmail, empresaId } = parsed.data;
     const db = admin.firestore();
 
     // 1. Crear el documento de solicitud de acceso
@@ -44,7 +44,7 @@ export async function POST(req: NextRequest) {
       obraId,
       obraNombre,
       directorEmail,
-      companyId, // <-- CORRECCIÓN
+      empresaId,
       solicitante: {
         uid,
         nombre: name || email,
