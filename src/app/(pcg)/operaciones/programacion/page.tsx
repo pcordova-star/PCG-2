@@ -98,10 +98,12 @@ type PresupuestoItem = {
     precioUnitario: number;
 };
 type Presupuesto = {
-    id: string;
-    nombre: string;
-    fechaCreacion: Timestamp;
-    items: PresupuestoItem[];
+  id: string;
+  obraId: string;
+  nombre: string;
+  fechaCreacion: Timestamp;
+  totalPresupuesto?: number;
+  items: PresupuestoItem[];
 };
 
 
@@ -487,10 +489,13 @@ function ProgramacionPageInner() {
   useEffect(() => {
     if (!obraSeleccionadaId || !user) {
         setActividades([]);
+        setPresupuestosObra([]); // Reset budgets on obra change
         return;
     };
 
     setCargandoActividades(true);
+
+    // Fetch Activities
     const actColRef = collection(firebaseDb, "obras", obraSeleccionadaId, "actividades");
     const qAct = query(actColRef, orderBy("fechaInicio", "asc"));
     const unsubActividades = onSnapshot(qAct, (snapshot) => {
@@ -503,7 +508,22 @@ function ProgramacionPageInner() {
         setCargandoActividades(false);
     });
 
-    return () => unsubActividades();
+    // Fetch Budgets for the same obra
+    const presupuestosRef = collection(firebaseDb, "presupuestos");
+    const qPresupuestos = query(presupuestosRef, where("obraId", "==", obraSeleccionadaId), orderBy("fechaCreacion", "desc"));
+    const unsubPresupuestos = onSnapshot(qPresupuestos, (snapshot) => {
+        const presupuestosData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Presupuesto));
+        setPresupuestosObra(presupuestosData);
+    }, (err) => {
+        console.error("Error cargando presupuestos:", err);
+        // Silently fail for this background fetch, the user will be notified if they try to import
+    });
+
+
+    return () => {
+      unsubActividades();
+      unsubPresupuestos();
+    };
 }, [obraSeleccionadaId, user]);
 
 
@@ -729,18 +749,19 @@ function ProgramacionPageInner() {
     return value.toLocaleString('es-CL', { style: 'currency', currency: 'CLP', maximumFractionDigits: 0 });
   };
   
-    const handleOpenImportDialog = async () => {
+    const handleOpenImportDialog = () => {
         if (!obraSeleccionadaId) return;
-        try {
-            const q = query(collection(firebaseDb, "presupuestos"), where("obraId", "==", obraSeleccionadaId));
-            const snapshot = await getDocs(q);
-            const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Presupuesto));
-            setPresupuestosObra(data);
-            setImportDialogOpen(true);
-        } catch (error) {
-            console.error("Error fetching budgets for import:", error);
-            toast({ variant: 'destructive', title: 'Error', description: 'No se pudieron cargar los presupuestos de esta obra.' });
+
+        if (presupuestosObra.length === 0) {
+            toast({
+                variant: "destructive",
+                title: "No hay itemizados disponibles",
+                description: "No se encontraron itemizados para esta obra. Puedes crear uno desde el módulo de Presupuestos.",
+            });
+            return;
         }
+
+        setImportDialogOpen(true);
     };
     
     const handleImportarPresupuesto = async () => {
