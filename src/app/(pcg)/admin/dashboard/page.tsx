@@ -3,49 +3,20 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { useRouter } from 'next/navigation';
-import { collection, getDocs, query, where, collectionGroup, orderBy, limit } from 'firebase/firestore';
+import { collection, getDocs, query, where } from 'firebase/firestore';
 import { firebaseDb } from '@/lib/firebaseClient';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Building, HardHat, Users, Loader2, DollarSign, Settings, BellRing, UserCheck, HelpCircle } from 'lucide-react';
-import { Badge } from '@/components/ui/badge';
-import Link from 'next/link';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-
-type Obra = {
-  id: string;
-  nombreFaena: string;
-  estado?: 'Activa' | 'Terminada' | 'Pausada' | 'Inactiva';
-  creadoEn: { toDate: () => Date };
-  companyId: string;
-  companyName?: string;
-};
-
-type SummaryData = {
-  totalEmpresas: number;
-  totalObras: number;
-  totalUsuarios: number;
-};
-
-const adminCards = [
-    { title: "Empresas", href: "/admin/empresas", icon: Building, description: "Crear, editar y gestionar empresas cliente." },
-    { title: "Usuarios e Invitaciones", href: "/admin/usuarios", icon: Users, description: "Supervisar usuarios e invitaciones de la plataforma." },
-    { title: "Soporte", href: "/admin/soporte", icon: HelpCircle, description: "Gestionar tickets y solicitudes de los usuarios." },
-    { title: "Solicitudes", href: "/admin/solicitudes", icon: BellRing, description: "Revisar solicitudes de activación de módulos." },
-    { title: "Facturación", href: "/admin/facturacion", icon: DollarSign, description: "Calcular facturación estimada por empresa." },
-    { title: "Configurar Precios", href: "/admin/pricing", icon: Settings, description: "Definir los precios globales de la plataforma." },
-    { title: "Control de Acceso", href: "/control-acceso", icon: UserCheck, description: "Generar códigos QR y auditar registros." },
-]
+import { Building, Users, BellRing, DollarSign, Settings, HelpCircle, HardHat, Newspaper, Wrench } from 'lucide-react';
+import Link from 'next/link';
+import { Loader2 } from 'lucide-react';
 
 export default function AdminDashboardPage() {
   const { role, loading: authLoading } = useAuth();
   const router = useRouter();
   const isSuperAdmin = role === 'superadmin';
 
-  const [summary, setSummary] = useState<SummaryData | null>(null);
-  const [recentObras, setRecentObras] = useState<Obra[]>([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
   const [totalPendingRequests, setTotalPendingRequests] = useState(0);
 
   useEffect(() => {
@@ -58,54 +29,25 @@ export default function AdminDashboardPage() {
   useEffect(() => {
     if (!isSuperAdmin) return;
     
-    async function fetchAllData() {
+    async function fetchRequests() {
       setLoading(true);
-      setError(null);
       try {
-        const [companiesSnap, obrasSnap, usersSnap, moduleRequestsSnap, userAccessRequestsSnap] = await Promise.all([
-          getDocs(collection(firebaseDb, 'companies')),
-          getDocs(query(collectionGroup(firebaseDb, 'obras'), orderBy('creadoEn', 'desc'), limit(10))),
-          getDocs(collection(firebaseDb, 'users')),
+        const [moduleRequestsSnap, userAccessRequestsSnap] = await Promise.all([
           getDocs(query(collection(firebaseDb, 'moduleActivationRequests'), where('status', '==', 'pending'))),
           getDocs(query(collection(firebaseDb, 'userAccessRequests'), where('status', '==', 'pending')))
         ]);
-        
-        const totalEmpresas = companiesSnap.size;
-        const totalObras = await getDocs(collectionGroup(firebaseDb, 'obras')).then(snap => snap.size);
-        const totalUsuarios = usersSnap.size;
-
-        setSummary({ totalEmpresas, totalObras, totalUsuarios });
         setTotalPendingRequests(moduleRequestsSnap.size + userAccessRequestsSnap.size);
-
-        const companyMap = new Map(companiesSnap.docs.map(doc => [doc.id, doc.data().nombreFantasia || doc.data().nombre]));
-        
-        const obrasData = obrasSnap.docs.map(doc => {
-            const companyId = doc.ref.parent.parent?.id;
-            if (!companyId) return null;
-            return {
-                id: doc.id,
-                companyId: companyId,
-                companyName: companyMap.get(companyId) || 'Empresa Desconocida',
-                ...doc.data()
-            } as Obra;
-        }).filter(Boolean) as Obra[];
-
-        setRecentObras(obrasData);
-        
       } catch (err) {
-        console.error("Error fetching admin dashboard data:", err);
-        if (err instanceof Error) {
-            setError("No se pudieron cargar algunos datos. Revisa la consola para más detalles.");
-        }
+        console.error("Error fetching admin dashboard requests:", err);
       } finally {
         setLoading(false);
       }
     }
-
-    fetchAllData();
+    
+    fetchRequests();
   }, [isSuperAdmin]);
   
-  if (authLoading || !isSuperAdmin) {
+  if (authLoading || loading) {
     return (
       <div className="flex justify-center items-center h-full p-8">
         <Loader2 className="h-8 w-8 animate-spin" />
@@ -114,108 +56,90 @@ export default function AdminDashboardPage() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-8">
       <header>
         <h1 className="text-3xl font-bold">Dashboard del Superadministrador</h1>
-        <p className="text-muted-foreground">Vista general de la plataforma PCG.</p>
+        <p className="text-muted-foreground">Centro de control para la gestión de la plataforma PCG.</p>
       </header>
 
-      {error && <p className="text-sm font-medium text-destructive">{error}</p>}
-
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-        {adminCards.map(card => (
-          <Card key={card.title} className="flex flex-col relative">
-            {card.title === "Solicitudes" && totalPendingRequests > 0 && (
-                <div className="absolute -top-2 -right-2 flex h-5 w-5 items-center justify-center rounded-full bg-red-600 text-white text-xs font-bold animate-pulse z-10">
-                    {totalPendingRequests}
-                </div>
-            )}
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">{card.title}</CardTitle>
-              <card.icon className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent className="flex-grow">
-              <p className='text-xs text-muted-foreground'>{card.description}</p>
-            </CardContent>
-            <CardFooter>
-              <Button asChild className="w-full mt-2" variant="outline">
-                <Link href={card.href}>
-                  Gestionar
-                </Link>
-              </Button>
-            </CardFooter>
-          </Card>
-        ))}
-      </div>
-
-      <div className="grid gap-4 md:grid-cols-3">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        
+        {/* Columna 1: Gestión Principal */}
+        <div className="lg:col-span-2 space-y-6">
           <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Total Empresas</CardTitle>
-              <Building className="h-4 w-4 text-muted-foreground" />
+            <CardHeader>
+              <CardTitle>Gestión Principal</CardTitle>
+              <CardDescription>Administra las entidades clave de la plataforma.</CardDescription>
             </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{summary?.totalEmpresas ?? <Loader2 className='animate-spin h-6'/>}</div>
+            <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-4">
+               <Link href="/admin/empresas" className="block p-4 border rounded-lg hover:bg-muted/50 transition-colors">
+                  <div className="flex items-center gap-4"><Building className="h-8 w-8 text-primary" /><h3 className="font-semibold">Empresas</h3></div>
+                  <p className="text-sm text-muted-foreground mt-2">Crear, editar y configurar las empresas cliente y sus módulos activados.</p>
+               </Link>
+               <Link href="/admin/usuarios" className="block p-4 border rounded-lg hover:bg-muted/50 transition-colors">
+                  <div className="flex items-center gap-4"><Users className="h-8 w-8 text-primary" /><h3 className="font-semibold">Usuarios e Invitaciones</h3></div>
+                  <p className="text-sm text-muted-foreground mt-2">Supervisar todos los usuarios de la plataforma y las invitaciones pendientes.</p>
+               </Link>
+                <Link href="/admin/solicitudes" className="block p-4 border rounded-lg hover:bg-muted/50 transition-colors relative">
+                    {totalPendingRequests > 0 && (
+                        <div className="absolute top-2 right-2 flex h-5 w-5 items-center justify-center rounded-full bg-red-600 text-white text-xs font-bold animate-pulse z-10">
+                            {totalPendingRequests}
+                        </div>
+                    )}
+                  <div className="flex items-center gap-4"><BellRing className="h-8 w-8 text-primary" /><h3 className="font-semibold">Solicitudes</h3></div>
+                  <p className="text-sm text-muted-foreground mt-2">Revisar solicitudes de activación de módulos y acceso de nuevos usuarios.</p>
+               </Link>
             </CardContent>
           </Card>
+          
            <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Total Obras</CardTitle>
-              <HardHat className="h-4 w-4 text-muted-foreground" />
+            <CardHeader>
+              <CardTitle>Contenido y Plataforma</CardTitle>
+               <CardDescription>Herramientas para la gestión de datos globales y contenido.</CardDescription>
             </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{summary?.totalObras ?? <Loader2 className='animate-spin h-6'/>}</div>
-            </CardContent>
-          </Card>
-           <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Total Usuarios</CardTitle>
-              <Users className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{summary?.totalUsuarios ?? <Loader2 className='animate-spin h-6'/>}</div>
+            <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-4">
+               <Link href="/admin/obras" className="block p-4 border rounded-lg hover:bg-muted/50 transition-colors">
+                  <div className="flex items-center gap-4"><HardHat className="h-8 w-8 text-primary" /><h3 className="font-semibold">Ver Todas las Obras</h3></div>
+                   <p className="text-sm text-muted-foreground mt-2">Panel de supervisión para ver y gestionar todas las obras de todas las empresas.</p>
+               </Link>
+               <div className="block p-4 border rounded-lg bg-slate-50 text-muted-foreground cursor-not-allowed">
+                  <div className="flex items-center gap-4"><Newspaper className="h-8 w-8" /><h3 className="font-semibold text-slate-500">Ingresar Noticia (IA)</h3></div>
+                   <p className="text-sm mt-2">Próximamente: Formulario para añadir noticias del sector y que la IA genere alertas.</p>
+               </div>
             </CardContent>
           </Card>
         </div>
 
-      <Card>
-        <CardHeader className='flex-row justify-between items-center'>
-          <CardTitle>Obras Recientes</CardTitle>
-          <Button asChild variant="outline" size="sm">
-            <Link href="/admin/obras">Ver Todas las Obras</Link>
-          </Button>
-        </CardHeader>
-        <CardContent>
-          <div className="overflow-x-auto">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Nombre Obra</TableHead>
-                  <TableHead>Empresa</TableHead>
-                  <TableHead>Estado</TableHead>
-                  <TableHead>Creada En</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {loading ? (
-                  <TableRow><TableCell colSpan={4} className="text-center h-24"><Loader2 className="animate-spin mx-auto"/></TableCell></TableRow>
-                ) : recentObras.length === 0 ? (
-                  <TableRow><TableCell colSpan={4} className="text-center h-24">No hay obras recientes.</TableCell></TableRow>
-                ) : (
-                  recentObras.map((obra) => (
-                    <TableRow key={obra.id}>
-                      <TableCell className="font-medium">{obra.nombreFaena}</TableCell>
-                      <TableCell>{obra.companyName}</TableCell>
-                      <TableCell><Badge variant={obra.estado === 'Activa' ? 'default' : 'secondary'}>{obra.estado || 'No definido'}</Badge></TableCell>
-                      <TableCell>{obra.creadoEn ? obra.creadoEn.toDate().toLocaleDateString() : 'N/A'}</TableCell>
-                    </TableRow>
-                  ))
-                )}
-              </TableBody>
-            </Table>
-          </div>
-        </CardContent>
-      </Card>
+        {/* Columna 2: Configuración y Soporte */}
+        <div className="space-y-6">
+            <Card>
+                <CardHeader>
+                  <CardTitle>Configuración</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-2">
+                     <Button asChild variant="outline" className="w-full justify-start text-left h-auto py-2">
+                        <Link href="/admin/pricing"><Settings className="mr-2 h-4 w-4"/><div><p>Configurar Precios</p><p className="text-xs text-muted-foreground">Define los precios de planes y módulos.</p></div></Link>
+                    </Button>
+                    <Button asChild variant="outline" className="w-full justify-start text-left h-auto py-2">
+                        <Link href="/admin/facturacion"><DollarSign className="mr-2 h-4 w-4"/><div><p>Facturación</p><p className="text-xs text-muted-foreground">Calcula facturación estimada por empresa.</p></div></Link>
+                    </Button>
+                </CardContent>
+            </Card>
+            <Card>
+                <CardHeader>
+                  <CardTitle>Soporte y Herramientas</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-2">
+                     <Button asChild variant="outline" className="w-full justify-start text-left h-auto py-2">
+                        <Link href="/admin/soporte"><HelpCircle className="mr-2 h-4 w-4"/><div><p>Tickets de Soporte</p><p className="text-xs text-muted-foreground">Gestiona tickets de usuarios.</p></div></Link>
+                    </Button>
+                    <Button asChild variant="outline" className="w-full justify-start text-left h-auto py-2">
+                        <Link href="/admin/debug/set-claim"><Wrench className="mr-2 h-4 w-4"/><div><p>Debug: Asignar Claims</p><p className="text-xs text-muted-foreground">Herramienta para asignar roles manualmente.</p></div></Link>
+                    </Button>
+                </CardContent>
+            </Card>
+        </div>
+      </div>
     </div>
   );
 }
