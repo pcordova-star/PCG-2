@@ -7,7 +7,7 @@ import { collection, getDocs, query, where, collectionGroup, orderBy, limit } fr
 import { firebaseDb } from '@/lib/firebaseClient';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Building, HardHat, Users, Loader2, DollarSign, Settings, BellRing, UserCheck } from 'lucide-react';
+import { Building, HardHat, Users, Loader2, DollarSign, Settings, BellRing, UserCheck, HelpCircle } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
@@ -30,6 +30,7 @@ type SummaryData = {
 const adminCards = [
     { title: "Empresas", href: "/admin/empresas", icon: Building, description: "Crear, editar y gestionar empresas cliente." },
     { title: "Usuarios", href: "/admin/usuarios", icon: Users, description: "Invitar y administrar usuarios por empresa." },
+    { title: "Soporte", href: "/admin/soporte", icon: HelpCircle, description: "Gestionar tickets y solicitudes de los usuarios." },
     { title: "Solicitudes", href: "/admin/solicitudes", icon: BellRing, description: "Revisar solicitudes de activación de módulos." },
     { title: "Facturación", href: "/admin/facturacion", icon: DollarSign, description: "Calcular facturación estimada por empresa." },
     { title: "Configurar Precios", href: "/admin/pricing", icon: Settings, description: "Definir los precios globales de la plataforma." },
