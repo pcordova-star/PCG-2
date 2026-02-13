@@ -67,17 +67,20 @@ export default function TicketDetailPage() {
         try {
             const ticketRef = doc(firebaseDb, 'supportTickets', ticketId as string);
             
+            const newHistoryEntry = {
+                author: 'support',
+                message: respuesta,
+                timestamp: Timestamp.now(), // Usar el Timestamp del cliente aquí
+                userId: user?.uid,
+                userName: 'Soporte PCG',
+            };
+
             await updateDoc(ticketRef, {
                 status: newStatus,
                 updatedAt: serverTimestamp(),
-                history: arrayUnion({
-                    author: 'support',
-                    message: respuesta,
-                    timestamp: Timestamp.now(),
-                    userId: user?.uid,
-                    userName: 'Soporte PCG',
-                })
+                history: arrayUnion(newHistoryEntry)
             });
+
 
             // Lógica para enviar email de notificación al usuario
             await addDoc(collection(firebaseDb, "mail"), {
@@ -139,13 +142,15 @@ export default function TicketDetailPage() {
                 <CardContent className="space-y-4">
                      <p className="whitespace-pre-wrap p-4 bg-muted/50 rounded-md border">{ticket.description}</p>
                      {ticket.adjuntoUrl && (
-                        <div>
+                        <div className="space-y-2">
                             <Label className="font-semibold">Archivo Adjunto</Label>
-                            <a href={ticket.adjuntoUrl} target="_blank" rel="noopener noreferrer" className="block mt-2 border rounded-md p-2 hover:bg-muted transition-colors">
-                                <div className="relative w-full max-w-xs aspect-video">
-                                     <Image src={ticket.adjuntoUrl} alt="Adjunto del ticket" layout="fill" objectFit="contain" />
+                            <a href={ticket.adjuntoUrl} target="_blank" rel="noopener noreferrer" className="block border rounded-lg overflow-hidden group relative hover:shadow-lg transition-shadow">
+                                <div className="relative w-full aspect-video bg-muted">
+                                    <Image src={ticket.adjuntoUrl} alt="Adjunto del ticket" layout="fill" objectFit="contain" className="transition-transform group-hover:scale-105" />
                                 </div>
-                               <p className="text-xs text-muted-foreground mt-2 flex items-center gap-1"><Paperclip className="h-3 w-3" /> Ver adjunto en tamaño completo</p>
+                                <div className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                                    <p className="text-white font-semibold">Ver en tamaño completo</p>
+                                </div>
                             </a>
                         </div>
                      )}
