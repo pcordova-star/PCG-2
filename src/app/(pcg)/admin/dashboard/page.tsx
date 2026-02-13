@@ -102,10 +102,10 @@ export default function AdminDashboardPage() {
                   <div className="flex items-center gap-4"><HardHat className="h-8 w-8 text-primary" /><h3 className="font-semibold">Ver Todas las Obras</h3></div>
                    <p className="text-sm text-muted-foreground mt-2">Panel de supervisión para ver y gestionar todas las obras de todas las empresas.</p>
                </Link>
-               <div className="block p-4 border rounded-lg bg-slate-50 text-muted-foreground cursor-not-allowed">
-                  <div className="flex items-center gap-4"><Newspaper className="h-8 w-8" /><h3 className="font-semibold text-slate-500">Ingresar Noticia (IA)</h3></div>
-                   <p className="text-sm mt-2">Próximamente: Formulario para añadir noticias del sector y que la IA genere alertas.</p>
-               </div>
+               <Link href="/admin/noticias/ingresar" className="block p-4 border rounded-lg hover:bg-muted/50 transition-colors">
+                  <div className="flex items-center gap-4"><Newspaper className="h-8 w-8 text-primary" /><h3 className="font-semibold">Ingresar Noticia (IA)</h3></div>
+                  <p className="text-sm text-muted-foreground mt-2">Formulario para añadir noticias del sector y que la IA genere alertas contextuales.</p>
+               </Link>
             </CardContent>
           </Card>
         </div>
