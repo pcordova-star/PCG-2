@@ -1,3 +1,4 @@
+
 'use client';
 
 import React, { useState, useEffect } from 'react';
@@ -27,7 +28,8 @@ type ModuleActivationRequest = {
 
 type UserAccessRequest = {
   id: string;
-  empresaId: string;
+  empresaId?: string; // Correct new field
+  companyId?: string; // Old field for backwards compatibility
   obraId: string;
   obraNombre: string;
   directorEmail: string;
@@ -190,7 +192,9 @@ export default function AdminSolicitudesPage() {
                          <TableBody>
                             {loading ? <TableRow><TableCell colSpan={6} className="text-center h-24"><Loader2 className="animate-spin mx-auto"/></TableCell></TableRow>
                             : userAccessRequests.length === 0 ? <TableRow><TableCell colSpan={6} className="text-center h-24">No hay solicitudes de acceso.</TableCell></TableRow>
-                            : userAccessRequests.map((req) => (
+                            : userAccessRequests.map((req) => {
+                                const finalCompanyId = req.empresaId || req.companyId;
+                                return (
                                 <TableRow key={req.id}>
                                     <TableCell className="font-medium">{req.obraNombre}</TableCell>
                                     <TableCell>{req.directorEmail}</TableCell>
@@ -198,10 +202,10 @@ export default function AdminSolicitudesPage() {
                                     <TableCell>{req.createdAt.toDate().toLocaleDateString('es-CL')}</TableCell>
                                     <TableCell><Badge variant={req.status === 'pending' ? 'secondary' : 'outline'}>{req.status}</Badge></TableCell>
                                     <TableCell className="text-right">
-                                        {req.status === 'pending' && (
+                                        {req.status === 'pending' && finalCompanyId && (
                                             <div className="flex gap-2 justify-end">
                                                 <Button asChild size="sm">
-                                                    <Link href={`/admin/empresas/${req.empresaId}/usuarios`}>
+                                                    <Link href={`/admin/empresas/${finalCompanyId}/usuarios`}>
                                                         <UserPlus className="mr-2 h-4 w-4"/>
                                                         Crear Usuario
                                                     </Link>
@@ -214,7 +218,7 @@ export default function AdminSolicitudesPage() {
                                         )}
                                     </TableCell>
                                 </TableRow>
-                            ))}
+                            )})}
                          </TableBody>
                      </Table>
                 </CardContent>
