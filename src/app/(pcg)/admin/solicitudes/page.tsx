@@ -4,16 +4,17 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { useRouter } from 'next/navigation';
-import { collection, getDocs, query, orderBy, Timestamp, doc, updateDoc, where } from 'firebase/firestore';
+import { collection, getDocs, query, orderBy, Timestamp, doc, updateDoc } from 'firebase/firestore';
 import { firebaseDb } from '@/lib/firebaseClient';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Loader2, ArrowLeft, UserPlus, Archive } from 'lucide-react';
+import { Loader2, ArrowLeft, UserPlus, XCircle, Trash2 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
+
 
 type ModuleActivationRequest = {
   id: string;
@@ -39,7 +40,7 @@ type UserAccessRequest = {
     email: string;
   };
   createdAt: Timestamp;
-  status: 'pending' | 'approved' | 'archived';
+  status: 'pending' | 'approved' | 'rejected';
 };
 
 export default function AdminSolicitudesPage() {
@@ -109,18 +110,19 @@ export default function AdminSolicitudesPage() {
       }
   }
 
-  const handleArchiveUserRequest = async (requestId: string) => {
+  const handleUpdateUserRequestStatus = async (requestId: string, status: 'rejected') => {
     try {
         const requestRef = doc(firebaseDb, 'userAccessRequests', requestId);
-        await updateDoc(requestRef, { status: 'archived' });
-        setUserAccessRequests(prev => prev.map(req => req.id === requestId ? { ...req, status: 'archived' } : req));
-        toast({ title: 'Solicitud archivada'});
+        await updateDoc(requestRef, { status });
+        setUserAccessRequests(prev => prev.map(req => req.id === requestId ? { ...req, status } : req));
+        toast({ title: 'Solicitud Actualizada', description: `La solicitud ha sido marcada como ${status}.`});
     } catch(err) {
-        toast({ variant: 'destructive', title: 'Error', description: 'No se pudo archivar la solicitud.' });
+        toast({ variant: 'destructive', title: 'Error', description: 'No se pudo actualizar la solicitud.' });
     }
   }
 
   const pendingUserRequests = userAccessRequests.filter(r => r.status === 'pending').length;
+  const pendingModuleRequests = moduleRequests.filter(r => r.status === 'pending').length;
 
   return (
     <div className="space-y-6">
@@ -132,100 +134,106 @@ export default function AdminSolicitudesPage() {
         <p className="text-muted-foreground">Revisa y gestiona las solicitudes de nuevos módulos y acceso de usuarios.</p>
       </header>
 
-      <Tabs defaultValue="modulos">
-        <TabsList>
-            <TabsTrigger value="modulos">Activación de Módulos</TabsTrigger>
-            <TabsTrigger value="usuarios">
-                Acceso de Usuarios
-                {pendingUserRequests > 0 && (
-                    <Badge className="ml-2 animate-pulse">{pendingUserRequests}</Badge>
-                )}
-            </TabsTrigger>
-        </TabsList>
-        <TabsContent value="modulos">
-            <Card>
-                <CardHeader>
-                <CardTitle>Solicitudes de Módulos</CardTitle>
-                <CardDescription>{loading ? 'Cargando...' : `Mostrando ${moduleRequests.length} solicitudes.`}</CardDescription>
-                </CardHeader>
-                <CardContent>
-                <Table>
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-start">
+        <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                Solicitudes de Activación de Módulos
+                {pendingModuleRequests > 0 && <Badge className="animate-pulse">{pendingModuleRequests}</Badge>}
+              </CardTitle>
+            <CardDescription>{loading ? 'Cargando...' : `Mostrando ${moduleRequests.length} solicitudes.`}</CardDescription>
+            </CardHeader>
+            <CardContent>
+            <Table>
+                <TableHeader>
+                    <TableRow><TableHead>Empresa</TableHead><TableHead>Módulo</TableHead><TableHead>Estado</TableHead><TableHead className="text-right">Acciones</TableHead></TableRow>
+                </TableHeader>
+                <TableBody>
+                {loading ? <TableRow><TableCell colSpan={4} className="text-center h-24"><Loader2 className="animate-spin mx-auto"/></TableCell></TableRow>
+                : moduleRequests.length === 0 ? <TableRow><TableCell colSpan={4} className="text-center h-24">No hay solicitudes de módulos.</TableCell></TableRow>
+                : moduleRequests.map((req) => (
+                    <TableRow key={req.id}>
+                    <TableCell className="font-medium">{req.companyName}</TableCell>
+                    <TableCell>{req.moduleTitle}</TableCell>
+                    <TableCell><Badge variant={req.status === 'pending' ? 'secondary' : (req.status === 'approved' ? 'default' : 'destructive')}>{req.status}</Badge></TableCell>
+                    <TableCell className="text-right">
+                        {req.status === 'pending' && (
+                        <div className="flex gap-2 justify-end">
+                            <Button size="sm" onClick={() => handleUpdateModuleStatus(req.id, req.companyId, req.moduleId, 'approved')}>Aprobar</Button>
+                            <Button size="sm" variant="destructive" onClick={() => handleUpdateModuleStatus(req.id, req.companyId, req.moduleId, 'rejected')}>Rechazar</Button>
+                        </div>
+                        )}
+                    </TableCell>
+                    </TableRow>
+                ))}
+                </TableBody>
+            </Table>
+            </CardContent>
+        </Card>
+        
+        <Card>
+            <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                    Solicitudes de Acceso para Directores
+                    {pendingUserRequests > 0 && <Badge className="animate-pulse">{pendingUserRequests}</Badge>}
+                </CardTitle>
+                <CardDescription>Crea las cuentas de usuario para los directores que han sido invitados a una obra.</CardDescription>
+            </CardHeader>
+            <CardContent>
+                 <Table>
                     <TableHeader>
-                        <TableRow><TableHead>Empresa</TableHead><TableHead>Módulo Solicitado</TableHead><TableHead>Solicitado Por</TableHead><TableHead>Fecha</TableHead><TableHead>Estado</TableHead><TableHead className="text-right">Acciones</TableHead></TableRow>
+                        <TableRow><TableHead>Obra</TableHead><TableHead>Email del Director</TableHead><TableHead>Estado</TableHead><TableHead className="text-right">Acciones</TableHead></TableRow>
                     </TableHeader>
-                    <TableBody>
-                    {loading ? <TableRow><TableCell colSpan={6} className="text-center h-24"><Loader2 className="animate-spin mx-auto"/></TableCell></TableRow>
-                    : moduleRequests.length === 0 ? <TableRow><TableCell colSpan={6} className="text-center h-24">No hay solicitudes de módulos.</TableCell></TableRow>
-                    : moduleRequests.map((req) => (
-                        <TableRow key={req.id}>
-                        <TableCell className="font-medium">{req.companyName}</TableCell>
-                        <TableCell>{req.moduleTitle}</TableCell>
-                        <TableCell>{req.requestedByUserName}</TableCell>
-                        <TableCell>{req.requestedAt.toDate().toLocaleDateString('es-CL')}</TableCell>
-                        <TableCell><Badge variant={req.status === 'pending' ? 'secondary' : (req.status === 'approved' ? 'default' : 'destructive')}>{req.status}</Badge></TableCell>
-                        <TableCell className="text-right">
-                            {req.status === 'pending' && (
-                            <div className="flex gap-2 justify-end">
-                                <Button size="sm" onClick={() => handleUpdateModuleStatus(req.id, req.companyId, req.moduleId, 'approved')}>Aprobar</Button>
-                                <Button size="sm" variant="destructive" onClick={() => handleUpdateModuleStatus(req.id, req.companyId, req.moduleId, 'rejected')}>Rechazar</Button>
-                            </div>
-                            )}
-                        </TableCell>
-                        </TableRow>
-                    ))}
-                    </TableBody>
-                </Table>
-                </CardContent>
-            </Card>
-        </TabsContent>
-         <TabsContent value="usuarios">
-            <Card>
-                <CardHeader>
-                    <CardTitle>Solicitudes de Acceso para Directores</CardTitle>
-                    <CardDescription>Crea las cuentas de usuario para los directores que han sido invitados a una obra.</CardDescription>
-                </CardHeader>
-                <CardContent>
-                     <Table>
-                        <TableHeader>
-                            <TableRow><TableHead>Obra</TableHead><TableHead>Email del Director</TableHead><TableHead>Solicitado por</TableHead><TableHead>Fecha</TableHead><TableHead>Estado</TableHead><TableHead className="text-right">Acciones</TableHead></TableRow>
-                        </TableHeader>
-                         <TableBody>
-                            {loading ? <TableRow><TableCell colSpan={6} className="text-center h-24"><Loader2 className="animate-spin mx-auto"/></TableCell></TableRow>
-                            : userAccessRequests.length === 0 ? <TableRow><TableCell colSpan={6} className="text-center h-24">No hay solicitudes de acceso.</TableCell></TableRow>
-                            : userAccessRequests.map((req) => {
-                                // FIX: Use empresaId first (new correct field), fallback to companyId (old incorrect field)
-                                const finalCompanyId = req.empresaId || req.companyId;
-                                return (
-                                <TableRow key={req.id}>
-                                    <TableCell className="font-medium">{req.obraNombre}</TableCell>
-                                    <TableCell>{req.directorEmail}</TableCell>
-                                    <TableCell>{req.solicitante.nombre}</TableCell>
-                                    <TableCell>{req.createdAt.toDate().toLocaleDateString('es-CL')}</TableCell>
-                                    <TableCell><Badge variant={req.status === 'pending' ? 'secondary' : (req.status === 'approved' ? 'default' : 'outline')}>{req.status}</Badge></TableCell>
-                                    <TableCell className="text-right">
-                                        {req.status === 'pending' && finalCompanyId && (
-                                            <div className="flex gap-2 justify-end">
-                                                <Button asChild size="sm">
-                                                    <Link href={`/admin/empresas/${finalCompanyId}/usuarios?email=${encodeURIComponent(req.directorEmail)}&requestId=${req.id}`}>
-                                                        <UserPlus className="mr-2 h-4 w-4"/>
-                                                        Gestionar Creación
-                                                    </Link>
-                                                </Button>
-                                                <Button variant="outline" size="sm" onClick={() => handleArchiveUserRequest(req.id)}>
-                                                    <Archive className="mr-2 h-4 w-4" />
-                                                    Archivar
-                                                </Button>
-                                            </div>
-                                        )}
-                                    </TableCell>
-                                </TableRow>
-                            )})}
-                         </TableBody>
-                     </Table>
-                </CardContent>
-            </Card>
-        </TabsContent>
-      </Tabs>
+                     <TableBody>
+                        {loading ? <TableRow><TableCell colSpan={4} className="text-center h-24"><Loader2 className="animate-spin mx-auto"/></TableCell></TableRow>
+                        : userAccessRequests.length === 0 ? <TableRow><TableCell colSpan={4} className="text-center h-24">No hay solicitudes de acceso.</TableCell></TableRow>
+                        : userAccessRequests.map((req) => {
+                            const finalCompanyId = req.empresaId || req.companyId;
+                            return (
+                            <TableRow key={req.id}>
+                                <TableCell className="font-medium">{req.obraNombre}</TableCell>
+                                <TableCell>{req.directorEmail}</TableCell>
+                                <TableCell><Badge variant={req.status === 'pending' ? 'secondary' : (req.status === 'approved' ? 'default' : 'destructive')}>{req.status}</Badge></TableCell>
+                                <TableCell className="text-right">
+                                    {req.status === 'pending' && finalCompanyId && (
+                                        <div className="flex gap-2 justify-end">
+                                            <Button asChild size="sm">
+                                                <Link href={`/admin/empresas/${finalCompanyId}/usuarios?email=${encodeURIComponent(req.directorEmail)}&requestId=${req.id}`}>
+                                                    <UserPlus className="mr-2 h-4 w-4"/>
+                                                    Gestionar Creación
+                                                </Link>
+                                            </Button>
+                                            <AlertDialog>
+                                                <AlertDialogTrigger asChild>
+                                                    <Button variant="destructive" size="sm">
+                                                        <XCircle className="mr-2 h-4 w-4" />
+                                                        Rechazar
+                                                    </Button>
+                                                </AlertDialogTrigger>
+                                                <AlertDialogContent>
+                                                    <AlertDialogHeader>
+                                                        <AlertDialogTitle>¿Rechazar esta solicitud?</AlertDialogTitle>
+                                                        <AlertDialogDescription>
+                                                          Esta acción marcará la solicitud como rechazada y no se podrá gestionar. Esta acción no se puede deshacer.
+                                                        </AlertDialogDescription>
+                                                    </AlertDialogHeader>
+                                                    <AlertDialogFooter>
+                                                        <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                                                        <AlertDialogAction onClick={() => handleUpdateUserRequestStatus(req.id, 'rejected')}>Confirmar Rechazo</AlertDialogAction>
+                                                    </AlertDialogFooter>
+                                                </AlertDialogContent>
+                                            </AlertDialog>
+                                        </div>
+                                    )}
+                                </TableCell>
+                            </TableRow>
+                        )})}
+                     </TableBody>
+                 </Table>
+            </CardContent>
+        </Card>
+      </div>
     </div>
   );
 }
+
