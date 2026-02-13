@@ -29,7 +29,7 @@ type SummaryData = {
 
 const adminCards = [
     { title: "Empresas", href: "/admin/empresas", icon: Building, description: "Crear, editar y gestionar empresas cliente." },
-    { title: "Usuarios", href: "/admin/usuarios", icon: Users, description: "Invitar y administrar usuarios por empresa." },
+    { title: "Usuarios e Invitaciones", href: "/admin/usuarios", icon: Users, description: "Supervisar usuarios e invitaciones de la plataforma." },
     { title: "Soporte", href: "/admin/soporte", icon: HelpCircle, description: "Gestionar tickets y solicitudes de los usuarios." },
     { title: "Solicitudes", href: "/admin/solicitudes", icon: BellRing, description: "Revisar solicitudes de activación de módulos." },
     { title: "Facturación", href: "/admin/facturacion", icon: DollarSign, description: "Calcular facturación estimada por empresa." },

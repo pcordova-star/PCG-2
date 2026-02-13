@@ -20,8 +20,6 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { Checkbox } from '@/components/ui/checkbox';
 
-// Feature flag local para deshabilitar el formulario de invitación global.
-const ENABLE_GLOBAL_INVITES = false;
 
 export default function AdminUsuariosPage() {
     const { role, loading: authLoading } = useAuth();
@@ -157,32 +155,30 @@ export default function AdminUsuariosPage() {
                         <Link href="/admin/dashboard"><ArrowLeft className="mr-2 h-4 w-4" />Volver al Dashboard</Link>
                     </Button>
                     <div>
-                        <h1 className="text-2xl font-bold">Supervisión de Invitaciones</h1>
+                        <h1 className="text-2xl font-bold">Supervisión de Usuarios e Invitaciones</h1>
                         <p className="text-muted-foreground">Supervisa y gestiona invitaciones (sin crear usuarios desde aquí).</p>
                     </div>
                 </div>
             </header>
 
-            {!ENABLE_GLOBAL_INVITES && (
-                 <Card className="bg-blue-50 border-blue-200">
-                    <CardHeader className="flex flex-row items-center gap-4">
-                        <Info className="h-6 w-6 text-blue-600"/>
-                        <div>
-                            <CardTitle className="text-blue-900">Gestión de Usuarios Centralizada</CardTitle>
-                            <CardDescription className="text-blue-700">
-                                La creación de usuarios se realiza solo desde: Admin &gt; Empresas &gt; Usuarios.
-                            </CardDescription>
-                        </div>
-                    </CardHeader>
-                    <CardContent>
-                         <Button asChild>
-                            <Link href="/admin/empresas">
-                                Ir a Gestión de Empresas
-                            </Link>
-                        </Button>
-                    </CardContent>
-                </Card>
-            )}
+            <Card className="bg-blue-50 border-blue-200">
+                <CardHeader className="flex flex-row items-center gap-4">
+                    <Info className="h-6 w-6 text-blue-600"/>
+                    <div>
+                        <CardTitle className="text-blue-900">Gestión de Usuarios Centralizada</CardTitle>
+                        <CardDescription className="text-blue-700">
+                            La creación de usuarios se realiza solo desde: Admin &gt; Empresas &gt; Usuarios.
+                        </CardDescription>
+                    </div>
+                </CardHeader>
+                <CardContent>
+                     <Button asChild>
+                        <Link href="/admin/empresas">
+                            Ir a Gestión de Empresas
+                        </Link>
+                    </Button>
+                </CardContent>
+            </Card>
 
             <Card>
                 <CardHeader>
