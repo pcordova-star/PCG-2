@@ -5,7 +5,7 @@ import React, { useState, useEffect, FormEvent } from 'react';
 import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -19,6 +19,8 @@ import { firebaseDb } from '@/lib/firebaseClient';
 import { Company } from '@/types/pcg';
 import { useAuth } from '@/context/AuthContext';
 import { useToast } from '@/hooks/use-toast';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Textarea } from '@/components/ui/textarea';
 
 async function deleteSubcollection(db: any, collectionPath: string) {
     const collectionRef = collection(db, collectionPath);
@@ -99,33 +101,56 @@ export default function AdminEmpresasPage() {
     }, [isSuperAdmin]);
 
     const handleOpenDialog = (company: Partial<Company> | null = null) => {
-        setCurrentCompany(company || { 
-            nombreFantasia: '', 
-            razonSocial: '', 
-            rut: '', 
-            activa: true, 
-            baseMensual: 100000, 
-            valorPorUsuario: 35000, 
-            feature_compliance_module_enabled: false,
-            feature_plan_analysis_enabled: false,
-            feature_plan_comparison_enabled: false,
-            feature_risk_prevention_enabled: false,
-            feature_operational_checklists_enabled: false,
-            feature_document_control_enabled: false,
-            feature_access_control_enabled: false,
-            feature_director_dashboard_enabled: false,
-        });
+        let initialState: Partial<Company>;
+        if (company) {
+            let endDateString: any = company.trialEndDate;
+            if (endDateString && endDateString.toDate) { // Is a Firestore Timestamp
+                endDateString = endDateString.toDate().toISOString().slice(0, 10);
+            } else if (endDateString instanceof Date) {
+                endDateString = endDateString.toISOString().slice(0, 10);
+            }
+            initialState = { ...company, trialEndDate: endDateString };
+        } else {
+            initialState = { 
+                nombreFantasia: '', 
+                razonSocial: '', 
+                rut: '', 
+                activa: true, 
+                baseMensual: 100000, 
+                valorPorUsuario: 35000,
+                planTipo: 'pagado',
+                trialEndDate: null,
+                descuentoTipo: null,
+                descuentoValor: 0,
+                descuentoDescripcion: '',
+                feature_compliance_module_enabled: false,
+                feature_plan_analysis_enabled: false,
+                feature_plan_comparison_enabled: false,
+                feature_risk_prevention_enabled: false,
+                feature_operational_checklists_enabled: false,
+                feature_document_control_enabled: false,
+                feature_access_control_enabled: false,
+                feature_director_dashboard_enabled: false,
+            };
+        }
+        setCurrentCompany(initialState);
         setDialogOpen(true);
         setError(null);
     };
 
-    const handleFormChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const handleFormChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
         if (currentCompany) {
             const { name, value, type, checked } = e.target;
             const finalValue = type === 'checkbox' ? checked : (type === 'number' ? Number(value) : value);
             setCurrentCompany({ ...currentCompany, [name]: finalValue });
         }
     };
+
+    const handleSelectChange = (name: string, value: string | null) => {
+        if (currentCompany) {
+            setCurrentCompany({ ...currentCompany, [name]: value });
+        }
+    }
     
     const handleSubmit = async (e: FormEvent) => {
         e.preventDefault();
@@ -141,6 +166,11 @@ export default function AdminEmpresasPage() {
             ...currentCompany,
             baseMensual: currentCompany.baseMensual || 100000,
             valorPorUsuario: currentCompany.valorPorUsuario || 35000,
+            planTipo: currentCompany.planTipo || 'pagado',
+            trialEndDate: currentCompany.trialEndDate ? new Date(currentCompany.trialEndDate as string) : null,
+            descuentoTipo: currentCompany.descuentoTipo || null,
+            descuentoValor: currentCompany.descuentoValor || 0,
+            descuentoDescripcion: currentCompany.descuentoDescripcion || '',
             feature_compliance_module_enabled: currentCompany.feature_compliance_module_enabled || false,
             feature_plan_analysis_enabled: currentCompany.feature_plan_analysis_enabled || false,
             feature_plan_comparison_enabled: currentCompany.feature_plan_comparison_enabled || false,
@@ -233,171 +263,170 @@ export default function AdminEmpresasPage() {
                     <CardTitle>Empresas Registradas</CardTitle>
                 </CardHeader>
                 <CardContent>
-                    <Table>
-                        <TableHeader>
-                            <TableRow>
-                                <TableHead>Nombre Fantasía</TableHead>
-                                <TableHead>RUT</TableHead>
-                                <TableHead>Subcontratos</TableHead>
-                                <TableHead>M. Cumplimiento</TableHead>
-                                <TableHead>M. Análisis IA</TableHead>
-                                <TableHead>M. Comparación IA</TableHead>
-                                <TableHead>M. Prevención</TableHead>
-                                <TableHead>M. Checklists</TableHead>
-                                <TableHead>M. Documental</TableHead>
-                                <TableHead>M. Acceso</TableHead>
-                                <TableHead>M. Acceso Director</TableHead>
-                                <TableHead className="text-right">Acciones</TableHead>
-                            </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                            {loading ? (
-                                <TableRow><TableCell colSpan={12} className="text-center h-24">Cargando empresas...</TableCell></TableRow>
-                            ) : empresas.map((emp) => (
-                                <TableRow key={emp.id}>
-                                    <TableCell className="font-medium">{emp.nombreFantasia}</TableCell>
-                                    <TableCell>{emp.rut}</TableCell>
-                                    <TableCell className="font-medium text-center">{emp.subcontractorCount}</TableCell>
-                                    <TableCell>
-                                        <Badge variant={emp.feature_compliance_module_enabled ? 'default' : 'outline'}>
-                                            {emp.feature_compliance_module_enabled ? 'On' : 'Off'}
-                                        </Badge>
-                                    </TableCell>
-                                    <TableCell>
-                                        <Badge variant={emp.feature_plan_analysis_enabled ? 'default' : 'outline'}>
-                                            {emp.feature_plan_analysis_enabled ? 'On' : 'Off'}
-                                        </Badge>
-                                    </TableCell>
-                                    <TableCell>
-                                        <Badge variant={emp.feature_plan_comparison_enabled ? 'default' : 'outline'}>
-                                            {emp.feature_plan_comparison_enabled ? 'On' : 'Off'}
-                                        </Badge>
-                                    </TableCell>
-                                    <TableCell>
-                                        <Badge variant={emp.feature_risk_prevention_enabled ? 'default' : 'outline'}>
-                                            {emp.feature_risk_prevention_enabled ? 'On' : 'Off'}
-                                        </Badge>
-                                    </TableCell>
-                                    <TableCell>
-                                        <Badge variant={emp.feature_operational_checklists_enabled ? 'default' : 'outline'}>
-                                            {emp.feature_operational_checklists_enabled ? 'On' : 'Off'}
-                                        </Badge>
-                                    </TableCell>
-                                    <TableCell>
-                                        <Badge variant={emp.feature_document_control_enabled ? 'default' : 'outline'}>
-                                            {emp.feature_document_control_enabled ? 'On' : 'Off'}
-                                        </Badge>
-                                    </TableCell>
-                                    <TableCell>
-                                        <Badge variant={emp.feature_access_control_enabled ? 'default' : 'outline'}>
-                                            {emp.feature_access_control_enabled ? 'On' : 'Off'}
-                                        </Badge>
-                                    </TableCell>
-                                    <TableCell>
-                                        <Badge variant={emp.feature_director_dashboard_enabled ? 'default' : 'outline'}>
-                                            {emp.feature_director_dashboard_enabled ? 'On' : 'Off'}
-                                        </Badge>
-                                    </TableCell>
-                                    <TableCell className="text-right">
-                                        <div className="flex gap-2 justify-end">
-                                            <Button variant="outline" size="sm" asChild>
-                                                <Link href={`/admin/empresas/${emp.id}/usuarios`}>
-                                                    Ver usuarios
-                                                </Link>
-                                            </Button>
-                                            <Button variant="ghost" size="icon" onClick={() => handleOpenDialog(emp)}>
-                                                <Edit className="h-4 w-4" />
-                                            </Button>
-                                            <AlertDialog>
-                                                <AlertDialogTrigger asChild>
-                                                    <Button variant="ghost" size="icon" className="text-destructive hover:text-destructive">
-                                                        <Trash2 className="h-4 w-4" />
-                                                    </Button>
-                                                </AlertDialogTrigger>
-                                                <AlertDialogContent>
-                                                    <AlertDialogHeader>
-                                                        <AlertDialogTitle>¿Eliminar empresa?</AlertDialogTitle>
-                                                        <AlertDialogDescription>
-                                                            Esta acción no se puede deshacer. Se eliminará permanentemente la empresa &quot;{emp.nombreFantasia}&quot; y todos sus datos asociados (usuarios, obras, etc.).
-                                                        </AlertDialogDescription>
-                                                    </AlertDialogHeader>
-                                                    <AlertDialogFooter>
-                                                        <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                                                        <AlertDialogAction onClick={() => handleDelete(emp.id!)} className="bg-destructive hover:bg-destructive/90">
-                                                            Eliminar Permanentemente
-                                                        </AlertDialogAction>
-                                                    </AlertDialogFooter>
-                                                </AlertDialogContent>
-                                            </AlertDialog>
-                                        </div>
-                                    </TableCell>
+                    <div className="overflow-x-auto">
+                        <Table>
+                            <TableHeader>
+                                <TableRow>
+                                    <TableHead>Nombre Fantasía</TableHead>
+                                    <TableHead>RUT</TableHead>
+                                    <TableHead>Plan</TableHead>
+                                    <TableHead>Subcontratos</TableHead>
+                                    <TableHead>M. Cumplimiento</TableHead>
+                                    <TableHead>M. Análisis IA</TableHead>
+                                    <TableHead className="text-right">Acciones</TableHead>
                                 </TableRow>
-                            ))}
-                        </TableBody>
-                    </Table>
+                            </TableHeader>
+                            <TableBody>
+                                {loading ? (
+                                    <TableRow><TableCell colSpan={7} className="text-center h-24">Cargando empresas...</TableCell></TableRow>
+                                ) : empresas.map((emp) => (
+                                    <TableRow key={emp.id}>
+                                        <TableCell className="font-medium">{emp.nombreFantasia}</TableCell>
+                                        <TableCell>{emp.rut}</TableCell>
+                                        <TableCell>
+                                            <Badge variant={emp.planTipo === 'trial' ? 'secondary' : (emp.planTipo === 'bloqueado' ? 'destructive' : 'default')}>
+                                                {emp.planTipo || 'Pagado'}
+                                            </Badge>
+                                        </TableCell>
+                                        <TableCell className="font-medium text-center">{emp.subcontractorCount}</TableCell>
+                                        <TableCell>
+                                            <Badge variant={emp.feature_compliance_module_enabled ? 'default' : 'outline'}>
+                                                {emp.feature_compliance_module_enabled ? 'On' : 'Off'}
+                                            </Badge>
+                                        </TableCell>
+                                        <TableCell>
+                                            <Badge variant={emp.feature_plan_analysis_enabled ? 'default' : 'outline'}>
+                                                {emp.feature_plan_analysis_enabled ? 'On' : 'Off'}
+                                            </Badge>
+                                        </TableCell>
+                                        <TableCell className="text-right">
+                                            <div className="flex gap-2 justify-end">
+                                                <Button variant="outline" size="sm" asChild>
+                                                    <Link href={`/admin/empresas/${emp.id}/usuarios`}>
+                                                        Ver usuarios
+                                                    </Link>
+                                                </Button>
+                                                <Button variant="ghost" size="icon" onClick={() => handleOpenDialog(emp)}>
+                                                    <Edit className="h-4 w-4" />
+                                                </Button>
+                                                <AlertDialog>
+                                                    <AlertDialogTrigger asChild>
+                                                        <Button variant="ghost" size="icon" className="text-destructive hover:text-destructive">
+                                                            <Trash2 className="h-4 w-4" />
+                                                        </Button>
+                                                    </AlertDialogTrigger>
+                                                    <AlertDialogContent>
+                                                        <AlertDialogHeader>
+                                                            <AlertDialogTitle>¿Eliminar empresa?</AlertDialogTitle>
+                                                            <AlertDialogDescription>
+                                                                Esta acción no se puede deshacer. Se eliminará permanentemente la empresa &quot;{emp.nombreFantasia}&quot; y todos sus datos asociados (usuarios, obras, etc.).
+                                                            </AlertDialogDescription>
+                                                        </AlertDialogHeader>
+                                                        <AlertDialogFooter>
+                                                            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                                                            <AlertDialogAction onClick={() => handleDelete(emp.id!)} className="bg-destructive hover:bg-destructive/90">
+                                                                Eliminar Permanentemente
+                                                            </AlertDialogAction>
+                                                        </AlertDialogFooter>
+                                                    </AlertDialogContent>
+                                                </AlertDialog>
+                                            </div>
+                                        </TableCell>
+                                    </TableRow>
+                                ))}
+                            </TableBody>
+                        </Table>
+                    </div>
                 </CardContent>
             </Card>
 
             <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-                <DialogContent className="sm:max-w-2xl">
+                <DialogContent className="sm:max-w-3xl">
                     <form onSubmit={handleSubmit}>
                         <DialogHeader>
                             <DialogTitle>{currentCompany?.id ? "Editar Empresa" : "Crear Nueva Empresa"}</DialogTitle>
                         </DialogHeader>
-                        <div className="grid gap-4 py-4 md:grid-cols-2 max-h-[65vh] overflow-y-auto pr-4">
-                            <div className="space-y-2"><Label>Nombre Fantasía*</Label><Input name="nombreFantasia" value={currentCompany?.nombreFantasia || ''} onChange={handleFormChange} /></div>
-                            <div className="space-y-2"><Label>Razón Social*</Label><Input name="razonSocial" value={currentCompany?.razonSocial || ''} onChange={handleFormChange} /></div>
-                            <div className="space-y-2"><Label>RUT*</Label><Input name="rut" value={currentCompany?.rut || ''} onChange={handleFormChange} /></div>
-                            <div className="space-y-2"><Label>Giro</Label><Input name="giro" value={currentCompany?.giro || ''} onChange={handleFormChange} /></div>
-                            <div className="space-y-2 col-span-2"><Label>Dirección</Label><Input name="direccion" value={currentCompany?.direccion || ''} onChange={handleFormChange} /></div>
-                            <div className="space-y-2"><Label>Comuna</Label><Input name="comuna" value={currentCompany?.comuna || ''} onChange={handleFormChange} /></div>
-                            <div className="space-y-2"><Label>Ciudad</Label><Input name="ciudad" value={currentCompany?.ciudad || ''} onChange={handleFormChange} /></div>
-                            <div className="space-y-2"><Label>Teléfono Contacto</Label><Input name="telefonoContacto" value={currentCompany?.telefonoContacto || ''} onChange={handleFormChange} /></div>
-                            <div className="space-y-2"><Label>Email Contacto</Label><Input name="emailContacto" type="email" value={currentCompany?.emailContacto || ''} onChange={handleFormChange} /></div>
-                            
-                            <div className="col-span-2 border-t pt-4 mt-2 grid md:grid-cols-2 gap-4">
-                                <div className="space-y-2"><Label>Monto Base Mensual</Label><Input name="baseMensual" type="number" value={currentCompany?.baseMensual || 100000} onChange={handleFormChange} /></div>
-                                <div className="space-y-2"><Label>Valor por Usuario</Label><Input name="valorPorUsuario" type="number" value={currentCompany?.valorPorUsuario || 35000} onChange={handleFormChange} /></div>
-                            </div>
-                             <div className="col-span-2 pt-4 border-t space-y-2">
-                                <div className="flex items-center space-x-2">
-                                    <Checkbox id="activa" name="activa" checked={currentCompany?.activa} onCheckedChange={(checked) => handleFormChange({ target: { name: 'activa', value: '', type: 'checkbox', checked: !!checked } } as any)} />
-                                    <Label htmlFor="activa">Empresa activa</Label>
-                                </div>
-                                <div className="flex items-center space-x-2">
-                                    <Checkbox id="feature_compliance_module_enabled" name="feature_compliance_module_enabled" checked={currentCompany?.feature_compliance_module_enabled} onCheckedChange={(checked) => handleFormChange({ target: { name: 'feature_compliance_module_enabled', value: '', type: 'checkbox', checked: !!checked } } as any)} />
-                                    <Label htmlFor="feature_compliance_module_enabled">Módulo de Cumplimiento Legal (MCLP)</Label>
-                                </div>
-                                <div className="flex items-center space-x-2">
-                                    <Checkbox id="feature_plan_analysis_enabled" name="feature_plan_analysis_enabled" checked={currentCompany?.feature_plan_analysis_enabled} onCheckedChange={(checked) => handleFormChange({ target: { name: 'feature_plan_analysis_enabled', value: '', type: 'checkbox', checked: !!checked } } as any)} />
-                                    <Label htmlFor="feature_plan_analysis_enabled">Módulo de Análisis de Planos IA</Label>
-                                </div>
-                                <div className="flex items-center space-x-2">
-                                    <Checkbox id="feature_plan_comparison_enabled" name="feature_plan_comparison_enabled" checked={currentCompany?.feature_plan_comparison_enabled} onCheckedChange={(checked) => handleFormChange({ target: { name: 'feature_plan_comparison_enabled', value: '', type: 'checkbox', checked: !!checked } } as any)} />
-                                    <Label htmlFor="feature_plan_comparison_enabled">Módulo de Comparación de Planos IA</Label>
-                                </div>
-                                <div className="flex items-center space-x-2">
-                                    <Checkbox id="feature_risk_prevention_enabled" name="feature_risk_prevention_enabled" checked={currentCompany?.feature_risk_prevention_enabled} onCheckedChange={(checked) => handleFormChange({ target: { name: 'feature_risk_prevention_enabled', value: '', type: 'checkbox', checked: !!checked } } as any)} />
-                                    <Label htmlFor="feature_risk_prevention_enabled">Módulo de Prevención de Riesgos</Label>
-                                </div>
-                                <div className="flex items-center space-x-2">
-                                    <Checkbox id="feature_operational_checklists_enabled" name="feature_operational_checklists_enabled" checked={currentCompany?.feature_operational_checklists_enabled} onCheckedChange={(checked) => handleFormChange({ target: { name: 'feature_operational_checklists_enabled', value: '', type: 'checkbox', checked: !!checked } } as any)} />
-                                    <Label htmlFor="feature_operational_checklists_enabled">Módulo de Checklists Operacionales</Label>
-                                </div>
-                                <div className="flex items-center space-x-2">
-                                    <Checkbox id="feature_document_control_enabled" name="feature_document_control_enabled" checked={currentCompany?.feature_document_control_enabled} onCheckedChange={(checked) => handleFormChange({ target: { name: 'feature_document_control_enabled', value: '', type: 'checkbox', checked: !!checked } } as any)} />
-                                    <Label htmlFor="feature_document_control_enabled">Módulo de Control Documental (ISO 9001)</Label>
-                                </div>
-                                <div className="flex items-center space-x-2">
-                                    <Checkbox id="feature_access_control_enabled" name="feature_access_control_enabled" checked={currentCompany?.feature_access_control_enabled} onCheckedChange={(checked) => handleFormChange({ target: { name: 'feature_access_control_enabled', value: '', type: 'checkbox', checked: !!checked } } as any)} />
-                                    <Label htmlFor="feature_access_control_enabled">Módulo de Control de Acceso (QR Visitas)</Label>
-                                </div>
-                                <div className="flex items-center space-x-2">
-                                    <Checkbox id="feature_director_dashboard_enabled" name="feature_director_dashboard_enabled" checked={currentCompany?.feature_director_dashboard_enabled} onCheckedChange={(checked) => handleFormChange({ target: { name: 'feature_director_dashboard_enabled', value: '', type: 'checkbox', checked: !!checked } } as any)} />
-                                    <Label htmlFor="feature_director_dashboard_enabled">Módulo de Acceso Director</Label>
+                        <div className="grid gap-6 py-4 max-h-[75vh] overflow-y-auto pr-4">
+                            {/* --- Datos Generales --- */}
+                            <div className="space-y-4 p-4 border rounded-lg">
+                                <h3 className="font-semibold text-lg">Información General</h3>
+                                <div className="grid md:grid-cols-2 gap-4">
+                                    <div className="space-y-2"><Label>Nombre Fantasía*</Label><Input name="nombreFantasia" value={currentCompany?.nombreFantasia || ''} onChange={handleFormChange} /></div>
+                                    <div className="space-y-2"><Label>Razón Social*</Label><Input name="razonSocial" value={currentCompany?.razonSocial || ''} onChange={handleFormChange} /></div>
+                                    <div className="space-y-2"><Label>RUT*</Label><Input name="rut" value={currentCompany?.rut || ''} onChange={handleFormChange} /></div>
+                                    <div className="space-y-2"><Label>Giro</Label><Input name="giro" value={currentCompany?.giro || ''} onChange={handleFormChange} /></div>
+                                    <div className="col-span-2 space-y-2"><Label>Dirección</Label><Input name="direccion" value={currentCompany?.direccion || ''} onChange={handleFormChange} /></div>
+                                    <div className="space-y-2"><Label>Teléfono Contacto</Label><Input name="telefonoContacto" value={currentCompany?.telefonoContacto || ''} onChange={handleFormChange} /></div>
+                                    <div className="space-y-2"><Label>Email Contacto</Label><Input name="emailContacto" type="email" value={currentCompany?.emailContacto || ''} onChange={handleFormChange} /></div>
                                 </div>
                             </div>
-                            {error && <p className="text-sm font-medium text-destructive col-span-2">{error}</p>}
+                             {/* --- Plan y Facturación --- */}
+                            <div className="space-y-4 p-4 border rounded-lg">
+                                <h3 className="font-semibold text-lg">Plan y Facturación</h3>
+                                <div className="grid md:grid-cols-2 gap-4">
+                                    <div className="space-y-2">
+                                        <Label>Tipo de Plan</Label>
+                                        <Select value={currentCompany?.planTipo || 'pagado'} onValueChange={(v) => handleSelectChange('planTipo', v)}>
+                                            <SelectTrigger><SelectValue/></SelectTrigger>
+                                            <SelectContent>
+                                                <SelectItem value="pagado">Pagado</SelectItem>
+                                                <SelectItem value="trial">Trial (Prueba)</SelectItem>
+                                                <SelectItem value="freemium">Freemium</SelectItem>
+                                                <SelectItem value="bloqueado">Bloqueado</SelectItem>
+                                            </SelectContent>
+                                        </Select>
+                                    </div>
+                                    {currentCompany?.planTipo === 'trial' && (
+                                        <div className="space-y-2">
+                                            <Label>Fecha Fin del Trial</Label>
+                                            <Input name="trialEndDate" type="date" value={(currentCompany?.trialEndDate as string) || ''} onChange={handleFormChange} />
+                                        </div>
+                                    )}
+                                    <div className="space-y-2"><Label>Monto Base Mensual</Label><Input name="baseMensual" type="number" value={currentCompany?.baseMensual || 100000} onChange={handleFormChange} /></div>
+                                    <div className="space-y-2"><Label>Valor por Usuario</Label><Input name="valorPorUsuario" type="number" value={currentCompany?.valorPorUsuario || 35000} onChange={handleFormChange} /></div>
+                                </div>
+                            </div>
+                            {/* --- Descuentos --- */}
+                            <div className="space-y-4 p-4 border rounded-lg">
+                                <h3 className="font-semibold text-lg">Descuentos</h3>
+                                <div className="grid md:grid-cols-2 gap-4">
+                                     <div className="space-y-2">
+                                        <Label>Tipo de Descuento</Label>
+                                        <Select value={currentCompany?.descuentoTipo || 'ninguno'} onValueChange={(v) => handleSelectChange('descuentoTipo', v === 'ninguno' ? null : v)}>
+                                            <SelectTrigger><SelectValue/></SelectTrigger>
+                                            <SelectContent>
+                                                <SelectItem value="ninguno">Sin Descuento</SelectItem>
+                                                <SelectItem value="porcentaje">Porcentaje (%)</SelectItem>
+                                                <SelectItem value="monto_fijo">Monto Fijo (CLP)</SelectItem>
+                                            </SelectContent>
+                                        </Select>
+                                    </div>
+                                    <div className="space-y-2">
+                                        <Label>Valor del Descuento</Label>
+                                        <Input name="descuentoValor" type="number" value={currentCompany?.descuentoValor || 0} onChange={handleFormChange} disabled={!currentCompany?.descuentoTipo || currentCompany?.descuentoTipo === 'ninguno'}/>
+                                    </div>
+                                    <div className="col-span-2 space-y-2">
+                                        <Label>Descripción del Descuento</Label>
+                                        <Textarea name="descuentoDescripcion" value={currentCompany?.descuentoDescripcion || ''} onChange={handleFormChange} placeholder="Ej: Acuerdo de lanzamiento Q1 2025" />
+                                    </div>
+                                </div>
+                            </div>
+                             {/* --- Módulos Activos --- */}
+                             <div className="space-y-2 p-4 border rounded-lg">
+                                 <h3 className="font-semibold text-lg mb-4">Módulos Activos</h3>
+                                <div className="grid md:grid-cols-2 gap-x-4 gap-y-3">
+                                    <div className="flex items-center space-x-2"><Checkbox id="activa" name="activa" checked={currentCompany?.activa} onCheckedChange={(checked) => handleFormChange({ target: { name: 'activa', value: '', type: 'checkbox', checked: !!checked } } as any)} /><Label htmlFor="activa">Empresa activa</Label></div>
+                                    <div className="flex items-center space-x-2"><Checkbox id="feature_compliance_module_enabled" name="feature_compliance_module_enabled" checked={currentCompany?.feature_compliance_module_enabled} onCheckedChange={(checked) => handleFormChange({ target: { name: 'feature_compliance_module_enabled', value: '', type: 'checkbox', checked: !!checked } } as any)} /><Label htmlFor="feature_compliance_module_enabled">Módulo de Cumplimiento (MCLP)</Label></div>
+                                    <div className="flex items-center space-x-2"><Checkbox id="feature_plan_analysis_enabled" name="feature_plan_analysis_enabled" checked={currentCompany?.feature_plan_analysis_enabled} onCheckedChange={(checked) => handleFormChange({ target: { name: 'feature_plan_analysis_enabled', value: '', type: 'checkbox', checked: !!checked } } as any)} /><Label htmlFor="feature_plan_analysis_enabled">Análisis de Planos IA</Label></div>
+                                    <div className="flex items-center space-x-2"><Checkbox id="feature_plan_comparison_enabled" name="feature_plan_comparison_enabled" checked={currentCompany?.feature_plan_comparison_enabled} onCheckedChange={(checked) => handleFormChange({ target: { name: 'feature_plan_comparison_enabled', value: '', type: 'checkbox', checked: !!checked } } as any)} /><Label htmlFor="feature_plan_comparison_enabled">Comparación de Planos IA</Label></div>
+                                    <div className="flex items-center space-x-2"><Checkbox id="feature_risk_prevention_enabled" name="feature_risk_prevention_enabled" checked={currentCompany?.feature_risk_prevention_enabled} onCheckedChange={(checked) => handleFormChange({ target: { name: 'feature_risk_prevention_enabled', value: '', type: 'checkbox', checked: !!checked } } as any)} /><Label htmlFor="feature_risk_prevention_enabled">Prevención de Riesgos</Label></div>
+                                    <div className="flex items-center space-x-2"><Checkbox id="feature_operational_checklists_enabled" name="feature_operational_checklists_enabled" checked={currentCompany?.feature_operational_checklists_enabled} onCheckedChange={(checked) => handleFormChange({ target: { name: 'feature_operational_checklists_enabled', value: '', type: 'checkbox', checked: !!checked } } as any)} /><Label htmlFor="feature_operational_checklists_enabled">Checklists Operacionales</Label></div>
+                                    <div className="flex items-center space-x-2"><Checkbox id="feature_document_control_enabled" name="feature_document_control_enabled" checked={currentCompany?.feature_document_control_enabled} onCheckedChange={(checked) => handleFormChange({ target: { name: 'feature_document_control_enabled', value: '', type: 'checkbox', checked: !!checked } } as any)} /><Label htmlFor="feature_document_control_enabled">Control Documental (ISO 9001)</Label></div>
+                                    <div className="flex items-center space-x-2"><Checkbox id="feature_access_control_enabled" name="feature_access_control_enabled" checked={currentCompany?.feature_access_control_enabled} onCheckedChange={(checked) => handleFormChange({ target: { name: 'feature_access_control_enabled', value: '', type: 'checkbox', checked: !!checked } } as any)} /><Label htmlFor="feature_access_control_enabled">Control de Acceso (QR)</Label></div>
+                                    <div className="flex items-center space-x-2"><Checkbox id="feature_director_dashboard_enabled" name="feature_director_dashboard_enabled" checked={currentCompany?.feature_director_dashboard_enabled} onCheckedChange={(checked) => handleFormChange({ target: { name: 'feature_director_dashboard_enabled', value: '', type: 'checkbox', checked: !!checked } } as any)} /><Label htmlFor="feature_director_dashboard_enabled">Dashboard Directorio</Label></div>
+                                </div>
+                            </div>
+                            {error && <p className="text-sm font-medium text-destructive col-span-full">{error}</p>}
                         </div>
                         <DialogFooter>
                             <Button type="button" variant="ghost" onClick={() => setDialogOpen(false)}>Cancelar</Button>

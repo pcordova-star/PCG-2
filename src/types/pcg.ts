@@ -28,6 +28,14 @@ export interface Company {
   feature_document_control_enabled?: boolean;
   feature_access_control_enabled?: boolean;
   feature_director_dashboard_enabled?: boolean;
+
+  // Nuevos campos para precios y planes
+  planTipo?: 'pagado' | 'trial' | 'freemium' | 'bloqueado';
+  trialEndDate?: Timestamp | Date | null;
+  descuentoTipo?: 'porcentaje' | 'monto_fijo' | null;
+  descuentoValor?: number | null;
+  descuentoDescripcion?: string | null;
+
   [key: string]: any; // Para permitir acceso dinámico a feature flags
 }
 
