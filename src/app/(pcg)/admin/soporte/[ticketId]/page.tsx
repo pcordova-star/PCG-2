@@ -4,7 +4,7 @@
 import { useState, useEffect, FormEvent } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { useAuth } from '@/context/AuthContext';
-import { doc, getDoc, updateDoc, arrayUnion, serverTimestamp } from 'firebase/firestore';
+import { doc, getDoc, updateDoc, arrayUnion, serverTimestamp, addDoc, collection, Timestamp } from 'firebase/firestore';
 import { firebaseDb } from '@/lib/firebaseClient';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -73,14 +73,13 @@ export default function TicketDetailPage() {
                 history: arrayUnion({
                     author: 'support',
                     message: respuesta,
-                    timestamp: serverTimestamp(),
+                    timestamp: Timestamp.now(),
                     userId: user?.uid,
                     userName: 'Soporte PCG',
                 })
             });
 
             // Lógica para enviar email de notificación al usuario
-            // (Asume que tienes una colección 'mail' para la extensión Trigger Email)
             await addDoc(collection(firebaseDb, "mail"), {
                 to: [ticket.userEmail],
                 message: {
