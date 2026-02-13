@@ -43,7 +43,8 @@ type FacturacionData = {
   userCount: number;
   obrasBajaComplejidad: number;
   obrasAltaComplejidad: number;
-  subtotalBruto: number;
+  costoBaseObrasCLP: number;
+  costoModulosCLP: number;
   montoDescuento: number;
   totalSinIvaCLP: number;
   totalConIvaCLP: number;
@@ -160,7 +161,8 @@ export default function AdminFacturacionPage() {
             const totalNetoUF = subtotalBrutoUF - montoDescuentoUF;
             
             // Conversión a CLP
-            const subtotalBrutoCLP = subtotalBrutoUF * ufValue;
+            const costoBaseObrasCLP = costoBaseObrasUF * ufValue;
+            const costoModulosCLP = costoModulosUF * ufValue;
             const montoDescuentoCLP = montoDescuentoUF * ufValue;
             const totalSinIvaCLP = totalNetoUF * ufValue;
             const totalConIvaCLP = totalSinIvaCLP * (1 + IVA_RATE);
@@ -170,7 +172,8 @@ export default function AdminFacturacionPage() {
                 userCount, 
                 obrasBajaComplejidad,
                 obrasAltaComplejidad,
-                subtotalBruto: subtotalBrutoCLP,
+                costoBaseObrasCLP,
+                costoModulosCLP,
                 montoDescuento: montoDescuentoCLP,
                 totalSinIvaCLP, 
                 totalConIvaCLP 
@@ -226,7 +229,8 @@ export default function AdminFacturacionPage() {
                 <TableHead>Empresa</TableHead>
                 <TableHead className="text-center">Obras (Baja/Alta Comp.)</TableHead>
                 <TableHead className="text-center">Usuarios Activos</TableHead>
-                <TableHead className="text-right">Subtotal Bruto</TableHead>
+                <TableHead className="text-right">Costo Base Obras</TableHead>
+                <TableHead className="text-right">Costo Módulos</TableHead>
                 <TableHead className="text-right">Descuento</TableHead>
                 <TableHead className="text-right">Total Neto (CLP)</TableHead>
                 <TableHead className="text-right">Total con IVA (CLP)</TableHead>
@@ -234,16 +238,17 @@ export default function AdminFacturacionPage() {
             </TableHeader>
             <TableBody>
               {loading ? (
-                <TableRow><TableCell colSpan={7} className="text-center h-24"><Loader2 className="animate-spin mx-auto"/></TableCell></TableRow>
+                <TableRow><TableCell colSpan={8} className="text-center h-24"><Loader2 className="animate-spin mx-auto"/></TableCell></TableRow>
               ) : data.length === 0 ? (
-                <TableRow><TableCell colSpan={7} className="text-center h-24">No hay empresas con planes de pago activos para facturar.</TableCell></TableRow>
+                <TableRow><TableCell colSpan={8} className="text-center h-24">No hay empresas con planes de pago activos para facturar.</TableCell></TableRow>
               ) : (
-                data.map(({ company, obrasBajaComplejidad, obrasAltaComplejidad, userCount, subtotalBruto, montoDescuento, totalSinIvaCLP, totalConIvaCLP }) => (
+                data.map(({ company, obrasBajaComplejidad, obrasAltaComplejidad, userCount, costoBaseObrasCLP, costoModulosCLP, montoDescuento, totalSinIvaCLP, totalConIvaCLP }) => (
                   <TableRow key={company.id}>
                     <TableCell className="font-medium">{company.nombreFantasia || company.razonSocial}</TableCell>
                     <TableCell className="text-center">{obrasBajaComplejidad} / {obrasAltaComplejidad}</TableCell>
                     <TableCell className="text-center">{userCount}</TableCell>
-                    <TableCell className="text-right">{formatCurrency(subtotalBruto)}</TableCell>
+                    <TableCell className="text-right">{formatCurrency(costoBaseObrasCLP)}</TableCell>
+                    <TableCell className="text-right">{formatCurrency(costoModulosCLP)}</TableCell>
                     <TableCell className="text-right text-green-600">
                         {montoDescuento > 0 ? `-${formatCurrency(montoDescuento)}` : formatCurrency(0)}
                     </TableCell>
