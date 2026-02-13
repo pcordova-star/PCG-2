@@ -56,8 +56,8 @@ type FacturacionData = {
   company: Company;
   userCount: number;
   obraCount: number;
-  costoBaseYUsuarios: number;
-  costoModulos: number;
+  subtotalBruto: number;
+  montoDescuento: number;
   totalSinIvaCLP: number;
   totalConIvaCLP: number;
 };
@@ -101,6 +101,10 @@ export default function AdminFacturacionPage() {
         const allCompanies = companiesSnap.docs.map(doc => ({ id: doc.id, ...doc.data() } as Company));
 
         const facturacionPromises = allCompanies.map(async (company) => {
+            if (company.planTipo === 'trial' || company.planTipo === 'freemium' || company.planTipo === 'bloqueado') {
+                return null;
+            }
+
             const usersQuery = query(collection(firebaseDb, 'users'), where('empresaId', '==', company.id), where('activo', '==', true));
             const obrasQuery = query(collection(firebaseDb, 'obras'), where('empresaId', '==', company.id));
 
@@ -109,7 +113,11 @@ export default function AdminFacturacionPage() {
             const userCount = usersSnap.size;
             const obraCount = obrasSnap.size;
             
-            const costoBaseYUsuarios = configData.baseMensual + (userCount * configData.valorPorUsuario);
+            // Usar valores específicos de la empresa, con fallback a la config global
+            const costoBase = company.baseMensual ?? configData.baseMensual;
+            const costoUsuario = company.valorPorUsuario ?? configData.valorPorUsuario;
+
+            const costoBaseYUsuarios = costoBase + (userCount * costoUsuario);
             
             const costoModulos = Object.entries(moduleFlagMap).reduce((total, [moduloKey, flagKey]) => {
                 if (company[flagKey]) {
@@ -118,13 +126,22 @@ export default function AdminFacturacionPage() {
                 return total;
             }, 0);
 
-            const totalSinIvaCLP = costoBaseYUsuarios + costoModulos;
+            const subtotalBruto = costoBaseYUsuarios + costoModulos;
+
+            let montoDescuento = 0;
+            if (company.descuentoTipo === 'porcentaje' && company.descuentoValor && company.descuentoValor > 0) {
+                montoDescuento = subtotalBruto * (company.descuentoValor / 100);
+            } else if (company.descuentoTipo === 'monto_fijo' && company.descuentoValor && company.descuentoValor > 0) {
+                montoDescuento = company.descuentoValor;
+            }
+
+            const totalSinIvaCLP = subtotalBruto - montoDescuento;
             const totalConIvaCLP = totalSinIvaCLP * (1 + IVA_RATE);
 
-            return { company, userCount, obraCount, costoBaseYUsuarios, costoModulos, totalSinIvaCLP, totalConIvaCLP };
+            return { company, userCount, obraCount, costoBaseYUsuarios, costoModulos, subtotalBruto, montoDescuento, totalSinIvaCLP, totalConIvaCLP };
         });
 
-        const facturacionData = await Promise.all(facturacionPromises);
+        const facturacionData = (await Promise.all(facturacionPromises)).filter(Boolean) as FacturacionData[];
         facturacionData.sort((a, b) => (a.company.nombreFantasia || a.company.razonSocial).localeCompare(b.company.nombreFantasia || b.company.razonSocial));
         setData(facturacionData);
         
@@ -154,7 +171,7 @@ export default function AdminFacturacionPage() {
       </Button>
       <header>
         <h1 className="text-3xl font-bold">Facturación Estimada</h1>
-        <p className="text-muted-foreground">Cálculo de facturación mensual por empresa basado en los precios globales de la plataforma.</p>
+        <p className="text-muted-foreground">Cálculo de facturación mensual por empresa basado en los precios definidos para cada una.</p>
       </header>
 
       {error && <p className="text-sm font-medium text-destructive">{error}</p>}
@@ -163,7 +180,7 @@ export default function AdminFacturacionPage() {
         <CardHeader>
           <CardTitle>Detalle de Facturación Estimada por Empresa</CardTitle>
           <CardDescription>
-            Los cálculos se basan en los precios definidos en el panel de Precios Globales.
+            Se utilizan los precios y descuentos definidos en la ficha de cada empresa. Las empresas en período de prueba (trial) o bloqueadas no se listan aquí.
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -171,9 +188,9 @@ export default function AdminFacturacionPage() {
             <TableHeader>
               <TableRow>
                 <TableHead>Empresa</TableHead>
-                <TableHead className="text-center">Usuarios</TableHead>
-                <TableHead className="text-right">Base + Usuarios (CLP)</TableHead>
-                <TableHead className="text-right">Módulos Premium (CLP)</TableHead>
+                <TableHead className="text-center">Usuarios Activos</TableHead>
+                <TableHead className="text-right">Subtotal Bruto</TableHead>
+                <TableHead className="text-right">Descuento</TableHead>
                 <TableHead className="text-right">Total Neto (CLP)</TableHead>
                 <TableHead className="text-right">Total con IVA (CLP)</TableHead>
               </TableRow>
@@ -182,14 +199,16 @@ export default function AdminFacturacionPage() {
               {loading ? (
                 <TableRow><TableCell colSpan={6} className="text-center h-24"><Loader2 className="animate-spin mx-auto"/></TableCell></TableRow>
               ) : data.length === 0 ? (
-                <TableRow><TableCell colSpan={6} className="text-center h-24">No hay empresas para facturar.</TableCell></TableRow>
+                <TableRow><TableCell colSpan={6} className="text-center h-24">No hay empresas con planes de pago activos para facturar.</TableCell></TableRow>
               ) : (
-                data.map(({ company, userCount, costoBaseYUsuarios, costoModulos, totalSinIvaCLP, totalConIvaCLP }) => (
+                data.map(({ company, userCount, subtotalBruto, montoDescuento, totalSinIvaCLP, totalConIvaCLP }) => (
                   <TableRow key={company.id}>
                     <TableCell className="font-medium">{company.nombreFantasia || company.razonSocial}</TableCell>
                     <TableCell className="text-center">{userCount}</TableCell>
-                    <TableCell className="text-right">{formatCurrency(costoBaseYUsuarios)}</TableCell>
-                    <TableCell className="text-right">{formatCurrency(costoModulos)}</TableCell>
+                    <TableCell className="text-right">{formatCurrency(subtotalBruto)}</TableCell>
+                    <TableCell className="text-right text-green-600">
+                        {montoDescuento > 0 ? `-${formatCurrency(montoDescuento)}` : formatCurrency(0)}
+                    </TableCell>
                     <TableCell className="text-right font-semibold">{formatCurrency(totalSinIvaCLP)}</TableCell>
                     <TableCell className="text-right font-bold text-primary">{formatCurrency(totalConIvaCLP)}</TableCell>
                   </TableRow>
