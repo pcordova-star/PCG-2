@@ -205,9 +205,9 @@ export default function AdminSolicitudesPage() {
                                         {req.status === 'pending' && finalCompanyId && (
                                             <div className="flex gap-2 justify-end">
                                                 <Button asChild size="sm">
-                                                    <Link href={`/admin/empresas/${finalCompanyId}/usuarios`}>
+                                                    <Link href={`/admin/empresas/${finalCompanyId}/usuarios?email=${encodeURIComponent(req.directorEmail)}`}>
                                                         <UserPlus className="mr-2 h-4 w-4"/>
-                                                        Crear Usuario
+                                                        Gestionar Creación
                                                     </Link>
                                                 </Button>
                                                 <Button variant="outline" size="sm" onClick={() => handleArchiveUserRequest(req.id)}>
@@ -228,3 +228,5 @@ export default function AdminSolicitudesPage() {
     </div>
   );
 }
+
+    

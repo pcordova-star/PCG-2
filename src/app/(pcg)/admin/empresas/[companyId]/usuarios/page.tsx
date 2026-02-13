@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, FormEvent } from 'react';
-import { useParams, useRouter } from 'next/navigation';
+import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardFooter, CardDescription } from '@/components/ui/card';
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
@@ -33,6 +33,7 @@ export default function AdminEmpresaUsuariosPage() {
     const { user, role } = useAuth();
     const router = useRouter();
     const params = useParams();
+    const searchParams = useSearchParams();
     const companyId = params.companyId as string;
     const { toast } = useToast();
 
@@ -99,6 +100,20 @@ export default function AdminEmpresaUsuariosPage() {
             unsubUsers();
         };
     }, [isSuperAdmin, companyId, router, loadingCompany]);
+
+    useEffect(() => {
+        const emailFromQuery = searchParams.get('email');
+        if (dialogOpen && emailFromQuery) {
+          setNewUser(prev => ({
+            ...prev,
+            email: emailFromQuery,
+            role: 'cliente' // Directors should have the 'cliente' role
+          }));
+        } else if (!dialogOpen) {
+          // Reset form state when dialog is closed to not affect subsequent manual creations
+          setNewUser({ nombre: '', email: '', password: '', role: 'jefe_obra' });
+        }
+    }, [dialogOpen, searchParams]);
 
 
     const handleFormSubmit = async (e: FormEvent) => {
@@ -304,3 +319,4 @@ export default function AdminEmpresaUsuariosPage() {
         </div>
     );
 }
+    

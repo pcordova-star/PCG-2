@@ -44,7 +44,7 @@ export async function POST(req: NextRequest) {
       obraId,
       obraNombre,
       directorEmail,
-      empresaId,
+      empresaId, // Usar 'empresaId' para consistencia
       solicitante: {
         uid,
         nombre: name || email,
@@ -84,3 +84,5 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Error interno del servidor al procesar la solicitud." }, { status: 500 });
   }
 }
+
+    
