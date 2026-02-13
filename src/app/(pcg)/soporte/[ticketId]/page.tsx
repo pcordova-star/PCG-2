@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useEffect, useMemo } from 'react';
@@ -14,6 +15,7 @@ import { SupportTicket } from '@/types/pcg';
 import Image from 'next/image';
 import { cn } from '@/lib/utils';
 import { useToast } from '@/hooks/use-toast';
+import { Label } from '@/components/ui/label';
 
 const HistoryItem = ({ item }: { item: NonNullable<SupportTicket['history']>[0] }) => {
     const isSupport = item.author === 'support';
