@@ -1,7 +1,7 @@
 // src/app/(pcg)/admin/soporte/[ticketId]/page.tsx
 "use client";
 
-import { useState, useEffect, FormEvent } from 'react';
+import { useState, useEffect, useMemo, FormEvent } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { useAuth } from '@/context/AuthContext';
 import { doc, getDoc, updateDoc, arrayUnion, serverTimestamp, addDoc, collection, Timestamp } from 'firebase/firestore';
@@ -17,6 +17,28 @@ import { Loader2, ArrowLeft, Send, Paperclip } from 'lucide-react';
 import { SupportTicket } from '@/types/pcg';
 import { useToast } from '@/hooks/use-toast';
 import Image from 'next/image';
+import { cn } from '@/lib/utils';
+
+// --- HistoryItem Component ---
+const HistoryItem = ({ item }: { item: NonNullable<SupportTicket['history']>[0] }) => {
+    const isSupport = item.author === 'support';
+    return (
+        <div className={cn(
+            "flex flex-col p-3 rounded-lg max-w-[85%]",
+            isSupport ? "bg-primary/10 self-end items-end" : "bg-muted self-start items-start"
+        )}>
+            <div className="flex items-center gap-2 text-xs font-semibold mb-1">
+                <span>{item.userName}</span>
+                <span className="text-muted-foreground font-normal">({isSupport ? 'Soporte' : 'Usuario'})</span>
+            </div>
+            <p className="text-sm whitespace-pre-wrap text-left">{item.message}</p>
+            <p className="text-xs text-muted-foreground mt-2">
+                {item.timestamp?.toDate().toLocaleString('es-CL') ?? "Enviando..."}
+            </p>
+        </div>
+    );
+};
+
 
 export default function TicketDetailPage() {
     const { ticketId } = useParams();
@@ -31,21 +53,32 @@ export default function TicketDetailPage() {
     const [respuesta, setRespuesta] = useState("");
     const [newStatus, setNewStatus] = useState<SupportTicket['status']>('abierto');
 
-    useEffect(() => {
-        if (!authLoading && role !== 'superadmin') {
-            router.replace('/dashboard');
-        }
-    }, [authLoading, role, router]);
+    // useMemo to sort history
+    const sortedHistory = useMemo(() => {
+        if (!ticket?.history) return [];
+        return [...ticket.history].sort((a, b) => {
+            const dateA = a.timestamp?.toDate ? a.timestamp.toDate().getTime() : 0;
+            const dateB = b.timestamp?.toDate ? b.timestamp.toDate().getTime() : 0;
+            return dateA - dateB;
+        });
+    }, [ticket]);
 
     useEffect(() => {
-        if (!ticketId) return;
+        if (!user || !ticketId) return;
+        if (role !== 'superadmin' && !authLoading) {
+            router.replace('/dashboard');
+        }
 
         const fetchTicket = async () => {
             setLoading(true);
             const ticketRef = doc(firebaseDb, 'supportTickets', ticketId as string);
             const ticketSnap = await getDoc(ticketRef);
             if (ticketSnap.exists()) {
-                const data = { id: ticketSnap.id, ...ticketSnap.data(), createdAt: ticketSnap.data().createdAt.toDate() } as SupportTicket;
+                const data = { 
+                    id: ticketSnap.id, 
+                    ...ticketSnap.data(), 
+                    createdAt: ticketSnap.data().createdAt.toDate() 
+                } as SupportTicket;
                 setTicket(data);
                 setNewStatus(data.status);
             } else {
@@ -55,7 +88,7 @@ export default function TicketDetailPage() {
             setLoading(false);
         };
         fetchTicket();
-    }, [ticketId, router, toast]);
+    }, [user, ticketId, router, toast, authLoading, role]);
     
     const handleSave = async (e: FormEvent) => {
         e.preventDefault();
@@ -70,7 +103,7 @@ export default function TicketDetailPage() {
             const newHistoryEntry = {
                 author: 'support',
                 message: respuesta,
-                timestamp: Timestamp.now(), // Usar el Timestamp del cliente aquí
+                timestamp: Timestamp.now(),
                 userId: user?.uid,
                 userName: 'Soporte PCG',
             };
@@ -81,8 +114,6 @@ export default function TicketDetailPage() {
                 history: arrayUnion(newHistoryEntry)
             });
 
-
-            // Lógica para enviar email de notificación al usuario
             await addDoc(collection(firebaseDb, "mail"), {
                 to: [ticket.userEmail],
                 message: {
@@ -103,7 +134,7 @@ export default function TicketDetailPage() {
 
             toast({ title: 'Respuesta enviada', description: 'El usuario ha sido notificado.' });
             setRespuesta("");
-            // Refrescar datos
+            // Refetch data
             const updatedDoc = await getDoc(ticketRef);
             setTicket({ id: updatedDoc.id, ...updatedDoc.data(), createdAt: updatedDoc.data()?.createdAt.toDate() } as SupportTicket);
         } catch (error) {
@@ -134,17 +165,26 @@ export default function TicketDetailPage() {
 
             <Card>
                 <CardHeader>
-                    <CardTitle>{ticket.subject}</CardTitle>
+                    <CardTitle className="text-xl">{ticket.subject}</CardTitle>
                     <CardDescription>
                         Abierto por {ticket.userName} ({ticket.userEmail}) el {ticket.createdAt.toLocaleDateString('es-CL')}
                     </CardDescription>
                 </CardHeader>
-                <CardContent className="space-y-4">
-                     <p className="whitespace-pre-wrap p-4 bg-muted/50 rounded-md border">{ticket.description}</p>
+                <CardContent className="space-y-6">
+                    <div className="space-y-4">
+                        <h4 className="font-semibold">Historial de Conversación</h4>
+                        <div className="space-y-3 border p-4 rounded-md max-h-[50vh] overflow-y-auto flex flex-col gap-3">
+                            {sortedHistory.length > 0 ? (
+                                sortedHistory.map((item, index) => <HistoryItem key={index} item={item} />)
+                            ) : (
+                                <p className="text-sm text-muted-foreground">No hay mensajes en este ticket todavía.</p>
+                            )}
+                        </div>
+                    </div>
                      {ticket.adjuntoUrl && (
                         <div className="space-y-2">
                             <Label className="font-semibold">Archivo Adjunto</Label>
-                            <a href={ticket.adjuntoUrl} target="_blank" rel="noopener noreferrer" className="block border rounded-lg overflow-hidden group relative hover:shadow-lg transition-shadow">
+                            <a href={ticket.adjuntoUrl} target="_blank" rel="noopener noreferrer" className="block border rounded-lg overflow-hidden group relative hover:shadow-lg transition-shadow w-full max-w-sm">
                                 <div className="relative w-full aspect-video bg-muted">
                                     <Image src={ticket.adjuntoUrl} alt="Adjunto del ticket" layout="fill" objectFit="contain" className="transition-transform group-hover:scale-105" />
                                 </div>
