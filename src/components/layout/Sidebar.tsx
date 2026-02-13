@@ -24,6 +24,7 @@ import {
   User,
   GanttChartSquare,
   Sparkles,
+  HelpCircle,
 } from "lucide-react";
 import { useSidebarStore } from "@/hooks/use-sidebar-store";
 import { cn } from "@/lib/utils";
@@ -187,6 +188,7 @@ export default function Sidebar() {
 
         <footer className="mt-auto border-t p-2">
             <NavLink item={{ href: '/perfil', label: user?.displayName || user?.email || 'Mi Perfil', icon: User, roles: [role]}} isCollapsed={isCollapsed} />
+            <NavLink item={{ href: '/soporte', label: 'Soporte', icon: HelpCircle, roles: ['superadmin', 'admin_empresa', 'jefe_obra', 'prevencionista', 'cliente', 'contratista']}} isCollapsed={isCollapsed} />
             <Button onClick={logout} variant="ghost" className={cn("w-full justify-start text-muted-foreground", isCollapsed && "justify-center")}>
                 <LogOut className="h-5 w-5" />
                 <span className={cn("ml-3", isCollapsed && "sr-only")}>Cerrar Sesión</span>

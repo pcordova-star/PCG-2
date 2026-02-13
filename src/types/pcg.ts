@@ -706,3 +706,19 @@ export interface InduccionContextualRegistro {
   iaModel: string;
   createdAt?: Timestamp;
 }
+
+// --- TIPO PARA SOPORTE ---
+export interface SupportTicket {
+  id?: string;
+  userId: string;
+  userEmail: string;
+  userName: string;
+  companyId: string | null;
+  companyName?: string;
+  category: "duda_funcional" | "reporte_error" | "sugerencia" | "problema_cuenta" | "otro";
+  subject: string;
+  description: string;
+  status: 'abierto' | 'en_progreso' | 'cerrado';
+  createdAt: Timestamp;
+  updatedAt?: Timestamp;
+}

@@ -229,6 +229,13 @@ service cloud.firestore {
       }
     }
 
+    // --------- Regla para Soporte ---------
+    match /supportTickets/{ticketId} {
+      allow create: if isSignedIn();
+      allow read, update: if isSignedIn() && role() == 'superadmin';
+      allow delete: if false;
+    }
+
     // --------- Reglas ultra abiertas para el resto (desarrollo) ---------
     match /{document=**} {
       allow read, write: if isSignedIn();
