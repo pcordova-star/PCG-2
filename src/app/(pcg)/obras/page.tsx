@@ -243,7 +243,7 @@ export default function ObrasPage() {
           obraId: obra.id,
           obraNombre: obra.nombreFaena,
           directorEmail: obra.clienteEmail,
-          empresaId: obra.empresaId,
+          empresaId: obra.empresaId, // FIX: Pass companyId correctly
         }),
       });
 

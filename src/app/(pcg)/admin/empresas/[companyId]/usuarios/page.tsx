@@ -13,7 +13,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Badge } from '@/components/ui/badge';
 import { PlusCircle, ArrowLeft, Loader2, Trash2, Edit, UserX } from 'lucide-react';
 import Link from 'next/link';
-import { collection, doc, getDoc, query, orderBy, where, onSnapshot } from 'firebase/firestore';
+import { collection, doc, getDoc, query, orderBy, where, onSnapshot, updateDoc } from 'firebase/firestore';
 import { firebaseDb, firebaseFunctions } from '@/lib/firebaseClient';
 import { httpsCallable } from 'firebase/functions';
 import { Company, AppUser, RolInvitado, UserInvitation } from '@/types/pcg';
@@ -50,6 +50,7 @@ export default function AdminEmpresaUsuariosPage() {
       email: '',
       password: '',
       role: 'jefe_obra' as RolInvitado,
+      requestId: null as string | null,
     });
     const [isSaving, setIsSaving] = useState(false);
 
@@ -102,16 +103,26 @@ export default function AdminEmpresaUsuariosPage() {
     }, [isSuperAdmin, companyId, router, loadingCompany]);
 
     useEffect(() => {
-        const emailFromQuery = searchParams.get('email');
-        if (dialogOpen && emailFromQuery) {
+        const requestIdFromQuery = searchParams.get('requestId');
+        if (requestIdFromQuery && !dialogOpen) {
+          setDialogOpen(true);
+        }
+    }, [searchParams, dialogOpen]);
+
+    useEffect(() => {
+        if (dialogOpen) {
+          const emailFromQuery = searchParams.get('email');
+          const requestIdFromQuery = searchParams.get('requestId');
+          
           setNewUser(prev => ({
             ...prev,
-            email: emailFromQuery,
-            role: 'cliente' // Directors should have the 'cliente' role
+            email: requestIdFromQuery ? emailFromQuery || '' : '',
+            role: requestIdFromQuery ? 'cliente' : 'jefe_obra',
+            requestId: requestIdFromQuery
           }));
-        } else if (!dialogOpen) {
-          // Reset form state when dialog is closed to not affect subsequent manual creations
-          setNewUser({ nombre: '', email: '', password: '', role: 'jefe_obra' });
+        } else {
+          // Reset form state when dialog is closed
+          setNewUser({ nombre: '', email: '', password: '', role: 'jefe_obra', requestId: null });
         }
     }, [dialogOpen, searchParams]);
 
@@ -136,16 +147,23 @@ export default function AdminEmpresaUsuariosPage() {
         setError(null);
         
         try {
-            const idToken = await user.getIdToken();
             const createCompanyUserFn = httpsCallable(firebaseFunctions, 'createCompanyUser');
-            await createCompanyUserFn({
+            const result = await createCompanyUserFn({
                 ...newUser,
                 companyId: company.id
             });
+
+            if (newUser.requestId) {
+                const requestRef = doc(firebaseDb, "userAccessRequests", newUser.requestId);
+                await updateDoc(requestRef, {
+                    status: 'approved',
+                    createdUserId: (result.data as any).uid,
+                });
+            }
             
             toast({ title: "Usuario Creado", description: `${newUser.email} ha sido creado en ${company.nombreFantasia}.` });
             setDialogOpen(false);
-            setNewUser({ nombre: '', email: '', password: '', role: 'jefe_obra' });
+            router.replace(`/admin/empresas/${companyId}/usuarios`);
             
         } catch (err: any) {
             console.error("Error al crear el usuario:", err);
@@ -319,4 +337,3 @@ export default function AdminEmpresaUsuariosPage() {
         </div>
     );
 }
-    

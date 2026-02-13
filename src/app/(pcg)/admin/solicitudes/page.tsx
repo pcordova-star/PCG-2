@@ -28,8 +28,8 @@ type ModuleActivationRequest = {
 
 type UserAccessRequest = {
   id: string;
-  empresaId?: string; // Correct new field
-  companyId?: string; // Old field for backwards compatibility
+  empresaId?: string; 
+  companyId?: string; 
   obraId: string;
   obraNombre: string;
   directorEmail: string;
@@ -193,6 +193,7 @@ export default function AdminSolicitudesPage() {
                             {loading ? <TableRow><TableCell colSpan={6} className="text-center h-24"><Loader2 className="animate-spin mx-auto"/></TableCell></TableRow>
                             : userAccessRequests.length === 0 ? <TableRow><TableCell colSpan={6} className="text-center h-24">No hay solicitudes de acceso.</TableCell></TableRow>
                             : userAccessRequests.map((req) => {
+                                // FIX: Use empresaId first (new correct field), fallback to companyId (old incorrect field)
                                 const finalCompanyId = req.empresaId || req.companyId;
                                 return (
                                 <TableRow key={req.id}>
@@ -200,12 +201,12 @@ export default function AdminSolicitudesPage() {
                                     <TableCell>{req.directorEmail}</TableCell>
                                     <TableCell>{req.solicitante.nombre}</TableCell>
                                     <TableCell>{req.createdAt.toDate().toLocaleDateString('es-CL')}</TableCell>
-                                    <TableCell><Badge variant={req.status === 'pending' ? 'secondary' : 'outline'}>{req.status}</Badge></TableCell>
+                                    <TableCell><Badge variant={req.status === 'pending' ? 'secondary' : (req.status === 'approved' ? 'default' : 'outline')}>{req.status}</Badge></TableCell>
                                     <TableCell className="text-right">
                                         {req.status === 'pending' && finalCompanyId && (
                                             <div className="flex gap-2 justify-end">
                                                 <Button asChild size="sm">
-                                                    <Link href={`/admin/empresas/${finalCompanyId}/usuarios?email=${encodeURIComponent(req.directorEmail)}`}>
+                                                    <Link href={`/admin/empresas/${finalCompanyId}/usuarios?email=${encodeURIComponent(req.directorEmail)}&requestId=${req.id}`}>
                                                         <UserPlus className="mr-2 h-4 w-4"/>
                                                         Gestionar Creación
                                                     </Link>
@@ -228,5 +229,3 @@ export default function AdminSolicitudesPage() {
     </div>
   );
 }
-
-    
