@@ -8,8 +8,13 @@ runConfig:
   memoryMiB: 512
 
 # Mapeo de variables de entorno desde Secret Manager
+# Debes crear estos secretos en la consola de Firebase > App Hosting > Configuración
 env:
   - variable: GOOGLE_GENAI_API_KEY
     secret: GOOGLE_GENAI_API_KEY
   - variable: GEMINI_API_KEY
     secret: GEMINI_API_KEY
+  - variable: FIREBASE_ADMIN_SERVICE_ACCOUNT
+    secret: FIREBASE_ADMIN_SERVICE_ACCOUNT
+  - variable: APP_BASE_URL
+    value: "https://pcgoperacion.com"
