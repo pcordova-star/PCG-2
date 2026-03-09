@@ -1,6 +1,6 @@
 # Git Commands Cheatsheet
 
-This document provides a quick reference for common Git commands used in this project.
+This document provides a quick reference for common Git commands used in this project, now especially important for **Firebase App Hosting**.
 
 ---
 
@@ -28,122 +28,46 @@ This document provides a quick reference for common Git commands used in this pr
   git status
   ```
 
-- **Agregar un archivo específico al área de preparación (staging):**
-  ```bash
-  git add <nombre_del_archivo>
-  ```
-
-- **Agregar TODOS los archivos modificados y nuevos al área de preparación:**
+- **Agregar archivos al área de preparación (staging):**
   ```bash
   git add .
   ```
 
 - **Confirmar tus cambios (commit):**
   ```bash
-  git commit -m "Un mensaje claro y descriptivo de tus cambios"
+  git commit -m "Descripción de los cambios"
   ```
-  * **Buenas prácticas para mensajes de commit:**
-    *   Usa el imperativo (ej: "Agrega feature X" en vez de "Agregué feature X").
-    *   Sé breve pero descriptivo.
-    *   Si el cambio es complejo, considera un cuerpo de mensaje más largo.
 
-### 3. **Trabajar con Repositorios Remotos**
+### 3. **Trabajar con Repositorios Remotos (Clave para App Hosting)**
 
-- **Listar tus repositorios remotos:**
+- **Saber a qué repositorio estás conectado:**
   ```bash
   git remote -v
   ```
 
-- **Agregar un nuevo repositorio remoto (ej. desde GitHub):**
+- **Subir cambios a la nube (esto gatilla el despliegue automático):**
   ```bash
-  git remote add origin <URL_DEL_REPOSITORIO>
+  git push origin main
   ```
+  *Nota: En App Hosting, al hacer este push, Firebase detectará los cambios y actualizará tu sitio web automáticamente.*
 
-- **Subir (push) tus cambios a la rama principal (main):**
-  ```bash
-  git push -u origin main
-  ```
-  * El flag `-u` se usa la primera vez para establecer la rama de seguimiento. Las siguientes veces, puedes usar solo `git push`.
+### 4. **Gestión de Secretos en App Hosting**
 
-- **Subir cambios a otra rama:**
-  ```bash
-  git push origin <nombre_de_la_rama>
-  ```
+Si agregas una nueva funcionalidad que usa una API Key o secreto:
+1. Agrégala a `apphosting.yaml`.
+2. Súbela a Git.
+3. **Importante:** Debes crear el secreto manualmente en la Consola de Firebase > App Hosting > Configuración o en Google Cloud Secret Manager para que la app pueda leerlo.
 
-### 4. **Trabajar con Ramas (Branches)**
+### 5. **Actualizar desde el Remoto**
 
-- **Listar todas las ramas locales:**
-  ```bash
-  git branch
-  ```
-
-- **Crear una nueva rama:**
-  ```bash
-  git branch <nombre_de_la_nueva_rama>
-  ```
-
-- **Cambiar a una rama existente:**
-  ```bash
-  git checkout <nombre_de_la_rama>
-  ```
-
-- **Crear una nueva rama y cambiar a ella inmediatamente:**
-  ```bash
-  git checkout -b <nombre_de_la_nueva_rama>
-  ```
-
-- **Fusionar (merge) una rama con tu rama actual:**
-  ```bash
-  # Primero, asegúrate de estar en la rama que recibirá los cambios (ej. main)
-  git checkout main
-
-  # Luego, ejecuta el merge
-  git merge <nombre_de_la_rama_a_fusionar>
-  ```
-
-### 5. **Actualizar y Sincronizar**
-
-- **Descargar los cambios del repositorio remoto (sin fusionar):**
-  ```bash
-  git fetch origin
-  ```
-
-- **Descargar y fusionar los cambios de la rama actual desde el remoto:**
+- **Descargar y fusionar los cambios más recientes:**
   ```bash
   git pull origin main
   ```
-  * `git pull` es una combinación de `git fetch` y `git merge`.
 
-### 6. **Configuración de Infraestructura Externa**
+---
 
-- **Política de Ciclo de Vida en Storage (Limpieza automática):**
-  - **Fecha de Configuración:** 16/11/2025
-  - **Servicio:** Google Cloud Storage
-  - **Bucket:** `pcg-2-8bf1b.appspot.com`
-  - **Regla:**
-    - **Acción:** Borrar
-    - **Condición:** Edad del objeto es mayor a **30 días**.
-    - **Filtros (Prefijos):**
-        - `comparacion-planos/`
-        - `inducciones/`
-  - **Propósito:** Eliminar automáticamente los archivos de análisis de comparación de planos y los audios de inducciones contextuales después de 30 días para controlar costos de almacenamiento.
-
-### 7. **Comandos de Firebase Functions**
-
-- **Desplegar TODAS las funciones:**
-  ```bash
-  firebase deploy --only functions
-  ```
-
-- **Desplegar UNA función específica (ej. para el módulo de noticias):**
-  ```bash
-  firebase deploy --only functions:processNoticiaExterna
-  ```
-  * Reemplaza `processNoticiaExterna` con el nombre de la función que quieres desplegar.
-
-- **Ver los logs de una función específica en tiempo real:**
-  ```bash
-  firebase functions:log --only processNoticiaExterna
-  ```
-  * Esto es extremadamente útil para depurar errores en el backend.
-```
+### Resumen del Flujo de Trabajo para Desplegar:
+1. `git add .` (Prepara los cambios)
+2. `git commit -m "mensaje"` (Guarda los cambios localmente)
+3. `git push origin main` (Envía a la nube y despliega automáticamente)
