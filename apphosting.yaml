@@ -1,0 +1,15 @@
+kind: "AppStack"
+apiVersion: "v1"
+
+# Configuración de ejecución para el contenedor de Next.js
+runConfig:
+  region: "us-central1"
+  cpu: 1
+  memoryMiB: 512
+
+# Mapeo de variables de entorno desde Secret Manager
+env:
+  - variable: GOOGLE_GENAI_API_KEY
+    secret: GOOGLE_GENAI_API_KEY
+  - variable: GEMINI_API_KEY
+    secret: GEMINI_API_KEY
