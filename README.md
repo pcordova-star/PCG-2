@@ -3,19 +3,22 @@
 
 Este proyecto es una plataforma de gestión de obras construida con Next.js y potenciada por IA.
 
-## Infraestructura
-- **Hosting:** Firebase App Hosting (Despliegue automático vía Git).
+## Infraestructura Profesional
+- **Hosting:** Firebase App Hosting (Despliegue automático vía Git Push).
+- **IA Framework:** Genkit con modelos Gemini 2.0.
 - **Base de Datos:** Cloud Firestore.
-- **Autenticación:** Firebase Auth.
-- **Backend:** Firebase Cloud Functions.
+- **Autenticación:** Firebase Auth con Custom Claims para Roles.
+- **Backend:** Next.js API Routes y Firebase Cloud Functions.
 
-## Despliegue de Cambios
-Para actualizar la aplicación, simplemente sube tus cambios al repositorio conectado:
+## Flujo de Despliegue
+Para actualizar la aplicación y ver los cambios en producción:
 1. `git add .`
 2. `git commit -m "descripción del cambio"`
 3. `git push origin main`
 
-## Documentación Útil
+Firebase detectará el push y construirá el contenedor de Next.js automáticamente.
+
+## Documentación del Desarrollador
 - [Manual de Comandos Git](/docs/GIT_COMMANDS_CHEATSHEET.md)
 - [Alcance del Producto IA](/docs/ALCANCE_PRODUCTO_INDUCCION_IA.md)
 - [Plan de Implementación Noticias](/docs/IMPLEMENTACION_MODULO_NOTICIAS.md)

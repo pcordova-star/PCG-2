@@ -1,73 +1,65 @@
-# Git Commands Cheatsheet
+# Git Commands Cheatsheet - PCG 2.0
 
-This document provides a quick reference for common Git commands used in this project, now especially important for **Firebase App Hosting**.
+Este documento es una referencia rápida para los comandos de Git utilizados en este proyecto, optimizados para el flujo de trabajo con **Firebase App Hosting**.
 
 ---
 
-### 1. **Setup y Configuración Inicial**
+### 1. Flujo de Trabajo para Publicar Cambios (Despliegue)
 
-- **Configurar tu nombre de usuario:**
-  ```bash
-  git config --global user.name "Tu Nombre Completo"
-  ```
+En **App Hosting**, el despliegue es automático cada vez que subes cambios a la rama principal (`main`).
 
-- **Configurar tu email:**
-  ```bash
-  git config --global user.email "tu.email@example.com"
-  ```
+1.  **Revisar cambios:**
+    ```bash
+    git status
+    ```
+2.  **Preparar archivos:**
+    ```bash
+    git add .
+    ```
+3.  **Confirmar cambios:**
+    ```bash
+    git commit -m "Descripción de lo que hiciste"
+    ```
+4.  **Desplegar:**
+    ```bash
+    git push origin main
+    ```
 
-- **Inicializar un nuevo repositorio:**
-  ```bash
-  git init
-  ```
+---
 
-### 2. **Comandos del Día a Día**
+### 2. Comandos de Inspección y Sincronización
 
-- **Ver el estado de tus cambios:**
-  ```bash
-  git status
-  ```
-
-- **Agregar archivos al área de preparación (staging):**
-  ```bash
-  git add .
-  ```
-
-- **Confirmar tus cambios (commit):**
-  ```bash
-  git commit -m "Descripción de los cambios"
-  ```
-
-### 3. **Trabajar con Repositorios Remotos (Clave para App Hosting)**
-
-- **Saber a qué repositorio estás conectado:**
+- **Ver dónde está el repositorio remoto:**
   ```bash
   git remote -v
   ```
-
-- **Subir cambios a la nube (esto gatilla el despliegue automático):**
-  ```bash
-  git push origin main
-  ```
-  *Nota: En App Hosting, al hacer este push, Firebase detectará los cambios y actualizará tu sitio web automáticamente.*
-
-### 4. **Gestión de Secretos en App Hosting**
-
-Si agregas una nueva funcionalidad que usa una API Key o secreto:
-1. Agrégala a `apphosting.yaml`.
-2. Súbela a Git.
-3. **Importante:** Debes crear el secreto manualmente en la Consola de Firebase > App Hosting > Configuración o en Google Cloud Secret Manager para que la app pueda leerlo.
-
-### 5. **Actualizar desde el Remoto**
-
-- **Descargar y fusionar los cambios más recientes:**
+- **Descargar cambios del servidor (si trabajas en varios equipos):**
   ```bash
   git pull origin main
+  ```
+- **Ver historial de commits:**
+  ```bash
+  git log --oneline
+  ```
+- **Deshacer cambios locales no confirmados:**
+  ```bash
+  git checkout -- .
   ```
 
 ---
 
-### Resumen del Flujo de Trabajo para Desplegar:
-1. `git add .` (Prepara los cambios)
-2. `git commit -m "mensaje"` (Guarda los cambios localmente)
-3. `git push origin main` (Envía a la nube y despliega automáticamente)
+### 3. Gestión de Secretos y Configuración
+
+Recuerda que si modificas `apphosting.yaml` para añadir nuevas variables de entorno o secretos:
+1. Realiza el `git push` normal.
+2. Asegúrate de que el secreto exista en la **Consola de Firebase > App Hosting > Configuración** o en **Google Cloud Secret Manager**.
+
+---
+
+### 4. Solución de Problemas Comunes
+
+- **Error de compilación:** Si el build falla en App Hosting, revisa los logs en la consola de Firebase. Usualmente se debe a errores de sintaxis o variables de entorno faltantes.
+- **Conflictos al hacer pull:** Si el servidor tiene cambios que tú no tienes, usa:
+  ```bash
+  git pull --rebase origin main
+  ```
