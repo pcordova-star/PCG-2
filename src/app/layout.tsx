@@ -16,7 +16,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     <html lang="es" suppressHydrationWarning>
       <body className={cn("font-body antialiased", inter.variable)}>
         <AuthProvider>
-          <Suspense fallback={<div>Cargando…</div>}>
+          <Suspense fallback={<div className="flex items-center justify-center min-h-screen">Cargando plataforma...</div>}>
             {children}
           </Suspense>
         </AuthProvider>
