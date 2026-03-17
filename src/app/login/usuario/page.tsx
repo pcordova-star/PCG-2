@@ -1,7 +1,6 @@
-// src/app/login/usuario/page.tsx
 "use client";
 
-import { FormEvent, useState, useEffect } from "react";
+import { FormEvent, useState, useEffect, Suspense } from "react";
 import { useAuth } from "@/context/AuthContext";
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Button } from "@/components/ui/button";
@@ -15,7 +14,7 @@ import { PcgLogo } from "@/components/branding/PcgLogo";
 
 const TERMS_ACCEPTANCE_KEY = "pcg_terms_accepted";
 
-export default function UsuarioLoginPage() {
+function UsuarioLoginForm() {
   const { login, user, loading, role } = useAuth();
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -27,19 +26,10 @@ export default function UsuarioLoginPage() {
   const [acceptedTerms, setAcceptedTerms] = useState(false);
 
   useEffect(() => {
-    // Comprobar si los términos ya fueron aceptados en este navegador
     if (localStorage.getItem(TERMS_ACCEPTANCE_KEY) === "true") {
       setAcceptedTerms(true);
     }
   }, []);
-
-  // La redirección post-login ahora es manejada por el AuthContext
-  useEffect(() => {
-    if (!loading && user) {
-        // AuthContext se encargará de la redirección
-    }
-  }, [user, loading, role, router]);
-
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
@@ -52,7 +42,6 @@ export default function UsuarioLoginPage() {
     try {
       await login(email, password);
       localStorage.setItem(TERMS_ACCEPTANCE_KEY, "true");
-      // La redirección ocurrirá automáticamente por el AuthContext
     } catch (err: any) {
       setError(err.message);
     } finally {
@@ -68,7 +57,6 @@ export default function UsuarioLoginPage() {
       localStorage.removeItem(TERMS_ACCEPTANCE_KEY);
     }
   };
-
 
   if (loading || user) {
     return (
@@ -131,4 +119,12 @@ export default function UsuarioLoginPage() {
         </Card>
     </div>
   );
+}
+
+export default function UsuarioLoginPage() {
+    return (
+        <Suspense fallback={<div className="flex items-center justify-center min-h-screen"><Loader2 className="animate-spin" /></div>}>
+            <UsuarioLoginForm />
+        </Suspense>
+    );
 }
