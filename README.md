@@ -18,13 +18,14 @@ Para actualizar la aplicación y ver los cambios en producción:
 
 Firebase detectará el push y construirá el contenedor de Next.js automáticamente.
 
-## Solución de Problemas: Variables de Entorno
-Si el despliegue falla por "Secret mal configurado":
-1. **Consola de Firebase:** Ve a **App Hosting > Tu Backend > Configuración > Entorno**.
-2. **Verificar Nombres:** Asegúrate de que las claves coincidan exactamente con `apphosting.yaml`:
+## Solución de Problemas: Variables de Entorno y Secretos
+Si el despliegue falla por "Secret mal configurado" o "apphosting.yaml no válido":
+1. **Consola de Firebase:** Ve a **App Hosting > Tu Backend > Configuración**.
+2. **Secretos:** Asegúrate de que existan los secretos con estos nombres EXACTOS:
    - `GENAI_API_KEY` (Tu llave de Gemini)
-   - `ADMIN_SERVICE_ACCOUNT` (El JSON de tu cuenta de servicio)
-   - `APP_BASE_URL` (https://pcgoperacion.com)
+   - `ADMIN_SERVICE_ACCOUNT` (El JSON completo de tu cuenta de servicio)
+3. **Permisos:** Si el secreto existe pero da error de acceso, ejecuta en tu terminal:
+   `firebase apphosting:secrets:grantaccess GENAI_API_KEY --backend nombre-de-tu-backend`
 
 ## Documentación del Desarrollador
 - [Manual de Comandos Git](/docs/GIT_COMMANDS_CHEATSHEET.md)

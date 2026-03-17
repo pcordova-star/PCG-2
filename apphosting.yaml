@@ -7,9 +7,12 @@ runConfig:
   cpu: 1
   memoryMiB: 512
 
-# Usamos variables de entorno planas tal como las configuraste en la consola
-# Al no usar la palabra 'secret', App Hosting buscará valores normales.
+# Declaración de variables de entorno. 
+# Para que el archivo sea válido, cada variable debe apuntar a un secreto o tener un valor fijo.
 env:
   - variable: GENAI_API_KEY
+    secret: GENAI_API_KEY
   - variable: ADMIN_SERVICE_ACCOUNT
+    secret: ADMIN_SERVICE_ACCOUNT
   - variable: APP_BASE_URL
+    value: "https://pcgoperacion.com"
