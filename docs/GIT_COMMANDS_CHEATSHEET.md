@@ -1,3 +1,4 @@
+
 # Git Commands Cheatsheet - PCG 2.0
 
 Este documento es una referencia rápida para los comandos de Git utilizados en este proyecto, optimizados para el flujo de trabajo con **Firebase App Hosting**.
@@ -27,13 +28,26 @@ En **App Hosting**, el despliegue es automático cada vez que subes cambios a la
 
 ---
 
-### 2. Comandos de Inspección y Sincronización
+### 2. Gestión de Secretos y Permisos (App Hosting)
+
+Si el build de App Hosting falla diciendo que no puede resolver un secreto (como `GOOGLE_GENAI_API_KEY`):
+
+1.  **Crear el secreto:** Ve a la consola de Firebase > App Hosting > Tu Backend > Configuración. Añade el secreto ahí.
+2.  **Otorgar acceso vía CLI (Recomendado):**
+    ```bash
+    firebase apphosting:secrets:grantaccess GOOGLE_GENAI_API_KEY --backend pcg-2-backend
+    ```
+    *(Reemplaza `pcg-2-backend` por el nombre de tu backend si es distinto)*.
+
+---
+
+### 3. Comandos de Inspección y Sincronización
 
 - **Ver dónde está el repositorio remoto:**
   ```bash
   git remote -v
   ```
-- **Descargar cambios del servidor (si trabajas en varios equipos):**
+- **Descargar cambios del servidor:**
   ```bash
   git pull origin main
   ```
@@ -41,24 +55,12 @@ En **App Hosting**, el despliegue es automático cada vez que subes cambios a la
   ```bash
   git log --oneline
   ```
-- **Deshacer cambios locales no confirmados:**
-  ```bash
-  git checkout -- .
-  ```
-
----
-
-### 3. Gestión de Secretos y Configuración
-
-Recuerda que si modificas `apphosting.yaml` para añadir nuevas variables de entorno o secretos:
-1. Realiza el `git push` normal.
-2. Asegúrate de que el secreto exista en la **Consola de Firebase > App Hosting > Configuración** o en **Google Cloud Secret Manager**.
 
 ---
 
 ### 4. Solución de Problemas Comunes
 
-- **Error de compilación:** Si el build falla en App Hosting, revisa los logs en la consola de Firebase. Usualmente se debe a errores de sintaxis o variables de entorno faltantes.
+- **Error de compilación:** Si el build falla en App Hosting, revisa los logs en la consola de Firebase. Usualmente se debe a errores de sintaxis o secretos sin permisos.
 - **Conflictos al hacer pull:** Si el servidor tiene cambios que tú no tienes, usa:
   ```bash
   git pull --rebase origin main
