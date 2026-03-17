@@ -3,21 +3,20 @@ import { Timestamp } from 'firebase-admin/firestore';
 
 // Solo inicializamos si no lo hemos hecho antes y si la variable de entorno existe.
 if (!admin.apps.length) {
-  if (process.env.FIREBASE_ADMIN_SERVICE_ACCOUNT) {
+  const serviceAccountVar = process.env.ADMIN_SERVICE_ACCOUNT;
+  
+  if (serviceAccountVar) {
     try {
-      const serviceAccount = JSON.parse(process.env.FIREBASE_ADMIN_SERVICE_ACCOUNT);
+      const serviceAccount = JSON.parse(serviceAccountVar);
       admin.initializeApp({
         credential: admin.credential.cert(serviceAccount),
-        // FIX: Reverting to the correct bucket name provided by the user.
         storageBucket: "pcg-2-8bf1b.firebasestorage.app",
       });
     } catch (e: any) {
       console.error('Error al inicializar Firebase Admin SDK:', e.message);
-      // No lanzamos error para permitir el build, pero logueamos el problema.
     }
   } else {
-    // Esto se mostrará durante el build de Vercel si la variable no está.
-    console.warn("ADVERTENCIA: FIREBASE_ADMIN_SERVICE_ACCOUNT no está configurada. Las API Routes que usan Firebase Admin no funcionarán.");
+    console.warn("ADVERTENCIA: ADMIN_SERVICE_ACCOUNT no está configurada.");
   }
 }
 

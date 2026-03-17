@@ -31,9 +31,9 @@ export async function POST(req: Request) {
         return NextResponse.json({ error: 'Faltan la imagen o las opciones de análisis.' }, { status: 400 });
     }
     
-    const API_KEY = process.env.GOOGLE_GENAI_API_KEY;
+    const API_KEY = process.env.GENAI_API_KEY;
     if (!API_KEY) {
-        console.error("La variable de entorno GOOGLE_GENAI_API_KEY no está configurada.");
+        console.error("La variable de entorno GENAI_API_KEY no está configurada.");
         return NextResponse.json({ error: 'Falta configuración de API Key en el servidor.' }, { status: 500 });
     }
     
